@@ -7,9 +7,9 @@
 - Planning time grows linearly with topic count (6.8ms at 1000 topics)
 - `ANY(large_array)` degrades to sequential scans
 
-## Solution: V3 — LATERAL per (topic, originator) on meta, deferred blob join
+## Solution: V3b — LATERAL per (topic, originator) on meta, per-originator blob join
 
-Each topic gets its own vector clock (`originator_id => sequence_id`). The query uses CROSS JOIN LATERAL over flattened cursor entries on the meta table only, collects and limits results in a CTE, then joins with blobs once for the final result set.
+Each topic gets its own vector clock (`originator_id => sequence_id`). The query uses CROSS JOIN LATERAL over flattened cursor entries on the meta table only, collects and limits results in a CTE, then joins with blobs via a per-originator LATERAL for optimal cache locality. Production validated at 5.3× faster than V0 on 9M rows.
 
 ### SQL
 
@@ -355,10 +355,113 @@ ORDER BY f.originator_node_id, f.originator_sequence_id;
 
 **V0c** (CTE topics, no UNION ALL): Removing the UNION ALL branch gives a modest improvement over V0b. Requires the caller to pre-populate all originators in the cursor. Simpler plan, but still uses hash/merge joins that scan more data than necessary.
 
-**V0d** (LATERAL per originator): The clear winner. With only 3 LATERAL iterations (one per originator), V0d achieves:
-- **O(1) planning with respect to topics** — the topic list is just a CTE, not expanded by the planner
-- **Partition pruning** — `originator_node_id = c.cursor_node_id` enables LIST partition pruning per iteration
-- **Minimal partition sensitivity** — planning time grows only with partition count (0.27ms at 1 part, 0.77ms at 10, 5.6ms at 50), not with topic count
-- **3–11x faster than V0** across all scenarios
+**V0d** (LATERAL per originator): Winner on small datasets (10K rows), but **catastrophically fails at production scale** — see production validation below. Each LATERAL iteration must scan all post-cursor rows for one originator in sequence order, filtering by topic via join. With millions of rows per originator and sparse topic matches, this degrades to full sequential scans.
 
-V0d is the recommended replacement for V0 in the single-cursor case. It requires the caller to pre-populate all originators in the cursor (same requirement as V0c and V3).
+At 10K rows V0d achieves O(1) planning with respect to topics and enables LIST partition pruning. But these advantages are irrelevant when the inner scan touches millions of rows.
+
+---
+
+## Production Validation (~9M rows, 7 originators, 22 leaf partitions)
+
+Testing against a production-scale database reveals that local 10K-row benchmarks were misleading for V0d. The database has 7 originators (0, 1, 10, 11, 13, 100, 200) with 30K–3.5M rows each, 22 leaf RANGE partitions, and cursors positioned at ~80% of each originator's max sequence.
+
+### Results (1000 topics, JIT disabled)
+
+| Variant | Planning | Execution | Total | vs V0 |
+|---|---|---|---|---|
+| V0 (original) | 9.3ms | 990ms | **999ms** | baseline |
+| V3 (per-topic cursor) | 6.8ms | 443ms | **450ms** | 2.2× faster |
+| **V3b (per-originator blob)** | **7.2ms** | **180ms** | **187ms** | **5.3× faster** |
+| V0d (LATERAL/originator) | — | >120,000ms | **timeout** | Disqualified |
+
+### V0 Breakdown (999ms)
+
+The meta filtering (416ms) breaks into two parts:
+- **First UNION ALL branch** (275ms): Scans all 22 partitions with `ANY(1000 topics)`. Index-only scans on `gem_topic_time_idx` find 8466 matching rows, then hash-joins with cursors → 1452 rows after cursor filter (7014 removed by join filter).
+- **Second UNION ALL branch** (141ms): Rescans all 22 partitions for the same 1000 topics, then anti-joins against cursors → **0 rows**. All 7 originators are known, making this branch pure waste.
+
+The **blob join** (572ms) dominates: 500 PK lookups at ~1.14ms each via nested loop with runtime partition pruning. Only partitions matching each row's originator are actually scanned.
+
+### V3 Breakdown (450ms)
+
+The **meta LATERAL** (49ms) iterates over 7000 (topic, originator) pairs. Each iteration performs index-only scans using `(topic, originator_node_id, originator_sequence_id)` index conditions. Most iterations return 0 rows instantly (topic doesn't exist for that originator after cursor). Only 833 total rows found across all iterations. Runtime partition pruning skips irrelevant partitions — most show "never executed."
+
+The **blob join** (393ms) fetches 500 rows at ~0.78ms each, similar to V0 but slightly faster due to different partition distribution of results.
+
+### V3b Breakdown (187ms)
+
+V3b wraps the blob join in a per-originator LATERAL, providing `originator_node_id` as a constant for partition pruning. The planner chose a Merge Join on `originator_node_id` between `filtered` and `originator_ids`, then fed the sorted result into the blob nested loop.
+
+The **meta LATERAL** (48ms) is unchanged from V3.
+
+The **blob join** (130ms) is 3× faster than V3. Per-lookup times dropped from 0.68–1.4ms to 0.19–0.63ms. The Merge Join sorts result rows by originator, so all blob lookups for originator 0 happen consecutively, then all for originator 10, etc. This maximizes cache locality on the partitioned blob table — each originator's pages stay hot for all its lookups instead of being evicted between interleaved lookups for other originators.
+
+```sql
+WITH cursor_entries AS (
+    SELECT t.topic, cd.node_id, cd.seq_id
+    FROM topics AS t
+    CROSS JOIN (
+        SELECT x.node_id, y.seq_id
+        FROM unnest(@cursor_node_ids::INT[]) WITH ORDINALITY AS x(node_id, ord)
+        JOIN unnest(@cursor_seq_ids::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord) USING (ord)
+    ) AS cd
+),
+filtered AS (
+    SELECT sub.originator_node_id,
+           sub.originator_sequence_id,
+           sub.gateway_time,
+           sub.topic
+    FROM cursor_entries AS ce
+    CROSS JOIN LATERAL (
+        SELECT m.originator_node_id,
+               m.originator_sequence_id,
+               m.gateway_time,
+               m.topic
+        FROM gateway_envelopes_meta AS m
+        WHERE m.topic = ce.topic
+          AND m.originator_node_id = ce.node_id
+          AND m.originator_sequence_id > ce.seq_id
+        ORDER BY m.originator_sequence_id
+        LIMIT @rows_per_entry
+    ) AS sub
+    ORDER BY sub.originator_node_id, sub.originator_sequence_id
+    LIMIT @row_limit
+),
+originator_ids AS (
+    SELECT DISTINCT originator_node_id FROM filtered
+)
+SELECT bl.originator_node_id,
+       bl.originator_sequence_id,
+       bl.gateway_time,
+       bl.topic,
+       bl.originator_envelope
+FROM originator_ids AS oi
+CROSS JOIN LATERAL (
+    SELECT f.originator_node_id,
+           f.originator_sequence_id,
+           f.gateway_time,
+           f.topic,
+           b.originator_envelope
+    FROM filtered AS f
+    JOIN gateway_envelope_blobs AS b
+        ON b.originator_node_id = oi.originator_node_id
+       AND b.originator_sequence_id = f.originator_sequence_id
+    WHERE f.originator_node_id = oi.originator_node_id
+) AS bl
+ORDER BY bl.originator_node_id, bl.originator_sequence_id;
+```
+
+### Why V0d Fails at Scale
+
+V0d's access pattern is fundamentally wrong for large datasets. Each of 7 LATERAL iterations must:
+
+1. Scan all rows for one originator after the cursor position (100K–700K rows per originator at 80% cursor)
+2. Order by `originator_sequence_id` (requires full sort or index scan)
+3. Filter each row against 1000 topics via hash join with `topic_list`
+4. Stop after finding 500 matches
+
+With sparse topic selectivity (~1000 topics out of potentially millions of distinct topics), the query scans through hundreds of thousands of rows per originator before finding enough matches. Total rows scanned: millions.
+
+V3 avoids this by inverting the access pattern: it starts from (topic, originator) pairs and seeks directly via index. Each of 7000 iterations does a single index probe, most returning 0 rows in microseconds.
+
+**Lesson**: Small-dataset benchmarks (10K rows) cannot detect sequential scan problems. At 10K rows, scanning everything is fast. At 9M rows, the same scan pattern is 10,000× slower. Always validate against production-scale data.

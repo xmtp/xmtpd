@@ -1,0 +1,146 @@
+﻿QUERY PLAN
+Nested Loop  (cost=555248.40..579362.15 rows=112743 width=516) (actual time=49.598..179.121 rows=500 loops=1)
+"  Join Filter: (b.originator_node_id = filtered.originator_node_id)"
+"  CTE filtered"
+'    ->  Limit  (cost=555246.73..555247.98 rows=500 width=47) (actual time=47.938..48.060 rows=500 loops=1)
+'          ->  Sort  (cost=555246.73..555484.73 rows=95200 width=47) (actual time=47.937..48.008 rows=500 loops=1)
+"                Sort Key: m.originator_node_id, m.originator_sequence_id"
+"                Sort Method: quicksort  Memory: 83kB"
+'                ->  Nested Loop  (cost=57.69..550503.02 rows=95200 width=47) (actual time=0.340..47.603 rows=831 loops=1)
+'                      ->  Nested Loop  (cost=0.01..142.88 rows=9520 width=44) (actual time=0.031..2.025 rows=7000 loops=1)
+'                            ->  Seq Scan on test_topics t  (cost=0.00..23.60 rows=1360 width=32) (actual time=0.012..0.152 rows=1000 loops=1)
+'                            ->  Materialize  (cost=0.01..0.30 rows=7 width=12) (actual time=0.000..0.001 rows=7 loops=1000)
+'                                  ->  Merge Join  (cost=0.01..0.27 rows=7 width=12) (actual time=0.016..0.026 rows=7 loops=1)
+"                                        Merge Cond: (x.ord = y.ord)"
+'                                        ->  Function Scan on unnest x  (cost=0.00..0.07 rows=7 width=12) (actual time=0.008..0.009 rows=7 loops=1)
+'                                        ->  Materialize  (cost=0.00..0.09 rows=7 width=16) (actual time=0.004..0.008 rows=7 loops=1)
+'                                              ->  Function Scan on unnest y  (cost=0.00..0.07 rows=7 width=16) (actual time=0.003..0.004 rows=7 loops=1)
+'                      ->  Limit  (cost=57.69..57.71 rows=10 width=47) (actual time=0.006..0.006 rows=0 loops=7000)
+'                            ->  Sort  (cost=57.69..57.84 rows=61 width=47) (actual time=0.006..0.006 rows=0 loops=7000)
+"                                  Sort Key: m.originator_sequence_id"
+"                                  Sort Method: quicksort  Memory: 25kB"
+'                                  ->  Append  (cost=0.42..56.37 rows=61 width=47) (actual time=0.004..0.004 rows=0 loops=7000)
+'                                        ->  Index Only Scan using gateway_envelopes_meta_o0_s0__topic_gateway_time_originator_idx on gateway_envelopes_meta_o0_s0_1000000 m_1  (cost=0.42..2.66 rows=1 width=38) (never executed)
+"                                              Index Cond: ((topic = t.topic) AND (originator_node_id = x.node_id) AND (originator_sequence_id > y.seq_id))"
+"                                              Heap Fetches: 0"
+'                                        ->  Index Only Scan using gateway_envelopes_meta_o0_s10_topic_gateway_time_originator_idx on gateway_envelopes_meta_o0_s1000000_2000000 m_2  (cost=0.42..2.66 rows=1 width=38) (never executed)
+"                                              Index Cond: ((topic = t.topic) AND (originator_node_id = x.node_id) AND (originator_sequence_id > y.seq_id))"
+"                                              Heap Fetches: 0"
+'                                        ->  Index Only Scan using gateway_envelopes_meta_o0_s20_topic_gateway_time_originator_idx on gateway_envelopes_meta_o0_s2000000_3000000 m_3  (cost=0.42..2.66 rows=1 width=38) (never executed)
+"                                              Index Cond: ((topic = t.topic) AND (originator_node_id = x.node_id) AND (originator_sequence_id > y.seq_id))"
+"                                              Heap Fetches: 0"
+'                                        ->  Index Only Scan using gateway_envelopes_meta_o0_s30_topic_gateway_time_originator_idx on gateway_envelopes_meta_o0_s3000000_4000000 m_4  (cost=0.42..2.66 rows=1 width=38) (never executed)
+"                                              Index Cond: ((topic = t.topic) AND (originator_node_id = x.node_id) AND (originator_sequence_id > y.seq_id))"
+"                                              Heap Fetches: 0"
+'                                        ->  Index Only Scan using gateway_envelopes_meta_o0_s40_topic_gateway_time_originator_idx on gateway_envelopes_meta_o0_s4000000_5000000 m_5  (cost=0.42..2.65 rows=1 width=38) (actual time=0.002..0.002 rows=0 loops=1000)
+"                                              Index Cond: ((topic = t.topic) AND (originator_node_id = x.node_id) AND (originator_sequence_id > y.seq_id))"
+"                                              Heap Fetches: 11"
+'                                        ->  Index Only Scan using gateway_envelopes_meta_o0_s50_topic_gateway_time_originator_idx on gateway_envelopes_meta_o0_s5000000_6000000 m_6  (cost=0.42..2.65 rows=1 width=38) (actual time=0.002..0.002 rows=0 loops=1000)
+"                                              Index Cond: ((topic = t.topic) AND (originator_node_id = x.node_id) AND (originator_sequence_id > y.seq_id))"
+"                                              Heap Fetches: 12"
+'                                        ->  Index Only Scan using gateway_envelopes_meta_o1_s0__topic_gateway_time_originator_idx on gateway_envelopes_meta_o1_s0_1000000 m_7  (cost=0.42..2.71 rows=2 width=54) (never executed)
+"                                              Index Cond: ((topic = t.topic) AND (originator_node_id = x.node_id) AND (originator_sequence_id > y.seq_id))"
+"                                              Heap Fetches: 0"
+'                                        ->  Index Only Scan using gateway_envelopes_meta_o1_s10_topic_gateway_time_originator_idx on gateway_envelopes_meta_o1_s1000000_2000000 m_8  (cost=0.42..2.66 rows=1 width=54) (never executed)
+"                                              Index Cond: ((topic = t.topic) AND (originator_node_id = x.node_id) AND (originator_sequence_id > y.seq_id))"
+"                                              Heap Fetches: 0"
+'                                        ->  Index Only Scan using gateway_envelopes_meta_o1_s20_topic_gateway_time_originator_idx on gateway_envelopes_meta_o1_s2000000_3000000 m_9  (cost=0.42..2.71 rows=2 width=54) (actual time=0.002..0.002 rows=0 loops=1000)
+"                                              Index Cond: ((topic = t.topic) AND (originator_node_id = x.node_id) AND (originator_sequence_id > y.seq_id))"
+"                                              Heap Fetches: 0"
+'                                        ->  Index Only Scan using gateway_envelopes_meta_o1_s30_topic_gateway_time_originator_idx on gateway_envelopes_meta_o1_s3000000_4000000 m_10  (cost=0.42..2.67 rows=1 width=54) (actual time=0.002..0.002 rows=0 loops=1000)
+"                                              Index Cond: ((topic = t.topic) AND (originator_node_id = x.node_id) AND (originator_sequence_id > y.seq_id))"
+"                                              Heap Fetches: 0"
+'                                        ->  Index Only Scan using gateway_envelopes_meta_o10_s1_topic_gateway_time_originator_idx on gateway_envelopes_meta_o10_s19000000_20000000 m_11  (cost=0.42..2.75 rows=3 width=38) (never executed)
+"                                              Index Cond: ((topic = t.topic) AND (originator_node_id = x.node_id) AND (originator_sequence_id > y.seq_id))"
+"                                              Heap Fetches: 0"
+'                                        ->  Index Only Scan using gateway_envelopes_meta_o10_s2_topic_gateway_time_originator_idx on gateway_envelopes_meta_o10_s20000000_21000000 m_12  (cost=0.42..2.91 rows=6 width=38) (never executed)
+"                                              Index Cond: ((topic = t.topic) AND (originator_node_id = x.node_id) AND (originator_sequence_id > y.seq_id))"
+"                                              Heap Fetches: 0"
+'                                        ->  Index Only Scan using gateway_envelopes_meta_o10_s2_topic_gateway_time_originato_idx2 on gateway_envelopes_meta_o10_s21000000_22000000 m_13  (cost=0.42..2.94 rows=7 width=38) (never executed)
+"                                              Index Cond: ((topic = t.topic) AND (originator_node_id = x.node_id) AND (originator_sequence_id > y.seq_id))"
+"                                              Heap Fetches: 0"
+'                                        ->  Index Only Scan using gateway_envelopes_meta_o10_s2_topic_gateway_time_originato_idx4 on gateway_envelopes_meta_o10_s22000000_23000000 m_14  (cost=0.42..2.75 rows=3 width=38) (actual time=0.003..0.003 rows=1 loops=1000)
+"                                              Index Cond: ((topic = t.topic) AND (originator_node_id = x.node_id) AND (originator_sequence_id > y.seq_id))"
+"                                              Heap Fetches: 101"
+'                                        ->  Seq Scan on gateway_envelopes_meta_o11_s108000000_109000000 m_15  (cost=0.00..0.00 rows=1 width=54) (never executed)
+"                                              Filter: ((originator_sequence_id > y.seq_id) AND (topic = t.topic) AND (originator_node_id = x.node_id))"
+'                                        ->  Bitmap Heap Scan on gateway_envelopes_meta_o11_s109000000_110000000 m_16  (cost=1.36..2.48 rows=1 width=54) (never executed)
+"                                              Recheck Cond: (originator_node_id = x.node_id)"
+"                                              Filter: ((originator_sequence_id > y.seq_id) AND (topic = t.topic))"
+'                                              ->  Bitmap Index Scan on gateway_envelopes_meta_o11_s109000000_11_originator_node_id_idx  (cost=0.00..1.36 rows=1 width=0) (never executed)
+"                                                    Index Cond: (originator_node_id = x.node_id)"
+'                                        ->  Index Only Scan using gateway_envelopes_meta_o11_s1_topic_gateway_time_originato_idx4 on gateway_envelopes_meta_o11_s110000000_111000000 m_17  (cost=0.55..3.37 rows=13 width=54) (never executed)
+"                                              Index Cond: ((topic = t.topic) AND (originator_node_id = x.node_id) AND (originator_sequence_id > y.seq_id))"
+"                                              Heap Fetches: 0"
+'                                        ->  Index Only Scan using gateway_envelopes_meta_o11_s1_topic_gateway_time_originato_idx6 on gateway_envelopes_meta_o11_s111000000_112000000 m_18  (cost=0.42..4.24 rows=11 width=54) (actual time=0.002..0.002 rows=0 loops=1000)
+"                                              Index Cond: ((topic = t.topic) AND (originator_node_id = x.node_id) AND (originator_sequence_id > y.seq_id))"
+"                                              Heap Fetches: 0"
+'                                        ->  Seq Scan on gateway_envelopes_meta_o13_s2000000_3000000 m_19  (cost=0.00..0.00 rows=1 width=54) (never executed)
+"                                              Filter: ((originator_sequence_id > y.seq_id) AND (topic = t.topic) AND (originator_node_id = x.node_id))"
+'                                        ->  Index Only Scan using gateway_envelopes_meta_o13_s3_topic_gateway_time_originator_idx on gateway_envelopes_meta_o13_s3000000_4000000 m_20  (cost=0.42..2.65 rows=1 width=54) (actual time=0.002..0.002 rows=0 loops=1000)
+"                                              Index Cond: ((topic = t.topic) AND (originator_node_id = x.node_id) AND (originator_sequence_id > y.seq_id))"
+"                                              Heap Fetches: 0"
+'                                        ->  Index Only Scan using gateway_envelopes_meta_o100_s_topic_gateway_time_originato_idx1 on gateway_envelopes_meta_o100_s0_1000000 m_21  (cost=0.41..2.64 rows=1 width=51) (actual time=0.002..0.002 rows=0 loops=1000)
+"                                              Index Cond: (topic = t.topic)"
+"                                              Filter: ((originator_sequence_id > y.seq_id) AND (originator_node_id = x.node_id))"
+"                                              Rows Removed by Filter: 0"
+"                                              Heap Fetches: 2"
+'                                        ->  Index Only Scan using gateway_envelopes_meta_o200_s_topic_gateway_time_originato_idx1 on gateway_envelopes_meta_o200_s0_1000000 m_22  (cost=0.41..2.64 rows=1 width=50) (actual time=0.002..0.002 rows=0 loops=1000)
+"                                              Index Cond: (topic = t.topic)"
+"                                              Filter: ((originator_sequence_id > y.seq_id) AND (originator_node_id = x.node_id))"
+"                                              Rows Removed by Filter: 0"
+"                                              Heap Fetches: 1"
+'  ->  Merge Join  (cost=0.00..28.00 rows=500 width=56) (actual time=47.945..48.409 rows=500 loops=1)
+"        Merge Cond: (f.originator_node_id = filtered.originator_node_id)"
+'        ->  CTE Scan on filtered f  (cost=0.00..10.00 rows=500 width=52) (actual time=47.940..48.216 rows=500 loops=1)
+'        ->  Unique  (cost=0.00..11.25 rows=200 width=4) (actual time=0.001..0.030 rows=2 loops=1)
+'              ->  CTE Scan on filtered  (cost=0.00..10.00 rows=500 width=4) (actual time=0.001..0.018 rows=138 loops=1)
+'  ->  Append  (cost=0.42..47.90 rows=22 width=476) (actual time=0.260..0.260 rows=1 loops=500)
+'        ->  Index Scan using gateway_envelope_blobs_o0_s0_1000000_pkey on gateway_envelope_blobs_o0_s0_1000000 b_1  (cost=0.42..2.48 rows=1 width=469) (never executed)
+"              Index Cond: ((originator_node_id = f.originator_node_id) AND (originator_sequence_id = f.originator_sequence_id))"
+'        ->  Index Scan using gateway_envelope_blobs_o0_s1000000_2000000_pkey on gateway_envelope_blobs_o0_s1000000_2000000 b_2  (cost=0.42..2.46 rows=1 width=569) (never executed)
+"              Index Cond: ((originator_node_id = f.originator_node_id) AND (originator_sequence_id = f.originator_sequence_id))"
+'        ->  Index Scan using gateway_envelope_blobs_o0_s2000000_3000000_pkey on gateway_envelope_blobs_o0_s2000000_3000000 b_3  (cost=0.42..2.43 rows=1 width=650) (never executed)
+"              Index Cond: ((originator_node_id = f.originator_node_id) AND (originator_sequence_id = f.originator_sequence_id))"
+'        ->  Index Scan using gateway_envelope_blobs_o0_s3000000_4000000_pkey on gateway_envelope_blobs_o0_s3000000_4000000 b_4  (cost=0.42..2.43 rows=1 width=604) (never executed)
+"              Index Cond: ((originator_node_id = f.originator_node_id) AND (originator_sequence_id = f.originator_sequence_id))"
+'        ->  Index Scan using gateway_envelope_blobs_o0_s4000000_5000000_pkey on gateway_envelope_blobs_o0_s4000000_5000000 b_5  (cost=0.42..2.37 rows=1 width=328) (actual time=0.634..0.634 rows=1 loops=41)
+"              Index Cond: ((originator_node_id = f.originator_node_id) AND (originator_sequence_id = f.originator_sequence_id))"
+'        ->  Index Scan using gateway_envelope_blobs_o0_s5000000_6000000_pkey on gateway_envelope_blobs_o0_s5000000_6000000 b_6  (cost=0.42..2.24 rows=1 width=430) (actual time=0.373..0.373 rows=1 loops=96)
+"              Index Cond: ((originator_node_id = f.originator_node_id) AND (originator_sequence_id = f.originator_sequence_id))"
+'        ->  Index Scan using gateway_envelope_blobs_o1_s0_1000000_pkey on gateway_envelope_blobs_o1_s0_1000000 b_7  (cost=0.42..2.57 rows=1 width=489) (never executed)
+"              Index Cond: ((originator_node_id = f.originator_node_id) AND (originator_sequence_id = f.originator_sequence_id))"
+'        ->  Index Scan using gateway_envelope_blobs_o1_s1000000_2000000_pkey on gateway_envelope_blobs_o1_s1000000_2000000 b_8  (cost=0.42..2.58 rows=1 width=580) (never executed)
+"              Index Cond: ((originator_node_id = f.originator_node_id) AND (originator_sequence_id = f.originator_sequence_id))"
+'        ->  Index Scan using gateway_envelope_blobs_o1_s2000000_3000000_pkey on gateway_envelope_blobs_o1_s2000000_3000000 b_9  (cost=0.42..2.58 rows=1 width=484) (never executed)
+"              Index Cond: ((originator_node_id = f.originator_node_id) AND (originator_sequence_id = f.originator_sequence_id))"
+'        ->  Index Scan using gateway_envelope_blobs_o1_s3000000_4000000_pkey on gateway_envelope_blobs_o1_s3000000_4000000 b_10  (cost=0.42..2.52 rows=1 width=441) (never executed)
+"              Index Cond: ((originator_node_id = f.originator_node_id) AND (originator_sequence_id = f.originator_sequence_id))"
+'        ->  Index Scan using gateway_envelope_blobs_o10_s19000000_20000000_pkey on gateway_envelope_blobs_o10_s19000000_20000000 b_11  (cost=0.42..2.50 rows=1 width=548) (never executed)
+"              Index Cond: ((originator_node_id = f.originator_node_id) AND (originator_sequence_id = f.originator_sequence_id))"
+'        ->  Index Scan using gateway_envelope_blobs_o10_s20000000_21000000_pkey on gateway_envelope_blobs_o10_s20000000_21000000 b_12  (cost=0.42..2.56 rows=1 width=533) (never executed)
+"              Index Cond: ((originator_node_id = f.originator_node_id) AND (originator_sequence_id = f.originator_sequence_id))"
+'        ->  Index Scan using gateway_envelope_blobs_o10_s21000000_22000000_pkey on gateway_envelope_blobs_o10_s21000000_22000000 b_13  (cost=0.42..2.56 rows=1 width=557) (never executed)
+"              Index Cond: ((originator_node_id = f.originator_node_id) AND (originator_sequence_id = f.originator_sequence_id))"
+'        ->  Index Scan using gateway_envelope_blobs_o10_s22000000_23000000_pkey on gateway_envelope_blobs_o10_s22000000_23000000 b_14  (cost=0.42..2.52 rows=1 width=530) (actual time=0.186..0.186 rows=1 loops=363)
+"              Index Cond: ((originator_node_id = f.originator_node_id) AND (originator_sequence_id = f.originator_sequence_id))"
+'        ->  Seq Scan on gateway_envelope_blobs_o11_s108000000_109000000 b_15  (cost=0.00..0.00 rows=1 width=30) (never executed)
+"              Filter: ((originator_sequence_id = f.originator_sequence_id) AND (originator_node_id = f.originator_node_id))"
+'        ->  Bitmap Heap Scan on gateway_envelope_blobs_o11_s109000000_110000000 b_16  (cost=1.29..2.41 rows=1 width=32) (never executed)
+"              Recheck Cond: ((originator_node_id = f.originator_node_id) AND (originator_sequence_id = f.originator_sequence_id))"
+'              ->  Bitmap Index Scan on gateway_envelope_blobs_o11_s109000000_110000000_pkey  (cost=0.00..1.29 rows=1 width=0) (never executed)
+"                    Index Cond: ((originator_node_id = f.originator_node_id) AND (originator_sequence_id = f.originator_sequence_id))"
+'        ->  Index Scan using gateway_envelope_blobs_o11_s110000000_111000000_pkey on gateway_envelope_blobs_o11_s110000000_111000000 b_17  (cost=0.42..2.55 rows=1 width=30) (never executed)
+"              Index Cond: ((originator_node_id = f.originator_node_id) AND (originator_sequence_id = f.originator_sequence_id))"
+'        ->  Index Scan using gateway_envelope_blobs_o11_s111000000_112000000_pkey on gateway_envelope_blobs_o11_s111000000_112000000 b_18  (cost=0.42..2.46 rows=1 width=30) (never executed)
+"              Index Cond: ((originator_node_id = f.originator_node_id) AND (originator_sequence_id = f.originator_sequence_id))"
+'        ->  Seq Scan on gateway_envelope_blobs_o13_s2000000_3000000 b_19  (cost=0.00..0.00 rows=1 width=1779) (never executed)
+"              Filter: ((originator_sequence_id = f.originator_sequence_id) AND (originator_node_id = f.originator_node_id))"
+'        ->  Index Scan using gateway_envelope_blobs_o13_s3000000_4000000_pkey on gateway_envelope_blobs_o13_s3000000_4000000 b_20  (cost=0.42..2.23 rows=1 width=1652) (never executed)
+"              Index Cond: ((originator_node_id = f.originator_node_id) AND (originator_sequence_id = f.originator_sequence_id))"
+'        ->  Index Scan using gateway_envelope_blobs_o100_s0_1000000_pkey on gateway_envelope_blobs_o100_s0_1000000 b_21  (cost=0.29..1.71 rows=1 width=1626) (never executed)
+"              Index Cond: ((originator_node_id = f.originator_node_id) AND (originator_sequence_id = f.originator_sequence_id))"
+'        ->  Index Scan using gateway_envelope_blobs_o200_s0_1000000_pkey on gateway_envelope_blobs_o200_s0_1000000 b_22  (cost=0.29..1.63 rows=1 width=1552) (never executed)
+"              Index Cond: ((originator_node_id = f.originator_node_id) AND (originator_sequence_id = f.originator_sequence_id))"
+Planning Time: 7.239 ms
+Execution Time: 179.771 ms

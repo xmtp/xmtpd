@@ -321,8 +321,7 @@ func TestSubscriptionDeliversContiguousSequencesPerOriginator(t *testing.T) {
 		},
 	})
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	// Start polling at seq=1, 1 row per poll so we can observe ordering across batches.
 	sub := db.NewDBSubscription(

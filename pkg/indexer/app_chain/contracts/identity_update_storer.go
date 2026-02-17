@@ -332,13 +332,18 @@ func (s *IdentityUpdateStorer) validateIdentityUpdate(
 	inboxID [32]byte,
 	clientEnvelope *envelopes.ClientEnvelope,
 ) (*mlsvalidate.AssociationStateResult, re.RetryableError) {
+	// Identity updates are exclusively produced by IdentityUpdateOriginatorID,
+	// so passing a single originator is safe — no other originator writes to
+	// identity update topics, and FillMissingOriginators is not needed.
 	gatewayEnvelopes, err := querier.SelectGatewayEnvelopesByTopics(
 		ctx,
 		queries.SelectGatewayEnvelopesByTopicsParams{
 			Topics: []db.Topic{
 				topic.NewTopic(topic.TopicKindIdentityUpdatesV1, inboxID[:]).Bytes(),
 			},
-			RowLimit: 256,
+			RowLimit:          256,
+			CursorNodeIds:     []int32{constants.IdentityUpdateOriginatorID},
+			CursorSequenceIds: []int64{0},
 		},
 	)
 	// No rows returned means this is a new identity.

@@ -295,3 +295,185 @@ Before performance testing, verify result equivalence:
 3. Quantify the over-fetch cost of the hybrid approach (V4)
 4. Determine whether `gem_topic_orig_seq_idx` eliminates V3b's hot-spot problem on skewed partitions
 5. Produce updated performance data for the design doc
+
+## 10M Row Results
+
+### Test Configuration
+
+- **Database**: PostgreSQL in Docker (local), 10M rows, 3 originators (76%/15%/7.6% skew)
+- **50K topics**, 500 subscribed, power-law frequency distribution
+- **14 RANGE partitions** per table (meta and blobs)
+- **Warm cache**: 3 warm-up passes before each measured EXPLAIN ANALYZE
+- **JIT disabled** for consistent timing
+
+### Without Extra Index
+
+| Cursor | Variant | Plan (ms) | Exec (ms) | Notes |
+|--------|---------|-----------|-----------|-------|
+| **80%** | V0_baseline | 9.5 | 1,466 | Production query |
+| | V0c_no_union | 1.0 | 1,024 | CTE topics helps planning, not execution |
+| | **V3b_lateral** | **0.4** | **321** | **Best per-topic cursor variant** |
+| | V4_hybrid | 0.7 | 1,030 | Coarse scan too expensive |
+| | V5_temp_table | 0.6 | 352 | Close to V3b |
+| | V6_lateral_orig | 0.4 | 223 | Best shared-cursor, but no per-topic |
+| **20%** | V0_baseline | 9.3 | 1,739 | More data to scan |
+| | V0c_no_union | 1.0 | 1,162 | |
+| | **V3b_lateral** | **0.4** | **603** | Still fastest per-topic |
+| | V4_hybrid | 0.7 | 1,335 | Floor cursor too low, scans too much |
+| | V5_temp_table | 0.6 | 1,104 | Worse without index |
+| | V6_lateral_orig | 0.5 | 748 | |
+| **Mixed** | V0_baseline | 34.5 | 1,845 | Planning time spike |
+| | V0c_no_union | 1.0 | 1,191 | |
+| | **V3b_lateral** | **0.5** | **412** | Per-topic cursors shine here |
+| | V4_hybrid | 0.8 | 1,328 | |
+| | V5_temp_table | 0.6 | 718 | |
+| | V6_lateral_orig | 0.5 | 759 | |
+
+### With `gem_topic_orig_seq_idx` Index
+
+Index: `(topic, originator_node_id, originator_sequence_id) INCLUDE (gateway_time)`
+
+| Cursor | Variant | Plan (ms) | Exec (ms) | vs. No Index |
+|--------|---------|-----------|-----------|--------------|
+| **80%** | V0_with_idx | 9.9 | 1,321 | 1.1× faster |
+| | **V3b_with_idx** | **0.5** | **22.9** | **14× faster** |
+| | V4_with_idx | 0.9 | 971 | 1.1× faster |
+| | V6_with_idx | 0.5 | 264 | ~same |
+| **20%** | V0_with_idx | 9.7 | 1,680 | ~same |
+| | **V3b_with_idx** | **0.5** | **22.5** | **27× faster** |
+| | V4_with_idx | 0.9 | 1,417 | ~same |
+| | V6_with_idx | 0.5 | 810 | ~same |
+| **Mixed** | V0_with_idx | 10.1 | 1,628 | ~same |
+| | **V3b_with_idx** | **0.5** | **22.4** | **18× faster** |
+| | V4_with_idx | 0.9 | 1,279 | ~same |
+| | V6_with_idx | 0.5 | 700 | ~same |
+
+### Correctness Verification
+
+| Check | Result |
+|-------|--------|
+| V0c matches V0 | ✅ Identical rows |
+| V3b ≥ V0 rows | ✅ Superset confirmed |
+| V4 capture rate (80% uniform) | ✅ 100% (500/500) |
+| V5 matches V3b | ✅ Identical rows |
+
+### Analysis
+
+#### 1. V3b + Index is the clear winner
+
+V3b with `gem_topic_orig_seq_idx` achieves **22-23ms execution** regardless of cursor position — a **14-27× improvement** over V3b without the index, and **57-75× faster** than V0 baseline.
+
+The index enables **index-only scans** on each partition's LATERAL subquery, with zero heap fetches. The covering `INCLUDE (gateway_time)` is critical — without it, each per-(topic, originator) probe would need a heap fetch.
+
+#### 2. V4 (hybrid) does not achieve its goal
+
+V4 was designed to combine V0's efficient single-pass scan with per-topic cursor precision. In practice, the coarse scan (using floor cursors) scans too many rows — the floor cursor is the minimum across all topics, so the 3× over-fetch limit is insufficient to cover the gap. V4's execution time (~1,000-1,300ms) is comparable to V0c and doesn't benefit from the per-topic precision.
+
+#### 3. V5 (temp table) is viable but V3b+index is better
+
+V5 achieves good results at 80% cursors (352ms, close to V3b's 321ms) but degrades at 20% cursors (1,104ms). The temp table overhead (CREATE + INSERT + ANALYZE) doesn't pay for itself when V3b+index does 22ms directly.
+
+#### 4. V6 (LATERAL per originator) works but is shared-cursor only
+
+V6 (reusing queryV0dSQL) performs well (223-759ms) but only supports shared cursors, not per-topic. It's competitive for the shared-cursor use case but doesn't solve the per-topic cursor problem.
+
+#### 5. V0 baseline planning time degrades with mixed cursors
+
+V0's planning time spiked to 34.5ms with mixed cursors (vs 9.5ms at 80%). V0c eliminates this (~1ms consistently) but execution remains slow.
+
+### Recommendation
+
+**Deploy V3b + `gem_topic_orig_seq_idx`** for the per-topic cursor query path:
+
+- **22ms execution** is fast enough for real-time subscription queries
+- **0.5ms planning** is negligible
+- The index adds write overhead but the covering columns make it index-only (no heap fetches)
+- Per-topic cursors eliminate redundant re-fetching, reducing bandwidth
+- Works consistently across all cursor positions (80%, 20%, mixed)
+
+**Action items:**
+1. Add migration to create `gem_topic_orig_seq_idx` on `gateway_envelopes_meta`
+2. Implement V3b as the production per-topic cursor query in `envelopes_v2.sql`
+3. Monitor index size and write amplification in production
+4. Drop redundant indexes (see analysis below)
+
+### Index Drop Analysis
+
+When adding `gem_topic_orig_seq_idx`, three existing indexes on `gateway_envelopes_meta` were evaluated for removal. Every `.sql` file in `pkg/db/sqlc/` and all Go files with raw SQL were audited.
+
+#### Queries Touching `gateway_envelopes_meta`
+
+| # | Query | File | WHERE Filters | ORDER BY |
+|---|-------|------|---------------|----------|
+| 1 | `SelectGatewayEnvelopesByTopics` (Branch A) | envelopes_v2.sql:108 | `topic = ANY(...)`, `originator_node_id = ANY(...)`, `originator_sequence_id > cursor` | `originator_node_id, originator_sequence_id` |
+| 2 | `SelectGatewayEnvelopesByTopics` (Branch B) | envelopes_v2.sql:138 | `topic = ANY(...)`, `originator_sequence_id > 0` | `originator_node_id, originator_sequence_id` |
+| 3 | `SelectNewestFromTopics` | envelopes_v2.sql:36 | `topic = ANY(...)` | `topic, gateway_time DESC` |
+| 4 | `SelectGatewayEnvelopesBySingleOriginator` | envelopes_v2.sql:55 | `originator_node_id = @val`, `originator_sequence_id > cursor` | `originator_sequence_id` |
+| 5 | `SelectGatewayEnvelopesByOriginators` (LATERAL) | envelopes_v2.sql:72 | `originator_node_id = o.node_id`, `originator_sequence_id > cursor` | `originator_sequence_id` |
+| 6 | `SelectGatewayEnvelopesUnfiltered` | envelopes_v2.sql:166 | `originator_sequence_id > cursor` (via view) | `originator_node_id, originator_sequence_id` |
+| 7 | `CountExpiredEnvelopes` | prune.sql:1 | `expiry IS NOT NULL`, `expiry < now()`, `originator_sequence_id <= val` | — |
+| 8 | `DeleteExpiredEnvelopesBatch` | prune.sql:16 | `expiry IS NOT NULL`, `expiry < now()`, `originator_sequence_id <= val` | `expiry, originator_node_id, originator_sequence_id` |
+| 9 | `CountExpiredMigratedEnvelopes` | prune.sql:40 | `expiry IS NOT NULL`, `expiry < now()`, `originator_node_id BETWEEN 10 AND 14` | — |
+| 10 | `DeleteExpiredMigratedEnvelopesBatch` | prune.sql:47 | same as #9 | `expiry, originator_node_id, originator_sequence_id` |
+| 11 | `InsertGatewayEnvelope` | envelopes_v2.sql:1 | — (INSERT) | — |
+| 12 | `InsertGatewayEnvelopeBatch...` | envelopes_v2.sql:184 | — (INSERT via function) | — |
+
+No other `.sql` files or Go files contain queries against `gateway_envelopes_meta`.
+
+#### 1. `gem_topic_time_idx` — CAN DROP
+
+**Definition:** `(topic, gateway_time, originator_node_id, originator_sequence_id)`
+
+**Only consumer:** `SelectGatewayEnvelopesByTopics` (queries #1, #2) — the migration comment explicitly says "required for SelectGatewayEnvelopesByTopics".
+
+**Why the new index is strictly better for this query:**
+- Branch A filters on `topic`, `originator_node_id`, `originator_sequence_id` — all three are key columns in `gem_topic_orig_seq_idx`, in the correct order for range scan. The old index has `gateway_time` as the 2nd key column despite `gateway_time` never appearing in any WHERE clause, forcing the planner to skip over it.
+- Branch B filters on `topic` and `originator_sequence_id > 0` — both indexes lead with `topic`. The new index reaches `originator_sequence_id` as the 3rd column vs 4th in the old index.
+- ORDER BY is `(originator_node_id, originator_sequence_id)` which matches the new index's key order, not the old index's.
+- `gateway_time` is only needed in SELECT, not WHERE/ORDER — the new index provides it via INCLUDE.
+
+**Other queries:** `SelectNewestFromTopics` (query #3) uses `gem_topic_time_desc_idx` (topic, gateway_time DESC), not `gem_topic_time_idx`.
+
+**Verdict:** Drop. The new `gem_topic_orig_seq_idx` is a direct upgrade for every query that used this index.
+
+#### 2. `gem_time_node_seq_idx` — CAN DROP
+
+**Definition:** `(gateway_time, originator_node_id, originator_sequence_id)`
+
+**Migration comment:** "required for most gateway sorted selects"
+
+**Audit finding: no current query uses `gateway_time` as a leading filter.** Every query on `gateway_envelopes_meta` filters first by `topic`, `originator_node_id`, or `expiry` — never by `gateway_time` alone. Specifically:
+- Queries #1-3 lead with `topic`
+- Queries #4-5 lead with `originator_node_id`
+- Query #6 leads with `originator_sequence_id`
+- Queries #7-10 lead with `expiry` (served by `gem_expiry_idx`)
+- `SelectNewestFromTopics` uses `ORDER BY gateway_time DESC` but with a `topic` filter, so it uses `gem_topic_time_desc_idx`
+
+The migration comment appears to be legacy — the query patterns evolved to use topic-leading or originator-leading access, making this index dead weight.
+
+**Verdict:** Drop. No query in the codebase benefits from a `gateway_time`-leading index. Confirm no external consumers before deploying.
+
+#### 3. `gem_originator_node_id` — CAN DROP
+
+**Definition:** `(originator_node_id)` — single-column index
+
+**Why redundant:**
+- The table is **LIST-partitioned** by `originator_node_id`, so any query specifying `originator_node_id` in WHERE automatically prunes to just that partition — no index needed.
+- Within a partition, the **PRIMARY KEY** `(originator_node_id, originator_sequence_id)` provides the index for range scans on `originator_sequence_id`.
+- Queries #4-5 filter by `originator_node_id` equality + `originator_sequence_id` range — partition pruning + PK covers this exactly.
+- No query does `SELECT DISTINCT originator_node_id FROM gateway_envelopes_meta` — the `gateway_envelopes_latest` table serves that purpose.
+- Queries #9-10 use `originator_node_id BETWEEN 10 AND 14` but `gem_expiry_idx` is the primary access path (filters by `expiry` first).
+
+**Verdict:** Drop. Partition pruning + PK fully subsumes this index for every existing query.
+
+#### Summary
+
+| Index | Verdict | Reason |
+|-------|---------|--------|
+| `gem_topic_time_idx` | **DROP** | New `gem_topic_orig_seq_idx` is strictly better for all consumers |
+| `gem_time_node_seq_idx` | **DROP** | No query uses `gateway_time` as leading filter; legacy comment |
+| `gem_originator_node_id` | **DROP** | Redundant with LIST partitioning + PRIMARY KEY |
+| `gem_topic_time_desc_idx` | **KEEP** | Required by `SelectNewestFromTopics` (ORDER BY topic, gateway_time DESC) |
+| `gem_expiry_idx` | **KEEP** | Required by all pruning queries; unrelated to subscription path |
+
+**Net result:** Adding 1 index (`gem_topic_orig_seq_idx`) and dropping 3 indexes reduces total index count from 5 to 3, lowering write amplification while dramatically improving read performance.

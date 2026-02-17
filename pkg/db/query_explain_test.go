@@ -381,6 +381,61 @@ JOIN gateway_envelope_blobs AS b
    AND b.originator_sequence_id = f.originator_sequence_id
 ORDER BY f.originator_node_id, f.originator_sequence_id`
 
+// V3b: Same meta LATERAL as V3, but wraps the blob join in a per-originator
+// LATERAL for better cache locality. Semantically identical to V3.
+// Params: $1=cursor_topics BYTEA[], $2=cursor_node_ids INT[],
+//
+//	$3=cursor_seq_ids BIGINT[], $4=rows_per_entry INT, $5=row_limit INT
+const queryV3bSQL = `WITH cursor_entries AS (
+    SELECT t.topic, n.node_id, s.seq_id
+    FROM unnest($1::BYTEA[]) WITH ORDINALITY AS t(topic, ord)
+    JOIN unnest($2::INT[]) WITH ORDINALITY AS n(node_id, ord) USING (ord)
+    JOIN unnest($3::BIGINT[]) WITH ORDINALITY AS s(seq_id, ord) USING (ord)
+),
+filtered AS (
+    SELECT sub.originator_node_id,
+           sub.originator_sequence_id,
+           sub.gateway_time,
+           sub.topic
+    FROM cursor_entries AS ce
+    CROSS JOIN LATERAL (
+        SELECT m.originator_node_id,
+               m.originator_sequence_id,
+               m.gateway_time,
+               m.topic
+        FROM gateway_envelopes_meta AS m
+        WHERE m.topic = ce.topic
+          AND m.originator_node_id = ce.node_id
+          AND m.originator_sequence_id > ce.seq_id
+        ORDER BY m.originator_sequence_id
+        LIMIT $4
+    ) AS sub
+    ORDER BY sub.originator_node_id, sub.originator_sequence_id
+    LIMIT $5
+),
+originator_ids AS (
+    SELECT DISTINCT originator_node_id FROM filtered
+)
+SELECT bl.originator_node_id,
+       bl.originator_sequence_id,
+       bl.gateway_time,
+       bl.topic,
+       bl.originator_envelope
+FROM originator_ids AS oi
+CROSS JOIN LATERAL (
+    SELECT f.originator_node_id,
+           f.originator_sequence_id,
+           f.gateway_time,
+           f.topic,
+           b.originator_envelope
+    FROM filtered AS f
+    JOIN gateway_envelope_blobs AS b
+        ON b.originator_node_id = oi.originator_node_id
+       AND b.originator_sequence_id = f.originator_sequence_id
+    WHERE f.originator_node_id = oi.originator_node_id
+) AS bl
+ORDER BY bl.originator_node_id, bl.originator_sequence_id`
+
 // V2b: Same as V2 but with blob join INSIDE the LATERAL + partition pruning hint.
 const queryV2bSQL = `WITH cursor_entries AS (
     SELECT t.topic, n.node_id, s.seq_id

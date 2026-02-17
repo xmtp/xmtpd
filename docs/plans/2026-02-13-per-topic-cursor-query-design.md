@@ -9,7 +9,9 @@
 
 ## Solution: V3b — LATERAL per (topic, originator) on meta, per-originator blob join
 
-Each topic gets its own vector clock (`originator_id => sequence_id`). The query uses CROSS JOIN LATERAL over flattened cursor entries on the meta table only, collects and limits results in a CTE, then joins with blobs via a per-originator LATERAL for optimal cache locality. Production validated at 5.3× faster than V0 on 9M rows.
+Each topic gets its own vector clock (`originator_id => sequence_id`). The query uses CROSS JOIN LATERAL over flattened cursor entries on the meta table only, collects and limits results in a CTE, then joins with blobs via a per-originator LATERAL for optimal cache locality.
+
+**Status: Performance claims revised.** Initial benchmarks suggested 5.3× faster than V0, but multi-distribution testing revealed this was a cache warming artifact. V0's meta phase is actually 6–39× faster. See "Multi-Distribution Production Validation" section for full analysis. Per-topic cursors remain valuable as a data model but need a different query strategy.
 
 ### SQL
 
@@ -465,3 +467,141 @@ With sparse topic selectivity (~1000 topics out of potentially millions of disti
 V3 avoids this by inverting the access pattern: it starts from (topic, originator) pairs and seeks directly via index. Each of 7000 iterations does a single index probe, most returning 0 rows in microseconds.
 
 **Lesson**: Small-dataset benchmarks (10K rows) cannot detect sequential scan problems. At 10K rows, scanning everything is fast. At 9M rows, the same scan pattern is 10,000× slower. Always validate against production-scale data.
+
+## Cursor Position Sensitivity (~9M rows, 7 originators)
+
+The 80% cursor tests above represent a "steady-state" scenario where clients are nearly caught up. Testing with cursors at 20% of each originator's max sequence simulates a client that is significantly behind or re-syncing.
+
+### 20% Cursor Positions
+
+| Originator | Max Seq | 80% Cursor | 20% Cursor |
+|---|---|---|---|
+| 0 | 5,631,949 | 4,505,390 | 1,126,348 |
+| 1 | 3,542,503 | 2,834,001 | 708,501 |
+| 10 | 22,757,781 | 22,060,556 | 20,083,114 |
+| 11 | 111,561,269 | 111,249,013 | 110,518,227 |
+| 13 | 3,118,744 | 3,094,479 | 3,035,100 |
+| 100 | 39,767 | 31,814 | 7,954 |
+| 200 | 31,103 | 24,881 | 6,221 |
+
+### Results (1000 topics, JIT disabled)
+
+| Metric | V0 @ 80% | V0 @ 20% | V3b @ 80% | V3b @ 20% |
+|---|---|---|---|---|
+| Planning | 9.3ms | 9.4ms | 7.2ms | 7.0ms |
+| Meta phase | 416ms | 44ms | 48ms | 83ms |
+| Blob phase | 572ms | 738ms | 130ms | 621ms |
+| **Total** | **999ms** | **793ms** | **187ms** | **714ms** |
+| **V3b advantage** | | | **5.3×** | **1.1×** |
+
+### Analysis
+
+**V0 meta improves 10× at lower cursors (416ms → 44ms):**
+
+The lower cursors move `min_cursor_seq` from 24,881 to 6,221. This has two effects: (1) the first UNION ALL branch scans more partitions per originator but finds matches faster — 9,279 topic-matching rows in 23ms vs 8,466 in 275ms at 80%. The per-originator cursor join filter removes only 1,636 rows (vs 7,014 at 80%), yielding 7,643 usable rows. (2) The second UNION ALL branch still produces 0 rows (all originators known) but wastes only 16ms (vs 141ms at 80%).
+
+**V3b meta degrades modestly (48ms → 83ms):**
+
+The LATERAL iterates over the same 7,000 (topic, originator) pairs, but each index probe returns more candidate rows after lower cursors. Total candidates: 2,455 (vs 833 at 80%). The sort+limit on these candidates grows from 48ms to 83ms.
+
+**V3b blob advantage evaporates (130ms → 621ms):**
+
+At 80% cursors, the 500 result rows span multiple originators, and the per-originator LATERAL groups lookups to maximize cache locality (0.19–0.63ms per lookup). At 20% cursors, all 500 results belong to originator 0 only — the Unique step shows `rows=1`. With only one originator, per-originator batching provides no diversity benefit. Per-lookup time reverts to 1.18–1.36ms, matching V0's blob performance.
+
+**Why results concentrate in fewer originators at low cursors:**
+
+Results are sorted by `(originator_node_id, originator_sequence_id)` with LIMIT 500. At 20% cursors, originator 0 (node_id=0, sorted first) has ~4.5M rows after its cursor, easily filling all 500 slots before higher-numbered originators get a turn. At 80% cursors, originator 0 has only ~1.1M rows after cursor, and lower originator_sequence_id values are exhausted faster, allowing originators 10, 11, etc. to contribute rows.
+
+### Implications (Preliminary — Revised Below)
+
+These initial findings were **invalidated** by the multi-distribution analysis below. The apparent V3b advantage was caused by cache warming bias in sequential testing.
+
+## Multi-Distribution Production Validation (~9M rows, 7 originators)
+
+Three cursor distributions tested back-to-back in a single session: 80%, 0% (all cursors at beginning), and mixed (originators 1 and 11 at 0, others at 80%).
+
+### Execution Order and Cache Effects
+
+| Query | Run Order | Meta (ms) | Blob (ms) | Plan (ms) | Total (ms) | Rows |
+|---|---|---|---|---|---|---|
+| V0 @ 80% | 1st | 7.3 | 372 | 9.2 | 380 | 392 |
+| V3b @ 80% | 2nd | 46 | 2.5 | 2.4 | 49 | 392 |
+| V0 @ 0% | 3rd | 8.3 | 681 | 4.0 | 691 | 500 |
+| V3b @ 0% | 4th | 322 | 3.6 | 2.5 | 327 | 500 |
+| V0 @ mixed | 5th | 7.0 | 2.6 | 4.2 | 10 | 392 |
+| V3b @ mixed | 6th | 276 | 2.7 | 2.1 | 279 | 392 |
+
+### Key Finding: Cache Warming Bias Invalidated Previous Results
+
+The blob phase times expose a severe cache artifact:
+
+- **V0 @ 80% (1st run, cold cache):** 0.88–1.01ms per blob lookup
+- **V0 @ mixed (5th run, warm cache):** 0.004–0.005ms per blob lookup
+- **All V3b runs (2nd/4th/6th):** 0.004–0.005ms per blob lookup
+
+That's a **200–250× difference** in blob lookup time based entirely on cache state. V0 always runs first in each pair and pays the cold-cache penalty. V3b runs immediately after and gets warm-cache blob lookups for free. Both queries access identical blob data (same rows, same partitions).
+
+The previous "V3b 5.3× faster" result was measuring cache warming, not query efficiency.
+
+### The Real Comparison: Meta Phase (Cache-Independent)
+
+Since blob access is structurally identical between V0 and V3b, the meta phase is the only meaningful comparison:
+
+| Scenario | V0 Meta | V3b Meta | Ratio |
+|---|---|---|---|
+| @ 80% cursors | 7.3ms | 46ms | V0 is **6.3×** faster |
+| @ 0% cursors | 8.3ms | 322ms | V0 is **39×** faster |
+| @ mixed cursors | 7.0ms | 276ms | V0 is **39×** faster |
+
+**V0's meta phase is consistently ~7–8ms** regardless of cursor position. It scans each partition once with an `ANY(topics)` predicate.
+
+**V3b's meta phase ranges from 46ms to 322ms** because it runs 7,000 LATERAL sub-queries (1000 topics × 7 originators), each touching up to 22 partition children in the Append node.
+
+### Warm-Cache Total Times (Steady State)
+
+Projecting both queries with equally warm cache (blob ~2.5ms):
+
+| Scenario | V0 Projected | V3b Projected | Ratio |
+|---|---|---|---|
+| @ 80% | ~10ms | ~49ms | V0 is **5×** faster |
+| @ 0% | ~11ms | ~325ms | V0 is **30×** faster |
+| @ mixed | ~10ms | ~279ms | V0 is **28×** faster |
+
+### V3b Hot Spot: o11_s109M Partition
+
+The `gateway_envelopes_meta_o11_s109000000_110000000` partition lacks the composite `gem_topic_time_idx` index, falling back to a single-column `originator_node_id` Bitmap Heap Scan.
+
+**V0** scans this partition **once** (loops=1): reads 70 heap blocks, loads 5,227 rows, filters by topic in 0.47ms.
+
+**V3b** scans it **1000 times** (loops=1000, once per topic): reads 70,000 heap blocks total, loads 5.2M row reads, 224ms total. This single partition accounts for **~70% of V3b's meta time** at 0% cursors.
+
+Even with the correct index, V3b would still require 1000 LATERAL executions for this partition vs V0's single pass.
+
+### Algorithmic Complexity Comparison
+
+| | V0 | V3b |
+|---|---|---|
+| **Meta access pattern** | O(partitions) — one scan per partition with `ANY(topics)` | O(topics × originators) — one LATERAL per pair |
+| **This workload** | ~22 partition scans | 7,000 LATERAL executions |
+| **Per-operation cost** | ~0.15ms (scan + filter 100–800 rows) | ~0.004–0.045ms (index probe, often 0 rows) |
+| **Total meta** | ~7ms (stable) | 28ms best → 322ms worst |
+
+V3b's per-operation cost is lower (targeted index probe vs batch scan), but the 300× more operations overwhelm the per-operation savings.
+
+### Revised Conclusions
+
+1. **V0 is faster than V3b** at all cursor distributions when cache state is controlled. The previous 5.3× V3b advantage was entirely a cache warming artifact.
+2. **V0's meta phase is remarkably stable** at ~7ms, unaffected by cursor position. V3b's meta degrades 7× between 80% and 0% cursors.
+3. **V3b's LATERAL-per-pair model doesn't scale** with topic count. At 1000 topics × 7 originators, the overhead overwhelms the per-probe efficiency.
+4. **The blob phase is the dominant cost** on cold cache (370–680ms), dwarfing meta differences. But it is identical for both queries and determined by cache state, not query structure.
+5. **Missing indexes create hot spots** in V3b that V0 handles gracefully. V0's `ANY()` predicate uses composite indexes efficiently even when individual partitions have suboptimal index coverage.
+
+### Per-Topic Cursors: Value as a Data Model
+
+Despite V3b's query performance issues, per-topic cursors remain valuable as a **data model** optimization:
+
+- Eliminates redundant re-fetching of already-seen data when topics have divergent cursor positions
+- Reduces bandwidth between server and client
+- Can be implemented on top of V0 by maintaining per-topic cursors client-side and computing the `min()` cursor per originator for the V0 query, then filtering results client-side
+
+The challenge is finding a query structure that combines per-topic cursor precision with V0's efficient single-pass-per-partition meta access pattern.

@@ -1,10 +1,13 @@
 package commands
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
+	"time"
+
+	"golang.org/x/net/http2"
 
 	"connectrpc.com/connect"
 	"github.com/ethereum/go-ethereum/common"
@@ -576,31 +579,71 @@ func checkGRPCWeb(ctx context.Context, address string) (bool, error) {
 }
 
 func checkCORS(address string) (bool, error) {
-	req, err := http.NewRequest(
-		http.MethodOptions,
-		address+"/xmtp.xmtpv4.metadata_api.MetadataApi/GetVersion",
-		bytes.NewReader([]byte{0, 0, 0, 0, 0}),
-	)
+	url := address + "/xmtp.xmtpv4.metadata_api.MetadataApi/GetVersion"
+
+	req, err := http.NewRequest(http.MethodOptions, url, nil)
 	if err != nil {
 		return false, fmt.Errorf("could not create request: %w", err)
 	}
 
-	// These headers are what browsers send in preflight requests.
-	req.Header.Set("Origin", "https://example.com")
+	// Match your successful curl (browser-like preflight)
+	origin := "https://network.xmtp.org"
+	req.Header.Set("Origin", origin)
 	req.Header.Set("Access-Control-Request-Method", "POST")
-	req.Header.Set("Access-Control-Request-Headers", "Content-Type")
+	req.Header.Set("Access-Control-Request-Headers", "content-type,x-grpc-web,accept,authorization")
 
-	resp, err := http.DefaultClient.Do(req)
+	// Force HTTP/2 by using an http2.Transport directly.
+	// (This will only work for https:// URLs.)
+	client := &http.Client{
+		Transport: &http2.Transport{},
+		Timeout:   10 * time.Second,
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return false, fmt.Errorf("could not make http request: %w", err)
 	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
-	// OPTIONS request should return a 204 No Content response.
-	if resp.StatusCode != http.StatusNoContent {
-		return false, fmt.Errorf("OPTIONS requests not supported: %d", resp.StatusCode)
+	if resp.ProtoMajor != 2 {
+		return false, fmt.Errorf("did not use HTTP/2 (got %s)", resp.Proto)
 	}
 
-	_ = resp.Body.Close()
+	// Many proxies use 204 for preflight; allow 200 too just in case.
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
+		return false, fmt.Errorf(
+			"preflight failed: status=%d proto=%s",
+			resp.StatusCode,
+			resp.Proto,
+		)
+	}
+
+	// Validate key CORS headers
+	allowOrigin := resp.Header.Get("Access-Control-Allow-Origin")
+	if allowOrigin != origin && allowOrigin != "*" {
+		return false, fmt.Errorf("unexpected Access-Control-Allow-Origin: %q", allowOrigin)
+	}
+
+	allowMethods := resp.Header.Get("Access-Control-Allow-Methods")
+	if !strings.Contains(strings.ToUpper(allowMethods), "POST") {
+		return false, fmt.Errorf(
+			"POST not allowed by Access-Control-Allow-Methods: %q",
+			allowMethods,
+		)
+	}
+
+	allowHeaders := strings.ToLower(resp.Header.Get("Access-Control-Allow-Headers"))
+	for _, h := range []string{"content-type", "x-grpc-web", "accept", "authorization"} {
+		if !strings.Contains(allowHeaders, h) {
+			return false, fmt.Errorf(
+				"missing allowed header %q in Access-Control-Allow-Headers: %q",
+				h,
+				allowHeaders,
+			)
+		}
+	}
 
 	return true, nil
 }

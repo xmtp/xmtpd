@@ -128,11 +128,9 @@ LIMIT NULLIF(@row_limit::INT, 0)
 
 ### LATERAL joins
 
-Per-originator pagination: SelectGatewayEnvelopesByOriginators.
+**Per (topic, originator):** `SelectGatewayEnvelopesByTopics` uses `CROSS JOIN LATERAL` for per-(topic, originator) index probes on `gem_topic_orig_seq_idx`, with a second per-originator LATERAL for blob join cache locality. Callers must include ALL originators in cursor arrays — use `FillMissingOriginators(vc, allOriginators)` on the `VectorClock` before `SetVectorClockByTopics`.
 
-### UNION ALL
-
-Combining cursor/no-cursor paths: SelectGatewayEnvelopesByTopics.
+**Per originator:** `SelectGatewayEnvelopesByOriginators` uses `CROSS JOIN LATERAL` for per-originator cursor-based pagination.
 
 ### FOR UPDATE SKIP LOCKED
 

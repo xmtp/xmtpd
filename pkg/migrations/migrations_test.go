@@ -14,7 +14,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
-const currentMigration int64 = 18
+const currentMigration int64 = 19
 
 var (
 	originatorIDs = []int32{100, 200, 300}
@@ -192,6 +192,10 @@ func TestMigrations(t *testing.T) {
 		checkLatestEnvelopesV2(t, database)
 	})
 
+	t.Run("00019_v3b_indexes", func(t *testing.T) {
+		checkV3bIndexes(t, database)
+	})
+
 	t.Run("data_verification", func(t *testing.T) {
 		checkDataVerification(t, database)
 	})
@@ -256,12 +260,11 @@ func checkBlockchainColumns(t *testing.T, database *sql.DB) {
 }
 
 func checkGatewayIndexes(t *testing.T, database *sql.DB) {
+	// gem_time_node_seq_idx, gem_topic_time_idx, and gem_originator_node_id
+	// are dropped by migration 19 (v3b_indexes).
 	indexes := []string{
-		"gem_time_node_seq_idx",
-		"gem_topic_time_idx",
 		"gem_topic_time_desc_idx",
 		"gem_expiry_idx",
-		"gem_originator_node_id",
 	}
 	for _, idx := range indexes {
 		indexExists(t, database, idx)
@@ -374,6 +377,10 @@ func checkPayerForeignKeys(t *testing.T, database *sql.DB) {
 func checkLatestEnvelopesV2(t *testing.T, database *sql.DB) {
 	functionExists(t, database, "update_latest_envelope_v2")
 	triggerExists(t, database, "gateway_latest_upd_v2")
+}
+
+func checkV3bIndexes(t *testing.T, database *sql.DB) {
+	indexExists(t, database, "gem_topic_orig_seq_idx")
 }
 
 // --- Data verification after populateDatabase ---

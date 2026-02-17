@@ -75,20 +75,18 @@ RELEASE SAVEPOINT sp_part;
 
 **Time bucketing**: `minutes_since_epoch` column for usage aggregation; payer reports use minute-level granularity
 
-**LATERAL joins** (`sqlc/envelopes_v2.sql`): `SelectGatewayEnvelopesByOriginators` uses `CROSS JOIN LATERAL` for per-originator cursor-based pagination
+**LATERAL per (topic, originator)** (`sqlc/envelopes_v2.sql`): `SelectGatewayEnvelopesByTopics` uses `CROSS JOIN LATERAL` for per-(topic, originator) index probes with per-originator blob join for cache locality. Callers must include all originators in cursor arrays (use `FillMissingOriginators` on the `VectorClock` before `SetVectorClockByTopics`).
 
-**Partition pruning hints**: queries include redundant `AND originator_node_id = ANY(...)` and min-cursor predicates to help the planner prune partitions
+**LATERAL per originator** (`sqlc/envelopes_v2.sql`): `SelectGatewayEnvelopesByOriginators` uses `CROSS JOIN LATERAL` for per-originator cursor-based pagination
 
 **Trigger-maintained latest**: `gateway_envelopes_latest` auto-updated via `AFTER INSERT` trigger on `gateway_envelopes_meta`
 
 ## Indexes
 
 On `gateway_envelopes_meta`:
-- `gem_time_node_seq_idx` — `(gateway_time, originator_node_id, originator_sequence_id)`
-- `gem_topic_time_idx` — `(topic, gateway_time, originator_node_id, originator_sequence_id)`
+- `gem_topic_orig_seq_idx` — `(topic, originator_node_id, originator_sequence_id) INCLUDE (gateway_time)` — covering index for V3b LATERAL
 - `gem_topic_time_desc_idx` — `(topic, gateway_time DESC) INCLUDE (originator_node_id, originator_sequence_id)`
 - `gem_expiry_idx` — `(expiry) INCLUDE (...) WHERE expiry IS NOT NULL`
-- `gem_originator_node_id` — `(originator_node_id)`
 
 Other notable indexes:
 - `blockchain_messages`: `(block_number, is_canonical)`

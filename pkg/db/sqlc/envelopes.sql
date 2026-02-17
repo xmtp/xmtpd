@@ -27,3 +27,8 @@ SELECT COALESCE((
     FROM gateway_envelopes_latest
     WHERE originator_node_id = @originator_node_id
 ), 0)::BIGINT AS originator_sequence_id;
+
+-- name: SelectOriginatorNodeIDs :many
+SELECT originator_node_id
+FROM gateway_envelopes_latest
+ORDER BY originator_node_id;

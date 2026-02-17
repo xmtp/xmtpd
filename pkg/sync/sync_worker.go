@@ -79,6 +79,13 @@ func (s *syncWorker) start() error {
 		return err
 	}
 
+	if s.migration.Enable {
+		s.logger.Info(
+			"Migration client is enabled. Will migrate from migration originator",
+			utils.OriginatorIDField(s.migration.FromNodeID),
+		)
+	}
+
 	for _, node := range nodes {
 		s.subscribeToNode(node.NodeID)
 	}
@@ -363,6 +370,13 @@ func (s *syncWorker) setupStream(
 			migrator.GroupMessageOriginatorID,
 			migrator.WelcomeMessageOriginatorID,
 			migrator.KeyPackagesOriginatorID,
+		}
+		if s.logger.Core().Enabled(zap.DebugLevel) {
+			s.logger.Debug(
+				"requesting additional migrated payloads from originator node",
+				utils.OriginatorIDField(syncNodeID),
+				zap.Any("originators", originatorNodeIDs),
+			)
 		}
 	}
 

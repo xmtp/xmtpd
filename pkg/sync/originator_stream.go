@@ -22,7 +22,7 @@ type originatorStream struct {
 	ctx                  context.Context
 	logger               *zap.Logger
 	node                 *registry.Node
-	lastSequenceId       uint64
+	lastSequenceIds      map[uint32]uint64
 	permittedOriginators map[uint32]struct{}
 	stream               message_api.ReplicationApi_SubscribeEnvelopesClient
 	writeQueue           chan *envUtils.OriginatorEnvelope
@@ -32,7 +32,7 @@ func newOriginatorStream(
 	ctx context.Context,
 	logger *zap.Logger,
 	node *registry.Node,
-	lastSequenceId uint64,
+	lastSequenceIds map[uint32]uint64,
 	permittedOriginators map[uint32]struct{},
 	stream message_api.ReplicationApi_SubscribeEnvelopesClient,
 	writeQueue chan *envUtils.OriginatorEnvelope,
@@ -44,7 +44,7 @@ func newOriginatorStream(
 			utils.NodeHTTPAddressField(node.HTTPAddress),
 		),
 		node:                 node,
-		lastSequenceId:       lastSequenceId,
+		lastSequenceIds:      lastSequenceIds,
 		permittedOriginators: permittedOriginators,
 		stream:               stream,
 		writeQueue:           writeQueue,
@@ -151,6 +151,7 @@ func (s *originatorStream) validateEnvelope(
 
 	// TODO:(nm) Handle fetching envelopes from other nodes
 	originatorID := env.OriginatorNodeID()
+	seqID := env.OriginatorSequenceID()
 	if _, permitted := s.permittedOriginators[originatorID]; !permitted {
 		permittedIDs := make([]uint32, 0, len(s.permittedOriginators))
 		for id := range s.permittedOriginators {
@@ -176,17 +177,21 @@ func (s *originatorStream) validateEnvelope(
 	metrics.EmitSyncLastSeenOriginatorSequenceID(env.OriginatorNodeID(), env.OriginatorSequenceID())
 	metrics.EmitSyncOriginatorReceivedMessagesCount(env.OriginatorNodeID(), 1)
 
-	if env.OriginatorSequenceID() != s.lastSequenceId+1 {
+	lastSeq := s.lastSequenceIds[originatorID]
+
+	// Check for out-of-order
+	if seqID != lastSeq+1 {
 		s.logger.Error(
 			"received out-of-order envelope",
-			utils.OriginatorIDField(env.OriginatorNodeID()),
-			utils.SequenceIDField(int64(env.OriginatorSequenceID())),
-			zap.Uint64("expected_sequence_id", s.lastSequenceId+1),
+			utils.OriginatorIDField(originatorID),
+			utils.SequenceIDField(int64(seqID)),
+			zap.Uint64("expected_sequence_id", lastSeq+1),
 		)
 	}
 
-	if env.OriginatorSequenceID() > s.lastSequenceId {
-		s.lastSequenceId = env.OriginatorSequenceID()
+	// Update only if greater (same behavior as before)
+	if seqID > lastSeq {
+		s.lastSequenceIds[originatorID] = seqID
 	}
 
 	// Validate that there is a valid payer signature

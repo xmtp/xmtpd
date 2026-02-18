@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/migrator"
+
 	"github.com/xmtp/xmtpd/pkg/db"
 
 	"github.com/cenkalti/backoff/v5"
@@ -88,11 +90,16 @@ func newTestOriginatorStream(
 ) *originatorStream {
 	log := testutils.NewLog(t)
 
+	permittedOriginators := map[uint32]struct{}{
+		node.NodeID: {},
+	}
+
 	return newOriginatorStream(
 		t.Context(),
 		log,
 		node,
 		lastSequenceId,
+		permittedOriginators,
 		stream,
 		writeQueue,
 	)
@@ -196,4 +203,109 @@ func TestEnvelopeSinkShutdownViaContext(t *testing.T) {
 	cancel()
 
 	wg.Wait()
+}
+
+func newTestOriginatorStreamWithPermitted(
+	t *testing.T,
+	node *registry.Node,
+	stream message_api.ReplicationApi_SubscribeEnvelopesClient,
+	lastSequenceId uint64,
+	permitted map[uint32]struct{},
+	writeQueue chan *envUtils.OriginatorEnvelope,
+) *originatorStream {
+	log := testutils.NewLog(t)
+
+	return newOriginatorStream(
+		t.Context(),
+		log,
+		node,
+		lastSequenceId,
+		permitted,
+		stream,
+		writeQueue,
+	)
+}
+
+func TestSyncWorkerRejectsEnvelopeFromUnpermittedOriginator(t *testing.T) {
+	// Node we are syncing *from*
+	nodeID := uint32(200)
+
+	// Envelope claims it was authored by a different originator
+	badOriginatorID := uint32(201)
+	sequenceID := uint64(1)
+	envelope := envelopeTestUtils.CreateOriginatorEnvelope(t, badOriginatorID, sequenceID)
+
+	stream := mockSubscriptionOnePage(t, []*envelopes.OriginatorEnvelope{envelope})
+	node := registryTestUtils.CreateNode(nodeID, 999, testutils.RandomPrivateKey(t))
+
+	writeQueue := make(chan *envUtils.OriginatorEnvelope, 10)
+	defer close(writeQueue)
+
+	dbStorerInstance := newTestEnvelopeSink(t, writeQueue, t.Context())
+	go dbStorerInstance.Start()
+
+	// Only permit nodeID (200), NOT badOriginatorID (201)
+	permitted := map[uint32]struct{}{
+		nodeID: {},
+	}
+
+	origStream := newTestOriginatorStreamWithPermitted(t, &node, stream, 0, permitted, writeQueue)
+
+	err := origStream.listen()
+	require.Error(t, err)
+
+	// Ensure nothing got queued
+	select {
+	case got := <-writeQueue:
+		require.Failf(
+			t,
+			"unexpected envelope queued",
+			"got originator=%d seq=%d",
+			got.OriginatorNodeID(),
+			got.OriginatorSequenceID(),
+		)
+	default:
+		// ok
+	}
+
+	// Ensure nothing got stored
+	time.Sleep(50 * time.Millisecond) // give sink a moment (defensive)
+	envs := getAllMessagesForOriginator(t, dbStorerInstance, badOriginatorID)
+	require.Len(t, envs, 0)
+}
+
+func TestSyncWorkerAcceptsEnvelopeFromPermittedOriginator(t *testing.T) {
+	// Node we are syncing *from*
+	nodeID := uint32(200)
+
+	// Envelope comes from an additional permitted originator
+	otherPermittedID := migrator.KeyPackagesOriginatorID
+	sequenceID := uint64(1)
+	envelope := envelopeTestUtils.CreateOriginatorEnvelope(t, otherPermittedID, sequenceID)
+
+	stream := mockSubscriptionOnePage(t, []*envelopes.OriginatorEnvelope{envelope})
+	node := registryTestUtils.CreateNode(nodeID, 999, testutils.RandomPrivateKey(t))
+
+	writeQueue := make(chan *envUtils.OriginatorEnvelope, 10)
+	defer close(writeQueue)
+
+	dbStorerInstance := newTestEnvelopeSink(t, writeQueue, t.Context())
+	go dbStorerInstance.Start()
+
+	// Permit both nodeID and otherPermittedID
+	permitted := map[uint32]struct{}{
+		nodeID:           {},
+		otherPermittedID: {},
+	}
+
+	origStream := newTestOriginatorStreamWithPermitted(t, &node, stream, 0, permitted, writeQueue)
+
+	// Your listen() currently returns RetryAfter on EOF, so just assert it returns *an* error
+	// and then assert the envelope eventually appears in DB.
+	_ = origStream.listen()
+
+	require.Eventually(t, func() bool {
+		envs := getAllMessagesForOriginator(t, dbStorerInstance, otherPermittedID)
+		return len(envs) == 1 && envs[0].OriginatorSequenceID == int64(sequenceID)
+	}, time.Second, 50*time.Millisecond)
 }

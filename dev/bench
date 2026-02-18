@@ -13,7 +13,7 @@ echo "Tier filter: ${BENCH_TIER:-all}"
 echo "Output: $OUTFILE"
 echo
 
-go test -bench=. -benchmem -count=5 -timeout=60m \
+go test -tags bench -bench=. -benchmem -count=5 -timeout=60m \
     -run='^$' \
     ./pkg/db/bench/ 2>&1 | tee "$RAWFILE"
 

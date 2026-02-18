@@ -23,7 +23,7 @@ func seedCongestion(ctx context.Context, db *sql.DB) {
 	for i := range numCongestionOriginators {
 		origID := int32(500 + i)
 		congestionOriginators[i] = origID
-		for minute := int32(0); minute < numCongestionMinutes; minute++ {
+		for minute := range int32(numCongestionMinutes) {
 			err := q.IncrementOriginatorCongestion(ctx, queries.IncrementOriginatorCongestionParams{
 				OriginatorID:      origID,
 				MinutesSinceEpoch: minute,

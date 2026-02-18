@@ -578,7 +578,7 @@ func TestSubscribeCatchUpSkewedOriginators(t *testing.T) {
 		payerID       = testutils.CreatePayer(t, server.DB)
 		subTopic      = topic.NewTopic(
 			topic.TopicKindGroupMessagesV1,
-			[]byte(fmt.Sprintf("skewed-topic-%v", rand.Int())),
+			fmt.Appendf(nil, "skewed-topic-%v", rand.Int()),
 		)
 
 		// Mimics a migrator client: own nodeID (100) + migration originators.
@@ -632,13 +632,13 @@ func TestSubscribeCatchUpSkewedOriginators(t *testing.T) {
 			break
 		}
 
-		for _, env := range stream.Msg().Envelopes {
+		for _, env := range stream.Msg().GetEnvelopes() {
 			decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
 				t,
-				env.UnsignedOriginatorEnvelope,
+				env.GetUnsignedOriginatorEnvelope(),
 			)
-			require.EqualValues(t, heavyOriginatorID, decoded.OriginatorNodeId)
-			received[int64(decoded.OriginatorSequenceId)] = struct{}{}
+			require.Equal(t, heavyOriginatorID, decoded.GetOriginatorNodeId())
+			received[int64(decoded.GetOriginatorSequenceId())] = struct{}{}
 		}
 	}
 
@@ -654,10 +654,10 @@ func TestSubscribeCatchUpSkewedOriginators(t *testing.T) {
 		total,
 	)
 
-	require.Equalf(
+	require.Lenf(
 		t,
+		received,
 		total,
-		len(received),
 		"catch-up must deliver all envelopes; LATERAL per-originator cap (%d for %d originators) causes premature pagination termination",
 		max(1000/len(originatorIDs), 50),
 		len(originatorIDs),

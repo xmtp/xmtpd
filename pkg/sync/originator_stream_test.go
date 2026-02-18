@@ -288,7 +288,7 @@ func TestSyncWorkerRejectsEnvelopeFromUnpermittedOriginator(t *testing.T) {
 	// Ensure nothing got stored
 	time.Sleep(50 * time.Millisecond) // give sink a moment (defensive)
 	envs := getAllMessagesForOriginator(t, dbStorerInstance, badOriginatorID)
-	require.Len(t, envs, 0)
+	require.Empty(t, envs)
 }
 
 func TestSyncWorkerAcceptsEnvelopeFromPermittedOriginator(t *testing.T) {

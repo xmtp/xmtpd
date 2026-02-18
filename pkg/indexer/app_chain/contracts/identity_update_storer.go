@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xmtp/xmtpd/pkg/metrics"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
@@ -314,6 +316,12 @@ func (s *IdentityUpdateStorer) StoreLog(
 		// If the error was not a LogStorageError we can assume it's a DB error and it should be retried
 		return re.NewRecoverableError(ErrInsertBlockchainMessage, err)
 	}
+
+	metrics.EmitSyncLastSeenOriginatorSequenceID(
+		constants.IdentityUpdateOriginatorID,
+		msgSent.SequenceId,
+	)
+	metrics.EmitSyncOriginatorReceivedMessagesCount(constants.IdentityUpdateOriginatorID, 1)
 
 	return nil
 }

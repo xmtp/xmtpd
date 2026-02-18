@@ -81,7 +81,7 @@ func subscribeTopics(
 	)
 	require.NoError(t, err)
 	require.True(t, stream.Receive())
-	require.Empty(t, stream.Msg().Envelopes)
+	require.Empty(t, stream.Msg().GetEnvelopes())
 	return stream
 }
 
@@ -98,10 +98,10 @@ func requireOriginatorOrdering(t *testing.T, envs []*envelopes.OriginatorEnvelop
 	lastSeqByNode := make(map[uint32]uint64)
 	for _, env := range envs {
 		decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
-			t, env.UnsignedOriginatorEnvelope,
+			t, env.GetUnsignedOriginatorEnvelope(),
 		)
-		nodeID := decoded.OriginatorNodeId
-		seqID := decoded.OriginatorSequenceId
+		nodeID := decoded.GetOriginatorNodeId()
+		seqID := decoded.GetOriginatorSequenceId()
 		if last, ok := lastSeqByNode[nodeID]; ok {
 			require.Greater(t, seqID, last,
 				"out of order for originator %d: got %d after %d", nodeID, seqID, last)
@@ -125,7 +125,7 @@ func collectTopicEnvelopes(
 			break
 		}
 		msg := stream.Msg()
-		collected = append(collected, msg.Envelopes...)
+		collected = append(collected, msg.GetEnvelopes()...)
 	}
 	return collected
 }
@@ -230,10 +230,10 @@ func TestSubscribeTopicEnvelopes_LiveOnly(t *testing.T) {
 	require.Len(t, envs, 1)
 
 	decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
-		t, envs[0].UnsignedOriginatorEnvelope,
+		t, envs[0].GetUnsignedOriginatorEnvelope(),
 	)
-	require.EqualValues(t, 100, decoded.OriginatorNodeId)
-	require.EqualValues(t, 1, decoded.OriginatorSequenceId)
+	require.EqualValues(t, 100, decoded.GetOriginatorNodeId())
+	require.EqualValues(t, 1, decoded.GetOriginatorSequenceId())
 }
 
 func TestSubscribeTopicEnvelopes_LiveOnlyFiltersByTopic(t *testing.T) {
@@ -311,9 +311,9 @@ func TestSubscribeTopicEnvelopes_CatchUpFromCursor(t *testing.T) {
 
 	for _, env := range envs {
 		decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
-			t, env.UnsignedOriginatorEnvelope,
+			t, env.GetUnsignedOriginatorEnvelope(),
 		)
-		require.Greater(t, decoded.OriginatorSequenceId, uint64(1))
+		require.Greater(t, decoded.GetOriginatorSequenceId(), uint64(1))
 	}
 }
 
@@ -347,9 +347,9 @@ func TestSubscribeTopicEnvelopes_DifferentCursorsPerTopic(t *testing.T) {
 	seqIDs := make(map[uint64]struct{})
 	for _, env := range envs {
 		decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
-			t, env.UnsignedOriginatorEnvelope,
+			t, env.GetUnsignedOriginatorEnvelope(),
 		)
-		seqIDs[decoded.OriginatorSequenceId] = struct{}{}
+		seqIDs[decoded.GetOriginatorSequenceId()] = struct{}{}
 	}
 	require.Contains(t, seqIDs, uint64(3)) // topicA catch-up
 	require.Contains(t, seqIDs, uint64(4)) // topicB catch-up
@@ -377,9 +377,9 @@ func TestSubscribeTopicEnvelopes_CatchUpThenLive(t *testing.T) {
 	require.Len(t, envs, 1)
 	decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
 		t,
-		envs[0].UnsignedOriginatorEnvelope,
+		envs[0].GetUnsignedOriginatorEnvelope(),
 	)
-	require.EqualValues(t, 1, decoded.OriginatorSequenceId)
+	require.EqualValues(t, 1, decoded.GetOriginatorSequenceId())
 
 	// Now insert a new one for live delivery.
 	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
@@ -390,9 +390,9 @@ func TestSubscribeTopicEnvelopes_CatchUpThenLive(t *testing.T) {
 	require.Len(t, liveEnvs, 1)
 	decoded = envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
 		t,
-		liveEnvs[0].UnsignedOriginatorEnvelope,
+		liveEnvs[0].GetUnsignedOriginatorEnvelope(),
 	)
-	require.EqualValues(t, 2, decoded.OriginatorSequenceId)
+	require.EqualValues(t, 2, decoded.GetOriginatorSequenceId())
 }
 
 func TestSubscribeTopicEnvelopes_NoDuplicatesBetweenCatchUpAndLive(t *testing.T) {
@@ -433,13 +433,18 @@ func TestSubscribeTopicEnvelopes_NoDuplicatesBetweenCatchUpAndLive(t *testing.T)
 				cancel()
 				return
 			}
-			for _, env := range stream.Msg().Envelopes {
+			for _, env := range stream.Msg().GetEnvelopes() {
 				decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
-					t, env.UnsignedOriginatorEnvelope,
+					t, env.GetUnsignedOriginatorEnvelope(),
 				)
-				_, dup := seen[decoded.OriginatorSequenceId]
-				require.False(t, dup, "received duplicate seqID=%d", decoded.OriginatorSequenceId)
-				seen[decoded.OriginatorSequenceId] = struct{}{}
+				_, dup := seen[decoded.GetOriginatorSequenceId()]
+				require.False(
+					t,
+					dup,
+					"received duplicate seqID=%d",
+					decoded.GetOriginatorSequenceId(),
+				)
+				seen[decoded.GetOriginatorSequenceId()] = struct{}{}
 			}
 			if len(seen) >= 2 {
 				return
@@ -497,7 +502,7 @@ func TestSubscribeTopicEnvelopes_KeepaliveOnStart(t *testing.T) {
 	// First message should be an empty keepalive.
 	require.True(t, stream.Receive())
 	msg := stream.Msg()
-	require.Empty(t, msg.Envelopes)
+	require.Empty(t, msg.GetEnvelopes())
 }
 
 // ---- Ordering Tests ----
@@ -665,12 +670,12 @@ func TestSubscribeTopicEnvelopes_VariableEnvelopesPerOriginator(t *testing.T) {
 		if !stream.Receive() {
 			break
 		}
-		for _, env := range stream.Msg().Envelopes {
+		for _, env := range stream.Msg().GetEnvelopes() {
 			receivedCount++
 			decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
-				t, env.UnsignedOriginatorEnvelope,
+				t, env.GetUnsignedOriginatorEnvelope(),
 			)
-			received[keyID(int32(decoded.OriginatorNodeId), int64(decoded.OriginatorSequenceId))] = struct{}{}
+			received[keyID(int32(decoded.GetOriginatorNodeId()), int64(decoded.GetOriginatorSequenceId()))] = struct{}{}
 		}
 	}
 
@@ -804,5 +809,5 @@ func TestSubscribeTopicEnvelopes_SimultaneousWithSubscribeEnvelopes(t *testing.T
 	// For the SubscribeEnvelopes stream.
 	require.True(t, envelopeStream.Receive())
 	msg := envelopeStream.Msg()
-	require.NotEmpty(t, msg.Envelopes)
+	require.NotEmpty(t, msg.GetEnvelopes())
 }

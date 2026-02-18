@@ -144,22 +144,27 @@ func TestPayerInfo_Granularity(t *testing.T) {
 			)
 			require.NoError(t, err)
 			require.NotNil(t, payerInfo)
-			require.Len(t, payerInfo.PeriodSummaries, len(tt.expected))
+			require.Len(t, payerInfo.GetPeriodSummaries(), len(tt.expected))
 
 			for i, expected := range tt.expected {
 				require.Equal(
 					t,
 					expected.amount,
-					payerInfo.PeriodSummaries[i].AmountSpentPicodollars,
+					payerInfo.GetPeriodSummaries()[i].GetAmountSpentPicodollars(),
 					"Period %d amount mismatch",
 					i,
 				)
-				require.Equal(t, expected.messages, payerInfo.PeriodSummaries[i].NumMessages,
-					"Period %d message count mismatch", i)
+				require.Equal(
+					t,
+					expected.messages,
+					payerInfo.GetPeriodSummaries()[i].GetNumMessages(),
+					"Period %d message count mismatch",
+					i,
+				)
 				require.Equal(
 					t,
 					uint64(expected.startTime.Unix()),
-					payerInfo.PeriodSummaries[i].PeriodStartUnixSeconds,
+					payerInfo.GetPeriodSummaries()[i].GetPeriodStartUnixSeconds(),
 					"Period %d start time mismatch",
 					i,
 				)
@@ -189,11 +194,11 @@ func TestPayerInfo_MultipleOriginators(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.NotNil(t, payerInfo)
-	require.Len(t, payerInfo.PeriodSummaries, 1)
+	require.Len(t, payerInfo.GetPeriodSummaries(), 1)
 
 	// All messages should be aggregated into one hour
-	require.Equal(t, uint64(1000), payerInfo.PeriodSummaries[0].AmountSpentPicodollars)
-	require.Equal(t, uint64(4), payerInfo.PeriodSummaries[0].NumMessages)
+	require.Equal(t, uint64(1000), payerInfo.GetPeriodSummaries()[0].GetAmountSpentPicodollars())
+	require.Equal(t, uint64(4), payerInfo.GetPeriodSummaries()[0].GetNumMessages())
 }
 
 func TestPayerInfo_EdgeCases(t *testing.T) {
@@ -215,7 +220,7 @@ func TestPayerInfo_EdgeCases(t *testing.T) {
 				)
 				require.NoError(t, err)
 				require.NotNil(t, payerInfo)
-				require.Len(t, payerInfo.PeriodSummaries, 0)
+				require.Empty(t, payerInfo.GetPeriodSummaries())
 			},
 		},
 		{
@@ -232,7 +237,7 @@ func TestPayerInfo_EdgeCases(t *testing.T) {
 				)
 				require.NoError(t, err)
 				require.NotNil(t, payerInfo)
-				require.Len(t, payerInfo.PeriodSummaries, 0)
+				require.Empty(t, payerInfo.GetPeriodSummaries())
 			},
 		},
 		{
@@ -257,12 +262,24 @@ func TestPayerInfo_EdgeCases(t *testing.T) {
 				)
 				require.NoError(t, err)
 				require.NotNil(t, payerInfo)
-				require.Len(t, payerInfo.PeriodSummaries, 3)
+				require.Len(t, payerInfo.GetPeriodSummaries(), 3)
 
 				// Verify chronological ordering
-				require.Equal(t, uint64(100), payerInfo.PeriodSummaries[0].AmountSpentPicodollars)
-				require.Equal(t, uint64(200), payerInfo.PeriodSummaries[1].AmountSpentPicodollars)
-				require.Equal(t, uint64(300), payerInfo.PeriodSummaries[2].AmountSpentPicodollars)
+				require.Equal(
+					t,
+					uint64(100),
+					payerInfo.GetPeriodSummaries()[0].GetAmountSpentPicodollars(),
+				)
+				require.Equal(
+					t,
+					uint64(200),
+					payerInfo.GetPeriodSummaries()[1].GetAmountSpentPicodollars(),
+				)
+				require.Equal(
+					t,
+					uint64(300),
+					payerInfo.GetPeriodSummaries()[2].GetAmountSpentPicodollars(),
+				)
 			},
 		},
 	}
@@ -364,15 +381,15 @@ func TestPayerInfo_BoundaryConditions(t *testing.T) {
 		)
 		require.NoError(t, err)
 		require.NotNil(t, payerInfo)
-		require.Len(t, payerInfo.PeriodSummaries, 2)
+		require.Len(t, payerInfo.GetPeriodSummaries(), 2)
 
 		// Day 1 should have only the first message
-		require.Equal(t, uint64(100), payerInfo.PeriodSummaries[0].AmountSpentPicodollars)
-		require.Equal(t, uint64(1), payerInfo.PeriodSummaries[0].NumMessages)
+		require.Equal(t, uint64(100), payerInfo.GetPeriodSummaries()[0].GetAmountSpentPicodollars())
+		require.Equal(t, uint64(1), payerInfo.GetPeriodSummaries()[0].GetNumMessages())
 
 		// Day 2 should have the other two messages
-		require.Equal(t, uint64(500), payerInfo.PeriodSummaries[1].AmountSpentPicodollars)
-		require.Equal(t, uint64(2), payerInfo.PeriodSummaries[1].NumMessages)
+		require.Equal(t, uint64(500), payerInfo.GetPeriodSummaries()[1].GetAmountSpentPicodollars())
+		require.Equal(t, uint64(2), payerInfo.GetPeriodSummaries()[1].GetNumMessages())
 	})
 
 	t.Run("hourly_boundary", func(t *testing.T) {
@@ -383,12 +400,12 @@ func TestPayerInfo_BoundaryConditions(t *testing.T) {
 		)
 		require.NoError(t, err)
 		require.NotNil(t, payerInfo)
-		require.Len(t, payerInfo.PeriodSummaries, 2)
+		require.Len(t, payerInfo.GetPeriodSummaries(), 2)
 
 		// Hour 23 of Day 1
-		require.Equal(t, uint64(100), payerInfo.PeriodSummaries[0].AmountSpentPicodollars)
+		require.Equal(t, uint64(100), payerInfo.GetPeriodSummaries()[0].GetAmountSpentPicodollars())
 
 		// Hour 0 of Day 2
-		require.Equal(t, uint64(500), payerInfo.PeriodSummaries[1].AmountSpentPicodollars)
+		require.Equal(t, uint64(500), payerInfo.GetPeriodSummaries()[1].GetAmountSpentPicodollars())
 	})
 }

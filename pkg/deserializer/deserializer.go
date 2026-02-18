@@ -20,7 +20,7 @@ func DeserializeGroupMessage(
 		return nil, status.Errorf(codes.InvalidArgument, "can not process empty payload")
 	}
 
-	r := bytes.NewReader(payload.GroupMessage.GetV1().Data)
+	r := bytes.NewReader(payload.GroupMessage.GetV1().GetData())
 
 	msg := MlsMessageIn{}
 	err := msg.TLSDeserialize(r)

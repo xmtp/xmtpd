@@ -3,7 +3,6 @@ package prune_test
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"testing"
 	"time"
 
@@ -39,7 +38,7 @@ func setupTestData(
 	submitted int,
 ) {
 	// Insert expired envelopes
-	for i := 0; i < expired; i++ {
+	for i := range expired {
 		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{{
 			OriginatorNodeID:     DefaultOriginatorID,
 			OriginatorSequenceID: int64(i + 1),
@@ -51,7 +50,7 @@ func setupTestData(
 	}
 
 	// Insert non-expired envelopes
-	for i := 0; i < valid; i++ {
+	for i := range valid {
 		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{{
 			OriginatorNodeID:     DefaultOriginatorID,
 			OriginatorSequenceID: int64(i + expired + 1),
@@ -72,7 +71,7 @@ func setupMigratedTestData(
 	valid int,
 ) {
 	// Insert expired migrated envelopes (originator_node_id 10-14)
-	for i := 0; i < expired; i++ {
+	for i := range expired {
 		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{{
 			OriginatorNodeID:     MigratedOriginatorID,
 			OriginatorSequenceID: int64(i + 1),
@@ -84,7 +83,7 @@ func setupMigratedTestData(
 	}
 
 	// Insert non-expired migrated envelopes
-	for i := 0; i < valid; i++ {
+	for i := range valid {
 		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{{
 			OriginatorNodeID:     MigratedOriginatorID,
 			OriginatorSequenceID: int64(i + expired + 1),
@@ -154,17 +153,17 @@ func TestExecutor_PrunesExpired(t *testing.T) {
 	})
 
 	err := exec.Run()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	cnt, err := q.CountExpiredEnvelopes(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, 0, cnt, "All expired envelopes should be deleted")
 
 	// Ensure non-expired remain
 	var total int64
 	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
 	err = row.Scan(&total)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, DefaultValidCnt, total, "Only non-expired envelopes should remain")
 }
 
@@ -180,12 +179,12 @@ func TestExecutor_DryRun_NoPrune(t *testing.T) {
 		MaxCycles: 5,
 	})
 	err := exec.Run()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	var total int64
 	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
 	err = row.Scan(&total)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	assert.EqualValues(
 		t,
@@ -224,7 +223,7 @@ func TestExecutor_PrunesExpired_WithConcurrentLock(t *testing.T) {
 		MaxCycles: 5,
 	})
 	err := exec.Run()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	remainingIDs := getRemainingSequenceIds(t, ctx, db)
 
@@ -235,11 +234,11 @@ func TestExecutor_PrunesExpired_WithConcurrentLock(t *testing.T) {
 	require.NoError(t, tx.Commit())
 
 	err = exec.Run()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Confirm DB is empty now
 	cnt, err := q.CountExpiredEnvelopes(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, 0, cnt, "All expired envelopes should now be deleted")
 }
 
@@ -277,17 +276,17 @@ func TestExecutor_PrunesExpired_LargePayload(t *testing.T) {
 		MaxCycles: 1,
 	})
 	err := exec.Run()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	cnt, err := q.CountExpiredEnvelopes(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, KeepThisMany, cnt)
 
 	// 2nd cycle should finish off
 	err = exec.Run()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	cnt, err = q.CountExpiredEnvelopes(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, 0, cnt, "All expired envelopes should be deleted")
 }
 
@@ -311,7 +310,7 @@ func TestExecutor_PruneCountWorks(t *testing.T) {
 		},
 	)
 	err := exec.Run()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	if !logger.Contains("count of envelopes eligible for pruning") {
 		t.Errorf("expected log message not found, got: %s", logger.Logs())
@@ -331,18 +330,18 @@ func TestExecutor_CantPruneWithoutReport(t *testing.T) {
 	})
 
 	err := exec.Run()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	q := queries.New(db)
 	cnt, err := q.CountExpiredEnvelopes(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, 0, cnt, "All expired envelopes should be deleted")
 
 	// Ensure all remain
 	var total int64
 	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
 	err = row.Scan(&total)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(
 		t,
 		DefaultValidCnt+DefaultExpiredCnt,
@@ -368,17 +367,17 @@ func TestExecutor_MultipleOverlappingReportsOK(t *testing.T) {
 	})
 
 	err := exec.Run()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	q := queries.New(db)
 	cnt, err := q.CountExpiredEnvelopes(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, 0, cnt, "All expired envelopes should be deleted")
 
 	var total int64
 	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
 	err = row.Scan(&total)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, DefaultValidCnt, total, "Valid envelopes should remain")
 }
 
@@ -411,7 +410,7 @@ func TestExecutor_ReportStatusVariants(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(fmt.Sprintf("report-status-state-%s", tt.name), func(t *testing.T) {
+		t.Run("report-status-state-"+tt.name, func(t *testing.T) {
 			dbs := testutils.NewDBs(t, ctx, 1)
 			db := dbs[0]
 
@@ -440,7 +439,7 @@ func TestExecutor_ReportStatusVariants(t *testing.T) {
 			require.NoError(t, err)
 
 			cnt, err := q.CountExpiredEnvelopes(ctx)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.EqualValues(t, tt.pruned, cnt)
 
 			exec := makeTestExecutor(t, ctx, db, &config.PruneConfig{
@@ -449,12 +448,12 @@ func TestExecutor_ReportStatusVariants(t *testing.T) {
 			})
 
 			err = exec.Run()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			var total int64
 			row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
 			err = row.Scan(&total)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.EqualValues(
 				t,
 				DefaultValidCnt+DefaultExpiredCnt-tt.pruned,
@@ -479,17 +478,17 @@ func TestExecutor_PrunesMigratedEnvelopes(t *testing.T) {
 	})
 
 	err := exec.Run()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	cnt, err := q.CountExpiredMigratedEnvelopes(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, 0, cnt, "All expired migrated envelopes should be deleted")
 
 	// Ensure non-expired migrated envelopes remain
 	var total int64
 	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
 	err = row.Scan(&total)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(
 		t,
 		DefaultValidCnt,
@@ -514,23 +513,23 @@ func TestExecutor_PrunesBothRegularAndMigrated(t *testing.T) {
 	})
 
 	err := exec.Run()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify regular expired envelopes are deleted
 	regularCnt, err := q.CountExpiredEnvelopes(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, 0, regularCnt, "All expired regular envelopes should be deleted")
 
 	// Verify migrated expired envelopes are deleted
 	migratedCnt, err := q.CountExpiredMigratedEnvelopes(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, 0, migratedCnt, "All expired migrated envelopes should be deleted")
 
 	// Ensure only non-expired envelopes remain (both types)
 	var total int64
 	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
 	err = row.Scan(&total)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(
 		t,
 		DefaultValidCnt*2, // valid regular + valid migrated
@@ -551,12 +550,12 @@ func TestExecutor_DryRun_NoMigratedPrune(t *testing.T) {
 		MaxCycles: 5,
 	})
 	err := exec.Run()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	var total int64
 	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
 	err = row.Scan(&total)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	assert.EqualValues(
 		t,

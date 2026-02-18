@@ -2,7 +2,7 @@ package workers
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -136,31 +136,31 @@ func (b *WorkerConfigBuilder) WithExpiryOthersPeriod(
 // Returns an error if any required field is nil or invalid.
 func (b *WorkerConfigBuilder) Build() (*workerConfig, error) {
 	if b.ctx == nil {
-		return nil, fmt.Errorf("context cannot be nil")
+		return nil, errors.New("context cannot be nil")
 	}
 	if b.logger == nil {
-		return nil, fmt.Errorf("logger cannot be nil")
+		return nil, errors.New("logger cannot be nil")
 	}
 	if b.registrant == nil {
-		return nil, fmt.Errorf("registrant cannot be nil")
+		return nil, errors.New("registrant cannot be nil")
 	}
 	if b.registry == nil {
-		return nil, fmt.Errorf("registry cannot be nil")
+		return nil, errors.New("registry cannot be nil")
 	}
 	if b.reportsManager == nil {
-		return nil, fmt.Errorf("reports manager cannot be nil")
+		return nil, errors.New("reports manager cannot be nil")
 	}
 	if b.store == nil {
-		return nil, fmt.Errorf("store cannot be nil")
+		return nil, errors.New("store cannot be nil")
 	}
 	if b.attestationPollInterval <= 0 {
-		return nil, fmt.Errorf("attestation poll interval must be greater than 0")
+		return nil, errors.New("attestation poll interval must be greater than 0")
 	}
 	if b.generateSelfPeriod <= 0 {
-		return nil, fmt.Errorf("generate self period must be greater than 0")
+		return nil, errors.New("generate self period must be greater than 0")
 	}
 	if b.generateOthersPeriod <= 0 {
-		return nil, fmt.Errorf("generate others period must be greater than 0")
+		return nil, errors.New("generate others period must be greater than 0")
 	}
 
 	// Expiration periods must be always longer than generation periods to avoid race conditions.
@@ -169,7 +169,7 @@ func (b *WorkerConfigBuilder) Build() (*workerConfig, error) {
 	) < float64(
 		b.generateSelfPeriod.Nanoseconds(),
 	)*1.5 {
-		return nil, fmt.Errorf("expiry self period must be at least 1.5x the generate self period")
+		return nil, errors.New("expiry self period must be at least 1.5x the generate self period")
 	}
 
 	if float64(
@@ -177,7 +177,7 @@ func (b *WorkerConfigBuilder) Build() (*workerConfig, error) {
 	) < float64(
 		b.generateOthersPeriod.Nanoseconds(),
 	)*1.5 {
-		return nil, fmt.Errorf(
+		return nil, errors.New(
 			"expiry others period must be at least 1.5x the generate others period",
 		)
 	}

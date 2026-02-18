@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"connectrpc.com/connect"
@@ -31,7 +30,7 @@ var _ connect.Interceptor = (*LoggingInterceptor)(nil)
 // NewLoggingInterceptor creates a new instance of LoggingInterceptor.
 func NewLoggingInterceptor(logger *zap.Logger) (*LoggingInterceptor, error) {
 	if logger == nil {
-		return nil, fmt.Errorf("logger is required")
+		return nil, errors.New("logger is required")
 	}
 
 	return &LoggingInterceptor{
@@ -130,7 +129,8 @@ func sanitizeError(err error) error {
 		finalMsg = "request was canceled"
 
 	default:
-		connectErr, ok := err.(*connect.Error)
+		connectErr := &connect.Error{}
+		ok := errors.As(err, &connectErr)
 		if ok {
 			finalCode = connectErr.Code()
 

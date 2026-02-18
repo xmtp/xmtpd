@@ -82,7 +82,7 @@ func NewDBs(t *testing.T, ctx context.Context, count int) []*sql.DB {
 	ctlDB, _ := newCtlDB(t)
 	dbs := []*sql.DB{}
 
-	for i := 0; i < count; i++ {
+	for range count {
 		dbInstance, _ := newInstanceDB(t, ctx, ctlDB)
 		dbs = append(dbs, dbInstance)
 	}
@@ -101,7 +101,7 @@ func InsertGatewayEnvelopes(
 	for _, row := range rows {
 		inserted, err := db.InsertGatewayEnvelopeWithChecksStandalone(ctx, q, row)
 		require.NoError(t, err)
-		require.EqualValues(t, int64(1), inserted.InsertedMetaRows)
+		require.Equal(t, int64(1), inserted.InsertedMetaRows)
 
 		if len(notifyChan) > 0 {
 			select {

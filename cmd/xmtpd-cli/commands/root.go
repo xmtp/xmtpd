@@ -2,6 +2,7 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -210,14 +211,14 @@ func resolveSettlementRPCURL() (string, error) {
 	if v := viper.GetString("settlement-rpc-url"); v != "" {
 		return v, nil
 	}
-	return "", fmt.Errorf("missing settlement RPC URL: set --settlement-rpc-url")
+	return "", errors.New("missing settlement RPC URL: set --settlement-rpc-url")
 }
 
 func resolveAppRPCURL() (string, error) {
 	if v := viper.GetString("app-rpc-url"); v != "" {
 		return v, nil
 	}
-	return "", fmt.Errorf("missing app RPC URL: set --app-rpc-url")
+	return "", errors.New("missing app RPC URL: set --app-rpc-url")
 }
 
 func resolveConfig(configFile string, environment string) (*config.ContractsOptions, error) {

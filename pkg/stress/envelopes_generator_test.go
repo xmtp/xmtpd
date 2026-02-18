@@ -2,7 +2,6 @@ package stress
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -21,7 +20,7 @@ func TestEnvelopesGenerator(t *testing.T) {
 
 	// Create the envelopes generator.
 	generator, err := NewEnvelopesGenerator(
-		fmt.Sprintf("http://%s", suite.APIServer.Addr()),
+		"http://"+suite.APIServer.Addr(),
 		testutils.TestPrivateKey,
 		100,
 		ProtocolConnectGRPC,
@@ -47,6 +46,6 @@ func TestEnvelopesGenerator(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.NotNil(t, queryResponse)
-	require.Len(t, queryResponse.Msg.Envelopes, 1)
-	require.Equal(t, queryResponse.Msg.Envelopes[0], publishResponse[0])
+	require.Len(t, queryResponse.Msg.GetEnvelopes(), 1)
+	require.Equal(t, queryResponse.Msg.GetEnvelopes()[0], publishResponse[0])
 }

@@ -78,8 +78,8 @@ func loadFromEnvironment(name string) ([]byte, error) {
 
 func loadFromPath(path string) ([]byte, error) {
 	// Handle config:// URL scheme
-	if strings.HasPrefix(path, "config://") {
-		return loadFromEnvironment(strings.TrimPrefix(path, "config://"))
+	if after, ok := strings.CutPrefix(path, "config://"); ok {
+		return loadFromEnvironment(after)
 	}
 
 	// Handle HTTP/HTTPS URLs
@@ -88,8 +88,8 @@ func loadFromPath(path string) ([]byte, error) {
 	}
 
 	// Handle file:// URLs
-	if strings.HasPrefix(path, "file://") {
-		path = strings.TrimPrefix(path, "file://")
+	if after, ok := strings.CutPrefix(path, "file://"); ok {
+		path = after
 		var err error
 		path, err = url.PathUnescape(path)
 		if err != nil {

@@ -164,7 +164,7 @@ func TestGetNode_FindTopics(t *testing.T) {
 
 	targetBuckets := make(map[uint32]topic.Topic)
 	// Brute-force search for topics that hash into each bucket
-	for i := 0; i < 1000000; i++ {
+	for i := range 1000000 {
 		tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte(strconv.Itoa(i)))
 		node, err := selector.GetNode(tpc)
 		require.NoError(t, err)
@@ -204,7 +204,7 @@ func TestGetNode_ConfirmTopicBalance(t *testing.T) {
 
 	targetBuckets := make(map[uint32]uint32)
 	// Brute-force search for topics that hash into each bucket
-	for i := 0; i < totalRequests; i++ {
+	for i := range totalRequests {
 		tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte(strconv.Itoa(i)))
 		node, err := selector.GetNode(tpc)
 		require.NoError(t, err)
@@ -249,14 +249,14 @@ func TestGetNode_NodeGetNextIfBanned(t *testing.T) {
 
 	reselectedNode, err := selector.GetNode(tpc1, banlist)
 	require.NoError(t, err)
-	require.NotEqualValues(t, node1, reselectedNode)
+	require.NotEqual(t, node1, reselectedNode)
 	require.EqualValues(t, 100, reselectedNode)
 
 	banlist = append(banlist, reselectedNode)
 
 	reselectedNode, err = selector.GetNode(tpc1, banlist)
 	require.NoError(t, err)
-	require.NotEqualValues(t, node1, reselectedNode)
+	require.NotEqual(t, node1, reselectedNode)
 	require.EqualValues(t, 200, reselectedNode)
 
 	banlist = append(banlist, reselectedNode)
@@ -446,7 +446,7 @@ func TestRandomNodeSelector_Distribution(t *testing.T) {
 	counts := make(map[uint32]int)
 	iterations := 1000
 
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		node, err := selector.GetNode(tpc)
 		require.NoError(t, err)
 		counts[node]++

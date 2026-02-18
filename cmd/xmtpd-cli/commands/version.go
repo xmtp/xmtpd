@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -146,9 +147,7 @@ func getVersionHandler(target options.Target) error {
 		logger.Info("node registry version", zap.String("version", version))
 
 	default:
-		return fmt.Errorf(
-			"unknown target",
-		)
+		return errors.New("unknown target")
 	}
 	return nil
 }

@@ -17,7 +17,7 @@ func TestGetEventSignature(t *testing.T) {
 
 	signature, err := GetEventSig(abi, "MessageSent")
 	require.NoError(t, err)
-	require.Equal(t, signature, MessageSentSignature)
+	require.Equal(t, MessageSentSignature, signature)
 }
 
 func TestGetEventTopic(t *testing.T) {

@@ -79,7 +79,7 @@ func (s *StableHashingNodeSelectorAlgorithm) GetNode(
 	}
 
 	// Find the next available node
-	for i := 0; i < len(nodes); i++ {
+	for i := range nodes {
 		candidateIdx := (idx + i) % len(nodeLocations)
 		candidateNodeID := nodes[candidateIdx].NodeID
 

@@ -92,13 +92,13 @@ func validateUpdates(
 	ctxCancel func(),
 ) {
 	envs := <-updates
-	require.Equal(t, 1, len(envs))
+	require.Len(t, envs, 1)
 	require.Equal(t, int32(100), envs[0].OriginatorNodeID)
 	require.Equal(t, int64(2), envs[0].OriginatorSequenceID)
 	require.Equal(t, []byte("envelope3"), envs[0].OriginatorEnvelope)
 
 	envs = <-updates
-	require.Equal(t, 1, len(envs))
+	require.Len(t, envs, 1)
 	require.Equal(t, int32(100), envs[0].OriginatorNodeID)
 	require.Equal(t, int64(3), envs[0].OriginatorSequenceID)
 	require.Equal(t, []byte("envelope5"), envs[0].OriginatorEnvelope)
@@ -200,7 +200,7 @@ loop:
 
 	require.Len(t, retrieved, count)
 
-	for i := range len(envelopes) {
+	for i := range envelopes {
 		e := envelopes[i]
 		record := retrieved[i]
 

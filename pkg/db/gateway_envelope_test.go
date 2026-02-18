@@ -57,14 +57,14 @@ func TestInsertAndIncrement(t *testing.T) {
 		incrementParams,
 	)
 	require.NoError(t, err)
-	require.Equal(t, numInserted, int64(1))
+	require.Equal(t, int64(1), numInserted)
 
 	payerSpend, err := querier.GetPayerUnsettledUsage(
 		ctx,
 		queries.GetPayerUnsettledUsageParams{PayerID: payerID},
 	)
 	require.NoError(t, err)
-	require.Equal(t, payerSpend.TotalSpendPicodollars, int64(100))
+	require.Equal(t, int64(100), payerSpend.TotalSpendPicodollars)
 	require.Equal(t, payerSpend.LastSequenceID, sequenceID)
 
 	originatorCongestion, err := querier.SumOriginatorCongestion(
@@ -72,7 +72,7 @@ func TestInsertAndIncrement(t *testing.T) {
 		queries.SumOriginatorCongestionParams{OriginatorID: originatorID},
 	)
 	require.NoError(t, err)
-	require.Equal(t, originatorCongestion, int64(1))
+	require.Equal(t, int64(1), originatorCongestion)
 }
 
 func TestPayerMustExist(t *testing.T) {
@@ -134,14 +134,14 @@ func TestInsertAndIncrementParallel(t *testing.T) {
 
 	wg.Wait()
 
-	require.Equal(t, totalInserted, int64(1))
+	require.Equal(t, int64(1), totalInserted)
 
 	payerSpend, err := querier.GetPayerUnsettledUsage(
 		ctx,
 		queries.GetPayerUnsettledUsageParams{PayerID: payerID},
 	)
 	require.NoError(t, err)
-	require.Equal(t, payerSpend.TotalSpendPicodollars, int64(100))
+	require.Equal(t, int64(100), payerSpend.TotalSpendPicodollars)
 	require.Equal(t, payerSpend.LastSequenceID, sequenceID)
 
 	originatorCongestion, err := querier.SumOriginatorCongestion(
@@ -149,7 +149,7 @@ func TestInsertAndIncrementParallel(t *testing.T) {
 		queries.SumOriginatorCongestionParams{OriginatorID: originatorID},
 	)
 	require.NoError(t, err)
-	require.Equal(t, originatorCongestion, int64(1))
+	require.Equal(t, int64(1), originatorCongestion)
 }
 
 func TestInsertAndIncrementWithOutOfOrderSequenceID(t *testing.T) {

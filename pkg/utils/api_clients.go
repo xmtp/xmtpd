@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -349,11 +350,11 @@ func getBaseDialOptions(extraDialOpts ...connect.ClientOption) []connect.ClientO
 func buildTLSConfig() (*tls.Config, error) {
 	certPool, err := x509.SystemCertPool()
 	if err != nil {
-		return nil, fmt.Errorf("failed to load system CA certificates: %v", err)
+		return nil, fmt.Errorf("failed to load system CA certificates: %w", err)
 	}
 
 	if certPool == nil {
-		return nil, fmt.Errorf("no system CA certificates available")
+		return nil, errors.New("no system CA certificates available")
 	}
 
 	return &tls.Config{

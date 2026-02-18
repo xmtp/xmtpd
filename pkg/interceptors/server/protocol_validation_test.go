@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -38,7 +39,11 @@ func TestUnaryProtocolValidationInterceptor(t *testing.T) {
 	conn, err := interceptor.WrapUnary(next)(t.Context(), req)
 	require.Error(t, err)
 	require.Nil(t, conn)
-	require.Equal(t, connect.CodeFailedPrecondition, err.(*connect.Error).Code())
+	require.Equal(t, connect.CodeFailedPrecondition, func() *connect.Error {
+		target := &connect.Error{}
+		_ = errors.As(err, &target)
+		return target
+	}().Code())
 	require.Contains(t, err.Error(), errUnsupportedProtocol.Error())
 }
 
@@ -53,6 +58,10 @@ func TestStreamProtocolValidationInterceptor(t *testing.T) {
 
 	err := interceptor.WrapStreamingHandler(next)(t.Context(), conn)
 	require.Error(t, err)
-	require.Equal(t, connect.CodeFailedPrecondition, err.(*connect.Error).Code())
+	require.Equal(t, connect.CodeFailedPrecondition, func() *connect.Error {
+		target := &connect.Error{}
+		_ = errors.As(err, &target)
+		return target
+	}().Code())
 	require.Contains(t, err.Error(), errUnsupportedProtocol.Error())
 }

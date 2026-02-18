@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	iu "github.com/xmtp/xmtpd/pkg/abi/identityupdatebroadcaster"
@@ -162,15 +163,15 @@ func TestPublishIdentityUpdate(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.NotNil(t, publishResponse)
-	require.Len(t, publishResponse.Msg.OriginatorEnvelopes, 1)
+	require.Len(t, publishResponse.Msg.GetOriginatorEnvelopes(), 1)
 
-	responseEnvelope := publishResponse.Msg.OriginatorEnvelopes[0]
+	responseEnvelope := publishResponse.Msg.GetOriginatorEnvelopes()[0]
 	parsedOriginatorEnvelope, err := envelopes.NewOriginatorEnvelope(responseEnvelope)
 	require.NoError(t, err)
 
-	proof := parsedOriginatorEnvelope.Proto().Proof.(*envelopesProto.OriginatorEnvelope_BlockchainProof)
+	proof := parsedOriginatorEnvelope.Proto().GetProof().(*envelopesProto.OriginatorEnvelope_BlockchainProof)
 
-	require.Equal(t, proof.BlockchainProof.TransactionHash, txnHash[:])
+	require.Equal(t, proof.BlockchainProof.GetTransactionHash(), txnHash[:])
 	require.Equal(
 		t,
 		parsedOriginatorEnvelope.UnsignedOriginatorEnvelope.OriginatorSequenceID(),
@@ -206,9 +207,9 @@ func TestPublishToNodes(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.NotNil(t, publishResponse)
-	require.Len(t, publishResponse.Msg.OriginatorEnvelopes, 1)
+	require.Len(t, publishResponse.Msg.GetOriginatorEnvelopes(), 1)
 
-	responseEnvelope := publishResponse.Msg.OriginatorEnvelopes[0]
+	responseEnvelope := publishResponse.Msg.GetOriginatorEnvelopes()[0]
 	parsedOriginatorEnvelope, err := envelopes.NewOriginatorEnvelope(responseEnvelope)
 	require.NoError(t, err)
 
@@ -278,7 +279,7 @@ func TestPublishToNodesExpires(t *testing.T) {
 		err = s.Serve(listen)
 		// Will happen *eventually* on test close.
 		// If it happens before we will be alerted by other things
-		require.ErrorIs(t, err, net.ErrClosed)
+		assert.ErrorIs(t, err, net.ErrClosed)
 	}()
 
 	ctx := context.Background()

@@ -86,7 +86,8 @@ func runTestCases(t *testing.T, testCases []testCase) {
 				require.ErrorAs(t, lastErr, &tc.expectedError)
 
 				// Check retryable behavior matches expected
-				if retryableErr, ok := lastErr.(re.RetryableError); ok {
+				var retryableErr re.RetryableError
+				if errors.As(lastErr, &retryableErr) {
 					expectedRetryable := tc.expectedError.ShouldRetry()
 					actualRetryable := retryableErr.ShouldRetry()
 					require.Equal(t, expectedRetryable, actualRetryable,

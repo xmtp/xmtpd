@@ -1,7 +1,6 @@
 package authorizers
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -187,7 +186,7 @@ func TestRateLimitAuthorizer_ErrorType(t *testing.T) {
 
 	// Verify error is GatewayServiceError
 	var gwErr gateway.GatewayServiceError
-	require.True(t, errors.As(err, &gwErr), "error should be GatewayServiceError")
+	require.ErrorAs(t, err, &gwErr, "error should be GatewayServiceError")
 
 	// Verify RetryAfter is set
 	retryAfter := gwErr.RetryAfter()
@@ -221,7 +220,7 @@ func TestRateLimitAuthorizer_RetryAfterAccuracy(t *testing.T) {
 	require.False(t, allowed)
 
 	var gwErr gateway.GatewayServiceError
-	require.True(t, errors.As(err, &gwErr))
+	require.ErrorAs(t, err, &gwErr)
 
 	retryAfter := gwErr.RetryAfter()
 	require.NotNil(t, retryAfter)

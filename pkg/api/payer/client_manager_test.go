@@ -3,7 +3,6 @@ package payer_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -21,7 +20,7 @@ import (
 
 func formatAddress(addr string) string {
 	chunks := strings.Split(addr, ":")
-	return fmt.Sprintf("http://localhost:%s", chunks[len(chunks)-1])
+	return "http://localhost:" + chunks[len(chunks)-1]
 }
 
 func TestClientManager(t *testing.T) {
@@ -53,7 +52,7 @@ func TestClientManager(t *testing.T) {
 		&grpc_health_v1.HealthCheckRequest{},
 	)
 	require.NoError(t, err)
-	require.Equal(t, grpc_health_v1.HealthCheckResponse_SERVING, healthResponse.Status)
+	require.Equal(t, grpc_health_v1.HealthCheckResponse_SERVING, healthResponse.GetStatus())
 
 	client2, err := cm.GetClientConnection(200)
 	require.NoError(t, err)

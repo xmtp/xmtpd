@@ -50,7 +50,7 @@ func TestNotifierConcurrent(t *testing.T) {
 	channel := registry.register()
 	getCurrentCount := CountChannel(channel)
 
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		go registry.trigger(1)
 	}
 

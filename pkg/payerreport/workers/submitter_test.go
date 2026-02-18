@@ -1,7 +1,7 @@
 package workers
 
 import (
-	"fmt"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
@@ -328,16 +328,13 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 
 				var chainError error
 
-				switch tc.rejectedOnChainWithError {
-				case blockchain.ErrInvalidStartSequenceID:
-					chainError = fmt.Errorf("execution reverted: 0x84e23433")
-
-				case blockchain.ErrInvalidSequenceIDs:
-					chainError = fmt.Errorf("execution reverted: 0xa7ee0517")
-
-				case blockchain.ErrPayerReportAlreadySubmitted:
-					chainError = fmt.Errorf("execution reverted: 0x93105c68")
-
+				switch {
+				case errors.Is(tc.rejectedOnChainWithError, blockchain.ErrInvalidStartSequenceID):
+					chainError = errors.New("execution reverted: 0x84e23433")
+				case errors.Is(tc.rejectedOnChainWithError, blockchain.ErrInvalidSequenceIDs):
+					chainError = errors.New("execution reverted: 0xa7ee0517")
+				case errors.Is(tc.rejectedOnChainWithError, blockchain.ErrPayerReportAlreadySubmitted):
+					chainError = errors.New("execution reverted: 0x93105c68")
 				default:
 					t.Fatalf("unknown rejected on chain error: %v", tc.rejectedOnChainWithError)
 				}

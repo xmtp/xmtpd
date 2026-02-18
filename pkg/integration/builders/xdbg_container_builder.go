@@ -90,7 +90,7 @@ func (b *XdbgContainerBuilder) Build(t *testing.T) error {
 		},
 		HostConfigModifier: func(hc *container.HostConfig) {
 			hc.ExtraHosts = append(hc.ExtraHosts, "host.docker.internal:host-gateway")
-			hc.Binds = append(hc.Binds, fmt.Sprintf("%s:/root/.local/share/xdbg/", b.dbVolumePath))
+			hc.Binds = append(hc.Binds, b.dbVolumePath+":/root/.local/share/xdbg/")
 		},
 		WaitingFor: b.waitStrategy,
 	}

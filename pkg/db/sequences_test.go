@@ -3,7 +3,7 @@ package db_test
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -77,7 +77,7 @@ func failNextPayerSequence(t *testing.T, ctx context.Context, db *sql.DB) (int64
 			t.Log("Acquired sequence ID: ", seq)
 			time.Sleep(10 * time.Millisecond)
 
-			return 0, fmt.Errorf("failed to acquire sequence")
+			return 0, errors.New("failed to acquire sequence")
 		},
 	)
 }
@@ -98,7 +98,7 @@ func TestConcurrentReads(t *testing.T) {
 	numClients := 20
 	results := make(chan int64, numClients)
 
-	for i := 0; i < numClients; i++ {
+	for range numClients {
 		wg.Go(func() {
 			seqID, err := getNextPayerSequence(t, ctx, db)
 			if err != nil {
@@ -123,7 +123,7 @@ func TestConcurrentReads(t *testing.T) {
 		allocatedIDs[seqID] = true
 	}
 
-	for i := 0; i < numClients; i++ {
+	for i := range numClients {
 		if !allocatedIDs[int64(i)] {
 			t.Errorf("Missing sequence ID: %d", i)
 		}

@@ -2,7 +2,7 @@ package db
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -54,10 +54,10 @@ func NewDBSubscription[ValueType any, CursorType any](
 
 func (s *DBSubscription[ValueType, CursorType]) Start() (<-chan []ValueType, error) {
 	if s.updates != nil {
-		return nil, fmt.Errorf("already started")
+		return nil, errors.New("already started")
 	}
 	if s.options.NumRows <= 0 || s.logger == nil {
-		return nil, fmt.Errorf("required params not provided")
+		return nil, errors.New("required params not provided")
 	}
 	updates := make(chan []ValueType)
 	s.updates = updates

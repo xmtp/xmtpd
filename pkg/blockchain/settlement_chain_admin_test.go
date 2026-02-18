@@ -378,11 +378,11 @@ func TestPayerRegistry_Uint96Params_ReadDefault_WriteThenRead(t *testing.T) {
 
 				gotV1, err := tc.get(ctx)
 				require.NoError(t, err)
-				require.EqualValues(t, v1, gotV1)
+				require.Equal(t, v1, gotV1)
 
 				rawV1, err := paramAdmin.GetParameterUint96(ctx, tc.key)
 				require.NoError(t, err)
-				require.EqualValues(t, v1, rawV1)
+				require.Equal(t, v1, rawV1)
 			})
 
 			t.Run(tc.name+"/write_idempotent", func(t *testing.T) {

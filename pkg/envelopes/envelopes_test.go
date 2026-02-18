@@ -150,7 +150,7 @@ func TestRecoverSigner(t *testing.T) {
 
 	payerSignature, err := utils.SignClientEnvelope(
 		nodeID,
-		rawPayerEnv.UnsignedClientEnvelope,
+		rawPayerEnv.GetUnsignedClientEnvelope(),
 		payerPrivateKey,
 	)
 	require.NoError(t, err)

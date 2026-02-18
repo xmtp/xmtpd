@@ -82,7 +82,7 @@ func TestStorePayerReportManagerPayerReportSubmitted(t *testing.T) {
 	res, queryErr := tester.queries.FetchPayerReports(t.Context(), queries.FetchPayerReportsParams{
 		OriginatorNodeID: utils.NewNullInt32(&originatorNodeID),
 	})
-	require.Nil(t, queryErr)
+	require.NoError(t, queryErr)
 	require.Len(t, res, 1)
 
 	require.Equal(t, int32(200), res[0].EndMinuteSinceEpoch)
@@ -116,7 +116,7 @@ func TestStorePayerReportManagerPayerReportSubmittedIdempotency(t *testing.T) {
 	res, queryErr := tester.queries.FetchPayerReports(t.Context(), queries.FetchPayerReportsParams{
 		OriginatorNodeID: utils.NewNullInt32(&originatorNodeID),
 	})
-	require.Nil(t, queryErr)
+	require.NoError(t, queryErr)
 	require.Len(t, res, 1)
 	require.True(t, res[0].SubmittedReportIndex.Valid, "SubmittedReportIndex should be set")
 	require.Equal(t, int32(payerReportIndex), res[0].SubmittedReportIndex.Int32)
@@ -250,7 +250,7 @@ func TestStorePayerReportManagerPayerReportSubsetSettled(t *testing.T) {
 			res, queryErr := q.FetchPayerReports(ctx, queries.FetchPayerReportsParams{
 				OriginatorNodeID: utils.NewNullInt32(&tc.originatorNodeID),
 			})
-			require.Nil(t, queryErr)
+			require.NoError(t, queryErr)
 			require.Len(t, res, 1)
 
 			// Check the submission status
@@ -364,7 +364,7 @@ func TestStorePayerReportManagerPayerReportSubsetSettledIdempotency(t *testing.T
 	res, queryErr := db.Query().FetchPayerReports(ctx, queries.FetchPayerReportsParams{
 		OriginatorNodeID: utils.NewNullInt32(&originatorNodeID),
 	})
-	require.Nil(t, queryErr)
+	require.NoError(t, queryErr)
 	require.Len(t, res, 1)
 	require.Equal(t, int16(2), res[0].SubmissionStatus) // 2 = settled
 }

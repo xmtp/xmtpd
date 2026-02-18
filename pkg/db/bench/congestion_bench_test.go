@@ -24,17 +24,23 @@ func seedCongestion(ctx context.Context, db *sql.DB) {
 		origID := int32(500 + i)
 		congestionOriginators[i] = origID
 		for minute := range int32(numCongestionMinutes) {
-			err := q.IncrementOriginatorCongestion(ctx, queries.IncrementOriginatorCongestionParams{
-				OriginatorID:      origID,
-				MinutesSinceEpoch: minute,
-			})
+			err := q.IncrementOriginatorCongestion(
+				ctx,
+				queries.IncrementOriginatorCongestionParams{
+					OriginatorID:      origID,
+					MinutesSinceEpoch: minute,
+				},
+			)
 			if err != nil {
 				log.Fatalf("seed congestion: %v", err)
 			}
 		}
 	}
 	congestionMaxMinute = numCongestionMinutes - 1
-	log.Printf("seeded congestion: %d rows", numCongestionOriginators*numCongestionMinutes)
+	log.Printf(
+		"seeded congestion: %d rows",
+		numCongestionOriginators*numCongestionMinutes,
+	)
 }
 
 func BenchmarkIncrementOriginatorCongestion(b *testing.B) {
@@ -42,7 +48,6 @@ func BenchmarkIncrementOriginatorCongestion(b *testing.B) {
 	origID := congestionOriginators[0]
 	var counter atomic.Int32
 	counter.Store(100_000) // start beyond seeded range
-	b.ResetTimer()
 	for b.Loop() {
 		minute := counter.Add(1)
 		err := q.IncrementOriginatorCongestion(
@@ -63,7 +68,6 @@ func BenchmarkGetRecentOriginatorCongestion(b *testing.B) {
 		EndMinute:    congestionMaxMinute,
 		NumMinutes:   60, // last hour
 	}
-	b.ResetTimer()
 	for b.Loop() {
 		_, err := q.GetRecentOriginatorCongestion(benchCtx, params)
 		require.NoError(b, err)
@@ -77,7 +81,6 @@ func BenchmarkSumOriginatorCongestion(b *testing.B) {
 		MinutesSinceEpochGt: 0,
 		MinutesSinceEpochLt: int64(congestionMaxMinute),
 	}
-	b.ResetTimer()
 	for b.Loop() {
 		_, err := q.SumOriginatorCongestion(benchCtx, params)
 		require.NoError(b, err)

@@ -2,7 +2,6 @@ package bench
 
 import (
 	"context"
-	"crypto/rand"
 	"database/sql"
 	"fmt"
 	"log"
@@ -32,6 +31,7 @@ type envelopeTier struct {
 }
 
 // Package-level handles, populated by TestMain.
+// testing.M has no Context() or Cleanup() methods, so we manage lifecycle manually.
 var (
 	benchCtx      = context.Background()
 	envelopeTiers []*envelopeTier
@@ -50,14 +50,22 @@ var (
 	usageMaxMinute        int32
 )
 
-var cleanups []func()
-
 func TestMain(m *testing.M) {
 	ctlDB, err := connectDB(localDSNPrefix + localDSNSuffix)
 	if err != nil {
 		log.Fatalf("failed to connect to control DB: %v", err)
 	}
 	defer func() { _ = ctlDB.Close() }()
+
+	// Track cleanups so they run even if a seed function calls log.Fatalf
+	// (log.Fatalf calls os.Exit, so defers in this function won't run either —
+	// but at least we get cleanup for the normal exit path).
+	var cleanups []func()
+	defer func() {
+		for _, fn := range cleanups {
+			fn()
+		}
+	}()
 
 	// --- Envelope tiers ---
 	tiers := []struct {
@@ -104,12 +112,7 @@ func TestMain(m *testing.M) {
 	cleanups = append(cleanups, cleanup)
 	seedUsage(benchCtx, usageDB)
 
-	code := m.Run()
-
-	for _, fn := range cleanups {
-		fn()
-	}
-	os.Exit(code)
+	os.Exit(m.Run())
 }
 
 // connectDB opens a pgx-backed *sql.DB.
@@ -142,13 +145,6 @@ func createBenchDB(ctlDB *sql.DB, suffix string) (*sql.DB, func()) {
 
 	return db, func() {
 		_ = db.Close()
-		_, _ = ctlDB.Exec("DROP DATABASE " + dbName)
+		_, _ = ctlDB.Exec("DROP DATABASE " + dbName + " WITH (FORCE)")
 	}
-}
-
-// randomBytes returns n random bytes.
-func randomBytes(n int) []byte {
-	b := make([]byte, n)
-	_, _ = rand.Read(b)
-	return b
 }

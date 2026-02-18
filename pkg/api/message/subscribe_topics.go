@@ -194,6 +194,11 @@ func buildTopicCursors(
 
 	for _, f := range filters {
 		key := string(f.GetTopic())
+
+		if _, exists := cursors[key]; exists {
+			continue
+		}
+
 		lastSeen := f.GetLastSeen()
 
 		if lastSeen != nil {
@@ -314,7 +319,8 @@ func (s *Service) sendTopicEnvelopes(
 		origID := uint32(env.OriginatorNodeID())
 		seqID := env.OriginatorSequenceID()
 
-		if vc[origID] >= seqID {
+		lastSeq, seen := vc[origID]
+		if seen && lastSeq >= seqID {
 			// Already seen.
 			continue
 		}

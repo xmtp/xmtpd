@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"math"
 
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 )
@@ -122,6 +123,9 @@ func SetPerTopicCursors(
 	for topicKey, vc := range tc {
 		topicBytes := []byte(topicKey)
 		for nodeID, seqID := range vc {
+			if seqID > uint64(math.MaxInt64) {
+				continue
+			}
 			q.CursorTopics = append(q.CursorTopics, topicBytes)
 			q.CursorNodeIds = append(q.CursorNodeIds, int32(nodeID))
 			q.CursorSequenceIds = append(q.CursorSequenceIds, int64(seqID))

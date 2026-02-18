@@ -154,7 +154,7 @@ func TestCachedOriginatorList_Concurrent(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			ids, err := list.GetOriginatorNodeIDs(ctx)
-			assert.NoError(t, err)
+			assert.NoError(t, err) //nolint:testifylint // require not safe in goroutine
 			assert.NotEmpty(t, ids)
 		}()
 	}

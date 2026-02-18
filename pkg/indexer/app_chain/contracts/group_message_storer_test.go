@@ -69,7 +69,7 @@ func TestStoreGroupMessages(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.Equal(t, len(gatewayEnvelopes), 1)
+	require.Len(t, gatewayEnvelopes, 1)
 
 	firstEnvelope := gatewayEnvelopes[0]
 	originatorEnvelope, err := envelopes.NewOriginatorEnvelopeFromBytes(
@@ -121,7 +121,7 @@ func TestStoreGroupMessageDuplicate(t *testing.T) {
 	)
 	require.NoError(t, queryErr)
 
-	require.Equal(t, len(envelopes), 1)
+	require.Len(t, envelopes, 1)
 }
 
 func TestStoreGroupMessageMalformed(t *testing.T) {

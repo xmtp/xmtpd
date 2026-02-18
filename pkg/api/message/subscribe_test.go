@@ -147,15 +147,15 @@ func validateUpdates(
 		}
 
 		msg := stream.Msg()
-		for _, env := range msg.Envelopes {
+		for _, env := range msg.GetEnvelopes() {
 			actual := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
 				t,
-				env.UnsignedOriginatorEnvelope,
+				env.GetUnsignedOriginatorEnvelope(),
 			)
 
 			k := key{
-				nodeID: int32(actual.OriginatorNodeId),
-				seqID:  int64(actual.OriginatorSequenceId),
+				nodeID: int32(actual.GetOriginatorNodeId()),
+				seqID:  int64(actual.GetOriginatorSequenceId()),
 			}
 
 			// Per-originator ordering must be strictly increasing in the *received stream*.
@@ -184,8 +184,8 @@ func validateUpdates(
 			)
 
 			// Validate contents match expected.
-			require.EqualValues(t, expRow.OriginatorNodeID, actual.OriginatorNodeId)
-			require.EqualValues(t, expRow.OriginatorSequenceID, actual.OriginatorSequenceId)
+			require.EqualValues(t, expRow.OriginatorNodeID, actual.GetOriginatorNodeId())
+			require.EqualValues(t, expRow.OriginatorSequenceID, actual.GetOriginatorSequenceId())
 			require.Equal(t, expRow.OriginatorEnvelope, testutils.Marshal(t, env))
 
 			seen[k] = struct{}{}
@@ -366,7 +366,7 @@ func TestSubscribeEnvelopesInvalidRequest(t *testing.T) {
 	}
 
 	// Verify we received exactly one keepalive message.
-	require.Equal(t, receivedMessages, 1, "should receive exactly one keepalive message")
+	require.Equal(t, 1, receivedMessages, "should receive exactly one keepalive message")
 
 	// Verify the stream closed with InvalidArgument error.
 	err = stream.Err()
@@ -469,7 +469,7 @@ func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
 		payerID     = testutils.CreatePayer(t, server.DB)
 		subTopic    = topic.NewTopic(
 			topic.TopicKindGroupMessagesV1,
-			[]byte(fmt.Sprintf("generic-topic-%v", rand.Int())),
+			fmt.Appendf(nil, "generic-topic-%v", rand.Int()),
 		)
 
 		// Include messages not coming from our nodes.
@@ -527,15 +527,15 @@ func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
 
 		msg := stream.Msg()
 
-		for _, env := range msg.Envelopes {
+		for _, env := range msg.GetEnvelopes() {
 			received_count += 1
 
 			decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
 				t,
-				env.UnsignedOriginatorEnvelope,
+				env.GetUnsignedOriginatorEnvelope(),
 			)
 
-			received[keyID(int32(decoded.OriginatorNodeId), int64(decoded.OriginatorSequenceId))] = struct{}{}
+			received[keyID(int32(decoded.GetOriginatorNodeId()), int64(decoded.GetOriginatorSequenceId()))] = struct{}{}
 		}
 	}
 

@@ -26,8 +26,8 @@ func TestStartAnvil(t *testing.T) {
 func TestStartConcurrent(t *testing.T) {
 	const numInstances = 10
 
-	for i := 0; i < numInstances; i++ {
-		i := i // capture loop variable
+	for i := range numInstances {
+		// capture loop variable
 		t.Run(fmt.Sprintf("instance-%d", i), func(t *testing.T) {
 			t.Parallel()
 

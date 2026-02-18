@@ -1,8 +1,8 @@
 version: "2"
 linters:
   default: none
-  # https://golangci-lint.run/usage/linters/#enabled-by-default-linters
   enable:
+    # Tier 1: Bug detection (already enabled)
     - errcheck
     - govet
     - ineffassign
@@ -10,9 +10,22 @@ linters:
     - unused
     - nilerr
     - nakedret
+    - modernize
+    # Tier 2: Autofix linters (new)
+    - testifylint
+    - perfsprint
+    - intrange
+    - copyloopvar
+    - misspell
+    - errorlint
+    - protogetter
+  exclusions:
+    generated: lax
 
 formatters:
   enable:
     - gofmt
     - golines
     - gofumpt
+  exclusions:
+    generated: lax

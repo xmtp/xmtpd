@@ -22,7 +22,7 @@ func NewPayerEnvelope(proto *envelopesProto.PayerEnvelope) (*PayerEnvelope, erro
 		return nil, errors.New("payer envelope proto is nil")
 	}
 
-	clientEnv, err := NewClientEnvelopeFromBytes(proto.UnsignedClientEnvelope)
+	clientEnv, err := NewClientEnvelopeFromBytes(proto.GetUnsignedClientEnvelope())
 	if err != nil {
 		return nil, err
 	}
@@ -54,13 +54,16 @@ func (p *PayerEnvelope) Bytes() ([]byte, error) {
 }
 
 func (p *PayerEnvelope) RecoverSigner() (*common.Address, error) {
-	payerSignature := p.proto.PayerSignature
+	payerSignature := p.proto.GetPayerSignature()
 	if payerSignature == nil {
 		return nil, errors.New("payer signature is missing")
 	}
 
-	hash := utils.HashPayerSignatureInput(p.proto.TargetOriginator, p.proto.UnsignedClientEnvelope)
-	signer, err := ethcrypto.SigToPub(hash, payerSignature.Bytes)
+	hash := utils.HashPayerSignatureInput(
+		p.proto.GetTargetOriginator(),
+		p.proto.GetUnsignedClientEnvelope(),
+	)
+	signer, err := ethcrypto.SigToPub(hash, payerSignature.GetBytes())
 	if err != nil {
 		return nil, err
 	}
@@ -75,5 +78,5 @@ func (p *PayerEnvelope) TargetTopic() topic.Topic {
 }
 
 func (p *PayerEnvelope) RetentionDays() uint32 {
-	return p.proto.MessageRetentionDays
+	return p.proto.GetMessageRetentionDays()
 }

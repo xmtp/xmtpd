@@ -201,22 +201,22 @@ func (s *IdentityUpdateStorer) StoreLog(
 				revokeBatch = make([]string, 0)
 			)
 
-			for _, newMember := range associationState.StateDiff.NewMembers {
+			for _, newMember := range associationState.StateDiff.GetNewMembers() {
 				if s.logger.Core().Enabled(zap.DebugLevel) {
 					s.logger.Debug("new member", utils.BodyField(newMember))
 				}
 
-				if address, ok := newMember.Kind.(*associations.MemberIdentifier_EthereumAddress); ok {
+				if address, ok := newMember.GetKind().(*associations.MemberIdentifier_EthereumAddress); ok {
 					insertBatch = append(insertBatch, address.EthereumAddress)
 				}
 			}
 
-			for _, removedMember := range associationState.StateDiff.RemovedMembers {
+			for _, removedMember := range associationState.StateDiff.GetRemovedMembers() {
 				if s.logger.Core().Enabled(zap.DebugLevel) {
 					s.logger.Debug("removed member", utils.BodyField(removedMember))
 				}
 
-				if address, ok := removedMember.Kind.(*associations.MemberIdentifier_EthereumAddress); ok {
+				if address, ok := removedMember.GetKind().(*associations.MemberIdentifier_EthereumAddress); ok {
 					revokeBatch = append(revokeBatch, address.EthereumAddress)
 				}
 			}

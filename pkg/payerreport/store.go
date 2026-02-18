@@ -3,8 +3,8 @@ package payerreport
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"errors"
-	"fmt"
 	"math"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -423,12 +423,12 @@ func (s *Store) StoreSyncedReport(
 	payerReportProto := payerReportProtoWrapper.PayerReport
 
 	reportID, err := BuildPayerReportID(
-		payerReportProto.OriginatorNodeId,
-		payerReportProto.StartSequenceId,
-		payerReportProto.EndSequenceId,
-		payerReportProto.EndMinuteSinceEpoch,
-		common.BytesToHash(payerReportProto.PayersMerkleRoot),
-		payerReportProto.ActiveNodeIds,
+		payerReportProto.GetOriginatorNodeId(),
+		payerReportProto.GetStartSequenceId(),
+		payerReportProto.GetEndSequenceId(),
+		payerReportProto.GetEndMinuteSinceEpoch(),
+		common.BytesToHash(payerReportProto.GetPayersMerkleRoot()),
+		payerReportProto.GetActiveNodeIds(),
 		domainSeparator,
 	)
 	if err != nil {
@@ -437,12 +437,12 @@ func (s *Store) StoreSyncedReport(
 
 	payerReport := &PayerReport{
 		ID:                  *reportID,
-		OriginatorNodeID:    payerReportProto.OriginatorNodeId,
-		StartSequenceID:     payerReportProto.StartSequenceId,
-		EndSequenceID:       payerReportProto.EndSequenceId,
-		EndMinuteSinceEpoch: payerReportProto.EndMinuteSinceEpoch,
-		PayersMerkleRoot:    [32]byte(payerReportProto.PayersMerkleRoot),
-		ActiveNodeIDs:       payerReportProto.ActiveNodeIds,
+		OriginatorNodeID:    payerReportProto.GetOriginatorNodeId(),
+		StartSequenceID:     payerReportProto.GetStartSequenceId(),
+		EndSequenceID:       payerReportProto.GetEndSequenceId(),
+		EndMinuteSinceEpoch: payerReportProto.GetEndMinuteSinceEpoch(),
+		PayersMerkleRoot:    [32]byte(payerReportProto.GetPayersMerkleRoot()),
+		ActiveNodeIDs:       payerReportProto.GetActiveNodeIds(),
 	}
 
 	storeReportParams, err := prepareStoreReportParams(payerReport)
@@ -520,9 +520,9 @@ func (s *Store) StoreSyncedAttestation(
 			return txQueries.InsertOrIgnorePayerReportAttestation(
 				ctx,
 				queries.InsertOrIgnorePayerReportAttestationParams{
-					PayerReportID: attestationProto.ReportId,
-					NodeID:        int64(attestationProto.Signature.NodeId),
-					Signature:     attestationProto.Signature.Signature.Bytes,
+					PayerReportID: attestationProto.GetReportId(),
+					NodeID:        int64(attestationProto.GetSignature().GetNodeId()),
+					Signature:     attestationProto.GetSignature().GetSignature().GetBytes(),
 				},
 			)
 		},
@@ -540,7 +540,7 @@ func convertPayerReports(rows []queries.FetchPayerReportsRow) ([]*PayerReportWit
 
 	var err error
 	for _, row := range rows {
-		key := fmt.Sprintf("%x", row.ID)
+		key := hex.EncodeToString(row.ID)
 		_, hasExisting := results[key]
 		if !hasExisting {
 			results[key], err = convertPayerReport(&queries.PayerReport{

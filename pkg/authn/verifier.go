@@ -2,6 +2,7 @@
 package authn
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -117,12 +118,12 @@ func (v *RegistryVerifier) validateAudience(token *jwt.Token) error {
 func (v *RegistryVerifier) validateClaims(token *jwt.Token) (CloseFunc, error) {
 	claims, ok := token.Claims.(*XmtpdClaims)
 	if !ok {
-		return emptyClose, fmt.Errorf("invalid token claims type")
+		return emptyClose, errors.New("invalid token claims type")
 	}
 
 	// Check if the token is valid
 	if !token.Valid {
-		return emptyClose, fmt.Errorf("invalid token")
+		return emptyClose, errors.New("invalid token")
 	}
 
 	return v.validator.ValidateVersionClaimIsCompatible(claims)
@@ -156,22 +157,22 @@ func validateExpiry(token *jwt.Token) error {
 
 	// We allow tokens to be issued up to 2 minutes in the future to account for clock skew
 	if time.Since(issuedAt.Time) < MaxClockSkew*-1 {
-		return fmt.Errorf("token issued in the future")
+		return errors.New("token issued in the future")
 	}
 
 	// Tokens cannot expire before they are issued
 	if exp.Before(issuedAt.Time) {
-		return fmt.Errorf("token expires before the issued at time")
+		return errors.New("token expires before the issued at time")
 	}
 
 	// Tokens can only have a validity period of at most 2 hours
 	if exp.Sub(issuedAt.Time) > maxTokenDuration {
-		return fmt.Errorf("token expiration time is greater than the max duration")
+		return errors.New("token expiration time is greater than the max duration")
 	}
 
 	// Tokens cannot be expired
 	if time.Since(exp.Time) > 0 {
-		return fmt.Errorf("token is expired")
+		return errors.New("token is expired")
 	}
 
 	return nil

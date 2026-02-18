@@ -81,7 +81,7 @@ func TestRpcLogStreamer(t *testing.T) {
 
 	response, err := streamer.GetNextPage(context.Background(), cfg, backfillFromBlock, nil)
 	require.NoError(t, err)
-	require.EqualValues(t, mockBlock11.NumberU64(), *response.NextBlockNumber)
-	require.EqualValues(t, 1, len(response.Logs))
-	require.EqualValues(t, response.Logs[0].Address, address)
+	require.Equal(t, mockBlock11.NumberU64(), *response.NextBlockNumber)
+	require.Len(t, response.Logs, 1)
+	require.Equal(t, response.Logs[0].Address, address)
 }

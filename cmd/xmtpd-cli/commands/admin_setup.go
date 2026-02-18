@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/xmtp/xmtpd/pkg/fees"
@@ -27,7 +28,7 @@ func setupAppChainAdmin(
 	}
 
 	if privateKey == "" {
-		return nil, nil, fmt.Errorf("private-key is required")
+		return nil, nil, errors.New("private-key is required")
 	}
 
 	contracts, err := resolveConfig(configFile, env)
@@ -73,7 +74,7 @@ func setupSettlementChainAdmin(
 	}
 
 	if privateKey == "" {
-		return nil, nil, fmt.Errorf("private-key is required")
+		return nil, nil, errors.New("private-key is required")
 	}
 
 	contracts, err := resolveConfig(configFile, env)
@@ -125,7 +126,7 @@ func setupNodeRegistryAdmin(
 	}
 
 	if privateKey == "" {
-		return nil, fmt.Errorf("private key is required")
+		return nil, errors.New("private key is required")
 	}
 
 	contracts, err := resolveConfig(configFile, env)
@@ -225,7 +226,7 @@ func setupRateRegistryAdmin(
 	}
 
 	if privateKey == "" {
-		return nil, fmt.Errorf("private-key is required")
+		return nil, errors.New("private-key is required")
 	}
 
 	contracts, err := resolveConfig(configFile, env)
@@ -323,7 +324,7 @@ func setupFundsAdmin(
 	}
 
 	if privateKey == "" {
-		return nil, fmt.Errorf("private-key is required")
+		return nil, errors.New("private-key is required")
 	}
 
 	contracts, err := resolveConfig(configFile, env)

@@ -67,7 +67,7 @@ func NewAppChain(
 	if err != nil {
 		cancel()
 		rpcClient.Close()
-		return nil, fmt.Errorf("%v: %w", ErrInitializingAppChain, err)
+		return nil, fmt.Errorf("%w: %w", ErrInitializingAppChain, err)
 	}
 
 	groupMessageBroadcaster, err := contracts.NewGroupMessageBroadcaster(
@@ -82,7 +82,7 @@ func NewAppChain(
 	if err != nil {
 		cancel()
 		rpcClient.Close()
-		return nil, fmt.Errorf("%v: %w", ErrInitializingAppChain, err)
+		return nil, fmt.Errorf("%w: %w", ErrInitializingAppChain, err)
 	}
 
 	groupMessageLatestBlockNumber, groupMessageLatestBlockHash := groupMessageBroadcaster.GetLatestBlock()
@@ -100,7 +100,7 @@ func NewAppChain(
 	if err != nil {
 		cancel()
 		rpcClient.Close()
-		return nil, fmt.Errorf("%v: %w", ErrInitializingAppChain, err)
+		return nil, fmt.Errorf("%w: %w", ErrInitializingAppChain, err)
 	}
 
 	identityUpdateLatestBlockNumber, identityUpdateLatestBlockHash := identityUpdateBroadcaster.GetLatestBlock()
@@ -112,7 +112,7 @@ func NewAppChain(
 	if err != nil {
 		cancel()
 		rpcClient.Close()
-		return nil, fmt.Errorf("%v: %w", ErrInitializingAppChain, err)
+		return nil, fmt.Errorf("%w: %w", ErrInitializingAppChain, err)
 	}
 
 	streamer, err := rpcstreamer.NewRPCLogStreamer(
@@ -149,7 +149,7 @@ func NewAppChain(
 		cancel()
 		rpcClient.Close()
 		wsClient.Close()
-		return nil, fmt.Errorf("%v: %w", ErrInitializingAppChain, err)
+		return nil, fmt.Errorf("%w: %w", ErrInitializingAppChain, err)
 	}
 
 	return &AppChain{

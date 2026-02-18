@@ -272,7 +272,10 @@ func (s *Service) groupEnvelopes(
 				)
 			}
 
-			out.forNodes[targetNodeID] = append(out.forNodes[targetNodeID], newClientEnvelopeWithIndex(i, clientEnvelope))
+			out.forNodes[targetNodeID] = append(
+				out.forNodes[targetNodeID],
+				newClientEnvelopeWithIndex(i, clientEnvelope),
+			)
 		}
 	}
 
@@ -294,7 +297,7 @@ func (s *Service) publishToNodeWithRetry(
 		retryCount = cmp.Or(s.cfg.PublishRetries, 1)
 	)
 
-	for retries := 0; retries < int(retryCount); retries++ {
+	for retries := range retryCount {
 
 		nctx, cancel := context.WithTimeout(ctx, s.cfg.PublishTimeout)
 		defer cancel()
@@ -302,7 +305,7 @@ func (s *Service) publishToNodeWithRetry(
 		result, err = s.publishToNode(nctx, nodeID, indexedEnvelopes)
 		if err == nil {
 			if retries != 0 {
-				metrics.EmitGatewayBanlistRetries(originatorID, retries)
+				metrics.EmitGatewayBanlistRetries(originatorID, int(retries))
 			}
 			return result, nil
 		}
@@ -417,9 +420,12 @@ func (s *Service) publishToBlockchain(
 			)
 		}
 
-		if logMessage, err = metrics.MeasurePublishToBlockchainMethod("group_message", func() (*gm.GroupMessageBroadcasterMessageSent, error) {
-			return s.blockchainPublisher.PublishGroupMessage(ctx, groupID, payload)
-		}); err != nil {
+		if logMessage, err = metrics.MeasurePublishToBlockchainMethod(
+			"group_message",
+			func() (*gm.GroupMessageBroadcasterMessageSent, error) {
+				return s.blockchainPublisher.PublishGroupMessage(ctx, groupID, payload)
+			},
+		); err != nil {
 			return nil, connect.NewError(
 				connect.CodeInternal,
 				fmt.Errorf("error publishing group message: %w", err),
@@ -458,9 +464,12 @@ func (s *Service) publishToBlockchain(
 			)
 		}
 
-		if logMessage, err = metrics.MeasurePublishToBlockchainMethod("identity_update", func() (*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
-			return s.blockchainPublisher.PublishIdentityUpdate(ctx, inboxID, payload)
-		}); err != nil {
+		if logMessage, err = metrics.MeasurePublishToBlockchainMethod(
+			"identity_update",
+			func() (*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
+				return s.blockchainPublisher.PublishIdentityUpdate(ctx, inboxID, payload)
+			},
+		); err != nil {
 			return nil, connect.NewError(
 				connect.CodeInternal,
 				fmt.Errorf("error publishing identity update: %w", err),

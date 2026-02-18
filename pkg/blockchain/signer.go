@@ -21,13 +21,13 @@ type PrivateKeySigner struct {
 func NewPrivateKeySigner(privateKeyString string, chainID int64) (*PrivateKeySigner, error) {
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(privateKeyString, "0x"))
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse private key: %v", err)
+		return nil, fmt.Errorf("unable to parse private key: %w", err)
 	}
 
 	publicKey := privateKey.Public()
 	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
 	if !ok {
-		return nil, fmt.Errorf("failed to cast to ECDSA public key %v", err)
+		return nil, fmt.Errorf("failed to cast to ECDSA public key %w", err)
 	}
 
 	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
@@ -37,7 +37,7 @@ func NewPrivateKeySigner(privateKeyString string, chainID int64) (*PrivateKeySig
 		big.NewInt(chainID),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create transactor: %v", err)
+		return nil, fmt.Errorf("failed to create transactor: %w", err)
 	}
 
 	return &PrivateKeySigner{

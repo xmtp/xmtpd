@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	xmtpd_db "github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -28,7 +29,7 @@ func buildBatchInput(
 	batch := types.NewGatewayEnvelopeBatch()
 
 	now := time.Now()
-	for i := 0; i < count; i++ {
+	for i := range count {
 		batch.Add(types.GatewayEnvelopeRow{
 			OriginatorNodeID:     originatorID,
 			OriginatorSequenceID: startSequenceID + int64(i),
@@ -82,7 +83,7 @@ func TestBatchInsert_OnlyEnvelopesBatch(t *testing.T) {
 	)
 
 	batch := types.NewGatewayEnvelopeBatch()
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		batch.Add(types.GatewayEnvelopeRow{
 			OriginatorNodeID:     originatorID,
 			OriginatorSequenceID: int64(i + 1),
@@ -293,7 +294,7 @@ func TestBatchInsert_InvalidSequenceOrder(t *testing.T) {
 			input := types.NewGatewayEnvelopeBatch()
 
 			now := time.Now()
-			for i := 0; i < count; i++ {
+			for i := range count {
 				input.Add(types.GatewayEnvelopeRow{
 					OriginatorNodeID:     tc.originatorNodeIds[i],
 					OriginatorSequenceID: tc.originatorSequenceIds[i],
@@ -425,7 +426,7 @@ func TestBatchInsert_Parallel(t *testing.T) {
 	var wg sync.WaitGroup
 
 	// Parallel inserts with different sequence ranges.
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		wg.Add(1)
 		go func(startSeq int64) {
 			defer wg.Done()
@@ -435,7 +436,7 @@ func TestBatchInsert_Parallel(t *testing.T) {
 				db,
 				p,
 			)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			atomic.AddInt64(&totalInserted, n)
 		}(int64(1 + (i+1)*batchSize)) // Non-overlapping ranges.
 	}
@@ -480,7 +481,7 @@ func TestBatchInsert_ParallelDuplicates(t *testing.T) {
 	var wg sync.WaitGroup
 
 	// All goroutines try to insert the SAME batch (duplicates).
-	for i := 0; i < numGoroutines; i++ {
+	for range numGoroutines {
 		wg.Go(func() {
 			p := buildBatchInput(payerID, originatorID, 1, batchSize, spendPerMessage)
 			n, err := xmtpd_db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(

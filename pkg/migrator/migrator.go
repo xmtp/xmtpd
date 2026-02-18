@@ -159,12 +159,12 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 
 	payerPrivateKey, err := utils.ParseEcdsaPrivateKey(cfg.options.PayerPrivateKey)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse payer private key: %v", err)
+		return nil, fmt.Errorf("unable to parse payer private key: %w", err)
 	}
 
 	nodeSigningKey, err := utils.ParseEcdsaPrivateKey(cfg.options.NodeSigningKey)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse node signing key: %v", err)
+		return nil, fmt.Errorf("unable to parse node signing key: %w", err)
 	}
 
 	logger := cfg.logger.Named(utils.MigratorLoggerName)
@@ -229,7 +229,7 @@ func (m *Migrator) Start() error {
 	defer m.mu.Unlock()
 
 	if m.running.Swap(true) {
-		return fmt.Errorf("migration service is already running")
+		return errors.New("migration service is already running")
 	}
 
 	if err := m.startKeyPackagesWorker(); err != nil {
@@ -262,7 +262,7 @@ func (m *Migrator) Stop() error {
 	defer m.mu.Unlock()
 
 	if !m.running.Swap(false) {
-		return fmt.Errorf("migration service is not running")
+		return errors.New("migration service is not running")
 	}
 
 	m.cancel()
@@ -312,7 +312,10 @@ func (m *Migrator) startWelcomeMessagesWorker() error {
 		m.pollInterval,
 	)
 
-	if err := welcomeMessagesWorker.StartReader(m.ctx, m.readers[welcomeMessagesTableName]); err != nil {
+	if err := welcomeMessagesWorker.StartReader(
+		m.ctx,
+		m.readers[welcomeMessagesTableName],
+	); err != nil {
 		return err
 	}
 
@@ -337,7 +340,10 @@ func (m *Migrator) startGroupMessagesWorker() error {
 		m.pollInterval,
 	)
 
-	if err := groupMessagesWorker.StartReader(m.ctx, m.readers[groupMessagesTableName]); err != nil {
+	if err := groupMessagesWorker.StartReader(
+		m.ctx,
+		m.readers[groupMessagesTableName],
+	); err != nil {
 		return err
 	}
 
@@ -362,7 +368,10 @@ func (m *Migrator) startCommitMessagesWorker() error {
 		m.pollInterval,
 	)
 
-	if err := commitMessagesWorker.StartReader(m.ctx, m.readers[commitMessagesTableName]); err != nil {
+	if err := commitMessagesWorker.StartReader(
+		m.ctx,
+		m.readers[commitMessagesTableName],
+	); err != nil {
 		return err
 	}
 

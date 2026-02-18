@@ -192,8 +192,8 @@ func TestVerifyMultiProofSequential(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, len(tc.leaves), leafCount, "Invalid leaf count")
 
-			assert.Equal(t, tc.count, len(proof.GetLeaves()), "Invalid number of leaves in proof")
-			assert.Equal(t, tc.wantProofCount, len(proof.GetProofElements()), "Invalid proof count")
+			assert.Len(t, proof.GetLeaves(), tc.count, "Invalid number of leaves in proof")
+			assert.Len(t, proof.GetProofElements(), tc.wantProofCount, "Invalid proof count")
 		})
 	}
 }
@@ -267,15 +267,15 @@ func TestVerifyEdgeCases(t *testing.T) {
 			verified, err := merkle.Verify(root, multiProof)
 
 			if tc.wantErr != "" {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.ErrorContains(t, err, tc.wantErr)
 				if tc.errorIs != nil {
-					assert.ErrorIs(t, err, tc.errorIs)
+					require.ErrorIs(t, err, tc.errorIs)
 				}
 				return
 			}
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tc.wantOK, verified)
 		})
 	}
@@ -284,7 +284,7 @@ func TestVerifyEdgeCases(t *testing.T) {
 func createLeaves(t *testing.T, count int) []merkle.Leaf {
 	t.Helper()
 	leaves := make([]merkle.Leaf, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		leaves[i] = []byte{byte(i + 1)}
 	}
 	return leaves
@@ -409,15 +409,15 @@ func TestGenerateSequentialProofBalancedSamples(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tree.LeafCount(), leafCount)
 
-			assert.Equal(t, test.count, len(proof.GetLeaves()))
+			assert.Len(t, proof.GetLeaves(), test.count)
 
-			for i := 0; i < len(test.expectedLeaves); i++ {
+			for i := range len(test.expectedLeaves) {
 				assert.Equal(t, test.expectedLeaves[i], hex.EncodeToString(proof.GetLeaves()[i]))
 			}
 
-			assert.Equal(t, len(test.expectedProofElements), len(proof.GetProofElements()))
+			assert.Len(t, proof.GetProofElements(), len(test.expectedProofElements))
 
-			for i := 0; i < len(test.expectedProofElements); i++ {
+			for i := range len(test.expectedProofElements) {
 				assert.Equal(
 					t,
 					test.expectedProofElements[i],
@@ -536,15 +536,15 @@ func TestGenerateSequentialProofUnbalancedSamples(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tree.LeafCount(), leafCount)
 
-			assert.Equal(t, test.count, len(proof.GetLeaves()))
+			assert.Len(t, proof.GetLeaves(), test.count)
 
-			for i := 0; i < len(test.expectedLeaves); i++ {
+			for i := range len(test.expectedLeaves) {
 				assert.Equal(t, test.expectedLeaves[i], hex.EncodeToString(proof.GetLeaves()[i]))
 			}
 
-			assert.Equal(t, len(test.expectedProofElements), len(proof.GetProofElements()))
+			assert.Len(t, proof.GetProofElements(), len(test.expectedProofElements))
 
-			for i := 0; i < len(test.expectedProofElements); i++ {
+			for i := range len(test.expectedProofElements) {
 				assert.Equal(
 					t,
 					test.expectedProofElements[i],

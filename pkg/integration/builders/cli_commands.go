@@ -17,12 +17,12 @@ func RegisterNode(t *testing.T, network string, rpcHost string, xmtpdAlias strin
 
 	registerNode := []string{
 		"--config-file=/cfg/anvil.json",
-		fmt.Sprintf("--private-key=%s", adminPrivateKey),
-		fmt.Sprintf("--settlement-rpc-url=%s", rpcHost),
+		"--private-key=" + adminPrivateKey,
+		"--settlement-rpc-url=" + rpcHost,
 		"nodes", "register",
-		fmt.Sprintf("--owner-address=%s", signerAddress),
-		fmt.Sprintf("--signing-key-pub=%s", signerPublicKey),
-		fmt.Sprintf("--http-address=%s", httpAddress),
+		"--owner-address=" + signerAddress,
+		"--signing-key-pub=" + signerPublicKey,
+		"--http-address=" + httpAddress,
 	}
 	err := NewCLIContainerBuilder(t).WithCmd(registerNode).WithNetwork(network).Build(t)
 	require.NoError(t, err)
@@ -31,8 +31,8 @@ func RegisterNode(t *testing.T, network string, rpcHost string, xmtpdAlias strin
 func EnableNode(t *testing.T, network string, rpcHost string, nodeID uint32) {
 	enableNode := []string{
 		"--config-file=/cfg/anvil.json",
-		fmt.Sprintf("--private-key=%s", adminPrivateKey),
-		fmt.Sprintf("--settlement-rpc-url=%s", rpcHost),
+		"--private-key=" + adminPrivateKey,
+		"--settlement-rpc-url=" + rpcHost,
 		"nodes", "canonical-network",
 		"--add",
 		fmt.Sprintf("--node-id=%d", nodeID),

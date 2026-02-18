@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -186,10 +187,10 @@ func canonicalNetworkHandler(add, remove bool, nodeID uint32) error {
 	}
 
 	if nodeID == 0 {
-		return fmt.Errorf("node id is required")
+		return errors.New("node id is required")
 	}
 	if !add && !remove {
-		return fmt.Errorf("either --add or --remove must be specified")
+		return errors.New("either --add or --remove must be specified")
 	}
 
 	ctx := context.Background()
@@ -273,7 +274,7 @@ func getNodeHandler(all bool, nodeID uint32, exportPath string) error {
 	}
 
 	if nodeID == 0 && !all {
-		return fmt.Errorf("either --node-id or --all must be specified")
+		return errors.New("either --node-id or --all must be specified")
 	}
 
 	switch {
@@ -302,7 +303,10 @@ func getNodeHandler(all bool, nodeID uint32, exportPath string) error {
 			return fmt.Errorf("node not found: %d", nodeID)
 		}
 		if exportPath != "" {
-			if err := migrator.DumpNodesToFile([]migrator.SerializableNode{exportNode}, exportPath); err != nil {
+			if err := migrator.DumpNodesToFile(
+				[]migrator.SerializableNode{exportNode},
+				exportPath,
+			); err != nil {
 				return fmt.Errorf("could not dump nodes: %w", err)
 			}
 		}
@@ -412,7 +416,7 @@ func setHTTPAddressHandler(nodeID uint32, httpAddress string) error {
 	}
 
 	if nodeID == 0 || httpAddress == "" {
-		return fmt.Errorf("node id and http address are required")
+		return errors.New("node id and http address are required")
 	}
 
 	ctx := context.Background()
@@ -443,7 +447,7 @@ Usage: xmtpd-cli nodes health-check [node url]
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
-				return fmt.Errorf("at least one node url is required")
+				return errors.New("at least one node url is required")
 			}
 
 			return healthCheckHandler(args)
@@ -526,7 +530,7 @@ func checkConnectRPC(ctx context.Context, address string) (bool, error) {
 		},
 	)
 	if err == nil {
-		return false, fmt.Errorf("Connect-RPC is exposed")
+		return false, errors.New("Connect-RPC is exposed")
 	}
 
 	return true, nil

@@ -407,7 +407,7 @@ func checkDataVerification(t *testing.T, database *sql.DB) {
 		err := database.QueryRowContext(ctx, "SELECT COUNT(*) FROM gateway_envelopes_meta").
 			Scan(&count)
 		require.NoError(t, err)
-		assert.Greater(t, count, 0, "gateway_envelopes_meta should have rows")
+		assert.Positive(t, count, "gateway_envelopes_meta should have rows")
 	})
 
 	t.Run("gateway_envelopes_view_returns_data", func(t *testing.T) {
@@ -415,7 +415,7 @@ func checkDataVerification(t *testing.T, database *sql.DB) {
 		err := database.QueryRowContext(ctx, "SELECT COUNT(*) FROM gateway_envelopes_view").
 			Scan(&count)
 		require.NoError(t, err)
-		assert.Greater(t, count, 0, "gateway_envelopes_view should return joined data")
+		assert.Positive(t, count, "gateway_envelopes_view should return joined data")
 	})
 }
 

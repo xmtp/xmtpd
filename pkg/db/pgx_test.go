@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strconv"
 	"testing"
 	"time"
 
@@ -169,7 +170,7 @@ func TestBlackholeDNS(t *testing.T) {
 
 	serverErrCh := make(chan error, 1)
 	go func() {
-		serverErrCh <- BlackHoleServer(serverCtx, fmt.Sprintf("%d", port))
+		serverErrCh <- BlackHoleServer(serverCtx, strconv.Itoa(port))
 	}()
 	// Wait for server to start
 	time.Sleep(50 * time.Millisecond)

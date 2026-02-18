@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log"
 	"os"
 
@@ -20,7 +20,8 @@ var options config.PruneOptions
 func main() {
 	_, err := flags.Parse(&options)
 	if err != nil {
-		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
+		err := &flags.Error{}
+		if errors.As(err, &err) {
 			fatal("could not parse options: %s", err)
 		}
 		return
@@ -39,7 +40,7 @@ func main() {
 	}
 	logger = logger.Named(utils.PrunerLoggerName)
 
-	logger.Info(fmt.Sprintf("version: %s", Version))
+	logger.Info("version: " + Version)
 
 	validator := config.NewOptionsValidator(logger)
 

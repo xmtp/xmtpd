@@ -95,7 +95,7 @@ func TestGenerator_NoDuplicateWhenReportAlreadyExists(t *testing.T) {
 
 	err = worker.maybeGenerateReport(originatorNodeID)
 	require.NoError(t, err)
-	require.EqualValues(t, 0, generator.GetReportsGenerated())
+	require.Equal(t, 0, generator.GetReportsGenerated())
 }
 
 func TestGenerator_DoGenerate(t *testing.T) {
@@ -116,7 +116,7 @@ func TestGenerator_DoGenerate(t *testing.T) {
 
 	err = worker.maybeGenerateReport(originatorNodeID)
 	require.ErrorIs(t, err, ErrTestReportGenerationFailed)
-	require.EqualValues(t, 1, generator.GetReportsGenerated())
+	require.Equal(t, 1, generator.GetReportsGenerated())
 }
 
 func TestGenerator_ExpireReport(t *testing.T) {
@@ -136,14 +136,14 @@ func TestGenerator_ExpireReport(t *testing.T) {
 
 	err = worker.maybeGenerateReport(originatorNodeID)
 	require.ErrorIs(t, err, ErrTestReportGenerationFailed)
-	require.EqualValues(t, 1, generator.GetReportsGenerated())
+	require.Equal(t, 1, generator.GetReportsGenerated())
 
 	reportWithStatus, err := store.FetchReport(t.Context(), report.ID)
 	require.NoError(t, err)
 	require.EqualValues(t, payerreport.SubmissionRejected, reportWithStatus.SubmissionStatus)
 
 	// a new reports get generated to replace the expired one
-	require.EqualValues(t, 1, generator.GetReportsGenerated())
+	require.Equal(t, 1, generator.GetReportsGenerated())
 }
 
 func TestGenerator_ExpiredWithPreExisting(t *testing.T) {
@@ -175,7 +175,7 @@ func TestGenerator_ExpiredWithPreExisting(t *testing.T) {
 
 	err = worker.maybeGenerateReport(originatorNodeID)
 	require.ErrorIs(t, err, ErrTestReportGenerationFailed)
-	require.EqualValues(t, 1, generator.GetReportsGenerated())
+	require.Equal(t, 1, generator.GetReportsGenerated())
 }
 
 func TestGenerator_ExpirationDoesNotTouchSubmitted(t *testing.T) {
@@ -196,7 +196,7 @@ func TestGenerator_ExpirationDoesNotTouchSubmitted(t *testing.T) {
 
 	err = worker.maybeGenerateReport(originatorNodeID)
 	require.ErrorIs(t, err, ErrTestReportGenerationFailed)
-	require.EqualValues(t, 1, generator.GetReportsGenerated())
+	require.Equal(t, 1, generator.GetReportsGenerated())
 
 	reportWithStatus, err := store.FetchReport(t.Context(), report.ID)
 	require.NoError(t, err)
@@ -221,7 +221,7 @@ func TestGenerator_ExpirationDoesNotTouchSettled(t *testing.T) {
 
 	err = worker.maybeGenerateReport(originatorNodeID)
 	require.ErrorIs(t, err, ErrTestReportGenerationFailed)
-	require.EqualValues(t, 1, generator.GetReportsGenerated())
+	require.Equal(t, 1, generator.GetReportsGenerated())
 
 	reportWithStatus, err := store.FetchReport(t.Context(), report.ID)
 	require.NoError(t, err)
@@ -258,7 +258,7 @@ func TestGenerator_FutureMinuteGetsSkipped(t *testing.T) {
 	// nothing should get generated, the future minute is within the current generation
 	err = worker.maybeGenerateReport(originatorNodeID)
 	require.NoError(t, err)
-	require.EqualValues(t, 0, generator.GetReportsGenerated())
+	require.Equal(t, 0, generator.GetReportsGenerated())
 }
 
 func TestGenerator_FirstReportFromScratch(t *testing.T) {
@@ -268,7 +268,7 @@ func TestGenerator_FirstReportFromScratch(t *testing.T) {
 
 	err := worker.maybeGenerateReport(originatorNodeID)
 	require.ErrorIs(t, err, ErrTestReportGenerationFailed)
-	require.EqualValues(t, 1, generator.GetReportsGenerated())
+	require.Equal(t, 1, generator.GetReportsGenerated())
 }
 
 func TestGenerator_IgnoresRejectedReportsAndGeneratesNew(t *testing.T) {
@@ -293,7 +293,7 @@ func TestGenerator_IgnoresRejectedReportsAndGeneratesNew(t *testing.T) {
 	// as if there are no reports and generate from 0.
 	err = worker.maybeGenerateReport(originatorNodeID)
 	require.ErrorIs(t, err, ErrTestReportGenerationFailed)
-	require.EqualValues(t, 1, generator.GetReportsGenerated())
+	require.Equal(t, 1, generator.GetReportsGenerated())
 }
 
 func TestGenerator_OverlappingNonBoundaryReportDoesNotBlockGeneration(t *testing.T) {
@@ -329,5 +329,5 @@ func TestGenerator_OverlappingNonBoundaryReportDoesNotBlockGeneration(t *testing
 	// still try to generate [10, ...].
 	err = worker.maybeGenerateReport(originatorNodeID)
 	require.ErrorIs(t, err, ErrTestReportGenerationFailed)
-	require.EqualValues(t, 1, generator.GetReportsGenerated())
+	require.Equal(t, 1, generator.GetReportsGenerated())
 }

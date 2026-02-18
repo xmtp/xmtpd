@@ -23,7 +23,7 @@ func NewUnsignedOriginatorEnvelope(
 		return nil, errors.New("unsigned originator envelopeproto is nil")
 	}
 
-	payer, err := NewPayerEnvelopeFromBytes(proto.PayerEnvelopeBytes)
+	payer, err := NewPayerEnvelopeFromBytes(proto.GetPayerEnvelopeBytes())
 	if err != nil {
 		return nil, err
 	}
@@ -32,32 +32,32 @@ func NewUnsignedOriginatorEnvelope(
 }
 
 func (u *UnsignedOriginatorEnvelope) PayerEnvelopeBytes() []byte {
-	return u.proto.PayerEnvelopeBytes
+	return u.proto.GetPayerEnvelopeBytes()
 }
 
 func (u *UnsignedOriginatorEnvelope) OriginatorNodeID() uint32 {
 	// Skip nil check because it is in the constructor
-	return u.proto.OriginatorNodeId
+	return u.proto.GetOriginatorNodeId()
 }
 
 func (u *UnsignedOriginatorEnvelope) OriginatorSequenceID() uint64 {
 	// Skip nil check because it is in the constructor
-	return u.proto.OriginatorSequenceId
+	return u.proto.GetOriginatorSequenceId()
 }
 
 func (u *UnsignedOriginatorEnvelope) OriginatorNs() int64 {
 	// Skip nil check because it is in the constructor
-	return u.proto.OriginatorNs
+	return u.proto.GetOriginatorNs()
 }
 
 func (u *UnsignedOriginatorEnvelope) BaseFee() currency.PicoDollar {
 	// Skip nil check because it is in the constructor
-	return currency.PicoDollar(u.proto.BaseFeePicodollars)
+	return currency.PicoDollar(u.proto.GetBaseFeePicodollars())
 }
 
 func (u *UnsignedOriginatorEnvelope) CongestionFee() currency.PicoDollar {
 	// Skip nil check because it is in the constructor
-	return currency.PicoDollar(u.proto.CongestionFeePicodollars)
+	return currency.PicoDollar(u.proto.GetCongestionFeePicodollars())
 }
 
 func NewUnsignedOriginatorEnvelopeFromBytes(bytes []byte) (*UnsignedOriginatorEnvelope, error) {

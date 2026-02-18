@@ -21,21 +21,19 @@ type CastSendCommand struct {
 
 func buildCastSendCommand(c *CastSendCommand) string {
 	var cmd strings.Builder
-	cmd.WriteString(fmt.Sprintf(
-		"cast send '%s' '%s'",
+	fmt.Fprintf(&cmd, "cast send '%s' '%s'",
 		c.ContractAddress,
-		c.Function,
-	))
+		c.Function)
 
 	for _, arg := range c.FunctionArgs {
-		cmd.WriteString(fmt.Sprintf(" '%s'", arg))
+		fmt.Fprintf(&cmd, " '%s'", arg)
 	}
 
-	cmd.WriteString(fmt.Sprintf(" --rpc-url %s", c.RPC))
-	cmd.WriteString(fmt.Sprintf(" --private-key %s", c.PrivateKey))
+	fmt.Fprintf(&cmd, " --rpc-url %s", c.RPC)
+	fmt.Fprintf(&cmd, " --private-key %s", c.PrivateKey)
 
 	if c.Nonce != nil {
-		cmd.WriteString(fmt.Sprintf(" --nonce %d", *c.Nonce))
+		fmt.Fprintf(&cmd, " --nonce %d", *c.Nonce)
 	}
 
 	if c.Async {

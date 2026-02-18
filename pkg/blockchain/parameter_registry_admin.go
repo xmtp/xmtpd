@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -316,7 +317,7 @@ func packUint64(v uint64) [32]byte {
 func packUint96Big(v *big.Int) ([32]byte, error) {
 	var out [32]byte
 	if v == nil {
-		return out, fmt.Errorf("uint96: nil value")
+		return out, errors.New("uint96: nil value")
 	}
 	if v.Sign() < 0 {
 		return out, fmt.Errorf("uint96: negative value %s", v.String())
@@ -354,9 +355,9 @@ func packBool(b bool) [32]byte {
 
 // decodeUint8 expects the value to be in the last byte, others zero.
 func decodeUint8(val [32]byte) (uint8, error) {
-	for i := 0; i < 31; i++ {
+	for i := range 31 {
 		if val[i] != 0 {
-			return 0, fmt.Errorf("non-canonical uint8 encoding in bytes32 (non-zero prefix)")
+			return 0, errors.New("non-canonical uint8 encoding in bytes32 (non-zero prefix)")
 		}
 	}
 	return val[31], nil
@@ -364,9 +365,9 @@ func decodeUint8(val [32]byte) (uint8, error) {
 
 // decodeUint16 expects the value to be in the last 2 bytes, others zero.
 func decodeUint16(val [32]byte) (uint16, error) {
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		if val[i] != 0 {
-			return 0, fmt.Errorf("non-canonical uint16 encoding in bytes32 (non-zero prefix)")
+			return 0, errors.New("non-canonical uint16 encoding in bytes32 (non-zero prefix)")
 		}
 	}
 	return (uint16(val[30]) << 8) | uint16(val[31]), nil
@@ -374,9 +375,9 @@ func decodeUint16(val [32]byte) (uint16, error) {
 
 // decodeUint32 expects the value to be in the last 4 bytes, others zero.
 func decodeUint32(val [32]byte) (uint32, error) {
-	for i := 0; i < 28; i++ {
+	for i := range 28 {
 		if val[i] != 0 {
-			return 0, fmt.Errorf("non-canonical uint32 encoding in bytes32 (non-zero prefix)")
+			return 0, errors.New("non-canonical uint32 encoding in bytes32 (non-zero prefix)")
 		}
 	}
 	return (uint32(val[28]) << 24) |
@@ -387,9 +388,9 @@ func decodeUint32(val [32]byte) (uint32, error) {
 
 // decodeUint64 expects the value to be in the last 8 bytes, others zero.
 func decodeUint64(val [32]byte) (uint64, error) {
-	for i := 0; i < 24; i++ {
+	for i := range 24 {
 		if val[i] != 0 {
-			return 0, fmt.Errorf("non-canonical uint64 encoding in bytes32 (non-zero prefix)")
+			return 0, errors.New("non-canonical uint64 encoding in bytes32 (non-zero prefix)")
 		}
 	}
 	return (uint64(val[24]) << 56) |
@@ -406,16 +407,16 @@ func decodeUint64(val [32]byte) (uint64, error) {
 // It enforces zero-prefix canonicalization: bytes[0:20] must be all zero.
 func decodeUint96Big(val [32]byte) (*big.Int, error) {
 	// Ensure canonical zero prefix (first 20 bytes must be zero)
-	for i := 0; i < 32-uint96Size; i++ { // 0..19
+	for i := range 32 - uint96Size { // 0..19
 		if val[i] != 0 {
-			return nil, fmt.Errorf("uint96: non-canonical encoding (non-zero prefix)")
+			return nil, errors.New("uint96: non-canonical encoding (non-zero prefix)")
 		}
 	}
 	// Interpret last 12 bytes as big-endian unsigned integer
 	u := new(big.Int).SetBytes(val[32-uint96Size:]) // val[20:32]
 	// Bound check (paranoid; should always pass if prefix is zero and size is 12)
 	if u.BitLen() > 96 {
-		return nil, fmt.Errorf("uint96: decoded value exceeds 96 bits")
+		return nil, errors.New("uint96: decoded value exceeds 96 bits")
 	}
 	return u, nil
 }
@@ -425,9 +426,9 @@ func decodeUint96Big(val [32]byte) (*big.Int, error) {
 func decodeBool(val [32]byte) (bool, error) {
 	v := val[31]
 	// Ensure normalization: all other bytes should be zero.
-	for i := 0; i < 31; i++ {
+	for i := range 31 {
 		if val[i] != 0 {
-			return false, fmt.Errorf("non-canonical bool encoding in bytes32 (non-zero prefix)")
+			return false, errors.New("non-canonical bool encoding in bytes32 (non-zero prefix)")
 		}
 	}
 	switch v {

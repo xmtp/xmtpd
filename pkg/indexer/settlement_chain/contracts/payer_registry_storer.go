@@ -237,7 +237,7 @@ func (s *PayerRegistryStorer) handleWithdrawalCanceled(
 }
 
 func wrapLedgerError(err error, msg string) re.RetryableError {
-	if err == ledger.ErrInvalidAmount || err == ledger.ErrInvalidEventID {
+	if errors.Is(err, ledger.ErrInvalidAmount) || errors.Is(err, ledger.ErrInvalidEventID) {
 		return re.NewNonRecoverableError(ErrInvalidEvent, err)
 	}
 	return re.NewRecoverableError(msg, err)

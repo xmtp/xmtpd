@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -183,10 +184,10 @@ func (f *fundsAdmin) MintMockUSDC(
 ) error {
 	// sanity check
 	if amount.Sign() == -1 {
-		return fmt.Errorf("amount must be positive")
+		return errors.New("amount must be positive")
 	}
 	if amount.Cmp(big.NewInt(10000000000)) > 0 {
-		return fmt.Errorf("amount must be less than 10000 mxUSDC")
+		return errors.New("amount must be less than 10000 mxUSDC")
 	}
 
 	err := ExecuteTransaction(

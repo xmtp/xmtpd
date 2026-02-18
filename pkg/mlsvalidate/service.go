@@ -3,6 +3,7 @@ package mlsvalidate
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
@@ -93,7 +94,7 @@ func (s *MLSValidationServiceImpl) GetAssociationStateFromEnvelopes(
 
 		payload, ok := payloadInterface.(*envelopesProto.ClientEnvelope_IdentityUpdate)
 		if !ok || payload.IdentityUpdate == nil {
-			return nil, fmt.Errorf("identity update is nil")
+			return nil, errors.New("identity update is nil")
 		}
 
 		oldUpdates[i] = payload.IdentityUpdate
@@ -113,23 +114,23 @@ func (s *MLSValidationServiceImpl) ValidateKeyPackages(
 		return nil, err
 	}
 
-	out := make([]KeyPackageValidationResult, len(response.Responses))
-	for i, response := range response.Responses {
-		if !response.IsOk {
+	out := make([]KeyPackageValidationResult, len(response.GetResponses()))
+	for i, response := range response.GetResponses() {
+		if !response.GetIsOk() {
 			out[i] = KeyPackageValidationResult{
 				IsOk:            false,
 				InstallationKey: nil,
 				Credential:      nil,
 				Expiration:      0,
-				ErrorMessage:    response.ErrorMessage,
+				ErrorMessage:    response.GetErrorMessage(),
 			}
 		} else {
 			out[i] = KeyPackageValidationResult{
 				IsOk:            true,
-				InstallationKey: response.InstallationPublicKey,
+				InstallationKey: response.GetInstallationPublicKey(),
 				Credential:      nil,
-				Expiration:      response.Expiration,
-				ErrorMessage:    response.ErrorMessage,
+				Expiration:      response.GetExpiration(),
+				ErrorMessage:    response.GetErrorMessage(),
 			}
 		}
 	}
@@ -170,13 +171,13 @@ func (s *MLSValidationServiceImpl) ValidateGroupMessages(
 		return nil, err
 	}
 
-	out := make([]GroupMessageValidationResult, len(response.Responses))
-	for i, response := range response.Responses {
-		if !response.IsOk {
-			return nil, fmt.Errorf("validation failed with error %s", response.ErrorMessage)
+	out := make([]GroupMessageValidationResult, len(response.GetResponses()))
+	for i, response := range response.GetResponses() {
+		if !response.GetIsOk() {
+			return nil, fmt.Errorf("validation failed with error %s", response.GetErrorMessage())
 		}
 		out[i] = GroupMessageValidationResult{
-			GroupID: response.GroupId,
+			GroupID: response.GetGroupId(),
 		}
 	}
 
@@ -193,7 +194,7 @@ func makeValidateGroupMessagesRequest(
 
 	for i, groupMessage := range groupMessages {
 		groupMessageRequests[i] = &svc.ValidateGroupMessagesRequest_GroupMessage{
-			GroupMessageBytesTlsSerialized: groupMessage.GetV1().Data,
+			GroupMessageBytesTlsSerialized: groupMessage.GetV1().GetData(),
 		}
 	}
 

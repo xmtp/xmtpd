@@ -78,16 +78,16 @@ func (s *originatorStream) listen() error {
 				return backoff.Permanent(errors.New("recvChan is closed"))
 			}
 
-			if envs == nil || len(envs.Envelopes) == 0 {
+			if envs == nil || len(envs.GetEnvelopes()) == 0 {
 				continue
 			}
 
 			s.logger.Debug(
 				"received envelopes",
-				utils.NumEnvelopesField(len(envs.Envelopes)),
+				utils.NumEnvelopesField(len(envs.GetEnvelopes())),
 			)
 
-			for _, env := range envs.Envelopes {
+			for _, env := range envs.GetEnvelopes() {
 				// Any message that fails validation here will be dropped permanently
 				parsedEnv, err := s.validateEnvelope(env)
 				if err != nil {
@@ -103,7 +103,7 @@ func (s *originatorStream) listen() error {
 				return backoff.Permanent(errors.New("errChan is closed"))
 			}
 
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				s.logger.Info("stream closed with EOF")
 				// reset backoff to 1 second
 				return backoff.RetryAfter(1)

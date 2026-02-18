@@ -21,7 +21,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var ErrTxFailed = fmt.Errorf("transaction failed")
+var ErrTxFailed = errors.New("transaction failed")
 
 type WebsocketClientOption func(*websocketClientConfig)
 
@@ -96,7 +96,7 @@ func ExecuteTransaction(
 	logHandler func(any),
 ) ProtocolError {
 	if signer == nil {
-		return NewBlockchainError(fmt.Errorf("no signer provided"))
+		return NewBlockchainError(errors.New("no signer provided"))
 	}
 
 	from := signer.FromAddress()

@@ -2,6 +2,7 @@ package commands
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -73,7 +74,7 @@ func parseUint96(s string) (*big.Int, error) {
 	}
 	// Ensure bi fits within 96 bits (<= 2^96-1)
 	if bi.BitLen() > 96 {
-		return nil, fmt.Errorf("value exceeds 96 bits")
+		return nil, errors.New("value exceeds 96 bits")
 	}
 	return bi, nil
 }

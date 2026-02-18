@@ -82,7 +82,7 @@ func (e RateLimitExceededError) Error() string {
 		return "rate limit exceeded"
 	}
 
-	return fmt.Sprintf("rate limit exceeded: %s", e.err.Error())
+	return "rate limit exceeded: " + e.err.Error()
 }
 
 func (e RateLimitExceededError) ClientMessage() string {

@@ -167,8 +167,8 @@ func TestCreateServer(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		for _, e := range q1.Msg.Envelopes {
-			if reflect.DeepEqual(e, p2.Msg.OriginatorEnvelopes[0]) {
+		for _, e := range q1.Msg.GetEnvelopes() {
+			if reflect.DeepEqual(e, p2.Msg.GetOriginatorEnvelopes()[0]) {
 				return true
 			}
 		}
@@ -187,8 +187,8 @@ func TestCreateServer(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		for _, e := range q2.Msg.Envelopes {
-			if reflect.DeepEqual(e, p1.Msg.OriginatorEnvelopes[0]) {
+		for _, e := range q2.Msg.GetEnvelopes() {
+			if reflect.DeepEqual(e, p1.Msg.GetOriginatorEnvelopes()[0]) {
 				return true
 			}
 		}
@@ -275,7 +275,7 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	require.GreaterOrEqual(t, len(q1.Msg.Envelopes), 1)
+	require.GreaterOrEqual(t, len(q1.Msg.GetEnvelopes()), 1)
 }
 
 func TestGRPCHealthEndpoint(t *testing.T) {
@@ -356,7 +356,7 @@ func TestCreateServer_AllOptionPermutations(t *testing.T) {
 	wsURL, rpcURL := anvil.StartAnvil(t, false)
 	contractsOptions := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
-	for mask := 0; mask < 16; mask++ {
+	for mask := range 16 {
 		services := serverTestUtils.EnabledServices{
 			API:     mask&1 != 0,
 			Reports: mask&2 != 0,

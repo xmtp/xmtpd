@@ -50,7 +50,7 @@ func TestInsertAddressLog(t *testing.T) {
 
 	addressLog := getAddressLogState(t, querier, address, inboxID)
 	require.NotNil(t, addressLog)
-	require.Equal(t, addressLog.AssociationSequenceID.Int64, int64(1))
+	require.Equal(t, int64(1), addressLog.AssociationSequenceID.Int64)
 
 	// Now insert a new entry with a higher sequence id
 	_, err = querier.InsertAddressLog(
@@ -65,7 +65,7 @@ func TestInsertAddressLog(t *testing.T) {
 
 	addressLog = getAddressLogState(t, querier, address, inboxID)
 	require.NotNil(t, addressLog)
-	require.Equal(t, addressLog.AssociationSequenceID.Int64, int64(2))
+	require.Equal(t, int64(2), addressLog.AssociationSequenceID.Int64)
 
 	// Try to set it back to 1. This should be a no-op
 	numRows, err := querier.InsertAddressLog(
@@ -77,11 +77,11 @@ func TestInsertAddressLog(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	require.Equal(t, numRows, int64(0))
+	require.Equal(t, int64(0), numRows)
 
 	addressLog = getAddressLogState(t, querier, address, inboxID)
 	require.NotNil(t, addressLog)
-	require.Equal(t, addressLog.AssociationSequenceID.Int64, int64(2))
+	require.Equal(t, int64(2), addressLog.AssociationSequenceID.Int64)
 }
 
 func TestRevokeAddressLog(t *testing.T) {
@@ -112,7 +112,7 @@ func TestRevokeAddressLog(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	require.Equal(t, numRows, int64(1))
+	require.Equal(t, int64(1), numRows)
 
 	addressLog := getAddressLogState(t, querier, address, inboxID)
 	require.Nil(t, addressLog)
@@ -128,11 +128,11 @@ func TestRevokeAddressLog(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	require.Equal(t, numRows, int64(1))
+	require.Equal(t, int64(1), numRows)
 
 	addressLog = getAddressLogState(t, querier, address, inboxID)
 	require.NotNil(t, addressLog)
-	require.Equal(t, addressLog.AssociationSequenceID.Int64, int64(3))
+	require.Equal(t, int64(3), addressLog.AssociationSequenceID.Int64)
 }
 
 func TestFindOrCreatePayer(t *testing.T) {

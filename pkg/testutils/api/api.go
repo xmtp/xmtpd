@@ -4,7 +4,6 @@ package apiutils
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"net"
 	"net/http"
 	"testing"
@@ -53,7 +52,7 @@ func NewTestGRPCReplicationAPIClient(
 
 	client, err := utils.NewConnectGRPCReplicationAPIClient(
 		t.Context(),
-		fmt.Sprintf("http://localhost:%s", port),
+		"http://localhost:"+port,
 		extraDialOpts...,
 	)
 	if err != nil {
@@ -73,7 +72,7 @@ func NewTestGRPCGatewayAPIClient(
 
 	client, err := utils.NewConnectGatewayAPIClient(
 		t.Context(),
-		fmt.Sprintf("http://localhost:%s", port),
+		"http://localhost:"+port,
 		extraDialOpts...,
 	)
 	if err != nil {
@@ -97,7 +96,7 @@ func NewTestGRPCMetadataAPIClient(
 
 	client, err := utils.NewConnectMetadataAPIClient(
 		t.Context(),
-		fmt.Sprintf("http://localhost:%s", port),
+		"http://localhost:"+port,
 		options...,
 	)
 	if err != nil {

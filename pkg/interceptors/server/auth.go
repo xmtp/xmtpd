@@ -176,13 +176,12 @@ func (i *ServerAuthInterceptor) connectLogIncomingAddress(
 		return
 	}
 
-	// TODO: Potentially cache these values.
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
 		// Do nothing.
 		return
 	}
-
+	// TODO: Potentially cache these values.
 	dnsName, err := net.LookupAddr(host)
 	if err != nil || len(dnsName) == 0 {
 		dnsName = []string{unknownDNSName}

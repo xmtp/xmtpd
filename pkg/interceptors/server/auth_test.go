@@ -44,10 +44,10 @@ func (m *mockStreamingConnAuthInterceptor) Peer() connect.Peer {
 func TestUnaryInterceptor(t *testing.T) {
 	mockVerifier := authn.NewMockJWTVerifier(t)
 	logger := zaptest.NewLogger(t)
-	interceptor := NewServerAuthInterceptor(logger, mockVerifier)
 
 	tests := []struct {
 		name             string
+		interceptor      *ServerAuthInterceptor
 		setupRequest     func() connect.AnyRequest
 		setupVerifier    func()
 		wantError        bool
@@ -63,6 +63,7 @@ func TestUnaryInterceptor(t *testing.T) {
 					peer:   connect.Peer{Addr: "127.0.0.1:1234"},
 				}
 			},
+			interceptor: NewServerAuthInterceptor(logger, mockVerifier),
 			setupVerifier: func() {
 				mockVerifier.EXPECT().Verify("valid_token").Return(uint32(0), func() {}, nil)
 			},
@@ -70,15 +71,29 @@ func TestUnaryInterceptor(t *testing.T) {
 			wantVerifiedNode: true,
 		},
 		{
-			name: "missing token",
+			name: "missing token not validated",
 			setupRequest: func() connect.AnyRequest {
 				return &mockConnectRequestAuthInterceptor{
 					header: http.Header{},
 					peer:   connect.Peer{Addr: "127.0.0.1:1234"},
 				}
 			},
+			interceptor:      NewServerAuthInterceptor(logger, mockVerifier),
 			setupVerifier:    func() {},
 			wantError:        false,
+			wantVerifiedNode: false,
+		},
+		{
+			name: "token presence enforced",
+			setupRequest: func() connect.AnyRequest {
+				return &mockConnectRequestAuthInterceptor{
+					header: http.Header{},
+					peer:   connect.Peer{Addr: "127.0.0.1:1234"},
+				}
+			},
+			interceptor:      NewServerAuthInterceptor(logger, mockVerifier, RequireToken(true)),
+			setupVerifier:    func() {},
+			wantError:        true,
 			wantVerifiedNode: false,
 		},
 		{
@@ -91,6 +106,7 @@ func TestUnaryInterceptor(t *testing.T) {
 					peer:   connect.Peer{Addr: "127.0.0.1:1234"},
 				}
 			},
+			interceptor: NewServerAuthInterceptor(logger, mockVerifier),
 			setupVerifier: func() {
 				mockVerifier.EXPECT().
 					Verify("invalid_token").
@@ -112,20 +128,19 @@ func TestUnaryInterceptor(t *testing.T) {
 				return nil, nil
 			}
 
-			wrappedUnary := interceptor.WrapUnary(next)
+			wrappedUnary := tt.interceptor.WrapUnary(next)
 			_, err := wrappedUnary(context.Background(), req)
 
 			if tt.wantError {
 				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				isVerified, hasContextValue := handlerCtx.Value(constants.VerifiedNodeRequestCtxKey{}).(bool)
-				if tt.wantVerifiedNode {
-					require.True(t, isVerified)
-				} else {
-					require.False(t, hasContextValue)
-				}
+				return
 			}
+
+			require.NoError(t, err)
+
+			isVerified, hasContextValue := handlerCtx.Value(constants.VerifiedNodeRequestCtxKey{}).(bool)
+			require.Equal(t, tt.wantVerifiedNode, isVerified)
+			require.Equal(t, tt.wantVerifiedNode, hasContextValue)
 		})
 	}
 }
@@ -133,17 +148,18 @@ func TestUnaryInterceptor(t *testing.T) {
 func TestStreamInterceptor(t *testing.T) {
 	mockVerifier := authn.NewMockJWTVerifier(t)
 	logger := zaptest.NewLogger(t)
-	interceptor := NewServerAuthInterceptor(logger, mockVerifier)
 
 	tests := []struct {
 		name             string
+		interceptor      *ServerAuthInterceptor
 		setupConn        func() connect.StreamingHandlerConn
 		setupVerifier    func()
 		wantError        bool
 		wantVerifiedNode bool
 	}{
 		{
-			name: "valid token",
+			name:        "valid token",
+			interceptor: NewServerAuthInterceptor(logger, mockVerifier),
 			setupConn: func() connect.StreamingHandlerConn {
 				header := http.Header{}
 				header.Set(constants.NodeAuthorizationHeaderName, "valid_token")
@@ -159,7 +175,8 @@ func TestStreamInterceptor(t *testing.T) {
 			wantVerifiedNode: true,
 		},
 		{
-			name: "missing token",
+			name:        "missing token",
+			interceptor: NewServerAuthInterceptor(logger, mockVerifier),
 			setupConn: func() connect.StreamingHandlerConn {
 				return &mockStreamingConnAuthInterceptor{
 					header: http.Header{},
@@ -171,7 +188,21 @@ func TestStreamInterceptor(t *testing.T) {
 			wantVerifiedNode: false,
 		},
 		{
-			name: "invalid token",
+			name:        "token presence enforced",
+			interceptor: NewServerAuthInterceptor(logger, mockVerifier, RequireToken(true)),
+			setupConn: func() connect.StreamingHandlerConn {
+				return &mockStreamingConnAuthInterceptor{
+					header: http.Header{},
+					peer:   connect.Peer{Addr: "127.0.0.1:1234"},
+				}
+			},
+			setupVerifier:    func() {},
+			wantError:        true,
+			wantVerifiedNode: false,
+		},
+		{
+			name:        "invalid token",
+			interceptor: NewServerAuthInterceptor(logger, mockVerifier),
 			setupConn: func() connect.StreamingHandlerConn {
 				header := http.Header{}
 				header.Set(constants.NodeAuthorizationHeaderName, "invalid_token")
@@ -201,20 +232,19 @@ func TestStreamInterceptor(t *testing.T) {
 				return nil
 			}
 
-			wrappedStream := interceptor.WrapStreamingHandler(next)
+			wrappedStream := tt.interceptor.WrapStreamingHandler(next)
 			err := wrappedStream(context.Background(), conn)
 
 			if tt.wantError {
 				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				isVerified, hasContextValue := handlerCtx.Value(constants.VerifiedNodeRequestCtxKey{}).(bool)
-				if tt.wantVerifiedNode {
-					require.True(t, isVerified)
-				} else {
-					require.False(t, hasContextValue)
-				}
+				return
 			}
+
+			require.NoError(t, err)
+			isVerified, hasContextValue := handlerCtx.Value(constants.VerifiedNodeRequestCtxKey{}).(bool)
+
+			require.Equal(t, tt.wantVerifiedNode, isVerified)
+			require.Equal(t, tt.wantVerifiedNode, hasContextValue)
 		})
 	}
 }

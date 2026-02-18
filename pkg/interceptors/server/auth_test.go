@@ -44,7 +44,7 @@ func (m *mockStreamingConnAuthInterceptor) Peer() connect.Peer {
 func TestUnaryInterceptor(t *testing.T) {
 	mockVerifier := authn.NewMockJWTVerifier(t)
 	logger := zaptest.NewLogger(t)
-	interceptor := NewServerAuthInterceptor(mockVerifier, logger)
+	interceptor := NewServerAuthInterceptor(logger, mockVerifier)
 
 	tests := []struct {
 		name             string
@@ -133,7 +133,7 @@ func TestUnaryInterceptor(t *testing.T) {
 func TestStreamInterceptor(t *testing.T) {
 	mockVerifier := authn.NewMockJWTVerifier(t)
 	logger := zaptest.NewLogger(t)
-	interceptor := NewServerAuthInterceptor(mockVerifier, logger)
+	interceptor := NewServerAuthInterceptor(logger, mockVerifier)
 
 	tests := []struct {
 		name             string

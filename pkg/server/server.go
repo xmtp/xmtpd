@@ -460,7 +460,12 @@ func startAPIServer(
 	}
 
 	if jwtVerifier != nil {
-		authInterceptor = server.NewServerAuthInterceptor(jwtVerifier, cfg.Logger)
+		authInterceptor = server.NewServerAuthInterceptor(
+			cfg.Logger,
+			jwtVerifier,
+			server.RequireToken(cfg.Options.API.RequireJWTToken),
+			server.DoDNSLookup(cfg.Options.API.AuthLoggingDNSLookup),
+		)
 	}
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Options.API.Port))

@@ -4,6 +4,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 
@@ -15,6 +16,11 @@ import (
 	"go.uber.org/zap"
 )
 
+var defaultConfig = ServerAuthConfig{
+	RequireToken: false,
+	DNSLookup:    true,
+}
+
 // TODO(borja): Next PR - Fail requests if the token is not valid.
 
 const (
@@ -24,18 +30,49 @@ const (
 
 // ServerAuthInterceptor validates JWT tokens from other nodes
 type ServerAuthInterceptor struct {
+	cfg ServerAuthConfig
+
 	verifier authn.JWTVerifier
 	logger   *zap.Logger
 }
 
 var _ connect.Interceptor = (*ServerAuthInterceptor)(nil)
 
+type ServerAuthConfig struct {
+	// Requests without a token should be rejected.
+	RequireToken bool
+
+	// Do not perform DNS lookup for logging requests.
+	DNSLookup bool
+}
+
+type ServerAuthOption func(*ServerAuthConfig)
+
+func RequireToken(b bool) ServerAuthOption {
+	return func(cfg *ServerAuthConfig) {
+		cfg.RequireToken = b
+	}
+}
+
+func DoDNSLookup(b bool) ServerAuthOption {
+	return func(cfg *ServerAuthConfig) {
+		cfg.DNSLookup = b
+	}
+}
+
 // NewServerAuthInterceptor creates a new ServerAuthInterceptor.
 func NewServerAuthInterceptor(
-	verifier authn.JWTVerifier,
 	logger *zap.Logger,
+	verifier authn.JWTVerifier,
+	opts ...ServerAuthOption,
 ) *ServerAuthInterceptor {
+	cfg := defaultConfig
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
 	return &ServerAuthInterceptor{
+		cfg:      cfg,
 		verifier: verifier,
 		logger:   logger,
 	}
@@ -47,6 +84,14 @@ func (i *ServerAuthInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryF
 		// If token is missing, allow the request to proceed without authentication.
 		// Handlers must check VerifiedNodeRequestCtxKey if authentication is required.
 		if token == "" {
+
+			if i.cfg.RequireToken {
+				return nil, connect.NewError(
+					connect.CodeUnauthenticated,
+					errors.New("missing auth token"),
+				)
+			}
+
 			return next(ctx, req)
 		}
 
@@ -84,6 +129,14 @@ func (i *ServerAuthInterceptor) WrapStreamingHandler(
 		// If token is missing, allow the request to proceed without authentication.
 		// Handlers must check VerifiedNodeRequestCtxKey if authentication is required.
 		if token == "" {
+
+			if i.cfg.RequireToken {
+				return connect.NewError(
+					connect.CodeUnauthenticated,
+					errors.New("missing auth token"),
+				)
+			}
+
 			return next(ctx, conn)
 		}
 
@@ -110,20 +163,35 @@ func (i *ServerAuthInterceptor) connectLogIncomingAddress(
 	addr string,
 	nodeID uint32,
 ) {
-	if i.logger.Core().Enabled(zap.DebugLevel) {
-		host, _, err := net.SplitHostPort(addr)
-		if err == nil {
-			dnsName, err := net.LookupAddr(host)
-			if err != nil || len(dnsName) == 0 {
-				dnsName = []string{unknownDNSName}
-			}
-
-			i.logger.Debug(
-				"incoming connection",
-				zap.String(clientAddressField, addr),
-				zap.String(dnsNameField, dnsName[0]),
-				utils.OriginatorIDField(nodeID),
-			)
-		}
+	if !i.logger.Core().Enabled(zap.DebugLevel) {
+		return
 	}
+
+	// Do not do costly DNS lookup if not necessary.
+	if !i.cfg.DNSLookup {
+		i.logger.Debug("incoming connection",
+			zap.String(clientAddressField, addr),
+			utils.OriginatorIDField(nodeID))
+
+		return
+	}
+
+	// TODO: Potentially cache these values.
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		// Do nothing.
+		return
+	}
+
+	dnsName, err := net.LookupAddr(host)
+	if err != nil || len(dnsName) == 0 {
+		dnsName = []string{unknownDNSName}
+	}
+
+	i.logger.Debug(
+		"incoming connection",
+		zap.String(clientAddressField, addr),
+		zap.String(dnsNameField, dnsName[0]),
+		utils.OriginatorIDField(nodeID),
+	)
 }

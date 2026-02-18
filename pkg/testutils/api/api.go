@@ -198,7 +198,7 @@ func NewTestAPIServer(
 	)
 	require.NoError(t, err)
 
-	authInterceptor := server.NewServerAuthInterceptor(jwtVerifier, log)
+	authInterceptor := server.NewServerAuthInterceptor(log, jwtVerifier)
 
 	serviceRegistrationFunc := func(mux *http.ServeMux, interceptors ...connect.Interceptor) (servicePaths []string, err error) {
 		interceptors = append(interceptors, authInterceptor)

@@ -55,7 +55,7 @@ func NewTestBaseServer(
 				Port:                  cfg.Port,
 				Enable:                cfg.Services.API,
 				SendKeepAliveInterval: 30 * time.Second,
-				OriginatorCacheTTL:    100 * time.Millisecond,
+				OriginatorCacheTTL:    1 * time.Millisecond,
 			},
 			Contracts: *cfg.ContractsOptions,
 			MlsValidation: config.MlsValidationOptions{

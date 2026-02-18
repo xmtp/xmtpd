@@ -66,8 +66,8 @@ func makeEnvRow(
 	}
 }
 
-// subscribeTopics opens a SubscribeTopicEnvelopes stream, consumes the initial keepalive,
-// and returns the ready-to-use stream.
+// subscribeTopics opens a SubscribeTopics stream, consumes the initial
+// STARTED status message, and returns the ready-to-use stream.
 func subscribeTopics(
 	t *testing.T,
 	client message_apiconnect.ReplicationApiClient,
@@ -75,13 +75,16 @@ func subscribeTopics(
 	filters []*message_api.SubscribeTopicsRequest_TopicFilter,
 ) *connect.ServerStreamForClient[message_api.SubscribeTopicsResponse] {
 	t.Helper()
-	stream, err := client.SubscribeTopicEnvelopes(
+	stream, err := client.SubscribeTopics(
 		ctx,
 		connect.NewRequest(&message_api.SubscribeTopicsRequest{Filters: filters}),
 	)
 	require.NoError(t, err)
 	require.True(t, stream.Receive())
-	require.Empty(t, stream.Msg().GetEnvelopes())
+	require.Equal(t,
+		message_api.SubscribeTopicsResponse_SUBSCRIPTION_STATUS_STARTED,
+		stream.Msg().GetStatusUpdate().GetStatus(),
+	)
 	return stream
 }
 
@@ -112,6 +115,7 @@ func requireOriginatorOrdering(t *testing.T, envs []*envelopes.OriginatorEnvelop
 
 // collectTopicEnvelopes receives envelopes from a SubscribeTopicsResponse stream
 // until expectedCount envelopes have been collected or timeout.
+// Status update messages are skipped.
 func collectTopicEnvelopes(
 	t *testing.T,
 	stream *connect.ServerStreamForClient[message_api.SubscribeTopicsResponse],
@@ -124,8 +128,9 @@ func collectTopicEnvelopes(
 		if !stream.Receive() {
 			break
 		}
-		msg := stream.Msg()
-		collected = append(collected, msg.GetEnvelopes()...)
+		if envMsg := stream.Msg().GetEnvelopes(); envMsg != nil {
+			collected = append(collected, envMsg.GetEnvelopes()...)
+		}
 	}
 	return collected
 }
@@ -149,7 +154,7 @@ func requireTopicStreamError(
 
 // ---- Validation Tests ----
 
-func TestSubscribeTopicEnvelopes_Validation(t *testing.T) {
+func TestSubscribeTopics_Validation(t *testing.T) {
 	client, _, _ := setupTopicTest(t)
 
 	tooManyFilters := make([]*message_api.SubscribeTopicsRequest_TopicFilter, 10001)
@@ -175,7 +180,7 @@ func TestSubscribeTopicEnvelopes_Validation(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			stream, err := client.SubscribeTopicEnvelopes(
+			stream, err := client.SubscribeTopics(
 				t.Context(),
 				connect.NewRequest(&message_api.SubscribeTopicsRequest{Filters: tc.filters}),
 			)
@@ -185,7 +190,7 @@ func TestSubscribeTopicEnvelopes_Validation(t *testing.T) {
 	}
 }
 
-func TestSubscribeTopicEnvelopes_UnknownOriginatorInCursor(t *testing.T) {
+func TestSubscribeTopics_UnknownOriginatorInCursor(t *testing.T) {
 	client, store, _ := setupTopicTest(t)
 	payerID := db.NullInt32(testutils.CreatePayer(t, store))
 
@@ -194,7 +199,7 @@ func TestSubscribeTopicEnvelopes_UnknownOriginatorInCursor(t *testing.T) {
 	})
 
 	// Reference originator 999 which is not known.
-	stream, err := client.SubscribeTopicEnvelopes(
+	stream, err := client.SubscribeTopics(
 		t.Context(),
 		connect.NewRequest(&message_api.SubscribeTopicsRequest{
 			Filters: []*message_api.SubscribeTopicsRequest_TopicFilter{
@@ -208,7 +213,7 @@ func TestSubscribeTopicEnvelopes_UnknownOriginatorInCursor(t *testing.T) {
 
 // ---- Live-Only Tests (nil LastSeen) ----
 
-func TestSubscribeTopicEnvelopes_LiveOnly(t *testing.T) {
+func TestSubscribeTopics_LiveOnly(t *testing.T) {
 	client, store, _ := setupTopicTest(t)
 	payerID := db.NullInt32(testutils.CreatePayer(t, store))
 
@@ -236,7 +241,7 @@ func TestSubscribeTopicEnvelopes_LiveOnly(t *testing.T) {
 	require.EqualValues(t, 1, decoded.GetOriginatorSequenceId())
 }
 
-func TestSubscribeTopicEnvelopes_LiveOnlyFiltersByTopic(t *testing.T) {
+func TestSubscribeTopics_LiveOnlyFiltersByTopic(t *testing.T) {
 	client, store, _ := setupTopicTest(t)
 	payerID := db.NullInt32(testutils.CreatePayer(t, store))
 
@@ -264,7 +269,7 @@ func TestSubscribeTopicEnvelopes_LiveOnlyFiltersByTopic(t *testing.T) {
 
 // ---- Catch-Up Tests ----
 
-func TestSubscribeTopicEnvelopes_CatchUpFromEmpty(t *testing.T) {
+func TestSubscribeTopics_CatchUpFromEmpty(t *testing.T) {
 	client, store, _ := setupTopicTest(t)
 	payerID := db.NullInt32(testutils.CreatePayer(t, store))
 
@@ -286,7 +291,7 @@ func TestSubscribeTopicEnvelopes_CatchUpFromEmpty(t *testing.T) {
 	require.Len(t, envs, 2)
 }
 
-func TestSubscribeTopicEnvelopes_CatchUpFromCursor(t *testing.T) {
+func TestSubscribeTopics_CatchUpFromCursor(t *testing.T) {
 	client, store, _ := setupTopicTest(t)
 	payerID := db.NullInt32(testutils.CreatePayer(t, store))
 
@@ -317,7 +322,7 @@ func TestSubscribeTopicEnvelopes_CatchUpFromCursor(t *testing.T) {
 	}
 }
 
-func TestSubscribeTopicEnvelopes_DifferentCursorsPerTopic(t *testing.T) {
+func TestSubscribeTopics_DifferentCursorsPerTopic(t *testing.T) {
 	client, store, _ := setupTopicTest(t)
 	payerID := db.NullInt32(testutils.CreatePayer(t, store))
 
@@ -355,7 +360,7 @@ func TestSubscribeTopicEnvelopes_DifferentCursorsPerTopic(t *testing.T) {
 	require.Contains(t, seqIDs, uint64(4)) // topicB catch-up
 }
 
-func TestSubscribeTopicEnvelopes_CatchUpThenLive(t *testing.T) {
+func TestSubscribeTopics_CatchUpThenLive(t *testing.T) {
 	client, store, _ := setupTopicTest(t)
 	payerID := db.NullInt32(testutils.CreatePayer(t, store))
 
@@ -395,7 +400,7 @@ func TestSubscribeTopicEnvelopes_CatchUpThenLive(t *testing.T) {
 	require.EqualValues(t, 2, decoded.GetOriginatorSequenceId())
 }
 
-func TestSubscribeTopicEnvelopes_NoDuplicatesBetweenCatchUpAndLive(t *testing.T) {
+func TestSubscribeTopics_NoDuplicatesBetweenCatchUpAndLive(t *testing.T) {
 	client, store, _ := setupTopicTest(t)
 	payerID := db.NullInt32(testutils.CreatePayer(t, store))
 
@@ -407,7 +412,7 @@ func TestSubscribeTopicEnvelopes_NoDuplicatesBetweenCatchUpAndLive(t *testing.T)
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	stream, err := client.SubscribeTopicEnvelopes(
+	stream, err := client.SubscribeTopics(
 		ctx,
 		connect.NewRequest(&message_api.SubscribeTopicsRequest{
 			Filters: []*message_api.SubscribeTopicsRequest_TopicFilter{
@@ -433,18 +438,20 @@ func TestSubscribeTopicEnvelopes_NoDuplicatesBetweenCatchUpAndLive(t *testing.T)
 				cancel()
 				return
 			}
-			for _, env := range stream.Msg().GetEnvelopes() {
-				decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
-					t, env.GetUnsignedOriginatorEnvelope(),
-				)
-				_, dup := seen[decoded.GetOriginatorSequenceId()]
-				require.False(
-					t,
-					dup,
-					"received duplicate seqID=%d",
-					decoded.GetOriginatorSequenceId(),
-				)
-				seen[decoded.GetOriginatorSequenceId()] = struct{}{}
+			if envMsg := stream.Msg().GetEnvelopes(); envMsg != nil {
+				for _, env := range envMsg.GetEnvelopes() {
+					decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
+						t, env.GetUnsignedOriginatorEnvelope(),
+					)
+					_, dup := seen[decoded.GetOriginatorSequenceId()]
+					require.False(
+						t,
+						dup,
+						"received duplicate seqID=%d",
+						decoded.GetOriginatorSequenceId(),
+					)
+					seen[decoded.GetOriginatorSequenceId()] = struct{}{}
+				}
 			}
 			if len(seen) >= 2 {
 				return
@@ -455,7 +462,7 @@ func TestSubscribeTopicEnvelopes_NoDuplicatesBetweenCatchUpAndLive(t *testing.T)
 
 // ---- Mixed Tests ----
 
-func TestSubscribeTopicEnvelopes_MixedNilAndCursorFilters(t *testing.T) {
+func TestSubscribeTopics_MixedNilAndCursorFilters(t *testing.T) {
 	client, store, _ := setupTopicTest(t)
 	payerID := db.NullInt32(testutils.CreatePayer(t, store))
 
@@ -486,10 +493,10 @@ func TestSubscribeTopicEnvelopes_MixedNilAndCursorFilters(t *testing.T) {
 	require.Len(t, liveEnvs, 1)
 }
 
-func TestSubscribeTopicEnvelopes_KeepaliveOnStart(t *testing.T) {
+func TestSubscribeTopics_StatusStartedOnOpen(t *testing.T) {
 	client, _, _ := setupTopicTest(t)
 
-	stream, err := client.SubscribeTopicEnvelopes(
+	stream, err := client.SubscribeTopics(
 		t.Context(),
 		connect.NewRequest(&message_api.SubscribeTopicsRequest{
 			Filters: []*message_api.SubscribeTopicsRequest_TopicFilter{
@@ -499,15 +506,88 @@ func TestSubscribeTopicEnvelopes_KeepaliveOnStart(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	// First message should be an empty keepalive.
+	// First message should be a STARTED status.
 	require.True(t, stream.Receive())
 	msg := stream.Msg()
-	require.Empty(t, msg.GetEnvelopes())
+	require.Equal(t,
+		message_api.SubscribeTopicsResponse_SUBSCRIPTION_STATUS_STARTED,
+		msg.GetStatusUpdate().GetStatus(),
+	)
+}
+
+func TestSubscribeTopics_StatusLifecycle(t *testing.T) {
+	client, store, _ := setupTopicTest(t)
+	payerID := db.NullInt32(testutils.CreatePayer(t, store))
+
+	// Insert envelopes before subscribing so catch-up is triggered.
+	insertAndWait(t, store, []queries.InsertGatewayEnvelopeParams{
+		makeEnvRow(t, 100, 1, topicA, payerID),
+		makeEnvRow(t, 100, 2, topicA, payerID),
+	})
+
+	stream, err := client.SubscribeTopics(
+		t.Context(),
+		connect.NewRequest(&message_api.SubscribeTopicsRequest{
+			Filters: []*message_api.SubscribeTopicsRequest_TopicFilter{
+				makeFilter(topicA, map[uint32]uint64{}),
+			},
+		}),
+	)
+	require.NoError(t, err)
+
+	// 1. First message: STARTED
+	require.True(t, stream.Receive())
+	require.Equal(t,
+		message_api.SubscribeTopicsResponse_SUBSCRIPTION_STATUS_STARTED,
+		stream.Msg().GetStatusUpdate().GetStatus(),
+	)
+
+	// 2. Catch-up envelopes
+	var catchUpEnvs []*envelopes.OriginatorEnvelope
+	for {
+		require.True(t, stream.Receive())
+		msg := stream.Msg()
+		if envMsg := msg.GetEnvelopes(); envMsg != nil {
+			catchUpEnvs = append(catchUpEnvs, envMsg.GetEnvelopes()...)
+			continue
+		}
+		// Must be the CATCHUP_COMPLETE status.
+		require.Equal(t,
+			message_api.SubscribeTopicsResponse_SUBSCRIPTION_STATUS_CATCHUP_COMPLETE,
+			msg.GetStatusUpdate().GetStatus(),
+		)
+		break
+	}
+	require.Len(t, catchUpEnvs, 2)
+
+	// 3. Insert a new envelope for live delivery.
+	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
+		makeEnvRow(t, 100, 3, topicA, payerID),
+	})
+
+	// 4. Next message with envelopes should be the live envelope.
+	for {
+		require.True(t, stream.Receive())
+		msg := stream.Msg()
+		if envMsg := msg.GetEnvelopes(); envMsg != nil {
+			require.Len(t, envMsg.GetEnvelopes(), 1)
+			decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
+				t, envMsg.GetEnvelopes()[0].GetUnsignedOriginatorEnvelope(),
+			)
+			require.EqualValues(t, 3, decoded.GetOriginatorSequenceId())
+			return
+		}
+		// Skip WAITING keepalives.
+		require.Equal(t,
+			message_api.SubscribeTopicsResponse_SUBSCRIPTION_STATUS_WAITING,
+			msg.GetStatusUpdate().GetStatus(),
+		)
+	}
 }
 
 // ---- Ordering Tests ----
 
-func TestSubscribeTopicEnvelopes_PerOriginatorOrdering(t *testing.T) {
+func TestSubscribeTopics_PerOriginatorOrdering(t *testing.T) {
 	client, store, _ := setupTopicTest(t)
 	payerID := db.NullInt32(testutils.CreatePayer(t, store))
 
@@ -535,7 +615,7 @@ func TestSubscribeTopicEnvelopes_PerOriginatorOrdering(t *testing.T) {
 	requireOriginatorOrdering(t, envs)
 }
 
-func TestSubscribeTopicEnvelopes_MultiOriginatorMultiTopic(t *testing.T) {
+func TestSubscribeTopics_MultiOriginatorMultiTopic(t *testing.T) {
 	nodes := []registry.Node{
 		{NodeID: 100, IsCanonical: true},
 		{NodeID: 200, IsCanonical: true},
@@ -576,7 +656,7 @@ func TestSubscribeTopicEnvelopes_MultiOriginatorMultiTopic(t *testing.T) {
 
 // ---- Scale Tests ----
 
-func TestSubscribeTopicEnvelopes_LargeCatchUpMultiplePages(t *testing.T) {
+func TestSubscribeTopics_LargeCatchUpMultiplePages(t *testing.T) {
 	client, store, _ := setupTopicTest(t)
 	payerID := db.NullInt32(testutils.CreatePayer(t, store))
 
@@ -601,7 +681,7 @@ func TestSubscribeTopicEnvelopes_LargeCatchUpMultiplePages(t *testing.T) {
 	require.Len(t, envs, total)
 }
 
-func TestSubscribeTopicEnvelopes_ManyTopics(t *testing.T) {
+func TestSubscribeTopics_ManyTopics(t *testing.T) {
 	client, store, _ := setupTopicTest(t)
 	payerID := db.NullInt32(testutils.CreatePayer(t, store))
 
@@ -625,7 +705,7 @@ func TestSubscribeTopicEnvelopes_ManyTopics(t *testing.T) {
 	require.Len(t, envs, numTopics)
 }
 
-func TestSubscribeTopicEnvelopes_VariableEnvelopesPerOriginator(t *testing.T) {
+func TestSubscribeTopics_VariableEnvelopesPerOriginator(t *testing.T) {
 	nodes := generateNodes(t, 4)
 	server := testUtilsApi.NewTestAPIServer(t, testUtilsApi.WithRegistryNodes(nodes))
 	payerID := testutils.CreatePayer(t, server.DB)
@@ -646,7 +726,7 @@ func TestSubscribeTopicEnvelopes_VariableEnvelopesPerOriginator(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	stream, err := server.ClientReplication.SubscribeTopicEnvelopes(
+	stream, err := server.ClientReplication.SubscribeTopics(
 		ctx,
 		connect.NewRequest(&message_api.SubscribeTopicsRequest{
 			Filters: []*message_api.SubscribeTopicsRequest_TopicFilter{
@@ -670,12 +750,14 @@ func TestSubscribeTopicEnvelopes_VariableEnvelopesPerOriginator(t *testing.T) {
 		if !stream.Receive() {
 			break
 		}
-		for _, env := range stream.Msg().GetEnvelopes() {
-			receivedCount++
-			decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
-				t, env.GetUnsignedOriginatorEnvelope(),
-			)
-			received[keyID(int32(decoded.GetOriginatorNodeId()), int64(decoded.GetOriginatorSequenceId()))] = struct{}{}
+		if envMsg := stream.Msg().GetEnvelopes(); envMsg != nil {
+			for _, env := range envMsg.GetEnvelopes() {
+				receivedCount++
+				decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
+					t, env.GetUnsignedOriginatorEnvelope(),
+				)
+				received[keyID(int32(decoded.GetOriginatorNodeId()), int64(decoded.GetOriginatorSequenceId()))] = struct{}{}
+			}
 		}
 	}
 
@@ -701,7 +783,7 @@ func TestSubscribeTopicEnvelopes_VariableEnvelopesPerOriginator(t *testing.T) {
 
 // ---- Error Path Tests ----
 
-func TestSubscribeTopicEnvelopes_ContextCancelledDuringLive(t *testing.T) {
+func TestSubscribeTopics_ContextCancelledDuringLive(t *testing.T) {
 	client, _, _ := setupTopicTest(t)
 	ctx, cancel := context.WithCancel(t.Context())
 
@@ -726,7 +808,7 @@ func TestSubscribeTopicEnvelopes_ContextCancelledDuringLive(t *testing.T) {
 	}
 }
 
-func TestSubscribeTopicEnvelopes_ContextCancelledDuringCatchUp(t *testing.T) {
+func TestSubscribeTopics_ContextCancelledDuringCatchUp(t *testing.T) {
 	client, store, _ := setupTopicTest(t)
 	payerID := db.NullInt32(testutils.CreatePayer(t, store))
 
@@ -739,7 +821,7 @@ func TestSubscribeTopicEnvelopes_ContextCancelledDuringCatchUp(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(t.Context())
 
-	stream, err := client.SubscribeTopicEnvelopes(
+	stream, err := client.SubscribeTopics(
 		ctx,
 		connect.NewRequest(&message_api.SubscribeTopicsRequest{
 			Filters: []*message_api.SubscribeTopicsRequest_TopicFilter{
@@ -768,7 +850,7 @@ func TestSubscribeTopicEnvelopes_ContextCancelledDuringCatchUp(t *testing.T) {
 
 // ---- Concurrent Tests ----
 
-func TestSubscribeTopicEnvelopes_SimultaneousWithSubscribeEnvelopes(t *testing.T) {
+func TestSubscribeTopics_SimultaneousWithSubscribeEnvelopes(t *testing.T) {
 	client, store, _ := setupTopicTest(t)
 	payerID := db.NullInt32(testutils.CreatePayer(t, store))
 

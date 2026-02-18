@@ -29,6 +29,36 @@
         }
       }
     },
+    "SubscribeTopicsResponseEnvelopes": {
+      "type": "object",
+      "properties": {
+        "envelopes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/envelopesOriginatorEnvelope"
+          }
+        }
+      }
+    },
+    "SubscribeTopicsResponseStatusUpdate": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "$ref": "#/definitions/SubscribeTopicsResponseSubscriptionStatus"
+        }
+      }
+    },
+    "SubscribeTopicsResponseSubscriptionStatus": {
+      "type": "string",
+      "enum": [
+        "SUBSCRIPTION_STATUS_UNSPECIFIED",
+        "SUBSCRIPTION_STATUS_STARTED",
+        "SUBSCRIPTION_STATUS_CATCHUP_COMPLETE",
+        "SUBSCRIPTION_STATUS_WAITING"
+      ],
+      "default": "SUBSCRIPTION_STATUS_UNSPECIFIED"
+    },
     "associationsIdentifierKind": {
       "type": "string",
       "enum": [
@@ -189,11 +219,10 @@
       "type": "object",
       "properties": {
         "envelopes": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/envelopesOriginatorEnvelope"
-          }
+          "$ref": "#/definitions/SubscribeTopicsResponseEnvelopes"
+        },
+        "statusUpdate": {
+          "$ref": "#/definitions/SubscribeTopicsResponseStatusUpdate"
         }
       },
       "title": "Response to SubscribeTopics"

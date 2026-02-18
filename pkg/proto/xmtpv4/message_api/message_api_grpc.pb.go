@@ -21,20 +21,21 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ReplicationApi_SubscribeEnvelopes_FullMethodName      = "/xmtp.xmtpv4.message_api.ReplicationApi/SubscribeEnvelopes"
-	ReplicationApi_SubscribeTopicEnvelopes_FullMethodName = "/xmtp.xmtpv4.message_api.ReplicationApi/SubscribeTopicEnvelopes"
-	ReplicationApi_QueryEnvelopes_FullMethodName          = "/xmtp.xmtpv4.message_api.ReplicationApi/QueryEnvelopes"
-	ReplicationApi_PublishPayerEnvelopes_FullMethodName   = "/xmtp.xmtpv4.message_api.ReplicationApi/PublishPayerEnvelopes"
-	ReplicationApi_GetInboxIds_FullMethodName             = "/xmtp.xmtpv4.message_api.ReplicationApi/GetInboxIds"
-	ReplicationApi_GetNewestEnvelope_FullMethodName       = "/xmtp.xmtpv4.message_api.ReplicationApi/GetNewestEnvelope"
+	ReplicationApi_SubscribeEnvelopes_FullMethodName    = "/xmtp.xmtpv4.message_api.ReplicationApi/SubscribeEnvelopes"
+	ReplicationApi_SubscribeTopics_FullMethodName       = "/xmtp.xmtpv4.message_api.ReplicationApi/SubscribeTopics"
+	ReplicationApi_QueryEnvelopes_FullMethodName        = "/xmtp.xmtpv4.message_api.ReplicationApi/QueryEnvelopes"
+	ReplicationApi_PublishPayerEnvelopes_FullMethodName = "/xmtp.xmtpv4.message_api.ReplicationApi/PublishPayerEnvelopes"
+	ReplicationApi_GetInboxIds_FullMethodName           = "/xmtp.xmtpv4.message_api.ReplicationApi/GetInboxIds"
+	ReplicationApi_GetNewestEnvelope_FullMethodName     = "/xmtp.xmtpv4.message_api.ReplicationApi/GetNewestEnvelope"
 )
 
 // ReplicationApiClient is the client API for ReplicationApi service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ReplicationApiClient interface {
+	// This will be renamed to SubscribeOriginators
 	SubscribeEnvelopes(ctx context.Context, in *SubscribeEnvelopesRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SubscribeEnvelopesResponse], error)
-	SubscribeTopicEnvelopes(ctx context.Context, in *SubscribeTopicsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SubscribeTopicsResponse], error)
+	SubscribeTopics(ctx context.Context, in *SubscribeTopicsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SubscribeTopicsResponse], error)
 	QueryEnvelopes(ctx context.Context, in *QueryEnvelopesRequest, opts ...grpc.CallOption) (*QueryEnvelopesResponse, error)
 	PublishPayerEnvelopes(ctx context.Context, in *PublishPayerEnvelopesRequest, opts ...grpc.CallOption) (*PublishPayerEnvelopesResponse, error)
 	GetInboxIds(ctx context.Context, in *GetInboxIdsRequest, opts ...grpc.CallOption) (*GetInboxIdsResponse, error)
@@ -69,9 +70,9 @@ func (c *replicationApiClient) SubscribeEnvelopes(ctx context.Context, in *Subsc
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type ReplicationApi_SubscribeEnvelopesClient = grpc.ServerStreamingClient[SubscribeEnvelopesResponse]
 
-func (c *replicationApiClient) SubscribeTopicEnvelopes(ctx context.Context, in *SubscribeTopicsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SubscribeTopicsResponse], error) {
+func (c *replicationApiClient) SubscribeTopics(ctx context.Context, in *SubscribeTopicsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SubscribeTopicsResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &ReplicationApi_ServiceDesc.Streams[1], ReplicationApi_SubscribeTopicEnvelopes_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &ReplicationApi_ServiceDesc.Streams[1], ReplicationApi_SubscribeTopics_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +87,7 @@ func (c *replicationApiClient) SubscribeTopicEnvelopes(ctx context.Context, in *
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type ReplicationApi_SubscribeTopicEnvelopesClient = grpc.ServerStreamingClient[SubscribeTopicsResponse]
+type ReplicationApi_SubscribeTopicsClient = grpc.ServerStreamingClient[SubscribeTopicsResponse]
 
 func (c *replicationApiClient) QueryEnvelopes(ctx context.Context, in *QueryEnvelopesRequest, opts ...grpc.CallOption) (*QueryEnvelopesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
@@ -132,8 +133,9 @@ func (c *replicationApiClient) GetNewestEnvelope(ctx context.Context, in *GetNew
 // All implementations should embed UnimplementedReplicationApiServer
 // for forward compatibility.
 type ReplicationApiServer interface {
+	// This will be renamed to SubscribeOriginators
 	SubscribeEnvelopes(*SubscribeEnvelopesRequest, grpc.ServerStreamingServer[SubscribeEnvelopesResponse]) error
-	SubscribeTopicEnvelopes(*SubscribeTopicsRequest, grpc.ServerStreamingServer[SubscribeTopicsResponse]) error
+	SubscribeTopics(*SubscribeTopicsRequest, grpc.ServerStreamingServer[SubscribeTopicsResponse]) error
 	QueryEnvelopes(context.Context, *QueryEnvelopesRequest) (*QueryEnvelopesResponse, error)
 	PublishPayerEnvelopes(context.Context, *PublishPayerEnvelopesRequest) (*PublishPayerEnvelopesResponse, error)
 	GetInboxIds(context.Context, *GetInboxIdsRequest) (*GetInboxIdsResponse, error)
@@ -151,8 +153,8 @@ type UnimplementedReplicationApiServer struct{}
 func (UnimplementedReplicationApiServer) SubscribeEnvelopes(*SubscribeEnvelopesRequest, grpc.ServerStreamingServer[SubscribeEnvelopesResponse]) error {
 	return status.Errorf(codes.Unimplemented, "method SubscribeEnvelopes not implemented")
 }
-func (UnimplementedReplicationApiServer) SubscribeTopicEnvelopes(*SubscribeTopicsRequest, grpc.ServerStreamingServer[SubscribeTopicsResponse]) error {
-	return status.Errorf(codes.Unimplemented, "method SubscribeTopicEnvelopes not implemented")
+func (UnimplementedReplicationApiServer) SubscribeTopics(*SubscribeTopicsRequest, grpc.ServerStreamingServer[SubscribeTopicsResponse]) error {
+	return status.Errorf(codes.Unimplemented, "method SubscribeTopics not implemented")
 }
 func (UnimplementedReplicationApiServer) QueryEnvelopes(context.Context, *QueryEnvelopesRequest) (*QueryEnvelopesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method QueryEnvelopes not implemented")
@@ -197,16 +199,16 @@ func _ReplicationApi_SubscribeEnvelopes_Handler(srv interface{}, stream grpc.Ser
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type ReplicationApi_SubscribeEnvelopesServer = grpc.ServerStreamingServer[SubscribeEnvelopesResponse]
 
-func _ReplicationApi_SubscribeTopicEnvelopes_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _ReplicationApi_SubscribeTopics_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(SubscribeTopicsRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(ReplicationApiServer).SubscribeTopicEnvelopes(m, &grpc.GenericServerStream[SubscribeTopicsRequest, SubscribeTopicsResponse]{ServerStream: stream})
+	return srv.(ReplicationApiServer).SubscribeTopics(m, &grpc.GenericServerStream[SubscribeTopicsRequest, SubscribeTopicsResponse]{ServerStream: stream})
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type ReplicationApi_SubscribeTopicEnvelopesServer = grpc.ServerStreamingServer[SubscribeTopicsResponse]
+type ReplicationApi_SubscribeTopicsServer = grpc.ServerStreamingServer[SubscribeTopicsResponse]
 
 func _ReplicationApi_QueryEnvelopes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(QueryEnvelopesRequest)
@@ -311,8 +313,8 @@ var ReplicationApi_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 		{
-			StreamName:    "SubscribeTopicEnvelopes",
-			Handler:       _ReplicationApi_SubscribeTopicEnvelopes_Handler,
+			StreamName:    "SubscribeTopics",
+			Handler:       _ReplicationApi_SubscribeTopics_Handler,
 			ServerStreams: true,
 		},
 	},

@@ -348,6 +348,10 @@ func NewBaseServer(
 			),
 			sync.WithPayerReportDomainSeparator(domainSeparator),
 			sync.WithClientMetrics(clientMetrics),
+			sync.WithMigration(sync.MigrationConfig{
+				Enable:     cfg.Options.MigrationClient.Enable,
+				FromNodeID: cfg.Options.MigrationClient.FromNodeID,
+			}),
 		)
 		if err != nil {
 			cfg.Logger.Error("failed to initialize sync server", zap.Error(err))

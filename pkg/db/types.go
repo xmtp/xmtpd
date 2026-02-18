@@ -29,6 +29,9 @@ func SetVectorClockByTopics(
 	q.CursorNodeIds = make([]int32, 0, len(vc))
 	q.CursorSequenceIds = make([]int64, 0, len(vc))
 	for nodeID, sequenceID := range vc {
+		if nodeID > math.MaxInt32 {
+			continue
+		}
 		q.CursorNodeIds = append(q.CursorNodeIds, int32(nodeID))
 		q.CursorSequenceIds = append(q.CursorSequenceIds, int64(sequenceID))
 	}
@@ -42,6 +45,9 @@ func SetVectorClockByOriginators(
 	q.CursorNodeIds = make([]int32, 0, len(vc))
 	q.CursorSequenceIds = make([]int64, 0, len(vc))
 	for nodeID, sequenceID := range vc {
+		if nodeID > math.MaxInt32 {
+			continue
+		}
 		q.CursorNodeIds = append(q.CursorNodeIds, int32(nodeID))
 		q.CursorSequenceIds = append(q.CursorSequenceIds, int64(sequenceID))
 	}
@@ -55,6 +61,9 @@ func SetVectorClockUnfiltered(
 	q.CursorNodeIds = make([]int32, 0, len(vc))
 	q.CursorSequenceIds = make([]int64, 0, len(vc))
 	for nodeID, sequenceID := range vc {
+		if nodeID > math.MaxInt32 {
+			continue
+		}
 		q.CursorNodeIds = append(q.CursorNodeIds, int32(nodeID))
 		q.CursorSequenceIds = append(q.CursorSequenceIds, int64(sequenceID))
 	}
@@ -123,7 +132,7 @@ func SetPerTopicCursors(
 	for topicKey, vc := range tc {
 		topicBytes := []byte(topicKey)
 		for nodeID, seqID := range vc {
-			if seqID > uint64(math.MaxInt64) {
+			if nodeID > math.MaxInt32 || seqID > uint64(math.MaxInt64) {
 				continue
 			}
 			q.CursorTopics = append(q.CursorTopics, topicBytes)

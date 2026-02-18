@@ -84,6 +84,10 @@ func NewReplicationAPIService(
 		return nil, errors.New("validation service must not be nil")
 	}
 
+	if options.SendKeepAliveInterval <= 0 {
+		return nil, errors.New("send keep alive interval must be positive")
+	}
+
 	publishWorker, err := startPublishWorker(
 		ctx,
 		logger,

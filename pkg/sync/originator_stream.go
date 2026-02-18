@@ -158,7 +158,7 @@ func (s *originatorStream) validateEnvelope(
 		}
 		slices.Sort(permittedIDs)
 
-		err := fmt.Errorf(
+		err = fmt.Errorf(
 			"invalid envelope originator: got=%d permitted=%v",
 			originatorID,
 			permittedIDs,

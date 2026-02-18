@@ -66,7 +66,6 @@ func NewAppChain(
 	)
 	if err != nil {
 		cancel()
-		rpcClient.Close()
 		return nil, fmt.Errorf("%w: %w", ErrInitializingAppChain, err)
 	}
 

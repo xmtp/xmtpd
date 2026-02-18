@@ -20,7 +20,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.4.0
+          version: v2.10.1
       - name: sqlc
         uses: nickcharlton/diff-check@v1.0.0
         with:

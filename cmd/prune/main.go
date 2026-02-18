@@ -20,11 +20,11 @@ var options config.PruneOptions
 func main() {
 	_, err := flags.Parse(&options)
 	if err != nil {
-		err := &flags.Error{}
-		if errors.As(err, &err) {
-			fatal("could not parse options: %s", err)
+		var flagsErr *flags.Error
+		if errors.As(err, &flagsErr) && flagsErr.Type == flags.ErrHelp {
+			return
 		}
-		return
+		fatal("could not parse options: %s", err)
 	}
 
 	if Version == "" {

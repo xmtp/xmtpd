@@ -150,13 +150,11 @@ func TestCachedOriginatorList_Concurrent(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for range 50 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			ids, err := list.GetOriginatorNodeIDs(ctx)
 			assert.NoError(t, err) //nolint:testifylint // require not safe in goroutine
 			assert.NotEmpty(t, ids)
-		}()
+		})
 	}
 	wg.Wait()
 }

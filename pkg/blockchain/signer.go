@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -27,7 +28,7 @@ func NewPrivateKeySigner(privateKeyString string, chainID int64) (*PrivateKeySig
 	publicKey := privateKey.Public()
 	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
 	if !ok {
-		return nil, fmt.Errorf("failed to cast to ECDSA public key %w", err)
+		return nil, errors.New("failed to cast to ECDSA public key")
 	}
 
 	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)

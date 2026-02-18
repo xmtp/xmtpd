@@ -226,19 +226,6 @@ func extractTopicBytes(filters []*message_api.SubscribeTopicsRequest_TopicFilter
 	return topics
 }
 
-// chunkSlice splits a string slice into chunks of at most size elements.
-func chunkSlice(keys []string, size int) [][]string {
-	if size <= 0 {
-		return [][]string{keys}
-	}
-	var chunks [][]string
-	for i := 0; i < len(keys); i += size {
-		end := min(i+size, len(keys))
-		chunks = append(chunks, keys[i:end])
-	}
-	return chunks
-}
-
 // fillMissingOriginatorsForTopics calls FillMissingOriginators on each
 // topic's VectorClock in the given keys list.
 func fillMissingOriginatorsForTopics(
@@ -369,7 +356,7 @@ func (s *Service) catchUpTopics(
 
 	fillMissingOriginatorsForTopics(cursors, catchUpKeys, allOriginators)
 
-	chunks := chunkSlice(catchUpKeys, maxTopicsPerChunk)
+	chunks := utils.ChunkSlice(catchUpKeys, maxTopicsPerChunk)
 
 	for _, chunkKeys := range chunks {
 		rowsPerEntry := db.CalculateRowsPerEntry(len(chunkKeys), topicPageLimit)

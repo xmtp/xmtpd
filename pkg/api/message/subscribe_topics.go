@@ -59,13 +59,8 @@ func (s *Service) SubscribeTopicEnvelopes(
 		return err
 	}
 
-	cursors, catchUpKeys := buildTopicCursors(filters)
+	cursors, topics, catchUpKeys := buildTopicCursors(filters)
 
-	// Build a synthetic EnvelopesQuery for the listener using deduplicated topics.
-	topics := make([][]byte, 0, len(cursors))
-	for key := range cursors {
-		topics = append(topics, []byte(key))
-	}
 	syntheticQuery := &message_api.EnvelopesQuery{
 		Topics: topics,
 	}
@@ -190,12 +185,14 @@ func (s *Service) validateTopicFilters(
 	return nil
 }
 
-// buildTopicCursors converts topic filters into a TopicCursors map and
-// returns the keys that need catch-up (those with non-nil LastSeen).
+// buildTopicCursors converts topic filters into a TopicCursors map,
+// the deduplicated topic list (as [][]byte), and the keys that need
+// catch-up (those with non-nil LastSeen).
 func buildTopicCursors(
 	filters []*message_api.SubscribeTopicsRequest_TopicFilter,
-) (db.TopicCursors, []string) {
+) (db.TopicCursors, [][]byte, []string) {
 	cursors := make(db.TopicCursors, len(filters))
+	topics := make([][]byte, 0, len(filters))
 	catchUpKeys := make([]string, 0, len(filters))
 
 	for _, f := range filters {
@@ -204,6 +201,8 @@ func buildTopicCursors(
 		if _, exists := cursors[key]; exists {
 			continue
 		}
+
+		topics = append(topics, f.GetTopic())
 
 		lastSeen := f.GetLastSeen()
 
@@ -220,7 +219,7 @@ func buildTopicCursors(
 		}
 	}
 
-	return cursors, catchUpKeys
+	return cursors, topics, catchUpKeys
 }
 
 // fillMissingOriginatorsForTopics calls FillMissingOriginators on each

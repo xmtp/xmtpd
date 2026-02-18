@@ -99,7 +99,9 @@ func (s *Service) SubscribeTopicEnvelopes(
 				return nil
 			}
 
-			err = s.sendTopicEnvelopes(stream, cursors, envs)
+			// Advance cursors to filter duplicates between catch-up and live delivery.
+			envsToSend := advanceTopicCursors(cursors, envs)
+			err = s.sendTopicEnvelopes(stream, envsToSend)
 			if err != nil {
 				return err
 			}
@@ -277,14 +279,18 @@ func (s *Service) fetchTopicEnvelopesWithRetry(
 	return result, nil
 }
 
-// sendTopicEnvelopes deduplicates and sends envelopes to the stream,
-// updating the per-topic cursors.
-func (s *Service) sendTopicEnvelopes(
-	stream *connect.ServerStream[message_api.SubscribeTopicsResponse],
+// advanceTopicCursors filters envelopes against subscribed topics, deduplicates
+// using current cursor state, and advances cursors in-place for each envelope
+// that passes the filter. Returns the proto envelopes ready to send.
+//
+// Cursor advancement is critical: in catchUpTopics it drives pagination (the next
+// query uses the advanced cursors), and in the live loop it prevents duplicates
+// between catch-up and live delivery.
+func advanceTopicCursors(
 	cursors db.TopicCursors,
 	envs []*envelopes.OriginatorEnvelope,
-) error {
-	envsToSend := make([]*envelopesProto.OriginatorEnvelope, 0, len(envs))
+) []*envelopesProto.OriginatorEnvelope {
+	result := make([]*envelopesProto.OriginatorEnvelope, 0, len(envs))
 
 	for _, env := range envs {
 		vc, ok := cursors[string(env.TargetTopic().Bytes())]
@@ -302,16 +308,25 @@ func (s *Service) sendTopicEnvelopes(
 			continue
 		}
 
-		envsToSend = append(envsToSend, env.Proto())
+		result = append(result, env.Proto())
 		vc[origID] = seqID
 	}
 
-	if len(envsToSend) == 0 {
+	return result
+}
+
+// sendTopicEnvelopes sends the given envelopes to the stream.
+// No-ops if the slice is empty.
+func (s *Service) sendTopicEnvelopes(
+	stream *connect.ServerStream[message_api.SubscribeTopicsResponse],
+	envs []*envelopesProto.OriginatorEnvelope,
+) error {
+	if len(envs) == 0 {
 		return nil
 	}
 
 	err := stream.Send(&message_api.SubscribeTopicsResponse{
-		Envelopes: envsToSend,
+		Envelopes: envs,
 	})
 	if err != nil {
 		return connect.NewError(
@@ -377,7 +392,9 @@ func (s *Service) catchUpTopics(
 
 			envs := unmarshalEnvelopes(rows, s.logger)
 
-			err = s.sendTopicEnvelopes(stream, cursors, envs)
+			// Advance cursors so the next query page starts after these envelopes.
+			envsToSend := advanceTopicCursors(cursors, envs)
+			err = s.sendTopicEnvelopes(stream, envsToSend)
 			if err != nil {
 				return err
 			}

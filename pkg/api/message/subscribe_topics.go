@@ -55,7 +55,16 @@ func (s *Service) SubscribeTopicEnvelopes(
 	}
 
 	filters := req.Msg.GetFilters()
-	if err := s.validateTopicFilters(ctx, filters); err != nil {
+
+	knownOriginators, err := s.originatorList.GetOriginatorNodeIDs(ctx)
+	if err != nil {
+		return connect.NewError(
+			connect.CodeInternal,
+			fmt.Errorf("could not get originator list: %w", err),
+		)
+	}
+
+	if err := validateTopicFilters(filters, knownOriginators); err != nil {
 		return err
 	}
 
@@ -112,9 +121,9 @@ func (s *Service) SubscribeTopicEnvelopes(
 }
 
 // validateTopicFilters validates the topic filters in a SubscribeTopicsRequest.
-func (s *Service) validateTopicFilters(
-	ctx context.Context,
+func validateTopicFilters(
 	filters []*message_api.SubscribeTopicsRequest_TopicFilter,
+	knownOriginators []int32,
 ) error {
 	if len(filters) == 0 {
 		return connect.NewError(
@@ -130,54 +139,56 @@ func (s *Service) validateTopicFilters(
 		)
 	}
 
-	// Collect all originator IDs referenced by cursors so we can validate them.
-	needOriginatorValidation := false
 	referencedOriginators := make(map[uint32]struct{})
-
 	for _, f := range filters {
-		topicBytes := f.GetTopic()
-		if len(topicBytes) == 0 || len(topicBytes) > maxTopicLength {
-			return connect.NewError(
-				connect.CodeInvalidArgument,
-				fmt.Errorf("invalid topic length: %d", len(topicBytes)),
-			)
+		if err := validateTopicFilter(f); err != nil {
+			return connect.NewError(connect.CodeInvalidArgument, err)
 		}
 
-		vc := f.GetLastSeen().GetNodeIdToSequenceId()
-		if len(vc) > maxVectorClockLength {
-			return connect.NewError(
-				connect.CodeInvalidArgument,
-				fmt.Errorf("vector clock length exceeds maximum of %d", maxVectorClockLength),
-			)
-		}
-		if len(vc) > 0 {
-			needOriginatorValidation = true
-			for origID := range vc {
-				referencedOriginators[origID] = struct{}{}
-			}
+		for origID := range f.GetLastSeen().GetNodeIdToSequenceId() {
+			referencedOriginators[origID] = struct{}{}
 		}
 	}
 
-	// Validate that all referenced originator IDs are known.
-	if needOriginatorValidation {
-		allOriginators, err := s.originatorList.GetOriginatorNodeIDs(ctx)
-		if err != nil {
-			return connect.NewError(
-				connect.CodeInternal,
-				fmt.Errorf("could not get originator list: %w", err),
-			)
-		}
-		known := make(map[uint32]struct{}, len(allOriginators))
-		for _, id := range allOriginators {
-			known[uint32(id)] = struct{}{}
-		}
-		for origID := range referencedOriginators {
-			if _, ok := known[origID]; !ok {
-				return connect.NewError(
-					connect.CodeInvalidArgument,
-					fmt.Errorf("unknown originator node ID in cursor: %d", origID),
-				)
-			}
+	if err := validateOriginatorIDs(referencedOriginators, knownOriginators); err != nil {
+		return connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	return nil
+}
+
+// validateTopicFilter validates a single topic filter's field lengths.
+func validateTopicFilter(f *message_api.SubscribeTopicsRequest_TopicFilter) error {
+	topicBytes := f.GetTopic()
+	if len(topicBytes) == 0 || len(topicBytes) > maxTopicLength {
+		return fmt.Errorf("invalid topic length: %d", len(topicBytes))
+	}
+
+	vc := f.GetLastSeen().GetNodeIdToSequenceId()
+	if len(vc) > maxVectorClockLength {
+		return fmt.Errorf("vector clock length exceeds maximum of %d", maxVectorClockLength)
+	}
+
+	return nil
+}
+
+// validateOriginatorIDs checks that all referenced originator IDs are known.
+func validateOriginatorIDs(
+	referenced map[uint32]struct{},
+	knownOriginators []int32,
+) error {
+	if len(referenced) == 0 {
+		return nil
+	}
+
+	known := make(map[uint32]struct{}, len(knownOriginators))
+	for _, id := range knownOriginators {
+		known[uint32(id)] = struct{}{}
+	}
+
+	for origID := range referenced {
+		if _, ok := known[origID]; !ok {
+			return fmt.Errorf("unknown originator node ID in cursor: %d", origID)
 		}
 	}
 

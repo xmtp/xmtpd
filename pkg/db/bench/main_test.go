@@ -23,7 +23,7 @@ const (
 
 // envelopeTier holds a pre-seeded database and metadata for one data scale.
 type envelopeTier struct {
-	name        string   // sub-benchmark name, e.g. "rows=100K"
+	name        string // sub-benchmark name, e.g. "rows=100K"
 	db          *sql.DB
 	count       int      // total envelope rows seeded
 	topics      [][]byte // topics seeded into this DB
@@ -57,7 +57,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("failed to connect to control DB: %v", err)
 	}
-	defer ctlDB.Close()
+	defer func() { _ = ctlDB.Close() }()
 
 	// --- Envelope tiers ---
 	tiers := []struct {
@@ -141,7 +141,7 @@ func createBenchDB(ctlDB *sql.DB, suffix string) (*sql.DB, func()) {
 	}
 
 	return db, func() {
-		db.Close()
+		_ = db.Close()
 		_, _ = ctlDB.Exec("DROP DATABASE " + dbName)
 	}
 }

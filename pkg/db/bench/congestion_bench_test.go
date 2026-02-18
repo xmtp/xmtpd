@@ -45,10 +45,13 @@ func BenchmarkIncrementOriginatorCongestion(b *testing.B) {
 	b.ResetTimer()
 	for b.Loop() {
 		minute := counter.Add(1)
-		err := q.IncrementOriginatorCongestion(benchCtx, queries.IncrementOriginatorCongestionParams{
-			OriginatorID:      origID,
-			MinutesSinceEpoch: minute,
-		})
+		err := q.IncrementOriginatorCongestion(
+			benchCtx,
+			queries.IncrementOriginatorCongestionParams{
+				OriginatorID:      origID,
+				MinutesSinceEpoch: minute,
+			},
+		)
 		require.NoError(b, err)
 	}
 }

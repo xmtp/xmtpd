@@ -216,6 +216,112 @@ func (q *Queries) SelectGatewayEnvelopesByOriginators(ctx context.Context, arg S
 	return items, nil
 }
 
+const selectGatewayEnvelopesByPerTopicCursors = `-- name: SelectGatewayEnvelopesByPerTopicCursors :many
+WITH cursor_entries AS (
+    SELECT t.topic, n.node_id, s.seq_id
+    FROM unnest($1::BYTEA[]) WITH ORDINALITY AS t(topic, ord)
+    JOIN unnest($2::INT[]) WITH ORDINALITY AS n(node_id, ord) USING (ord)
+    JOIN unnest($3::BIGINT[]) WITH ORDINALITY AS s(seq_id, ord) USING (ord)
+),
+filtered AS (
+    SELECT sub.originator_node_id,
+           sub.originator_sequence_id,
+           sub.gateway_time,
+           sub.topic
+    FROM cursor_entries AS ce
+    CROSS JOIN LATERAL (
+        SELECT m.originator_node_id,
+               m.originator_sequence_id,
+               m.gateway_time,
+               m.topic
+        FROM gateway_envelopes_meta AS m
+        WHERE m.topic = ce.topic
+          AND m.originator_node_id = ce.node_id
+          AND m.originator_sequence_id > ce.seq_id
+        ORDER BY m.originator_sequence_id
+        LIMIT $4::INT
+    ) AS sub
+    ORDER BY sub.originator_node_id, sub.originator_sequence_id
+    LIMIT NULLIF($5::INT, 0)
+),
+originator_ids AS (
+    SELECT DISTINCT originator_node_id FROM filtered
+)
+SELECT bl.originator_node_id,
+       bl.originator_sequence_id,
+       bl.gateway_time,
+       bl.topic,
+       bl.originator_envelope
+FROM originator_ids AS oi
+CROSS JOIN LATERAL (
+    SELECT f.originator_node_id,
+           f.originator_sequence_id,
+           f.gateway_time,
+           f.topic,
+           b.originator_envelope
+    FROM filtered AS f
+    JOIN gateway_envelope_blobs AS b
+        ON b.originator_node_id = oi.originator_node_id
+       AND b.originator_sequence_id = f.originator_sequence_id
+    WHERE f.originator_node_id = oi.originator_node_id
+) AS bl
+ORDER BY bl.originator_node_id, bl.originator_sequence_id
+`
+
+type SelectGatewayEnvelopesByPerTopicCursorsParams struct {
+	CursorTopics      [][]byte
+	CursorNodeIds     []int32
+	CursorSequenceIds []int64
+	RowsPerEntry      int32
+	RowLimit          int32
+}
+
+type SelectGatewayEnvelopesByPerTopicCursorsRow struct {
+	OriginatorNodeID     int32
+	OriginatorSequenceID int64
+	GatewayTime          time.Time
+	Topic                []byte
+	OriginatorEnvelope   []byte
+}
+
+// Per-topic cursor variant: accepts pre-flattened (topic, node_id, seq_id) triples
+// instead of CROSS JOINing topics × cursors.
+// Uses gem_topic_orig_seq_idx for index-only scans.
+func (q *Queries) SelectGatewayEnvelopesByPerTopicCursors(ctx context.Context, arg SelectGatewayEnvelopesByPerTopicCursorsParams) ([]SelectGatewayEnvelopesByPerTopicCursorsRow, error) {
+	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopesByPerTopicCursors,
+		pq.Array(arg.CursorTopics),
+		pq.Array(arg.CursorNodeIds),
+		pq.Array(arg.CursorSequenceIds),
+		arg.RowsPerEntry,
+		arg.RowLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SelectGatewayEnvelopesByPerTopicCursorsRow
+	for rows.Next() {
+		var i SelectGatewayEnvelopesByPerTopicCursorsRow
+		if err := rows.Scan(
+			&i.OriginatorNodeID,
+			&i.OriginatorSequenceID,
+			&i.GatewayTime,
+			&i.Topic,
+			&i.OriginatorEnvelope,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const selectGatewayEnvelopesBySingleOriginator = `-- name: SelectGatewayEnvelopesBySingleOriginator :many
 SELECT m.originator_node_id,
        m.originator_sequence_id,

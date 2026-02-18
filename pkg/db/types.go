@@ -98,3 +98,56 @@ func FillMissingOriginators(vc VectorClock, allOriginators []int32) {
 		}
 	}
 }
+
+// TopicCursors maps raw topic bytes (as string key) to a per-topic VectorClock.
+type TopicCursors map[string]VectorClock
+
+// SetPerTopicCursors flattens TopicCursors into the parallel arrays required by
+// SelectGatewayEnvelopesByPerTopicCursors. Each (topic, nodeID, seqID) triple
+// produces one entry in the three arrays.
+func SetPerTopicCursors(
+	q *queries.SelectGatewayEnvelopesByPerTopicCursorsParams,
+	tc TopicCursors,
+) {
+	// Count total entries for pre-allocation.
+	total := 0
+	for _, vc := range tc {
+		total += len(vc)
+	}
+
+	q.CursorTopics = make([][]byte, 0, total)
+	q.CursorNodeIds = make([]int32, 0, total)
+	q.CursorSequenceIds = make([]int64, 0, total)
+
+	for topicKey, vc := range tc {
+		topicBytes := []byte(topicKey)
+		for nodeID, seqID := range vc {
+			q.CursorTopics = append(q.CursorTopics, topicBytes)
+			q.CursorNodeIds = append(q.CursorNodeIds, int32(nodeID))
+			q.CursorSequenceIds = append(q.CursorSequenceIds, int64(seqID))
+		}
+	}
+}
+
+// TransformRowsByPerTopicCursors converts per-topic cursor rows to the common
+// GatewayEnvelopesView type.
+func TransformRowsByPerTopicCursors(
+	rows []queries.SelectGatewayEnvelopesByPerTopicCursorsRow,
+) []queries.GatewayEnvelopesView {
+	result := make([]queries.GatewayEnvelopesView, len(rows))
+	for i, row := range rows {
+		result[i] = queries.GatewayEnvelopesView(row)
+	}
+	return result
+}
+
+// CalculateRowsPerEntry computes the per-(topic, originator) sub-limit
+// for the per-topic cursor query. Returns at least 10 to avoid starving
+// low-volume originators.
+func CalculateRowsPerEntry(numEntries int, rowLimit int32) int32 {
+	if numEntries == 0 {
+		return rowLimit
+	}
+	rpe := max(rowLimit/int32(numEntries), 10)
+	return rpe
+}

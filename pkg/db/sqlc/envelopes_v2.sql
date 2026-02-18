@@ -184,6 +184,60 @@ ORDER BY v.originator_node_id,
          v.originator_sequence_id
 LIMIT NULLIF(@row_limit::INT, 0);
 
+-- name: SelectGatewayEnvelopesByPerTopicCursors :many
+-- Per-topic cursor variant: accepts pre-flattened (topic, node_id, seq_id) triples
+-- instead of CROSS JOINing topics × cursors.
+-- Uses gem_topic_orig_seq_idx for index-only scans.
+WITH cursor_entries AS (
+    SELECT t.topic, n.node_id, s.seq_id
+    FROM unnest(@cursor_topics::BYTEA[]) WITH ORDINALITY AS t(topic, ord)
+    JOIN unnest(@cursor_node_ids::INT[]) WITH ORDINALITY AS n(node_id, ord) USING (ord)
+    JOIN unnest(@cursor_sequence_ids::BIGINT[]) WITH ORDINALITY AS s(seq_id, ord) USING (ord)
+),
+filtered AS (
+    SELECT sub.originator_node_id,
+           sub.originator_sequence_id,
+           sub.gateway_time,
+           sub.topic
+    FROM cursor_entries AS ce
+    CROSS JOIN LATERAL (
+        SELECT m.originator_node_id,
+               m.originator_sequence_id,
+               m.gateway_time,
+               m.topic
+        FROM gateway_envelopes_meta AS m
+        WHERE m.topic = ce.topic
+          AND m.originator_node_id = ce.node_id
+          AND m.originator_sequence_id > ce.seq_id
+        ORDER BY m.originator_sequence_id
+        LIMIT @rows_per_entry::INT
+    ) AS sub
+    ORDER BY sub.originator_node_id, sub.originator_sequence_id
+    LIMIT NULLIF(@row_limit::INT, 0)
+),
+originator_ids AS (
+    SELECT DISTINCT originator_node_id FROM filtered
+)
+SELECT bl.originator_node_id,
+       bl.originator_sequence_id,
+       bl.gateway_time,
+       bl.topic,
+       bl.originator_envelope
+FROM originator_ids AS oi
+CROSS JOIN LATERAL (
+    SELECT f.originator_node_id,
+           f.originator_sequence_id,
+           f.gateway_time,
+           f.topic,
+           b.originator_envelope
+    FROM filtered AS f
+    JOIN gateway_envelope_blobs AS b
+        ON b.originator_node_id = oi.originator_node_id
+       AND b.originator_sequence_id = f.originator_sequence_id
+    WHERE f.originator_node_id = oi.originator_node_id
+) AS bl
+ORDER BY bl.originator_node_id, bl.originator_sequence_id;
+
 -- name: InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage :one
 SELECT
     inserted_meta_rows::bigint,

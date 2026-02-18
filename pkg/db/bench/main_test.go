@@ -87,7 +87,8 @@ func TestMain(m *testing.M) {
 	}
 
 	// --- Non-envelope groups ---
-	congestionDB, cleanup := createBenchDB(ctlDB, "congestion")
+	var cleanup func()
+	congestionDB, cleanup = createBenchDB(ctlDB, "congestion")
 	cleanups = append(cleanups, cleanup)
 	seedCongestion(benchCtx, congestionDB)
 

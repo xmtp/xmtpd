@@ -3,12 +3,14 @@ package bench
 import (
 	"context"
 	"database/sql"
-	"encoding/hex"
 	"log"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/testutils"
+	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
 const (
@@ -22,7 +24,7 @@ func seedLedger(ctx context.Context, db *sql.DB) {
 	ledgerPayerIDs = make([]int32, numLedgerPayers)
 
 	for i := range numLedgerPayers {
-		addr := hex.EncodeToString(randomBytes(20))
+		addr := utils.HexEncode(testutils.RandomBytes(20))
 		id, err := q.FindOrCreatePayer(ctx, addr)
 		if err != nil {
 			log.Fatalf("seed ledger payer: %v", err)
@@ -39,7 +41,7 @@ func seedLedger(ctx context.Context, db *sql.DB) {
 			err := q.InsertPayerLedgerEvent(
 				ctx,
 				queries.InsertPayerLedgerEventParams{
-					EventID:           randomBytes(32),
+					EventID:           testutils.RandomBytes(32),
 					PayerID:           id,
 					AmountPicodollars: amount,
 					EventType:         eventType,
@@ -60,12 +62,19 @@ func seedLedger(ctx context.Context, db *sql.DB) {
 func BenchmarkInsertPayerLedgerEvent(b *testing.B) {
 	q := queries.New(ledgerDB)
 	payerID := ledgerPayerIDs[0]
-	b.ResetTimer()
+	// Pre-generate a pool of unique event IDs to avoid crypto/rand in hot path.
+	const poolSize = 10_000
+	eventIDs := make([][]byte, poolSize)
+	for i := range poolSize {
+		eventIDs[i] = testutils.RandomBytes(32)
+	}
+	var counter atomic.Int64
 	for b.Loop() {
+		idx := counter.Add(1)
 		err := q.InsertPayerLedgerEvent(
 			benchCtx,
 			queries.InsertPayerLedgerEventParams{
-				EventID:           randomBytes(32),
+				EventID:           eventIDs[idx%poolSize],
 				PayerID:           payerID,
 				AmountPicodollars: 1_000_000,
 				EventType:         1,
@@ -78,7 +87,6 @@ func BenchmarkInsertPayerLedgerEvent(b *testing.B) {
 func BenchmarkGetPayerBalance(b *testing.B) {
 	q := queries.New(ledgerDB)
 	payerID := ledgerPayerIDs[0]
-	b.ResetTimer()
 	for b.Loop() {
 		_, err := q.GetPayerBalance(benchCtx, payerID)
 		require.NoError(b, err)
@@ -91,7 +99,6 @@ func BenchmarkGetLastEvent(b *testing.B) {
 		PayerID:   ledgerPayerIDs[0],
 		EventType: 1, // deposits
 	}
-	b.ResetTimer()
 	for b.Loop() {
 		_, err := q.GetLastEvent(benchCtx, params)
 		require.NoError(b, err)

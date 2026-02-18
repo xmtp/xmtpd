@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
 const numContracts = 100
@@ -24,7 +25,7 @@ func seedIndexer(ctx context.Context, db *sql.DB) {
 		err := q.SetLatestBlock(ctx, queries.SetLatestBlockParams{
 			ContractAddress: addr,
 			BlockNumber:     int64(1000 + i),
-			BlockHash:       randomBytes(32),
+			BlockHash:       testutils.RandomBytes(32),
 		})
 		if err != nil {
 			log.Fatalf("seed indexer: %v", err)
@@ -36,7 +37,6 @@ func seedIndexer(ctx context.Context, db *sql.DB) {
 func BenchmarkGetLatestBlock(b *testing.B) {
 	q := queries.New(indexerDB)
 	contract := indexerContracts[0]
-	b.ResetTimer()
 	for b.Loop() {
 		_, err := q.GetLatestBlock(benchCtx, contract)
 		require.NoError(b, err)
@@ -45,15 +45,15 @@ func BenchmarkGetLatestBlock(b *testing.B) {
 
 func BenchmarkSetLatestBlock(b *testing.B) {
 	q := queries.New(indexerDB)
+	blockHash := testutils.RandomBytes(32) // pre-generate to avoid crypto/rand in hot path
 	var counter atomic.Int64
 	counter.Store(100_000)
-	b.ResetTimer()
 	for b.Loop() {
 		blockNum := counter.Add(1)
 		err := q.SetLatestBlock(benchCtx, queries.SetLatestBlockParams{
 			ContractAddress: indexerContracts[0],
 			BlockNumber:     blockNum,
-			BlockHash:       randomBytes(32),
+			BlockHash:       blockHash,
 		})
 		require.NoError(b, err)
 	}

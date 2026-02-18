@@ -2,7 +2,6 @@ package bench
 
 import (
 	"context"
-	"encoding/hex"
 	"log"
 	"sync/atomic"
 	"testing"
@@ -11,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/testutils"
+	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
 const (
@@ -31,13 +32,14 @@ func seedEnvelopes(ctx context.Context, tier *envelopeTier) {
 	// Generate topics
 	tier.topics = make([][]byte, numTopics)
 	for i := range numTopics {
-		tier.topics[i] = randomBytes(32)
+		tier.topics[i] = testutils.RandomBytes(32)
 	}
 
 	// Create payers for batch insert benchmarks
 	tier.payerIDs = make([]int32, numBenchPayers)
 	for i := range numBenchPayers {
-		id, err := q.FindOrCreatePayer(ctx, hex.EncodeToString(randomBytes(20)))
+		addr := utils.HexEncode(testutils.RandomBytes(20))
+		id, err := q.FindOrCreatePayer(ctx, addr)
 		if err != nil {
 			log.Fatalf("seed envelope payer: %v", err)
 		}
@@ -66,7 +68,7 @@ func seedEnvelopes(ctx context.Context, tier *envelopeTier) {
 
 	// Seed envelopes distributed across originators and topics
 	batchSize := 10_000
-	blob := randomBytes(blobSize) // reuse same blob for speed
+	blob := testutils.RandomBytes(blobSize) // reuse same blob for speed
 	seqIDs := make([]int64, numOriginators)
 
 	for i := range tier.count {
@@ -113,7 +115,6 @@ func BenchmarkSelectGatewayEnvelopesByTopics(b *testing.B) {
 				CursorNodeIds:     tier.originators,
 				CursorSequenceIds: []int64{midSeq, midSeq, midSeq},
 			}
-			b.ResetTimer()
 			for b.Loop() {
 				_, err := q.SelectGatewayEnvelopesByTopics(benchCtx, params)
 				require.NoError(b, err)
@@ -134,7 +135,6 @@ func BenchmarkSelectGatewayEnvelopesByOriginators(b *testing.B) {
 				CursorNodeIds:     tier.originators,
 				CursorSequenceIds: []int64{midSeq, midSeq, midSeq},
 			}
-			b.ResetTimer()
 			for b.Loop() {
 				_, err := q.SelectGatewayEnvelopesByOriginators(
 					benchCtx,
@@ -156,7 +156,6 @@ func BenchmarkSelectGatewayEnvelopesBySingleOriginator(b *testing.B) {
 				CursorSequenceID: midSeq,
 				RowLimit:         100,
 			}
-			b.ResetTimer()
 			for b.Loop() {
 				_, err := q.SelectGatewayEnvelopesBySingleOriginator(
 					benchCtx,
@@ -178,7 +177,6 @@ func BenchmarkSelectGatewayEnvelopesUnfiltered(b *testing.B) {
 				CursorNodeIds:     tier.originators,
 				CursorSequenceIds: []int64{midSeq, midSeq, midSeq},
 			}
-			b.ResetTimer()
 			for b.Loop() {
 				_, err := q.SelectGatewayEnvelopesUnfiltered(
 					benchCtx,
@@ -195,7 +193,6 @@ func BenchmarkSelectNewestFromTopics(b *testing.B) {
 		b.Run(tier.name, func(b *testing.B) {
 			q := queries.New(tier.db)
 			topics := tier.topics[:10]
-			b.ResetTimer()
 			for b.Loop() {
 				_, err := q.SelectNewestFromTopics(benchCtx, topics)
 				require.NoError(b, err)
@@ -210,11 +207,11 @@ func BenchmarkInsertGatewayEnvelope(b *testing.B) {
 	for _, tier := range envelopeTiers {
 		b.Run(tier.name, func(b *testing.B) {
 			q := queries.New(tier.db)
-			blob := randomBytes(blobSize)
+			blob := testutils.RandomBytes(blobSize)
 			topic := tier.topics[0]
+			expiry := time.Now().Add(24 * time.Hour).Unix()
 			var counter atomic.Int64
 			counter.Store(1_000_000)
-			b.ResetTimer()
 			for b.Loop() {
 				seqID := counter.Add(1)
 				_, err := q.InsertGatewayEnvelope(
@@ -223,7 +220,7 @@ func BenchmarkInsertGatewayEnvelope(b *testing.B) {
 						OriginatorNodeID:     writeOriginatorID,
 						OriginatorSequenceID: seqID,
 						Topic:                topic,
-						Expiry:               time.Now().Add(24 * time.Hour).Unix(),
+						Expiry:               expiry,
 						OriginatorEnvelope:   blob,
 					},
 				)
@@ -237,33 +234,36 @@ func BenchmarkInsertGatewayEnvelopeBatch(b *testing.B) {
 	for _, tier := range envelopeTiers {
 		b.Run(tier.name, func(b *testing.B) {
 			q := queries.New(tier.db)
-			blob := randomBytes(blobSize)
+			blob := testutils.RandomBytes(blobSize)
 			batchLen := 10
+
+			// Pre-allocate slices to avoid allocations in hot path.
+			nodeIDs := make([]int32, batchLen)
+			seqIDs := make([]int64, batchLen)
+			topics := make([][]byte, batchLen)
+			payerIDs := make([]int32, batchLen)
+			times := make([]time.Time, batchLen)
+			expiries := make([]int64, batchLen)
+			blobs := make([][]byte, batchLen)
+			spends := make([]int64, batchLen)
+			for j := range batchLen {
+				nodeIDs[j] = writeOriginatorID
+				topics[j] = tier.topics[j%numTopics]
+				payerIDs[j] = tier.payerIDs[j%numBenchPayers]
+				blobs[j] = blob
+				spends[j] = 1_000_000
+			}
+
 			var counter atomic.Int64
 			counter.Store(5_000_000)
-			b.ResetTimer()
 			for b.Loop() {
 				baseSeq := counter.Add(int64(batchLen))
-				nodeIDs := make([]int32, batchLen)
-				seqIDs := make([]int64, batchLen)
-				topics := make([][]byte, batchLen)
-				payerIDs := make([]int32, batchLen)
-				times := make([]time.Time, batchLen)
-				expiries := make([]int64, batchLen)
-				blobs := make([][]byte, batchLen)
-				spends := make([]int64, batchLen)
 				now := time.Now()
 				exp := now.Add(24 * time.Hour).Unix()
-
 				for j := range batchLen {
-					nodeIDs[j] = writeOriginatorID
 					seqIDs[j] = baseSeq + int64(j)
-					topics[j] = tier.topics[j%numTopics]
-					payerIDs[j] = tier.payerIDs[j%numBenchPayers]
 					times[j] = now
 					expiries[j] = exp
-					blobs[j] = blob
-					spends[j] = 1_000_000
 				}
 
 				_, err := q.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(

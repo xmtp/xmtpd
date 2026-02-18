@@ -5,6 +5,8 @@ RESULTS_DIR="benchmarks/results"
 mkdir -p "$RESULTS_DIR"
 
 OUTFILE="$RESULTS_DIR/$(date +%Y-%m-%d).txt"
+RAWFILE=$(mktemp)
+trap 'rm -f "$RAWFILE"' EXIT
 
 echo "Running benchmarks..."
 echo "Tier filter: ${BENCH_TIER:-all}"
@@ -13,7 +15,10 @@ echo
 
 go test -bench=. -benchmem -count=5 -timeout=60m \
     -run='^$' \
-    ./pkg/db/bench/ 2>&1 | tee "$OUTFILE"
+    ./pkg/db/bench/ 2>&1 | tee "$RAWFILE"
+
+# Filter to only benchstat-compatible output (strip setup/seed log lines)
+grep -E '^(goos:|goarch:|pkg:|cpu:|Benchmark|PASS$|ok[[:space:]])' "$RAWFILE" > "$OUTFILE"
 
 echo
 echo "Results written to $OUTFILE"

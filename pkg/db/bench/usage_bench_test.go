@@ -3,13 +3,14 @@ package bench
 import (
 	"context"
 	"database/sql"
-	"encoding/hex"
 	"log"
 	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/testutils"
+	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
 const (
@@ -29,7 +30,7 @@ func seedUsage(ctx context.Context, db *sql.DB) {
 	}
 
 	for i := range numUsagePayers {
-		addr := hex.EncodeToString(randomBytes(20))
+		addr := utils.HexEncode(testutils.RandomBytes(20))
 		id, err := q.FindOrCreatePayer(ctx, addr)
 		if err != nil {
 			log.Fatalf("seed usage payer: %v", err)
@@ -68,7 +69,6 @@ func BenchmarkIncrementUnsettledUsage(b *testing.B) {
 	origID := usageOriginators[0]
 	var counter atomic.Int32
 	counter.Store(100_000) // beyond seeded range
-	b.ResetTimer()
 	for b.Loop() {
 		minute := counter.Add(1)
 		err := q.IncrementUnsettledUsage(

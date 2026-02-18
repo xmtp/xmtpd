@@ -68,14 +68,9 @@ func (s *EnvelopeSink) Start() {
 				continue
 			}
 
-			exp := backoff.NewExponentialBackOff()
-			exp.InitialInterval = 10 * time.Millisecond
-			exp.MaxInterval = s.errorRetrySleepTime
-			exp.Multiplier = 2.0
-			exp.RandomizationFactor = 0.5
-			exp.MaxElapsedTime = 0 // no limit
-
-			boCtx := backoff.WithContext(exp, s.ctx)
+			boCtx := backoff.WithContext(
+				utils.NewBackoff(10*time.Millisecond, s.errorRetrySleepTime, 0), s.ctx,
+			)
 
 			operation := func() error {
 				select {

@@ -410,11 +410,14 @@ func (s *syncWorker) setupStream(
 		}
 	}
 
+	permittedOriginators := utils.SliceToSet(originatorNodeIDs)
+
 	return newOriginatorStream(
 		s.ctx,
 		s.logger,
 		&node,
 		lastSequenceID,
+		permittedOriginators,
 		stream,
 		writeQueue,
 	), nil

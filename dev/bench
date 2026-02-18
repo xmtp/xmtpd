@@ -1,0 +1,20 @@
+#!/bin/bash
+set -euo pipefail
+
+RESULTS_DIR="benchmarks/results"
+mkdir -p "$RESULTS_DIR"
+
+OUTFILE="$RESULTS_DIR/$(date +%Y-%m-%d).txt"
+
+echo "Running benchmarks..."
+echo "Tier filter: ${BENCH_TIER:-all}"
+echo "Output: $OUTFILE"
+echo
+
+go test -bench=. -benchmem -count=5 -timeout=60m \
+    -run='^$' \
+    ./pkg/db/bench/ 2>&1 | tee "$OUTFILE"
+
+echo
+echo "Results written to $OUTFILE"
+echo "Compare with: benchstat benchmarks/results/old.txt $OUTFILE"

@@ -424,7 +424,9 @@ func (s *Service) fetchEnvelopesWithRetry(
 	query *message_api.EnvelopesQuery,
 	rowLimit int32,
 ) ([]queries.GatewayEnvelopesView, error) {
-	boCtx := backoff.WithContext(newDefaultBackoff(), ctx)
+	boCtx := backoff.WithContext(
+		utils.NewBackoff(50*time.Millisecond, 300*time.Millisecond, 2*time.Second), ctx,
+	)
 
 	var result []queries.GatewayEnvelopesView
 
@@ -556,17 +558,6 @@ func unmarshalEnvelopes[T envelopeRow](
 		envs = append(envs, env)
 	}
 	return envs
-}
-
-// newDefaultBackoff returns a backoff configuration shared by all retry loops.
-func newDefaultBackoff() *backoff.ExponentialBackOff {
-	bo := backoff.NewExponentialBackOff()
-	bo.InitialInterval = 50 * time.Millisecond
-	bo.MaxInterval = 300 * time.Millisecond
-	bo.Multiplier = 2.0
-	bo.RandomizationFactor = 0.5
-	bo.MaxElapsedTime = 2 * time.Second
-	return bo
 }
 
 // calculateEnvelopesPerOriginator calculates the number of envelopes to fetch per originator.

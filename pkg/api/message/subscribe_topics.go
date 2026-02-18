@@ -242,7 +242,9 @@ func (s *Service) fetchTopicEnvelopesWithRetry(
 	rowLimit int32,
 	rowsPerEntry int32,
 ) ([]queries.GatewayEnvelopesView, error) {
-	boCtx := backoff.WithContext(newDefaultBackoff(), ctx)
+	boCtx := backoff.WithContext(
+		utils.NewBackoff(50*time.Millisecond, 300*time.Millisecond, 2*time.Second), ctx,
+	)
 
 	var result []queries.GatewayEnvelopesView
 

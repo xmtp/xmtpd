@@ -91,10 +91,10 @@ func TransformRowsByOriginator(
 // FillMissingOriginators ensures that every originator from allOriginators
 // is present in the vector clock. Missing originators are added with
 // a sequence ID of 0, meaning "start from the beginning".
-func FillMissingOriginators(vc VectorClock, allOriginators []int32) {
+func FillMissingOriginators(vc VectorClock, allOriginators []uint32) {
 	for _, id := range allOriginators {
-		if _, ok := vc[uint32(id)]; !ok {
-			vc[uint32(id)] = 0
+		if _, ok := vc[id]; !ok {
+			vc[id] = 0
 		}
 	}
 }

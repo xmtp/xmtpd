@@ -10,6 +10,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	"go.uber.org/zap"
 )
 
 func TestCachedOriginatorList_Basic(t *testing.T) {
@@ -32,10 +33,10 @@ func TestCachedOriginatorList_Basic(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	list := db.NewCachedOriginatorList(querier, 5*time.Minute)
+	list := db.NewCachedOriginatorList(querier, 5*time.Minute, zap.NewNop())
 	ids, err := list.GetOriginatorNodeIDs(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, []int32{100, 200, 300}, ids)
+	assert.Equal(t, []uint32{100, 200, 300}, ids)
 }
 
 func TestCachedOriginatorList_Caching(t *testing.T) {
@@ -56,7 +57,7 @@ func TestCachedOriginatorList_Caching(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	list := db.NewCachedOriginatorList(querier, 5*time.Minute)
+	list := db.NewCachedOriginatorList(querier, 5*time.Minute, zap.NewNop())
 
 	// First call populates cache.
 	ids1, err := list.GetOriginatorNodeIDs(ctx)
@@ -100,7 +101,7 @@ func TestCachedOriginatorList_CacheExpiry(t *testing.T) {
 	require.NoError(t, err)
 
 	// Use very short TTL for testing.
-	list := db.NewCachedOriginatorList(querier, 10*time.Millisecond)
+	list := db.NewCachedOriginatorList(querier, 10*time.Millisecond, zap.NewNop())
 
 	ids1, err := list.GetOriginatorNodeIDs(ctx)
 	require.NoError(t, err)
@@ -146,7 +147,7 @@ func TestCachedOriginatorList_Concurrent(t *testing.T) {
 	}
 
 	// Very short TTL so cache expires mid-flight.
-	list := db.NewCachedOriginatorList(querier, 1*time.Millisecond)
+	list := db.NewCachedOriginatorList(querier, 1*time.Millisecond, zap.NewNop())
 
 	var wg sync.WaitGroup
 	for range 50 {
@@ -166,7 +167,7 @@ func TestCachedOriginatorList_Empty(t *testing.T) {
 	rawDB, _ := testutils.NewRawDB(t, ctx)
 	querier := queries.New(rawDB)
 
-	list := db.NewCachedOriginatorList(querier, 5*time.Minute)
+	list := db.NewCachedOriginatorList(querier, 5*time.Minute, zap.NewNop())
 	ids, err := list.GetOriginatorNodeIDs(ctx)
 	require.NoError(t, err)
 	assert.Empty(t, ids)

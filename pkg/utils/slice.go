@@ -40,6 +40,19 @@ func Int32SliceToUint32Slice(slice []int32) []uint32 {
 	return uintSlice
 }
 
+// ChunkSlice splits a slice into chunks of at most size elements.
+func ChunkSlice[T any](s []T, size int) [][]T {
+	if size <= 0 {
+		return [][]T{s}
+	}
+	var chunks [][]T
+	for i := 0; i < len(s); i += size {
+		end := min(i+size, len(s))
+		chunks = append(chunks, s[i:end])
+	}
+	return chunks
+}
+
 func AddressTo32Slice(addr common.Address) [32]byte {
 	var result [32]byte
 	copy(result[32-len(addr.Bytes()):], addr.Bytes())

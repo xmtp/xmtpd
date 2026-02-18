@@ -179,7 +179,6 @@ func (s *originatorStream) validateEnvelope(
 
 	lastSeq := s.lastSequenceIds[originatorID]
 
-	// Check for out-of-order
 	if seqID != lastSeq+1 {
 		s.logger.Error(
 			"received out-of-order envelope",
@@ -189,7 +188,6 @@ func (s *originatorStream) validateEnvelope(
 		)
 	}
 
-	// Update only if greater (same behavior as before)
 	if seqID > lastSeq {
 		s.lastSequenceIds[originatorID] = seqID
 	}

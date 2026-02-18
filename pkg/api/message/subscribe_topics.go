@@ -61,9 +61,13 @@ func (s *Service) SubscribeTopicEnvelopes(
 
 	cursors, catchUpKeys := buildTopicCursors(filters)
 
-	// Build a synthetic EnvelopesQuery for the listener (topics-only).
+	// Build a synthetic EnvelopesQuery for the listener using deduplicated topics.
+	topics := make([][]byte, 0, len(cursors))
+	for key := range cursors {
+		topics = append(topics, []byte(key))
+	}
 	syntheticQuery := &message_api.EnvelopesQuery{
-		Topics: extractTopicBytes(filters),
+		Topics: topics,
 	}
 	envelopesCh := s.subscribeWorker.listen(ctx, syntheticQuery)
 
@@ -217,15 +221,6 @@ func buildTopicCursors(
 	return cursors, catchUpKeys
 }
 
-// extractTopicBytes returns raw topic byte slices from the filters.
-func extractTopicBytes(filters []*message_api.SubscribeTopicsRequest_TopicFilter) [][]byte {
-	topics := make([][]byte, len(filters))
-	for i, f := range filters {
-		topics[i] = f.GetTopic()
-	}
-	return topics
-}
-
 // fillMissingOriginatorsForTopics calls FillMissingOriginators on each
 // topic's VectorClock in the given keys list.
 func fillMissingOriginatorsForTopics(
@@ -247,14 +242,7 @@ func (s *Service) fetchTopicEnvelopesWithRetry(
 	rowLimit int32,
 	rowsPerEntry int32,
 ) ([]queries.GatewayEnvelopesView, error) {
-	bo := backoff.NewExponentialBackOff()
-	bo.InitialInterval = 50 * time.Millisecond
-	bo.MaxInterval = 300 * time.Millisecond
-	bo.Multiplier = 2.0
-	bo.RandomizationFactor = 0.5
-	bo.MaxElapsedTime = 2 * time.Second
-
-	boCtx := backoff.WithContext(bo, ctx)
+	boCtx := backoff.WithContext(newDefaultBackoff(), ctx)
 
 	var result []queries.GatewayEnvelopesView
 
@@ -385,21 +373,7 @@ func (s *Service) catchUpTopics(
 				logger.Debug("topic catch-up fetched envelopes", utils.CountField(int64(len(rows))))
 			}
 
-			envs := make([]*envelopes.OriginatorEnvelope, 0, len(rows))
-			for _, r := range rows {
-				env, err := envelopes.NewOriginatorEnvelopeFromBytes(r.OriginatorEnvelope)
-				if err != nil {
-					// Corrupt data won't resolve on retry — log and skip.
-					s.logger.Error(
-						"could not unmarshal originator envelope",
-						zap.Error(err),
-						utils.OriginatorIDField(uint32(r.OriginatorNodeID)),
-						utils.SequenceIDField(r.OriginatorSequenceID),
-					)
-					continue
-				}
-				envs = append(envs, env)
-			}
+			envs := unmarshalEnvelopes(rows, s.logger)
 
 			err = s.sendTopicEnvelopes(stream, cursors, envs)
 			if err != nil {

@@ -61,10 +61,9 @@ func (s *Service) SubscribeTopicEnvelopes(
 
 	cursors, topics, catchUpKeys := buildTopicCursors(filters)
 
-	syntheticQuery := &message_api.EnvelopesQuery{
+	envelopesCh := s.subscribeWorker.listen(ctx, &message_api.EnvelopesQuery{
 		Topics: topics,
-	}
-	envelopesCh := s.subscribeWorker.listen(ctx, syntheticQuery)
+	})
 
 	err = s.catchUpTopics(ctx, stream, cursors, catchUpKeys, logger)
 	if err != nil {
@@ -398,7 +397,11 @@ func (s *Service) catchUpTopics(
 				return err
 			}
 
-			// If fewer rows than rowsPerEntry, chunk is exhausted.
+			// Compare against rowsPerEntry, not topicPageLimit. The LATERAL query
+			// distributes topicPageLimit across (topic, originator) pairs via
+			// per-entry sub-limits, so total rows returned can be less than
+			// topicPageLimit even when more data exists. Using topicPageLimit
+			// here would cause premature termination.
 			if int32(len(rows)) < rowsPerEntry {
 				break
 			}

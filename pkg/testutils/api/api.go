@@ -217,7 +217,7 @@ func NewTestAPIServer(
 			},
 			false,
 			10*time.Millisecond,
-			dbPkg.NewCachedOriginatorList(db.ReadQuery(), 5*time.Minute),
+			dbPkg.NewCachedOriginatorList(db.ReadQuery(), 100*time.Millisecond),
 		)
 		require.NoError(t, err)
 

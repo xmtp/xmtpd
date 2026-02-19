@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
 	"time"
 
 	"connectrpc.com/connect"
@@ -70,13 +71,13 @@ func (s *Service) SubscribeTopics(
 		return err
 	}
 
-	cursors, topics, catchUpKeys := buildTopicCursors(filters)
+	cursors, topics := buildTopicCursors(filters)
 
 	envelopesCh := s.subscribeWorker.listen(ctx, &message_api.EnvelopesQuery{
 		Topics: topics,
 	})
 
-	err = s.catchUpTopics(ctx, stream, cursors, catchUpKeys, logger)
+	err = s.catchUpTopics(ctx, stream, cursors, logger)
 	if err != nil {
 		return err
 	}
@@ -209,15 +210,14 @@ func validateOriginatorIDs(
 	return nil
 }
 
-// buildTopicCursors converts topic filters into a TopicCursors map,
-// the deduplicated topic list (as [][]byte), and the keys that need
-// catch-up (those with non-nil LastSeen).
+// buildTopicCursors converts topic filters into a TopicCursors map and
+// the deduplicated topic list (as [][]byte). Every topic catches up:
+// nil LastSeen is treated as "catch up from the beginning."
 func buildTopicCursors(
 	filters []*message_api.SubscribeTopicsRequest_TopicFilter,
-) (db.TopicCursors, [][]byte, []string) {
+) (db.TopicCursors, [][]byte) {
 	cursors := make(db.TopicCursors, len(filters))
 	topics := make([][]byte, 0, len(filters))
-	catchUpKeys := make([]string, 0, len(filters))
 
 	for _, f := range filters {
 		key := string(f.GetTopic())
@@ -228,35 +228,23 @@ func buildTopicCursors(
 
 		topics = append(topics, f.GetTopic())
 
-		lastSeen := f.GetLastSeen()
-
-		if lastSeen != nil {
-			// Copy the cursor map for catch-up.
-			vc := lastSeen.GetNodeIdToSequenceId()
-			cursorCopy := make(db.VectorClock, len(vc))
-			maps.Copy(cursorCopy, vc)
-			cursors[key] = cursorCopy
-			catchUpKeys = append(catchUpKeys, key)
-		} else {
-			// No catch-up needed — live only. Create empty VectorClock for dedup.
-			cursors[key] = make(db.VectorClock)
-		}
+		vc := f.GetLastSeen().GetNodeIdToSequenceId()
+		cursorCopy := make(db.VectorClock, len(vc))
+		maps.Copy(cursorCopy, vc)
+		cursors[key] = cursorCopy
 	}
 
-	return cursors, topics, catchUpKeys
+	return cursors, topics
 }
 
-// fillMissingOriginatorsForTopics calls FillMissingOriginators on each
-// topic's VectorClock in the given keys list.
+// fillMissingOriginatorsForTopics calls FillMissingOriginators on every
+// topic's VectorClock in the cursors map.
 func fillMissingOriginatorsForTopics(
 	cursors db.TopicCursors,
-	keys []string,
 	allOriginators []int32,
 ) {
-	for _, key := range keys {
-		if vc, ok := cursors[key]; ok {
-			db.FillMissingOriginators(vc, allOriginators)
-		}
+	for _, vc := range cursors {
+		db.FillMissingOriginators(vc, allOriginators)
 	}
 }
 
@@ -387,19 +375,13 @@ func (s *Service) sendTopicEnvelopes(
 	return nil
 }
 
-// catchUpTopics performs the catch-up phase for topics that have cursors.
+// catchUpTopics performs the catch-up phase for all subscribed topics.
 func (s *Service) catchUpTopics(
 	ctx context.Context,
 	stream *connect.ServerStream[message_api.SubscribeTopicsResponse],
 	cursors db.TopicCursors,
-	catchUpKeys []string,
 	logger *zap.Logger,
 ) error {
-	if len(catchUpKeys) == 0 {
-		logger.Debug("skipping catch up, no topics with cursors")
-		return nil
-	}
-
 	allOriginators, err := s.originatorList.GetOriginatorNodeIDs(ctx)
 	if err != nil {
 		return connect.NewError(
@@ -408,9 +390,10 @@ func (s *Service) catchUpTopics(
 		)
 	}
 
-	fillMissingOriginatorsForTopics(cursors, catchUpKeys, allOriginators)
+	fillMissingOriginatorsForTopics(cursors, allOriginators)
 
-	chunks := utils.ChunkSlice(catchUpKeys, maxTopicsPerChunk)
+	topicKeys := slices.Collect(maps.Keys(cursors))
+	chunks := utils.ChunkSlice(topicKeys, maxTopicsPerChunk)
 
 	for _, chunkKeys := range chunks {
 		rowsPerEntry := db.CalculateRowsPerEntry(len(chunkKeys), topicPageLimit)

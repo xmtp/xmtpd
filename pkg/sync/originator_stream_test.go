@@ -7,6 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
+
 	"github.com/xmtp/xmtpd/pkg/migrator"
 
 	"github.com/xmtp/xmtpd/pkg/db"
@@ -85,7 +88,7 @@ func newTestOriginatorStream(
 	t *testing.T,
 	node *registry.Node,
 	stream message_api.ReplicationApi_SubscribeEnvelopesClient,
-	lastSequenceId uint64,
+	lastSequenceId map[uint32]uint64,
 	writeQueue chan *envUtils.OriginatorEnvelope,
 ) *originatorStream {
 	log := testutils.NewLog(t)
@@ -134,7 +137,10 @@ func TestSyncWorkerSuccess(t *testing.T) {
 	go func() {
 		dbStorerInstance.Start()
 	}()
-	origStream := newTestOriginatorStream(t, &node, stream, 0, writeQueue)
+
+	lastSequenceIds := make(map[uint32]uint64)
+
+	origStream := newTestOriginatorStream(t, &node, stream, lastSequenceIds, writeQueue)
 
 	err := origStream.listen()
 	var retryAfter *backoff.RetryAfterError
@@ -166,7 +172,10 @@ func TestSyncWorkerIgnoresInvalidEnvelopes(t *testing.T) {
 	go func() {
 		dbStorerInstance.Start()
 	}()
-	origStream := newTestOriginatorStream(t, &node, stream, 0, writeQueue)
+
+	lastSequenceIds := make(map[uint32]uint64)
+
+	origStream := newTestOriginatorStream(t, &node, stream, lastSequenceIds, writeQueue)
 
 	err := origStream.listen()
 	var retryAfter *backoff.RetryAfterError
@@ -209,7 +218,7 @@ func newTestOriginatorStreamWithPermitted(
 	t *testing.T,
 	node *registry.Node,
 	stream message_api.ReplicationApi_SubscribeEnvelopesClient,
-	lastSequenceId uint64,
+	lastSequenceIds map[uint32]uint64,
 	permitted map[uint32]struct{},
 	writeQueue chan *envUtils.OriginatorEnvelope,
 ) *originatorStream {
@@ -219,7 +228,7 @@ func newTestOriginatorStreamWithPermitted(
 		t.Context(),
 		log,
 		node,
-		lastSequenceId,
+		lastSequenceIds,
 		permitted,
 		stream,
 		writeQueue,
@@ -248,8 +257,16 @@ func TestSyncWorkerRejectsEnvelopeFromUnpermittedOriginator(t *testing.T) {
 	permitted := map[uint32]struct{}{
 		nodeID: {},
 	}
+	lastSequenceIds := make(map[uint32]uint64)
 
-	origStream := newTestOriginatorStreamWithPermitted(t, &node, stream, 0, permitted, writeQueue)
+	origStream := newTestOriginatorStreamWithPermitted(
+		t,
+		&node,
+		stream,
+		lastSequenceIds,
+		permitted,
+		writeQueue,
+	)
 
 	err := origStream.listen()
 	require.Error(t, err)
@@ -298,7 +315,16 @@ func TestSyncWorkerAcceptsEnvelopeFromPermittedOriginator(t *testing.T) {
 		otherPermittedID: {},
 	}
 
-	origStream := newTestOriginatorStreamWithPermitted(t, &node, stream, 0, permitted, writeQueue)
+	lastSequenceIds := make(map[uint32]uint64)
+
+	origStream := newTestOriginatorStreamWithPermitted(
+		t,
+		&node,
+		stream,
+		lastSequenceIds,
+		permitted,
+		writeQueue,
+	)
 
 	// Your listen() currently returns RetryAfter on EOF, so just assert it returns *an* error
 	// and then assert the envelope eventually appears in DB.
@@ -308,4 +334,126 @@ func TestSyncWorkerAcceptsEnvelopeFromPermittedOriginator(t *testing.T) {
 		envs := getAllMessagesForOriginator(t, dbStorerInstance, otherPermittedID)
 		return len(envs) == 1 && envs[0].OriginatorSequenceID == int64(sequenceID)
 	}, time.Second, 50*time.Millisecond)
+}
+
+func TestSyncWorkerOutOfOrderStillAdvancesLastSequenceId(t *testing.T) {
+	nodeID := uint32(200)
+
+	// Create seq=1 then seq=3 (skip 2 to force out-of-order)
+	env1 := envelopeTestUtils.CreateOriginatorEnvelope(t, nodeID, uint64(1))
+	env3 := envelopeTestUtils.CreateOriginatorEnvelope(t, nodeID, uint64(3))
+
+	stream := mockSubscriptionOnePage(t, []*envelopes.OriginatorEnvelope{env1, env3})
+	node := registryTestUtils.CreateNode(nodeID, 999, testutils.RandomPrivateKey(t))
+
+	writeQueue := make(chan *envUtils.OriginatorEnvelope, 10)
+	defer close(writeQueue)
+
+	dbStorerInstance := newTestEnvelopeSink(t, writeQueue, t.Context())
+	go dbStorerInstance.Start()
+
+	lastSequenceIds := make(map[uint32]uint64)
+
+	// --- Replace test logger with zap observer ---
+	core, recorded := observer.New(zap.ErrorLevel)
+	logger := zap.New(core)
+
+	permitted := map[uint32]struct{}{
+		nodeID: {},
+	}
+
+	origStream := newOriginatorStream(
+		t.Context(),
+		logger, // use observed logger
+		&node,
+		lastSequenceIds,
+		permitted,
+		stream,
+		writeQueue,
+	)
+
+	_ = origStream.listen()
+
+	// ---- Assert lastSequenceId advanced to 3 ----
+	require.Eventually(t, func() bool {
+		return lastSequenceIds[nodeID] == 3
+	}, time.Second, 50*time.Millisecond)
+
+	// ---- Assert error log was emitted ----
+	require.Eventually(t, func() bool {
+		logs := recorded.All()
+		for _, log := range logs {
+			if log.Message == "received out-of-order envelope" {
+				return true
+			}
+		}
+		return false
+	}, time.Second, 50*time.Millisecond)
+}
+
+func TestSyncWorkerNoOutOfOrderErrorForMultipleOriginatorsInOrder(t *testing.T) {
+	envs := []*envelopes.OriginatorEnvelope{
+		envelopeTestUtils.CreateOriginatorEnvelope(t, 200, 1),
+		envelopeTestUtils.CreateOriginatorEnvelope(t, 10, 1),
+		envelopeTestUtils.CreateOriginatorEnvelope(t, 10, 2),
+		envelopeTestUtils.CreateOriginatorEnvelope(t, 10, 3),
+		envelopeTestUtils.CreateOriginatorEnvelope(t, 13, 1),
+
+		envelopeTestUtils.CreateOriginatorEnvelope(t, 200, 2),
+		envelopeTestUtils.CreateOriginatorEnvelope(t, 13, 2),
+
+		envelopeTestUtils.CreateOriginatorEnvelope(t, 200, 3),
+		envelopeTestUtils.CreateOriginatorEnvelope(t, 13, 3),
+	}
+
+	stream := mockSubscriptionOnePage(t, envs)
+
+	// "Node we are syncing from" (doesn't have to match all originators, but must be permitted)
+	nodeID := uint32(200)
+	node := registryTestUtils.CreateNode(nodeID, 999, testutils.RandomPrivateKey(t))
+
+	writeQueue := make(chan *envUtils.OriginatorEnvelope, 50)
+	defer close(writeQueue)
+
+	dbStorerInstance := newTestEnvelopeSink(t, writeQueue, t.Context())
+	go dbStorerInstance.Start()
+
+	lastSequenceIds := make(map[uint32]uint64)
+
+	// Observe logs at Error level
+	core, recorded := observer.New(zap.ErrorLevel)
+	logger := zap.New(core)
+
+	permitted := map[uint32]struct{}{
+		200: {},
+		10:  {},
+		13:  {},
+	}
+
+	origStream := newOriginatorStream(
+		t.Context(),
+		logger,
+		&node,
+		lastSequenceIds,
+		permitted,
+		stream,
+		writeQueue,
+	)
+
+	_ = origStream.listen()
+
+	// And sanity-check lastSequenceIds advanced correctly for all originators
+	require.Eventually(t, func() bool {
+		return lastSequenceIds[200] == 3 && lastSequenceIds[10] == 3 && lastSequenceIds[13] == 3
+	}, time.Second, 50*time.Millisecond)
+
+	require.Eventually(t, func() bool {
+		a := getAllMessagesForOriginator(t, dbStorerInstance, 200)
+		b := getAllMessagesForOriginator(t, dbStorerInstance, 10)
+		c := getAllMessagesForOriginator(t, dbStorerInstance, 13)
+		return len(a) == 3 && len(b) == 3 && len(c) == 3
+	}, time.Second, 50*time.Millisecond)
+
+	// even though we encountered 1, 1,2,3 2,3 2,3 we should not complain
+	require.Empty(t, recorded.FilterMessage("received out-of-order envelope").All())
 }

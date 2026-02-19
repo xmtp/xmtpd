@@ -3,7 +3,6 @@ package sync
 import (
 	"context"
 	"fmt"
-	"slices"
 	"sync"
 	"time"
 
@@ -405,11 +404,9 @@ func (s *syncWorker) setupStream(
 		)
 	}
 
-	lastSequenceID := uint64(0)
+	lastSequenceIDs := make(map[uint32]uint64)
 	for _, row := range result {
-		if slices.Contains(originatorNodeIDs, uint32(row.OriginatorNodeID)) {
-			lastSequenceID = uint64(row.OriginatorSequenceID)
-		}
+		lastSequenceIDs[uint32(row.OriginatorNodeID)] = uint64(row.OriginatorSequenceID)
 	}
 
 	permittedOriginators := utils.SliceToSet(originatorNodeIDs)
@@ -418,7 +415,7 @@ func (s *syncWorker) setupStream(
 		s.ctx,
 		s.logger,
 		&node,
-		lastSequenceID,
+		lastSequenceIDs,
 		permittedOriginators,
 		stream,
 		writeQueue,

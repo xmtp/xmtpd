@@ -12,11 +12,11 @@ import (
 func NewBackoff(
 	initialInterval, maxInterval, maxElapsedTime time.Duration,
 ) *backoff.ExponentialBackOff {
-	bo := backoff.NewExponentialBackOff()
-	bo.InitialInterval = initialInterval
-	bo.MaxInterval = maxInterval
-	bo.Multiplier = 2.0
-	bo.RandomizationFactor = 0.5
-	bo.MaxElapsedTime = maxElapsedTime
-	return bo
+	return backoff.NewExponentialBackOff(
+		backoff.WithInitialInterval(initialInterval),
+		backoff.WithMaxInterval(maxInterval),
+		backoff.WithMultiplier(2.0),
+		backoff.WithRandomizationFactor(0.5),
+		backoff.WithMaxElapsedTime(maxElapsedTime),
+	)
 }

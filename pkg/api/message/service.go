@@ -557,19 +557,6 @@ func unmarshalEnvelopes[T envelopeRow](
 	return envs
 }
 
-// calculateEnvelopesPerOriginator calculates the number of envelopes to fetch per originator.
-// It ensures that the number of envelopes fetched per originator is at least minRowsPerOriginator
-// and at most maxRequestedRows.
-func calculateEnvelopesPerOriginator(numOriginators int) int32 {
-	if numOriginators == 0 {
-		return 0
-	}
-
-	rowsPerOriginator := max(maxRequestedRows/int32(numOriginators), minRowsPerOriginator)
-
-	return rowsPerOriginator
-}
-
 type ValidatedBytesWithTopic struct {
 	EnvelopeBytes []byte
 	TopicBytes    []byte

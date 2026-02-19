@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"slices"
 	"time"
 
 	"connectrpc.com/connect"
@@ -24,7 +23,7 @@ import (
 const (
 	maxTopicsPerChunk int   = 500
 	topicPageLimit    int32 = 500
-	maxTopicFilters   int   = 10000
+	maxTopicFilters   int   = 10_000
 )
 
 // SubscribeTopics implements the per-topic cursor subscribe API.
@@ -71,13 +70,13 @@ func (s *Service) SubscribeTopics(
 		return err
 	}
 
-	cursors, topics := buildTopicCursors(filters)
+	cursors, topics, topicKeys := buildTopicCursors(filters, knownOriginators)
 
 	envelopesCh := s.subscribeWorker.listen(ctx, &message_api.EnvelopesQuery{
 		Topics: topics,
 	})
 
-	err = s.catchUpTopics(ctx, stream, cursors, logger)
+	err = s.catchUpTopics(ctx, stream, cursors, topicKeys, logger)
 	if err != nil {
 		return err
 	}
@@ -154,19 +153,24 @@ func validateTopicFilters(
 		)
 	}
 
-	referencedOriginators := make(map[uint32]struct{})
+	known := make(map[uint32]struct{}, len(knownOriginators))
+	for _, id := range knownOriginators {
+		known[id] = struct{}{}
+	}
+
 	for _, f := range filters {
 		if err := validateTopicFilter(f); err != nil {
 			return connect.NewError(connect.CodeInvalidArgument, err)
 		}
 
 		for origID := range f.GetLastSeen().GetNodeIdToSequenceId() {
-			referencedOriginators[origID] = struct{}{}
+			if _, ok := known[origID]; !ok {
+				return connect.NewError(
+					connect.CodeInvalidArgument,
+					fmt.Errorf("unknown originator node ID in cursor: %d", origID),
+				)
+			}
 		}
-	}
-
-	if err := validateOriginatorIDs(referencedOriginators, knownOriginators); err != nil {
-		return connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
 	return nil
@@ -187,37 +191,17 @@ func validateTopicFilter(f *message_api.SubscribeTopicsRequest_TopicFilter) erro
 	return nil
 }
 
-// validateOriginatorIDs checks that all referenced originator IDs are known.
-func validateOriginatorIDs(
-	referenced map[uint32]struct{},
-	knownOriginators []uint32,
-) error {
-	if len(referenced) == 0 {
-		return nil
-	}
-
-	known := make(map[uint32]struct{}, len(knownOriginators))
-	for _, id := range knownOriginators {
-		known[id] = struct{}{}
-	}
-
-	for origID := range referenced {
-		if _, ok := known[origID]; !ok {
-			return fmt.Errorf("unknown originator node ID in cursor: %d", origID)
-		}
-	}
-
-	return nil
-}
-
-// buildTopicCursors converts topic filters into a TopicCursors map and
-// the deduplicated topic list (as [][]byte). Every topic catches up:
-// nil LastSeen is treated as "catch up from the beginning."
+// buildTopicCursors converts topic filters into a TopicCursors map,
+// the deduplicated topic list (as [][]byte), and the topic keys (as []string).
+// Every topic catches up: nil LastSeen is treated as "catch up from the beginning."
+// Missing originators are filled with sequence ID 0 during construction.
 func buildTopicCursors(
 	filters []*message_api.SubscribeTopicsRequest_TopicFilter,
-) (db.TopicCursors, [][]byte) {
+	allOriginators []uint32,
+) (db.TopicCursors, [][]byte, []string) {
 	cursors := make(db.TopicCursors, len(filters))
 	topics := make([][]byte, 0, len(filters))
+	topicKeys := make([]string, 0, len(filters))
 
 	for _, f := range filters {
 		key := string(f.GetTopic())
@@ -227,25 +211,16 @@ func buildTopicCursors(
 		}
 
 		topics = append(topics, f.GetTopic())
+		topicKeys = append(topicKeys, key)
 
 		vc := f.GetLastSeen().GetNodeIdToSequenceId()
 		cursorCopy := make(db.VectorClock, len(vc))
 		maps.Copy(cursorCopy, vc)
+		db.FillMissingOriginators(cursorCopy, allOriginators)
 		cursors[key] = cursorCopy
 	}
 
-	return cursors, topics
-}
-
-// fillMissingOriginatorsForTopics calls FillMissingOriginators on every
-// topic's VectorClock in the cursors map.
-func fillMissingOriginatorsForTopics(
-	cursors db.TopicCursors,
-	allOriginators []uint32,
-) {
-	for _, vc := range cursors {
-		db.FillMissingOriginators(vc, allOriginators)
-	}
+	return cursors, topics, topicKeys
 }
 
 // fetchTopicEnvelopesWithRetry fetches envelopes using exponential backoff.
@@ -380,19 +355,9 @@ func (s *Service) catchUpTopics(
 	ctx context.Context,
 	stream *connect.ServerStream[message_api.SubscribeTopicsResponse],
 	cursors db.TopicCursors,
+	topicKeys []string,
 	logger *zap.Logger,
 ) error {
-	allOriginators, err := s.originatorList.GetOriginatorNodeIDs(ctx)
-	if err != nil {
-		return connect.NewError(
-			connect.CodeInternal,
-			fmt.Errorf("could not get originator list: %w", err),
-		)
-	}
-
-	fillMissingOriginatorsForTopics(cursors, allOriginators)
-
-	topicKeys := slices.Collect(maps.Keys(cursors))
 	chunks := utils.ChunkSlice(topicKeys, maxTopicsPerChunk)
 
 	for _, chunkKeys := range chunks {

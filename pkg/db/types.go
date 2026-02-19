@@ -161,6 +161,9 @@ func CalculateRowsPerEntry(numEntries int, rowLimit int32) int32 {
 	if numEntries == 0 {
 		return rowLimit
 	}
+	if numEntries > math.MaxInt32 {
+		numEntries = math.MaxInt32
+	}
 	rpe := max(rowLimit/int32(numEntries), 10)
 	return rpe
 }

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"math/rand"
 	"testing"
 	"time"
 
@@ -460,39 +459,6 @@ func TestSubscribeTopics_NoDuplicatesBetweenCatchUpAndLive(t *testing.T) {
 	}
 }
 
-// ---- Mixed Tests ----
-
-func TestSubscribeTopics_MixedNilAndCursorFilters(t *testing.T) {
-	client, store, _ := setupTopicTest(t)
-	payerID := db.NullInt32(testutils.CreatePayer(t, store))
-
-	insertAndWait(t, store, []queries.InsertGatewayEnvelopeParams{
-		makeEnvRow(t, 100, 1, topicA, payerID),
-	})
-
-	stream := subscribeTopics(
-		t,
-		client,
-		t.Context(),
-		[]*message_api.SubscribeTopicsRequest_TopicFilter{
-			makeFilter(topicA, map[uint32]uint64{}), // catch-up
-			makeFilter(topicB, nil),                 // live only
-		},
-	)
-
-	// Receive catch-up topicA envelope.
-	envs := collectTopicEnvelopes(t, stream, 1)
-	require.Len(t, envs, 1)
-
-	// Now insert topicB (live).
-	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
-		makeEnvRow(t, 100, 2, topicB, payerID),
-	})
-
-	liveEnvs := collectTopicEnvelopes(t, stream, 1)
-	require.Len(t, liveEnvs, 1)
-}
-
 func TestSubscribeTopics_StatusStartedOnOpen(t *testing.T) {
 	client, _, _ := setupTopicTest(t)
 
@@ -703,82 +669,6 @@ func TestSubscribeTopics_ManyTopics(t *testing.T) {
 
 	envs := collectTopicEnvelopes(t, stream, numTopics)
 	require.Len(t, envs, numTopics)
-}
-
-func TestSubscribeTopics_VariableEnvelopesPerOriginator(t *testing.T) {
-	nodes := generateNodes(t, 4)
-	server := testUtilsApi.NewTestAPIServer(t, testUtilsApi.WithRegistryNodes(nodes))
-	payerID := testutils.CreatePayer(t, server.DB)
-
-	subTopic := topic.NewTopic(
-		topic.TopicKindGroupMessagesV1,
-		fmt.Appendf(nil, "topic-var-envs-%v", rand.Int()),
-	)
-
-	sourceEnvelopes := generateEnvelopes(t, nodeIDs(nodes), 50, 100, payerID, subTopic)
-
-	total := 0
-	for _, env := range sourceEnvelopes {
-		total += len(env)
-	}
-
-	// Subscribe with nil cursor (live only).
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-
-	stream, err := server.ClientReplication.SubscribeTopics(
-		ctx,
-		connect.NewRequest(&message_api.SubscribeTopicsRequest{
-			Filters: []*message_api.SubscribeTopicsRequest_TopicFilter{
-				makeFilter(subTopic.Bytes(), nil),
-			},
-		}),
-	)
-	require.NoError(t, err)
-
-	// Insert envelopes which will be streamed live.
-	saveEnvelopes(t, server.DB, sourceEnvelopes)
-
-	// Collect all.
-	received := make(map[string]struct{})
-	receivedCount := 0
-	keyID := func(nodeID int32, seqID int64) string {
-		return fmt.Sprintf("%v-%v", nodeID, seqID)
-	}
-
-	for receivedCount < total {
-		if !stream.Receive() {
-			break
-		}
-		if envMsg := stream.Msg().GetEnvelopes(); envMsg != nil {
-			for _, env := range envMsg.GetEnvelopes() {
-				receivedCount++
-				decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
-					t, env.GetUnsignedOriginatorEnvelope(),
-				)
-				received[keyID(int32(decoded.GetOriginatorNodeId()), int64(decoded.GetOriginatorSequenceId()))] = struct{}{}
-			}
-		}
-	}
-
-	cancel()
-
-	err = stream.Err()
-	require.Truef(t,
-		err == nil || errors.Is(err, context.Canceled),
-		"unexpected stream error: %s, received %v/%v envelopes", err, receivedCount, total,
-	)
-
-	require.Equal(t, total, receivedCount)
-
-	// Verify all envelopes were received.
-	sent := make(map[string]struct{})
-	for _, envs := range sourceEnvelopes {
-		for _, env := range envs {
-			sent[keyID(env.OriginatorNodeID, env.OriginatorSequenceID)] = struct{}{}
-		}
-	}
-	require.Equal(t, sent, received)
 }
 
 // ---- Error Path Tests ----

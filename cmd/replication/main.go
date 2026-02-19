@@ -17,6 +17,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db"
+	"github.com/xmtp/xmtpd/pkg/db/worker"
 	"github.com/xmtp/xmtpd/pkg/debug"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/registry"
@@ -163,6 +164,12 @@ func main() {
 			}
 
 			dbh = db.NewDBHandler(writeDB, dbopts...)
+
+			// Start a database worker in the background.
+			err = worker.NewWorker(logger, dbh).Start(ctx)
+			if err != nil {
+				logger.Fatal("could not start database background worker", zap.Error(err))
+			}
 		}
 
 		settlementChainClient, err := blockchain.NewRPCClient(

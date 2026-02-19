@@ -131,41 +131,28 @@ func (q *Queries) InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(ctx conte
 const selectGatewayEnvelopesByOriginators = `-- name: SelectGatewayEnvelopesByOriginators :many
 WITH cursors AS (
     SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
-    FROM unnest($4::INT[]) WITH ORDINALITY AS x(node_id, ord)
-    JOIN unnest($5::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord) USING (ord)
+    FROM unnest($3::INT[]) WITH ORDINALITY AS x(node_id, ord)
+    JOIN unnest($4::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord) USING (ord)
 )
-SELECT m.originator_node_id,
-       m.originator_sequence_id,
-       m.gateway_time,
-       m.topic,
-       m.originator_envelope
-FROM unnest($1::INT[]) AS o(node_id)
-CROSS JOIN LATERAL (
-    SELECT m.originator_node_id,
-           m.originator_sequence_id,
-           m.gateway_time,
-           m.topic,
-           b.originator_envelope
-    FROM gateway_envelopes_meta AS m
-    JOIN gateway_envelope_blobs AS b
-        ON b.originator_node_id = m.originator_node_id
-       AND b.originator_sequence_id = m.originator_sequence_id
-       AND b.originator_node_id = o.node_id
-    WHERE m.originator_node_id = o.node_id
-      AND m.originator_sequence_id > COALESCE(
-          (SELECT c.cursor_sequence_id FROM cursors c WHERE c.cursor_node_id = o.node_id),
-          0
-      )
-    ORDER BY m.originator_sequence_id
-    LIMIT NULLIF($2::INT, 0)
-) AS m
-ORDER BY m.originator_node_id, m.originator_sequence_id
-LIMIT NULLIF($3::INT, 0)
+SELECT f.originator_node_id,
+       f.originator_sequence_id,
+       f.gateway_time,
+       f.topic,
+       b.originator_envelope
+FROM gateway_envelopes_meta AS f
+LEFT JOIN cursors AS c
+    ON f.originator_node_id = c.cursor_node_id
+JOIN gateway_envelope_blobs AS b
+    ON b.originator_node_id = f.originator_node_id
+   AND b.originator_sequence_id = f.originator_sequence_id
+WHERE f.originator_node_id = ANY ($1::INT[])
+  AND f.originator_sequence_id > COALESCE(c.cursor_sequence_id, 0)
+ORDER BY f.originator_node_id, f.originator_sequence_id
+LIMIT NULLIF($2::INT, 0)
 `
 
 type SelectGatewayEnvelopesByOriginatorsParams struct {
 	OriginatorNodeIds []int32
-	RowsPerOriginator int32
 	RowLimit          int32
 	CursorNodeIds     []int32
 	CursorSequenceIds []int64
@@ -179,12 +166,9 @@ type SelectGatewayEnvelopesByOriginatorsRow struct {
 	OriginatorEnvelope   []byte
 }
 
-// Uses LATERAL join with scalar subquery to push cursor filter into index scan.
-// This avoids full table scans when using LEFT JOIN + COALESCE pattern.
 func (q *Queries) SelectGatewayEnvelopesByOriginators(ctx context.Context, arg SelectGatewayEnvelopesByOriginatorsParams) ([]SelectGatewayEnvelopesByOriginatorsRow, error) {
 	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopesByOriginators,
 		pq.Array(arg.OriginatorNodeIds),
-		arg.RowsPerOriginator,
 		arg.RowLimit,
 		pq.Array(arg.CursorNodeIds),
 		pq.Array(arg.CursorSequenceIds),

@@ -45,3 +45,11 @@ func AddressTo32Slice(addr common.Address) [32]byte {
 	copy(result[32-len(addr.Bytes()):], addr.Bytes())
 	return result
 }
+
+func SliceToSet[T comparable](vals []T) map[T]struct{} {
+	set := make(map[T]struct{}, len(vals))
+	for _, v := range vals {
+		set[v] = struct{}{}
+	}
+	return set
+}

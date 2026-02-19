@@ -3,7 +3,9 @@ package sync
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/cenkalti/backoff/v5"
@@ -17,19 +19,21 @@ import (
 )
 
 type originatorStream struct {
-	ctx            context.Context
-	logger         *zap.Logger
-	node           *registry.Node
-	lastSequenceId uint64
-	stream         message_api.ReplicationApi_SubscribeEnvelopesClient
-	writeQueue     chan *envUtils.OriginatorEnvelope
+	ctx                  context.Context
+	logger               *zap.Logger
+	node                 *registry.Node
+	lastSequenceIds      map[uint32]uint64
+	permittedOriginators map[uint32]struct{}
+	stream               message_api.ReplicationApi_SubscribeEnvelopesClient
+	writeQueue           chan *envUtils.OriginatorEnvelope
 }
 
 func newOriginatorStream(
 	ctx context.Context,
 	logger *zap.Logger,
 	node *registry.Node,
-	lastSequenceId uint64,
+	lastSequenceIds map[uint32]uint64,
+	permittedOriginators map[uint32]struct{},
 	stream message_api.ReplicationApi_SubscribeEnvelopesClient,
 	writeQueue chan *envUtils.OriginatorEnvelope,
 ) *originatorStream {
@@ -39,10 +43,11 @@ func newOriginatorStream(
 			utils.OriginatorIDField(node.NodeID),
 			utils.NodeHTTPAddressField(node.HTTPAddress),
 		),
-		node:           node,
-		lastSequenceId: lastSequenceId,
-		stream:         stream,
-		writeQueue:     writeQueue,
+		node:                 node,
+		lastSequenceIds:      lastSequenceIds,
+		permittedOriginators: permittedOriginators,
+		stream:               stream,
+		writeQueue:           writeQueue,
 	}
 }
 
@@ -145,29 +150,46 @@ func (s *originatorStream) validateEnvelope(
 	}
 
 	// TODO:(nm) Handle fetching envelopes from other nodes
-	if env.OriginatorNodeID() != s.node.NodeID {
-		s.logger.Error("received envelope from wrong node",
-			utils.OriginatorIDField(env.OriginatorNodeID()),
-			zap.Uint32("expected_originator_id", s.node.NodeID),
+	originatorID := env.OriginatorNodeID()
+	seqID := env.OriginatorSequenceID()
+	if _, permitted := s.permittedOriginators[originatorID]; !permitted {
+		permittedIDs := make([]uint32, 0, len(s.permittedOriginators))
+		for id := range s.permittedOriginators {
+			permittedIDs = append(permittedIDs, id)
+		}
+		slices.Sort(permittedIDs)
+
+		err = fmt.Errorf(
+			"invalid envelope originator: got=%d permitted=%v",
+			originatorID,
+			permittedIDs,
 		)
-		err = errors.New("originator ID does not match envelope")
+
+		s.logger.Error("received envelope from invalid originator",
+			zap.Uint32("originator_id", originatorID),
+			zap.Uint32s("permitted_originator_ids", permittedIDs),
+			zap.Error(err),
+		)
+
 		return nil, err
 	}
 
 	metrics.EmitSyncLastSeenOriginatorSequenceID(env.OriginatorNodeID(), env.OriginatorSequenceID())
 	metrics.EmitSyncOriginatorReceivedMessagesCount(env.OriginatorNodeID(), 1)
 
-	if env.OriginatorSequenceID() != s.lastSequenceId+1 {
+	lastSeq := s.lastSequenceIds[originatorID]
+
+	if seqID != lastSeq+1 {
 		s.logger.Error(
 			"received out-of-order envelope",
-			utils.OriginatorIDField(env.OriginatorNodeID()),
-			utils.SequenceIDField(int64(env.OriginatorSequenceID())),
-			zap.Uint64("expected_sequence_id", s.lastSequenceId+1),
+			utils.OriginatorIDField(originatorID),
+			utils.SequenceIDField(int64(seqID)),
+			zap.Uint64("expected_sequence_id", lastSeq+1),
 		)
 	}
 
-	if env.OriginatorSequenceID() > s.lastSequenceId {
-		s.lastSequenceId = env.OriginatorSequenceID()
+	if seqID > lastSeq {
+		s.lastSequenceIds[originatorID] = seqID
 	}
 
 	// Validate that there is a valid payer signature

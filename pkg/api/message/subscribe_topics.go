@@ -138,7 +138,7 @@ func (s *Service) SubscribeTopics(
 // validateTopicFilters validates the topic filters in a SubscribeTopicsRequest.
 func validateTopicFilters(
 	filters []*message_api.SubscribeTopicsRequest_TopicFilter,
-	knownOriginators []int32,
+	knownOriginators []uint32,
 ) error {
 	if len(filters) == 0 {
 		return connect.NewError(
@@ -190,7 +190,7 @@ func validateTopicFilter(f *message_api.SubscribeTopicsRequest_TopicFilter) erro
 // validateOriginatorIDs checks that all referenced originator IDs are known.
 func validateOriginatorIDs(
 	referenced map[uint32]struct{},
-	knownOriginators []int32,
+	knownOriginators []uint32,
 ) error {
 	if len(referenced) == 0 {
 		return nil
@@ -198,7 +198,7 @@ func validateOriginatorIDs(
 
 	known := make(map[uint32]struct{}, len(knownOriginators))
 	for _, id := range knownOriginators {
-		known[uint32(id)] = struct{}{}
+		known[id] = struct{}{}
 	}
 
 	for origID := range referenced {
@@ -241,7 +241,7 @@ func buildTopicCursors(
 // topic's VectorClock in the cursors map.
 func fillMissingOriginatorsForTopics(
 	cursors db.TopicCursors,
-	allOriginators []int32,
+	allOriginators []uint32,
 ) {
 	for _, vc := range cursors {
 		db.FillMissingOriginators(vc, allOriginators)

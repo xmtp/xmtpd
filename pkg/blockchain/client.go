@@ -185,13 +185,19 @@ func WaitForTransaction(
 			if receipt.Status == types.ReceiptStatusFailed {
 				tx, _, err := client.TransactionByHash(ctx, hash)
 				if err != nil {
-					return receipt, NewBlockchainError(
-						fmt.Errorf("failed to get transaction %s: %w", hash.Hex(), err),
-					)
+					// Redundant check to handle load-balanced RPC backends that may not
+					// have the tx available for tracing yet.
+					if errors.Is(err, ethereum.NotFound) {
+						logger.Debug("waiting for transaction", utils.HashField(hash.String()))
+					} else {
+						return receipt, NewBlockchainError(
+							fmt.Errorf("failed to get transaction %s: %w", hash.Hex(), err),
+						)
+					}
+				} else {
+					protocolErr := getProtocolError(ctx, client, tx)
+					return receipt, protocolErr
 				}
-
-				protocolErr := getProtocolError(ctx, client, tx)
-				return receipt, protocolErr
 			}
 		}
 

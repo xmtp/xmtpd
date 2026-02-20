@@ -299,7 +299,7 @@ func validateJWT(
 	iat, err := parsed.Claims.GetIssuedAt()
 	require.NoError(t, err)
 
-	cmp := start.Round(time.Second).Compare(iat.Time)
+	cmp := start.Truncate(time.Second).Compare(iat.Time)
 	require.LessOrEqual(t, cmp, 0)
 
 	// Verify that Expiration time is after test start.

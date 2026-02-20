@@ -22,12 +22,12 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
 
-      - run: dev/docker/up single
-
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: v1.3.5
+
+      - run: dev/docker/up single
 
       - name: Run Integration Tests
         run: |

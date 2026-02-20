@@ -566,3 +566,100 @@ func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
 
 	require.Equal(t, sent, received)
 }
+
+// TestSubscribeCatchUpSkewedOriginators mimics a migrator client that subscribes
+// to the migrator server plus the three migration originators (10, 11, 13).
+// The subscription has to make sure that all messages from the migrator server are delivered.
+func TestSubscribeCatchUpSkewedOriginators(t *testing.T) {
+	var (
+		// Use just above maxRequestedRows to test the case where the query returns less than maxRequestedRows.
+		heavyMsgCount = 1001
+		server        = testUtilsApi.NewTestAPIServer(t)
+		payerID       = testutils.CreatePayer(t, server.DB)
+		subTopic      = topic.NewTopic(
+			topic.TopicKindGroupMessagesV1,
+			[]byte(fmt.Sprintf("skewed-topic-%v", rand.Int())),
+		)
+
+		// Mimics a migrator client: own nodeID (100) + migration originators.
+		originatorIDs = []uint32{
+			100,
+			migrator.GroupMessageOriginatorID,
+			migrator.WelcomeMessageOriginatorID,
+			migrator.KeyPackagesOriginatorID,
+		}
+		heavyOriginatorID = migrator.GroupMessageOriginatorID
+	)
+
+	// All messages go to originator 10 (group messages), the heaviest in practice.
+	// The old query would have rows_per_originator = max(1000/4, 50) = 250, so the LATERAL subquery
+	// returns at most 250 of 500 rows, total < 1000 → catchUp breaks.
+	sourceEnvelopes := generateEnvelopes(
+		t, []uint32{heavyOriginatorID}, heavyMsgCount, heavyMsgCount+1, payerID, subTopic,
+	)
+
+	// Populate the database.
+	saveEnvelopes(t, server.DB, sourceEnvelopes)
+
+	// Let the subscribeWorker's catch up.
+	time.Sleep(4 * message.SubscribeWorkerPollTime)
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	stream, err := server.ClientReplication.SubscribeEnvelopes(
+		ctx,
+		connect.NewRequest(&message_api.SubscribeEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				OriginatorNodeIds: originatorIDs,
+				LastSeen: &envelopes.Cursor{
+					NodeIdToSequenceId: map[uint32]uint64{},
+				},
+			},
+		}),
+	)
+	require.NoError(t, err)
+
+	var (
+		total    = len(sourceEnvelopes[int32(heavyOriginatorID)])
+		received = make(map[int64]struct{}, total)
+	)
+
+	for len(received) < total {
+		// If the stream is closed, means the subscribeWorker has caught up.
+		// This shouldn't happen after we've saved all envelopes.
+		if !stream.Receive() {
+			break
+		}
+
+		for _, env := range stream.Msg().Envelopes {
+			decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
+				t,
+				env.UnsignedOriginatorEnvelope,
+			)
+			require.EqualValues(t, heavyOriginatorID, decoded.OriginatorNodeId)
+			received[int64(decoded.OriginatorSequenceId)] = struct{}{}
+		}
+	}
+
+	cancel()
+
+	err = stream.Err()
+	require.Truef(
+		t,
+		err == nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded),
+		"unexpected stream error: %s, received %v/%v envelopes",
+		err,
+		len(received),
+		total,
+	)
+
+	require.Equalf(
+		t,
+		total,
+		len(received),
+		"catch-up must deliver all envelopes; LATERAL per-originator cap (%d for %d originators) causes premature pagination termination",
+		max(1000/len(originatorIDs), 50),
+		len(originatorIDs),
+	)
+}

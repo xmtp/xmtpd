@@ -160,20 +160,27 @@ func WaitForTransaction(
 	timeout time.Duration,
 	pollSleep time.Duration,
 	hash common.Hash,
-) (receipt *types.Receipt, err ProtocolError) {
+) (*types.Receipt, ProtocolError) {
 	ctx, cancel := context.WithDeadline(ctx, time.Now().Add(timeout))
 	defer cancel()
 
 	ticker := time.NewTicker(pollSleep)
 	defer ticker.Stop()
 
+	var (
+		receipt *types.Receipt
+		err     error
+	)
+
 	for {
-		receipt, err := client.TransactionReceipt(ctx, hash)
-		if err != nil {
-			if errors.Is(err, ethereum.NotFound) {
-				logger.Debug("waiting for transaction", utils.HashField(hash.String()))
-			} else {
-				return nil, NewBlockchainError(err)
+		if receipt == nil {
+			receipt, err = client.TransactionReceipt(ctx, hash)
+			if err != nil {
+				if errors.Is(err, ethereum.NotFound) {
+					logger.Debug("waiting for transaction", utils.HashField(hash.String()))
+				} else {
+					return nil, NewBlockchainError(err)
+				}
 			}
 		}
 
@@ -185,13 +192,19 @@ func WaitForTransaction(
 			if receipt.Status == types.ReceiptStatusFailed {
 				tx, _, err := client.TransactionByHash(ctx, hash)
 				if err != nil {
-					return receipt, NewBlockchainError(
-						fmt.Errorf("failed to get transaction %s: %w", hash.Hex(), err),
-					)
+					// Redundant check to handle load-balanced RPC backends that may not
+					// have the tx available for tracing yet.
+					if errors.Is(err, ethereum.NotFound) {
+						logger.Debug("waiting for transaction", utils.HashField(hash.String()))
+					} else {
+						return receipt, NewBlockchainError(
+							fmt.Errorf("failed to get transaction %s: %w", hash.Hex(), err),
+						)
+					}
+				} else {
+					protocolErr := getProtocolError(ctx, client, tx)
+					return receipt, protocolErr
 				}
-
-				protocolErr := getProtocolError(ctx, client, tx)
-				return receipt, protocolErr
 			}
 		}
 

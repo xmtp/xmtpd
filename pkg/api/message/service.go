@@ -490,6 +490,7 @@ func (s *Service) fetchEnvelopes(
 
 		return db.TransformRowsByTopic(rows), nil
 	}
+
 	if len(query.GetOriginatorNodeIds()) != 0 {
 		params := queries.SelectGatewayEnvelopesByOriginatorsParams{
 			OriginatorNodeIds: make([]int32, 0, len(query.GetOriginatorNodeIds())),

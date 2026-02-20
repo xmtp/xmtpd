@@ -485,6 +485,13 @@ func (w *Worker) StartDatabaseWriter(ctx context.Context) error {
 							envelope.UnsignedOriginatorEnvelope.Proto().BaseFeePicodollars,
 						),
 					})
+
+					// this metric might be slightly ahead of the batch flush and might be slightly incorrect if flushing fails
+					metrics.EmitSyncLastSeenOriginatorSequenceID(
+						envelope.OriginatorNodeID(),
+						envelope.OriginatorSequenceID(),
+					)
+					metrics.EmitSyncOriginatorReceivedMessagesCount(envelope.OriginatorNodeID(), 1)
 				}
 			}
 		},

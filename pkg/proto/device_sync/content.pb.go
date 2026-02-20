@@ -410,16 +410,14 @@ func (x *HmacKeyUpdate) GetCycledAtNs() int64 {
 
 // Initiator or new installation id requesting a sync payload send a request
 type DeviceSyncRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique identifier for each request
-	RequestId string `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Pin       string                 `protobuf:"bytes,1,opt,name=pin,proto3" json:"pin,omitempty"`
+	ServerUrl string                 `protobuf:"bytes,2,opt,name=server_url,json=serverUrl,proto3" json:"server_url,omitempty"`
 	// Deprecated: Marked as deprecated in device_sync/content.proto.
-	PinCode string `protobuf:"bytes,2,opt,name=pin_code,json=pinCode,proto3" json:"pin_code,omitempty"`
-	// Deprecated: Marked as deprecated in device_sync/content.proto.
-	Kind          BackupElementSelection `protobuf:"varint,3,opt,name=kind,proto3,enum=xmtp.device_sync.BackupElementSelection" json:"kind,omitempty"`
-	Options       *BackupOptions         `protobuf:"bytes,4,opt,name=options,proto3" json:"options,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	DeprecatedKind BackupElementSelection `protobuf:"varint,3,opt,name=deprecated_kind,json=deprecatedKind,proto3,enum=xmtp.device_sync.BackupElementSelection" json:"deprecated_kind,omitempty"`
+	Options        *ArchiveOptions        `protobuf:"bytes,4,opt,name=options,proto3" json:"options,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *DeviceSyncRequest) Reset() {
@@ -452,30 +450,29 @@ func (*DeviceSyncRequest) Descriptor() ([]byte, []int) {
 	return file_device_sync_content_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *DeviceSyncRequest) GetRequestId() string {
+func (x *DeviceSyncRequest) GetPin() string {
 	if x != nil {
-		return x.RequestId
+		return x.Pin
+	}
+	return ""
+}
+
+func (x *DeviceSyncRequest) GetServerUrl() string {
+	if x != nil {
+		return x.ServerUrl
 	}
 	return ""
 }
 
 // Deprecated: Marked as deprecated in device_sync/content.proto.
-func (x *DeviceSyncRequest) GetPinCode() string {
+func (x *DeviceSyncRequest) GetDeprecatedKind() BackupElementSelection {
 	if x != nil {
-		return x.PinCode
-	}
-	return ""
-}
-
-// Deprecated: Marked as deprecated in device_sync/content.proto.
-func (x *DeviceSyncRequest) GetKind() BackupElementSelection {
-	if x != nil {
-		return x.Kind
+		return x.DeprecatedKind
 	}
 	return BackupElementSelection_BACKUP_ELEMENT_SELECTION_UNSPECIFIED
 }
 
-func (x *DeviceSyncRequest) GetOptions() *BackupOptions {
+func (x *DeviceSyncRequest) GetOptions() *ArchiveOptions {
 	if x != nil {
 		return x.Options
 	}
@@ -671,13 +668,13 @@ const file_device_sync_content_proto_rawDesc = "" +
 	"\rHmacKeyUpdate\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\fR\x03key\x12 \n" +
 	"\fcycled_at_ns\x18\x02 \x01(\x03R\n" +
-	"cycledAtNs\"\xce\x01\n" +
-	"\x11DeviceSyncRequest\x12\x1d\n" +
+	"cycledAtNs\"\xd7\x01\n" +
+	"\x11DeviceSyncRequest\x12\x10\n" +
+	"\x03pin\x18\x01 \x01(\tR\x03pin\x12\x1d\n" +
 	"\n" +
-	"request_id\x18\x01 \x01(\tR\trequestId\x12\x1d\n" +
-	"\bpin_code\x18\x02 \x01(\tB\x02\x18\x01R\apinCode\x12@\n" +
-	"\x04kind\x18\x03 \x01(\x0e2(.xmtp.device_sync.BackupElementSelectionB\x02\x18\x01R\x04kind\x129\n" +
-	"\aoptions\x18\x04 \x01(\v2\x1f.xmtp.device_sync.BackupOptionsR\aoptions\"\xc1\x02\n" +
+	"server_url\x18\x02 \x01(\tR\tserverUrl\x12U\n" +
+	"\x0fdeprecated_kind\x18\x03 \x01(\x0e2(.xmtp.device_sync.BackupElementSelectionB\x02\x18\x01R\x0edeprecatedKind\x12:\n" +
+	"\aoptions\x18\x04 \x01(\v2 .xmtp.device_sync.ArchiveOptionsR\aoptions\"\xc1\x02\n" +
 	"\x0fDeviceSyncReply\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12\x10\n" +
@@ -716,7 +713,7 @@ var file_device_sync_content_proto_goTypes = []any{
 	(*DeviceSyncKeyType)(nil),      // 8: xmtp.device_sync.content.DeviceSyncKeyType
 	(*ConsentSave)(nil),            // 9: xmtp.device_sync.consent_backup.ConsentSave
 	(BackupElementSelection)(0),    // 10: xmtp.device_sync.BackupElementSelection
-	(*BackupOptions)(nil),          // 11: xmtp.device_sync.BackupOptions
+	(*ArchiveOptions)(nil),         // 11: xmtp.device_sync.ArchiveOptions
 	(*BackupMetadataSave)(nil),     // 12: xmtp.device_sync.BackupMetadataSave
 }
 var file_device_sync_content_proto_depIdxs = []int32{
@@ -727,8 +724,8 @@ var file_device_sync_content_proto_depIdxs = []int32{
 	3,  // 4: xmtp.device_sync.content.PreferenceUpdates.updates:type_name -> xmtp.device_sync.content.PreferenceUpdate
 	9,  // 5: xmtp.device_sync.content.PreferenceUpdate.consent:type_name -> xmtp.device_sync.consent_backup.ConsentSave
 	5,  // 6: xmtp.device_sync.content.PreferenceUpdate.hmac:type_name -> xmtp.device_sync.content.HmacKeyUpdate
-	10, // 7: xmtp.device_sync.content.DeviceSyncRequest.kind:type_name -> xmtp.device_sync.BackupElementSelection
-	11, // 8: xmtp.device_sync.content.DeviceSyncRequest.options:type_name -> xmtp.device_sync.BackupOptions
+	10, // 7: xmtp.device_sync.content.DeviceSyncRequest.deprecated_kind:type_name -> xmtp.device_sync.BackupElementSelection
+	11, // 8: xmtp.device_sync.content.DeviceSyncRequest.options:type_name -> xmtp.device_sync.ArchiveOptions
 	8,  // 9: xmtp.device_sync.content.DeviceSyncReply.encryption_key:type_name -> xmtp.device_sync.content.DeviceSyncKeyType
 	10, // 10: xmtp.device_sync.content.DeviceSyncReply.kind:type_name -> xmtp.device_sync.BackupElementSelection
 	12, // 11: xmtp.device_sync.content.DeviceSyncReply.metadata:type_name -> xmtp.device_sync.BackupMetadataSave

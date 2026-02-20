@@ -108,11 +108,11 @@ func (*Task_ProcessWelcomePointer) isTask_Task() {}
 func (*Task_SendSyncArchive) isTask_Task() {}
 
 type SendSyncArchive struct {
-	state         protoimpl.MessageState     `protogen:"open.v1"`
-	Options       *device_sync.BackupOptions `protobuf:"bytes,1,opt,name=options,proto3" json:"options,omitempty"`
-	SyncGroupId   []byte                     `protobuf:"bytes,2,opt,name=sync_group_id,json=syncGroupId,proto3" json:"sync_group_id,omitempty"`
-	RequestId     *string                    `protobuf:"bytes,3,opt,name=request_id,json=requestId,proto3,oneof" json:"request_id,omitempty"`
-	ServerUrl     string                     `protobuf:"bytes,4,opt,name=server_url,json=serverUrl,proto3" json:"server_url,omitempty"`
+	state         protoimpl.MessageState      `protogen:"open.v1"`
+	Options       *device_sync.ArchiveOptions `protobuf:"bytes,1,opt,name=options,proto3" json:"options,omitempty"`
+	SyncGroupId   []byte                      `protobuf:"bytes,2,opt,name=sync_group_id,json=syncGroupId,proto3" json:"sync_group_id,omitempty"`
+	Pin           *string                     `protobuf:"bytes,3,opt,name=pin,proto3,oneof" json:"pin,omitempty"`
+	ServerUrl     string                      `protobuf:"bytes,4,opt,name=server_url,json=serverUrl,proto3" json:"server_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -147,7 +147,7 @@ func (*SendSyncArchive) Descriptor() ([]byte, []int) {
 	return file_mls_database_task_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *SendSyncArchive) GetOptions() *device_sync.BackupOptions {
+func (x *SendSyncArchive) GetOptions() *device_sync.ArchiveOptions {
 	if x != nil {
 		return x.Options
 	}
@@ -161,9 +161,9 @@ func (x *SendSyncArchive) GetSyncGroupId() []byte {
 	return nil
 }
 
-func (x *SendSyncArchive) GetRequestId() string {
-	if x != nil && x.RequestId != nil {
-		return *x.RequestId
+func (x *SendSyncArchive) GetPin() string {
+	if x != nil && x.Pin != nil {
+		return *x.Pin
 	}
 	return ""
 }
@@ -183,15 +183,14 @@ const file_mls_database_task_proto_rawDesc = "" +
 	"\x04Task\x12c\n" +
 	"\x17process_welcome_pointer\x18\x01 \x01(\v2).xmtp.mls.message_contents.WelcomePointerH\x00R\x15processWelcomePointer\x12P\n" +
 	"\x11send_sync_archive\x18\x02 \x01(\v2\".xmtp.mls.database.SendSyncArchiveH\x00R\x0fsendSyncArchiveB\x06\n" +
-	"\x04task\"\xc2\x01\n" +
-	"\x0fSendSyncArchive\x129\n" +
-	"\aoptions\x18\x01 \x01(\v2\x1f.xmtp.device_sync.BackupOptionsR\aoptions\x12\"\n" +
-	"\rsync_group_id\x18\x02 \x01(\fR\vsyncGroupId\x12\"\n" +
+	"\x04task\"\xaf\x01\n" +
+	"\x0fSendSyncArchive\x12:\n" +
+	"\aoptions\x18\x01 \x01(\v2 .xmtp.device_sync.ArchiveOptionsR\aoptions\x12\"\n" +
+	"\rsync_group_id\x18\x02 \x01(\fR\vsyncGroupId\x12\x15\n" +
+	"\x03pin\x18\x03 \x01(\tH\x00R\x03pin\x88\x01\x01\x12\x1d\n" +
 	"\n" +
-	"request_id\x18\x03 \x01(\tH\x00R\trequestId\x88\x01\x01\x12\x1d\n" +
-	"\n" +
-	"server_url\x18\x04 \x01(\tR\tserverUrlB\r\n" +
-	"\v_request_idB\xb6\x01\n" +
+	"server_url\x18\x04 \x01(\tR\tserverUrlB\x06\n" +
+	"\x04_pinB\xb6\x01\n" +
 	"\x15com.xmtp.mls.databaseB\tTaskProtoP\x01Z,github.com/xmtp/xmtpd/pkg/proto/mls/database\xa2\x02\x03XMD\xaa\x02\x11Xmtp.Mls.Database\xca\x02\x11Xmtp\\Mls\\Database\xe2\x02\x1dXmtp\\Mls\\Database\\GPBMetadata\xea\x02\x13Xmtp::Mls::Databaseb\x06proto3"
 
 var (
@@ -211,12 +210,12 @@ var file_mls_database_task_proto_goTypes = []any{
 	(*Task)(nil),                            // 0: xmtp.mls.database.Task
 	(*SendSyncArchive)(nil),                 // 1: xmtp.mls.database.SendSyncArchive
 	(*message_contents.WelcomePointer)(nil), // 2: xmtp.mls.message_contents.WelcomePointer
-	(*device_sync.BackupOptions)(nil),       // 3: xmtp.device_sync.BackupOptions
+	(*device_sync.ArchiveOptions)(nil),      // 3: xmtp.device_sync.ArchiveOptions
 }
 var file_mls_database_task_proto_depIdxs = []int32{
 	2, // 0: xmtp.mls.database.Task.process_welcome_pointer:type_name -> xmtp.mls.message_contents.WelcomePointer
 	1, // 1: xmtp.mls.database.Task.send_sync_archive:type_name -> xmtp.mls.database.SendSyncArchive
-	3, // 2: xmtp.mls.database.SendSyncArchive.options:type_name -> xmtp.device_sync.BackupOptions
+	3, // 2: xmtp.mls.database.SendSyncArchive.options:type_name -> xmtp.device_sync.ArchiveOptions
 	3, // [3:3] is the sub-list for method output_type
 	3, // [3:3] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name

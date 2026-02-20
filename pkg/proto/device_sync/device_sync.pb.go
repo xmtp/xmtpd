@@ -281,7 +281,7 @@ func (x *BackupMetadataSave) GetEndNs() int64 {
 }
 
 // Backup Options
-type BackupOptions struct {
+type ArchiveOptions struct {
 	state                       protoimpl.MessageState   `protogen:"open.v1"`
 	Elements                    []BackupElementSelection `protobuf:"varint,1,rep,packed,name=elements,proto3,enum=xmtp.device_sync.BackupElementSelection" json:"elements,omitempty"`
 	StartNs                     *int64                   `protobuf:"varint,2,opt,name=start_ns,json=startNs,proto3,oneof" json:"start_ns,omitempty"`
@@ -291,20 +291,20 @@ type BackupOptions struct {
 	sizeCache                   protoimpl.SizeCache
 }
 
-func (x *BackupOptions) Reset() {
-	*x = BackupOptions{}
+func (x *ArchiveOptions) Reset() {
+	*x = ArchiveOptions{}
 	mi := &file_device_sync_device_sync_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *BackupOptions) String() string {
+func (x *ArchiveOptions) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*BackupOptions) ProtoMessage() {}
+func (*ArchiveOptions) ProtoMessage() {}
 
-func (x *BackupOptions) ProtoReflect() protoreflect.Message {
+func (x *ArchiveOptions) ProtoReflect() protoreflect.Message {
 	mi := &file_device_sync_device_sync_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -316,33 +316,33 @@ func (x *BackupOptions) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use BackupOptions.ProtoReflect.Descriptor instead.
-func (*BackupOptions) Descriptor() ([]byte, []int) {
+// Deprecated: Use ArchiveOptions.ProtoReflect.Descriptor instead.
+func (*ArchiveOptions) Descriptor() ([]byte, []int) {
 	return file_device_sync_device_sync_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *BackupOptions) GetElements() []BackupElementSelection {
+func (x *ArchiveOptions) GetElements() []BackupElementSelection {
 	if x != nil {
 		return x.Elements
 	}
 	return nil
 }
 
-func (x *BackupOptions) GetStartNs() int64 {
+func (x *ArchiveOptions) GetStartNs() int64 {
 	if x != nil && x.StartNs != nil {
 		return *x.StartNs
 	}
 	return 0
 }
 
-func (x *BackupOptions) GetEndNs() int64 {
+func (x *ArchiveOptions) GetEndNs() int64 {
 	if x != nil && x.EndNs != nil {
 		return *x.EndNs
 	}
 	return 0
 }
 
-func (x *BackupOptions) GetExcludeDisappearingMessages() bool {
+func (x *ArchiveOptions) GetExcludeDisappearingMessages() bool {
 	if x != nil {
 		return x.ExcludeDisappearingMessages
 	}
@@ -367,8 +367,8 @@ const file_device_sync_device_sync_proto_rawDesc = "" +
 	"\bstart_ns\x18\x04 \x01(\x03H\x00R\astartNs\x88\x01\x01\x12\x1a\n" +
 	"\x06end_ns\x18\x05 \x01(\x03H\x01R\x05endNs\x88\x01\x01B\v\n" +
 	"\t_start_nsB\t\n" +
-	"\a_end_ns\"\xed\x01\n" +
-	"\rBackupOptions\x12D\n" +
+	"\a_end_ns\"\xee\x01\n" +
+	"\x0eArchiveOptions\x12D\n" +
 	"\belements\x18\x01 \x03(\x0e2(.xmtp.device_sync.BackupElementSelectionR\belements\x12\x1e\n" +
 	"\bstart_ns\x18\x02 \x01(\x03H\x00R\astartNs\x88\x01\x01\x12\x1a\n" +
 	"\x06end_ns\x18\x03 \x01(\x03H\x01R\x05endNs\x88\x01\x01\x12B\n" +
@@ -400,7 +400,7 @@ var file_device_sync_device_sync_proto_goTypes = []any{
 	(BackupElementSelection)(0), // 0: xmtp.device_sync.BackupElementSelection
 	(*BackupElement)(nil),       // 1: xmtp.device_sync.BackupElement
 	(*BackupMetadataSave)(nil),  // 2: xmtp.device_sync.BackupMetadataSave
-	(*BackupOptions)(nil),       // 3: xmtp.device_sync.BackupOptions
+	(*ArchiveOptions)(nil),      // 3: xmtp.device_sync.ArchiveOptions
 	(*GroupSave)(nil),           // 4: xmtp.device_sync.group_backup.GroupSave
 	(*GroupMessageSave)(nil),    // 5: xmtp.device_sync.message_backup.GroupMessageSave
 	(*ConsentSave)(nil),         // 6: xmtp.device_sync.consent_backup.ConsentSave
@@ -413,7 +413,7 @@ var file_device_sync_device_sync_proto_depIdxs = []int32{
 	6, // 3: xmtp.device_sync.BackupElement.consent:type_name -> xmtp.device_sync.consent_backup.ConsentSave
 	7, // 4: xmtp.device_sync.BackupElement.event:type_name -> xmtp.device_sync.event_backup.EventSave
 	0, // 5: xmtp.device_sync.BackupMetadataSave.elements:type_name -> xmtp.device_sync.BackupElementSelection
-	0, // 6: xmtp.device_sync.BackupOptions.elements:type_name -> xmtp.device_sync.BackupElementSelection
+	0, // 6: xmtp.device_sync.ArchiveOptions.elements:type_name -> xmtp.device_sync.BackupElementSelection
 	7, // [7:7] is the sub-list for method output_type
 	7, // [7:7] is the sub-list for method input_type
 	7, // [7:7] is the sub-list for extension type_name

@@ -11,7 +11,7 @@ type APIOptions struct {
 	Enable                bool          `long:"enable"                   env:"XMTPD_API_ENABLE"                   description:"Enable the client API"`
 	SendKeepAliveInterval time.Duration `long:"send-keep-alive-interval" env:"XMTPD_API_SEND_KEEP_ALIVE_INTERVAL" description:"Send empty application level keepalive package interval" default:"30s"`
 	Port                  int           `long:"port"                     env:"XMTPD_API_PORT"                     description:"Port to listen on"                                       default:"5050"  short:"p"`
-	RequireJWTToken       bool          `long:"require-jwt-token"        env:"XMTPD_API_REQUIRE_JTW_TOKEN"        description:"Require JWT token for incoming connections"              default:"false"`
+	RequireJWTToken       bool          `long:"require-jwt-token"        env:"XMTPD_API_REQUIRE_JWT_TOKEN"        description:"Require JWT token for incoming connections"              default:"false"`
 	AuthLoggingDNSLookup  bool          `long:"auth-logging-dns-lookup"  env:"XMTPD_API_AUTH_LOGGING_DNS_LOOKUP"  description:"Perform DNS lookup for connection logging"               default:"true"`
 }
 

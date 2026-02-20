@@ -464,7 +464,7 @@ func startAPIServer(
 			cfg.Logger,
 			jwtVerifier,
 			server.RequireToken(cfg.Options.API.RequireJWTToken),
-			server.DoDNSLookup(cfg.Options.API.AuthLoggingDNSLookup),
+			server.DoDNSLookup(!cfg.Options.API.DisableAuthLoggingDNSLookup),
 		)
 	}
 

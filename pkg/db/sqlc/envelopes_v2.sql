@@ -70,40 +70,35 @@ ORDER BY m.originator_sequence_id
 LIMIT NULLIF(@row_limit::INT, 0);
 
 -- name: SelectGatewayEnvelopesByOriginators :many
--- Uses LATERAL join with scalar subquery to push cursor filter into index scan.
--- This avoids full table scans when using LEFT JOIN + COALESCE pattern.
 WITH cursors AS (
     SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
     FROM unnest(@cursor_node_ids::INT[]) WITH ORDINALITY AS x(node_id, ord)
-    JOIN unnest(@cursor_sequence_ids::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord) USING (ord)
-)
-SELECT m.originator_node_id,
-       m.originator_sequence_id,
-       m.gateway_time,
-       m.topic,
-       m.originator_envelope
-FROM unnest(@originator_node_ids::INT[]) AS o(node_id)
-CROSS JOIN LATERAL (
+    JOIN unnest(@cursor_sequence_ids::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord)
+    USING (ord)
+),
+filtered AS (
     SELECT m.originator_node_id,
            m.originator_sequence_id,
            m.gateway_time,
-           m.topic,
-           b.originator_envelope
+           m.topic
     FROM gateway_envelopes_meta AS m
-    JOIN gateway_envelope_blobs AS b
-        ON b.originator_node_id = m.originator_node_id
-       AND b.originator_sequence_id = m.originator_sequence_id
-       AND b.originator_node_id = o.node_id
-    WHERE m.originator_node_id = o.node_id
-      AND m.originator_sequence_id > COALESCE(
-          (SELECT c.cursor_sequence_id FROM cursors c WHERE c.cursor_node_id = o.node_id),
-          0
-      )
-    ORDER BY m.originator_sequence_id
-    LIMIT NULLIF(@rows_per_originator::INT, 0)
-) AS m
-ORDER BY m.originator_node_id, m.originator_sequence_id
-LIMIT NULLIF(@row_limit::INT, 0);
+    LEFT JOIN cursors AS c
+        ON m.originator_node_id = c.cursor_node_id
+    WHERE m.originator_node_id = ANY (@originator_node_ids::INT[])
+    AND m.originator_sequence_id > COALESCE(c.cursor_sequence_id, 0)
+    ORDER BY m.originator_node_id, m.originator_sequence_id
+    LIMIT NULLIF(@row_limit::INT, 0)
+)
+SELECT f.originator_node_id,
+       f.originator_sequence_id,
+       f.gateway_time,
+       f.topic,
+       b.originator_envelope
+FROM filtered AS f
+JOIN gateway_envelope_blobs AS b
+    ON b.originator_node_id = f.originator_node_id
+    AND b.originator_sequence_id = f.originator_sequence_id
+ORDER BY f.originator_node_id, f.originator_sequence_id;
 
 -- name: SelectGatewayEnvelopesByTopics :many
 WITH cursors AS (

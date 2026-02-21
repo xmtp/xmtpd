@@ -21,7 +21,7 @@ RUN go build -ldflags="-X 'main.Version=$VERSION'" -o bin/xmtpd-gateway cmd/gate
 
 FROM alpine:3.21
 
-LABEL maintainer="eng@ephemerahq.com"
+LABEL maintainer="eng@xmtp.com"
 LABEL source="https://github.com/xmtp/xmtpd"
 LABEL description="XMTP Gateway"
 

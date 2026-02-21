@@ -84,8 +84,9 @@ func dumpToMarkdown(metrics []Metric) {
 		if desc == "" {
 			desc = "-"
 		}
-		sb.WriteString(fmt.Sprintf("| `%s` | `%s` | %s | `%s` |\n",
-			m.Name, m.Type, desc, m.File))
+		fmt.Fprintf(&sb, "| `%s` | `%s` | %s | `%s` |\n",
+			m.Name, m.Type, desc, m.File,
+		)
 	}
 
 	if err := os.WriteFile(MARKDOWN_OUTPUT, []byte(sb.String()), 0o644); err != nil {

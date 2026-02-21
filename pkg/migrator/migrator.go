@@ -312,7 +312,10 @@ func (m *Migrator) startWelcomeMessagesWorker() error {
 		m.pollInterval,
 	)
 
-	if err := welcomeMessagesWorker.StartReader(m.ctx, m.readers[welcomeMessagesTableName]); err != nil {
+	if err := welcomeMessagesWorker.StartReader(
+		m.ctx,
+		m.readers[welcomeMessagesTableName],
+	); err != nil {
 		return err
 	}
 
@@ -337,7 +340,10 @@ func (m *Migrator) startGroupMessagesWorker() error {
 		m.pollInterval,
 	)
 
-	if err := groupMessagesWorker.StartReader(m.ctx, m.readers[groupMessagesTableName]); err != nil {
+	if err := groupMessagesWorker.StartReader(
+		m.ctx,
+		m.readers[groupMessagesTableName],
+	); err != nil {
 		return err
 	}
 
@@ -362,7 +368,10 @@ func (m *Migrator) startCommitMessagesWorker() error {
 		m.pollInterval,
 	)
 
-	if err := commitMessagesWorker.StartReader(m.ctx, m.readers[commitMessagesTableName]); err != nil {
+	if err := commitMessagesWorker.StartReader(
+		m.ctx,
+		m.readers[commitMessagesTableName],
+	); err != nil {
 		return err
 	}
 

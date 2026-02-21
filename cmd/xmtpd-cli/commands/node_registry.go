@@ -302,7 +302,10 @@ func getNodeHandler(all bool, nodeID uint32, exportPath string) error {
 			return fmt.Errorf("node not found: %d", nodeID)
 		}
 		if exportPath != "" {
-			if err := migrator.DumpNodesToFile([]migrator.SerializableNode{exportNode}, exportPath); err != nil {
+			if err := migrator.DumpNodesToFile(
+				[]migrator.SerializableNode{exportNode},
+				exportPath,
+			); err != nil {
 				return fmt.Errorf("could not dump nodes: %w", err)
 			}
 		}

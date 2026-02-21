@@ -3,15 +3,12 @@
 package blockchain
 
 import (
-	common "github.com/ethereum/go-ethereum/common"
-	blockchain "github.com/xmtp/xmtpd/pkg/blockchain"
-
 	context "context"
 
-	merkle "github.com/xmtp/xmtpd/pkg/merkle"
-
+	common "github.com/ethereum/go-ethereum/common"
 	mock "github.com/stretchr/testify/mock"
-
+	blockchain "github.com/xmtp/xmtpd/pkg/blockchain"
+	merkle "github.com/xmtp/xmtpd/pkg/merkle"
 	payerreport "github.com/xmtp/xmtpd/pkg/payerreport"
 )
 

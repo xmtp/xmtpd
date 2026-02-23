@@ -13,6 +13,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/currency"
 	dbHelpers "github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
@@ -196,33 +197,131 @@ func TestSecondReport(t *testing.T) {
 	require.Equal(t, currency.PicoDollar(200), report.Payers[payerAddress])
 }
 
-// Make sure that we don't pick up sequence IDs from other originators in the report
-func TestReportWithNoEnvelopesFromOriginator(t *testing.T) {
-	t.Skip(
-		"TODO: This test relied on zero length reports to pass. Now it requires >2 min to complete. Move to an  integration test suite.",
+// TestMigratorOriginatorReport simulates the first report for each migrator originator.
+func TestMigratorOriginatorReport(t *testing.T) {
+	testCases := []struct {
+		name         string
+		originatorID uint32
+	}{
+		{"group_messages", migrator.GroupMessageOriginatorID},
+		{"welcome_messages", migrator.WelcomeMessageOriginatorID},
+		{"key_packages", migrator.KeyPackagesOriginatorID},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var (
+				db, generator = setupGenerator(t)
+				payerAddress  = testutils.RandomAddress()
+				originatorID  = int32(tc.originatorID)
+			)
+
+			addEnvelope(t, db.DB(), originatorID, 1, payerAddress, getMinute(1))
+			addEnvelope(t, db.DB(), originatorID, 2, payerAddress, getMinute(1))
+			addEnvelope(t, db.DB(), originatorID, 3, payerAddress, getMinute(2))
+
+			report, err := generator.GenerateReport(
+				t.Context(),
+				payerreport.PayerReportGenerationParams{
+					OriginatorID:            tc.originatorID,
+					LastReportEndSequenceID: 0,
+				},
+			)
+			require.NoError(t, err)
+			require.NotNil(t, report)
+
+			require.Equal(t, tc.originatorID, report.OriginatorNodeID)
+			require.Equal(t, uint64(2), report.EndSequenceID)
+			require.Equal(t, currency.PicoDollar(200), report.Payers[payerAddress])
+		})
+	}
+}
+
+// TestMigratorOriginatorSequentialReports verifies that sequential reports
+// chain correctly for migrator originator IDs, with each report's start
+// picking up where the previous one ended.
+func TestMigratorOriginatorSequentialReports(t *testing.T) {
+	var (
+		db, generator = setupGenerator(t)
+		originatorID  = int32(migrator.GroupMessageOriginatorID)
+		payerAddress  = testutils.RandomAddress()
 	)
 
-	db, generator := setupGenerator(t)
+	addEnvelope(t, db.DB(), originatorID, 1, payerAddress, getMinute(1))
+	addEnvelope(t, db.DB(), originatorID, 2, payerAddress, getMinute(1))
+	addEnvelope(t, db.DB(), originatorID, 3, payerAddress, getMinute(2))
 
-	originatorID := int32(100)
-	otherOriginatorID := int32(200)
-	payerAddress := testutils.RandomAddress()
-
-	addEnvelope(t, db.DB(), otherOriginatorID, 1, payerAddress, getMinute(1))
-	addEnvelope(t, db.DB(), otherOriginatorID, 2, payerAddress, getMinute(2))
-	addEnvelope(t, db.DB(), otherOriginatorID, 3, payerAddress, getMinute(3))
-
-	report, err := generator.GenerateReport(
-		context.Background(),
+	// First report.
+	report1, err := generator.GenerateReport(
+		t.Context(),
 		payerreport.PayerReportGenerationParams{
-			OriginatorID:            uint32(originatorID),
+			OriginatorID:            migrator.GroupMessageOriginatorID,
 			LastReportEndSequenceID: 0,
 		},
 	)
 	require.NoError(t, err)
+	require.NotNil(t, report1)
 
-	require.Equal(t, uint32(originatorID), report.OriginatorNodeID)
-	require.Equal(t, uint64(0), report.StartSequenceID)
-	require.Equal(t, uint64(0), report.EndSequenceID)
-	require.Empty(t, report.Payers)
+	require.Equal(t, migrator.GroupMessageOriginatorID, report1.OriginatorNodeID)
+	require.Equal(t, uint64(0), report1.StartSequenceID)
+	require.Equal(t, uint64(2), report1.EndSequenceID)
+	require.Equal(t, currency.PicoDollar(200), report1.Payers[payerAddress])
+
+	addEnvelope(t, db.DB(), originatorID, 4, payerAddress, getMinute(3))
+	addEnvelope(t, db.DB(), originatorID, 5, payerAddress, getMinute(4))
+
+	// Second report.
+	report2, err := generator.GenerateReport(
+		t.Context(),
+		payerreport.PayerReportGenerationParams{
+			OriginatorID:            migrator.GroupMessageOriginatorID,
+			LastReportEndSequenceID: report1.EndSequenceID,
+		},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, report2)
+
+	require.Equal(t, migrator.GroupMessageOriginatorID, report2.OriginatorNodeID)
+	require.Equal(t, uint64(4), report2.EndSequenceID)
+	require.Equal(t, currency.PicoDollar(200), report2.Payers[payerAddress])
+}
+
+// TestMigratorReportIDDeterminism verifies that the report ID is deterministic
+// for migrator originators — same input always produces the same ID.
+func TestMigratorReportIDDeterminism(t *testing.T) {
+	db, generator := setupGenerator(t)
+
+	originatorID := int32(migrator.GroupMessageOriginatorID)
+	payerAddress := testutils.RandomAddress()
+
+	addEnvelope(t, db.DB(), originatorID, 1, payerAddress, getMinute(1))
+	addEnvelope(t, db.DB(), originatorID, 2, payerAddress, getMinute(2))
+
+	report1, err := generator.GenerateReport(
+		t.Context(),
+		payerreport.PayerReportGenerationParams{
+			OriginatorID:            migrator.GroupMessageOriginatorID,
+			LastReportEndSequenceID: 0,
+		},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, report1)
+
+	report2, err := generator.GenerateReport(
+		t.Context(),
+		payerreport.PayerReportGenerationParams{
+			OriginatorID:            migrator.GroupMessageOriginatorID,
+			LastReportEndSequenceID: 0,
+		},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, report2)
+
+	require.Equal(
+		t,
+		report1.ID,
+		report2.ID,
+		"report IDs must be deterministic for cross-node attestation",
+	)
+	require.Equal(t, report1.PayersMerkleRoot, report2.PayersMerkleRoot)
 }

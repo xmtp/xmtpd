@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
+	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
@@ -125,11 +126,21 @@ func (w *GeneratorWorker) GenerateReports() error {
 		return err
 	}
 
+	nodeIDs := []uint32{
+		migrator.GroupMessageOriginatorID,
+		migrator.WelcomeMessageOriginatorID,
+		migrator.KeyPackagesOriginatorID,
+	}
+
 	for _, node := range allNodes {
-		if err = w.maybeGenerateReport(node.NodeID); err != nil {
+		nodeIDs = append(nodeIDs, node.NodeID)
+	}
+
+	for _, nodeID := range nodeIDs {
+		if err = w.maybeGenerateReport(nodeID); err != nil {
 			w.logger.Warn(
 				"error generating report for node",
-				utils.OriginatorIDField(node.NodeID),
+				utils.OriginatorIDField(nodeID),
 				zap.Error(err),
 			)
 		}

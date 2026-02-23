@@ -158,7 +158,7 @@ func NewCommitMessageReader(db *sql.DB) *CommitMessageReader {
 	query := `
 		SELECT id, created_at, group_id, data, group_id_data_hash, is_commit, sender_hmac, should_push
 		FROM group_messages
-		WHERE id > $1 AND id >$2 AND is_commit = true
+		WHERE id > $1 AND id >=$2 AND is_commit = true
 		ORDER BY id ASC
 		LIMIT $3
 	`

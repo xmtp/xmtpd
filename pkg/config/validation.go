@@ -65,11 +65,11 @@ func (v *OptionsValidator) ValidateServerOptions(options *ServerOptions) error {
 		}
 	}
 
-	// if options.MigrationServer.Enable {
-	if err := v.validateMigratorOptions(&options.MigrationServer, customSet); err != nil {
-		return err
+	if options.MigrationServer.Enable {
+		if err := v.validateMigratorOptions(&options.MigrationServer, customSet); err != nil {
+			return err
+		}
 	}
-	//}
 
 	if len(missingSet) > 0 || len(customSet) > 0 {
 		var errs []string

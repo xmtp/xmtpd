@@ -152,6 +152,6 @@ jobs:
           terraform-token: ${{ secrets.TERRAFORM_TOKEN }}
           terraform-org: xmtp
           terraform-workspace: testnet-staging
-          variable-name: "xmtpd_server_docker_image,xmtpd_prune_docker_image,xmtpd_gateway_docker_image"
-          variable-value: "${{ steps.digests.outputs.xmtpd_image }},${{ steps.digests.outputs.prune_image }},${{ steps.digests.outputs.gateway_image }}"
+          variable-name: "xmtpd_server_docker_image,xmtpd_prune_docker_image,xmtpd_gateway_docker_image,xmtpd_migrator_docker_image"
+          variable-value: "${{ steps.digests.outputs.xmtpd_image }},${{ steps.digests.outputs.prune_image }},${{ steps.digests.outputs.gateway_image }},${{ steps.digests.outputs.xmtpd_image }}"
           variable-value-required-prefix: "ghcr.io/xmtp/"

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -60,6 +61,12 @@ func (v *OptionsValidator) ValidateServerOptions(options *ServerOptions) error {
 
 	if options.Payer.Enable {
 		if err := v.validatePayerOptions(&options.Payer, customSet); err != nil {
+			return err
+		}
+	}
+
+	if options.MigrationServer.Enable {
+		if err := v.validateMigratorOptions(&options.MigrationServer, customSet); err != nil {
 			return err
 		}
 	}
@@ -514,4 +521,52 @@ func (v *OptionsValidator) validatePayerOptions(
 	}
 
 	return nil
+}
+
+func (v *OptionsValidator) validateMigratorOptions(
+	options *MigrationServerOptions,
+	customSet map[string]struct{},
+) error {
+	if options.LowerLimits.Values == nil {
+		return nil
+	}
+
+	for source, limit := range options.LowerLimits.Values {
+		if _, ok := ValidMigrationSources[MigrationSource(source)]; !ok {
+			customSet[fmt.Sprintf(
+				"--migration-server.lower-limits contains invalid source %q (valid values: %s)",
+				source,
+				validSourcesList(),
+			)] = struct{}{}
+			continue
+		}
+
+		// Validate limit
+		if limit < 0 {
+			customSet[fmt.Sprintf(
+				"--migration-server.lower-limits[%s]=%d is invalid (must be >= 0)",
+				source,
+				limit,
+			)] = struct{}{}
+		}
+	}
+
+	return nil
+}
+
+var ValidMigrationSources = map[MigrationSource]struct{}{
+	MigrationSourceGroupMessages:   {},
+	MigrationSourceInboxLog:        {},
+	MigrationSourceKeyPackages:     {},
+	MigrationSourceWelcomeMessages: {},
+	MigrationSourceCommitMessages:  {},
+}
+
+func validSourcesList() string {
+	values := make([]string, 0, len(ValidMigrationSources))
+	for s := range ValidMigrationSources {
+		values = append(values, string(s))
+	}
+	sort.Strings(values)
+	return strings.Join(values, ", ")
 }

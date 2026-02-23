@@ -361,7 +361,12 @@ func SetupRedisClient(
 			break
 		} else if time.Now().After(deadline) {
 			_ = client.Close()
-			return nil, fmt.Errorf("failed to connect to Redis at %s within %s: %w", redisURL, cfg.ConnectTimeout, err)
+			return nil, fmt.Errorf(
+				"failed to connect to Redis at %s within %s: %w",
+				redisURL,
+				cfg.ConnectTimeout,
+				err,
+			)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}

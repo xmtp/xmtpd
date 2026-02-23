@@ -16,3 +16,6 @@ formatters:
     - gofmt
     - golines
     - gofumpt
+  exclusions:
+    paths:
+      - pkg/stress/envelopes_payloads.go

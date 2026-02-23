@@ -5,7 +5,6 @@ package registry
 import (
 	bind "github.com/ethereum/go-ethereum/accounts/abi/bind/v2"
 	mock "github.com/stretchr/testify/mock"
-
 	noderegistry "github.com/xmtp/xmtpd/pkg/abi/noderegistry"
 )
 

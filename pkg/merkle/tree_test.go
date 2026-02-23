@@ -415,7 +415,9 @@ func TestCalculateBalancedLeafCount(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				if result != tt.expected {
-					t.Errorf("CalculateBalancedLeafCount(%d) = %d, expected %d", tt.input, result, tt.expected)
+					t.Errorf("CalculateBalancedLeafCount(%d) = %d, expected %d",
+						tt.input, result, tt.expected,
+					)
 				}
 			}
 		})

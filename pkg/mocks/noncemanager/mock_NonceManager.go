@@ -7,7 +7,6 @@ import (
 	big "math/big"
 
 	mock "github.com/stretchr/testify/mock"
-
 	noncemanager "github.com/xmtp/xmtpd/pkg/blockchain/noncemanager"
 )
 

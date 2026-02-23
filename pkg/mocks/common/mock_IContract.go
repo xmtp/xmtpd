@@ -7,12 +7,9 @@ import (
 
 	common "github.com/ethereum/go-ethereum/common"
 
-	mock "github.com/stretchr/testify/mock"
-
-	retryerrors "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
-
 	types "github.com/ethereum/go-ethereum/core/types"
-
+	mock "github.com/stretchr/testify/mock"
+	retryerrors "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 	zap "go.uber.org/zap"
 )
 

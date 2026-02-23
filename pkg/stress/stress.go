@@ -95,7 +95,12 @@ func StressIdentityUpdates(
 			if err != nil {
 				logger.Error("error", zap.Int("idx", idx), zap.Error(err))
 			} else {
-				logger.Info("completed transaction", zap.Int("idx", idx), zap.Uint64("nonce", nonce), zap.Duration("duration", duration))
+				logger.Info(
+					"completed transaction",
+					zap.Int("idx", idx),
+					zap.Uint64("nonce", nonce),
+					zap.Duration("duration", duration),
+				)
 			}
 		}(i)
 	}

@@ -144,7 +144,14 @@ func TestRateLimitAuthorizer_RespectsLimits(t *testing.T) {
 				if tt.wantErrors[i] {
 					require.Error(t, err, "request %d (envelopes=%d) should error", i, envelopes)
 				} else {
-					require.NoError(t, err, "request %d (envelopes=%d) should not error. Error: %v", i, envelopes, err)
+					require.NoError(
+						t,
+						err,
+						"request %d (envelopes=%d) should not error. Error: %v",
+						i,
+						envelopes,
+						err,
+					)
 				}
 
 				require.Equal(t, tt.wantAllow[i], allowed, "request %d allowed mismatch", i)

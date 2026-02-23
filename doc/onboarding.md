@@ -10,7 +10,7 @@ The new node operator will provide the xmtpd dev team with their node's public k
 
 Prompt them to ensure that the public key and address are correct as they are immutable and can't be changed in the future.
 
-Only members of `@ephemerahq/backend` can currently register nodes.
+Only members of `@xmtp/backend` can currently register nodes.
 
 ```bash
 export XMTPD_SETTLEMENT_CHAIN_WSS_URL="https://xmtp-testnet.g.alchemy.com/v2/<apikey>"

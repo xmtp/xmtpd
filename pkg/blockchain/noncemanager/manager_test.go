@@ -409,7 +409,11 @@ func TestMultipleInstances(t *testing.T) {
 				}
 
 				for range numManagers {
-					mgr, err := redismanager.NewRedisBackedNonceManager(redisClient, logger, keyPrefix)
+					mgr, err := redismanager.NewRedisBackedNonceManager(
+						redisClient,
+						logger,
+						keyPrefix,
+					)
 					require.NoError(t, err)
 					managerInstances = append(managerInstances, mgr)
 				}

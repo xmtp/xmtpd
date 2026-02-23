@@ -113,9 +113,9 @@ func welcomeMessageHandler(
 			"welcome message published",
 			zap.Int(
 				"unsigned_originator_envelope_size",
-				len(envelope.UnsignedOriginatorEnvelope),
+				len(envelope.GetUnsignedOriginatorEnvelope()),
 			),
-			zap.Any("proof", envelope.Proof),
+			zap.Any("proof", envelope.GetProof()),
 		)
 	}
 
@@ -214,9 +214,9 @@ func groupMessageHandler(
 			"group message published",
 			zap.Int(
 				"unsigned_originator_envelope_size",
-				len(envelope.UnsignedOriginatorEnvelope),
+				len(envelope.GetUnsignedOriginatorEnvelope()),
 			),
-			zap.Any("proof", envelope.Proof),
+			zap.Any("proof", envelope.GetProof()),
 		)
 	}
 
@@ -309,9 +309,9 @@ func keyPackageHandler(
 			"key package published",
 			zap.Int(
 				"unsigned_originator_envelope_size",
-				len(envelope.UnsignedOriginatorEnvelope),
+				len(envelope.GetUnsignedOriginatorEnvelope()),
 			),
-			zap.Any("proof", envelope.Proof),
+			zap.Any("proof", envelope.GetProof()),
 		)
 	}
 

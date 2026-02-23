@@ -164,7 +164,7 @@ func (o *Oracle) GetGasPrice() int64 {
 }
 
 func (o *Oracle) fetchGasPrice(ctx context.Context) (int64, error) {
-	result, err, _ := o.sfGroup.Do("fetch-gas-price", func() (interface{}, error) {
+	result, err, _ := o.sfGroup.Do("fetch-gas-price", func() (any, error) {
 		if err := o.updateGasPrice(ctx); err != nil {
 			return o.gasPriceDefaultWei, err
 		}

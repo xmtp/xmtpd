@@ -14,7 +14,7 @@ func TestGroupMessageReader(t *testing.T) {
 	db, _, cleanup := testdata.NewMigratorTestDB(t, ctx)
 	defer cleanup()
 
-	reader := migrator.NewGroupMessageReader(db)
+	reader := migrator.NewGroupMessageReader(db, 0)
 
 	cases := []struct {
 		name      string
@@ -118,7 +118,7 @@ func TestKeyPackageReader(t *testing.T) {
 	db, _, cleanup := testdata.NewMigratorTestDB(t, ctx)
 	defer cleanup()
 
-	reader := migrator.NewKeyPackageReader(db)
+	reader := migrator.NewKeyPackageReader(db, 0)
 
 	cases := []struct {
 		name      string
@@ -217,7 +217,7 @@ func TestWelcomeMessageReader(t *testing.T) {
 	db, _, cleanup := testdata.NewMigratorTestDB(t, ctx)
 	defer cleanup()
 
-	reader := migrator.NewWelcomeMessageReader(db)
+	reader := migrator.NewWelcomeMessageReader(db, 0)
 
 	cases := []struct {
 		name      string

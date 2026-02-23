@@ -111,9 +111,9 @@ func TestConcurrentAllocation(t *testing.T) {
 			var allNonces []int64
 			var errors []error
 
-			for i := 0; i < numGoroutines; i++ {
+			for range numGoroutines {
 				wg.Go(func() {
-					for j := 0; j < noncesPerGoroutine; j++ {
+					for range noncesPerGoroutine {
 						nonce, err := tm.manager.GetNonce(ctx)
 						if err != nil {
 							mu.Lock()
@@ -159,10 +159,9 @@ func TestConcurrentAllocation(t *testing.T) {
 			}
 
 			require.Empty(t, duplicates, "No nonce should be allocated more than once")
-			require.Equal(
+			require.Len(
 				t,
-				totalExpected,
-				len(allNonces),
+				allNonces, totalExpected,
 				"Should allocate exactly %d nonces",
 				totalExpected,
 			)
@@ -190,12 +189,12 @@ func TestMixedOperations(t *testing.T) {
 			var allAllocated []int64
 			var errors []error
 
-			for i := 0; i < numGoroutines; i++ {
+			for i := range numGoroutines {
 				wg.Add(1)
 				go func(goroutineID int) {
 					defer wg.Done()
 
-					for j := 0; j < operationsPerGoroutine; j++ {
+					for range operationsPerGoroutine {
 						nonce, err := tm.manager.GetNonce(ctx)
 						if err != nil {
 							mu.Lock()
@@ -237,7 +236,7 @@ func TestMixedOperations(t *testing.T) {
 			// For this test, we verify that the total number of allocations matches expectations
 			// and that no errors occurred during concurrent operations
 			expectedAllocations := numGoroutines * operationsPerGoroutine
-			require.Equal(t, expectedAllocations, len(allAllocated),
+			require.Len(t, allAllocated, expectedAllocations,
 				"Should have allocated exactly %d nonces", expectedAllocations)
 		})
 	}
@@ -264,7 +263,7 @@ func TestSimultaneousAllocation(t *testing.T) {
 			// Phase 1: All goroutines get nonces simultaneously
 			barrier := make(chan struct{})
 
-			for i := 0; i < numGoroutines; i++ {
+			for i := range numGoroutines {
 				wg.Add(1)
 				go func(goroutineID int) {
 					defer wg.Done()
@@ -396,7 +395,7 @@ func TestMultipleInstances(t *testing.T) {
 				// For SQL, all instances share the same database
 				db, _ := testutils.NewDB(t, ctx)
 
-				for i := 0; i < numManagers; i++ {
+				for range numManagers {
 					managerInstances = append(managerInstances,
 						sqlmanager.NewSQLBackedNonceManager(db, logger))
 				}
@@ -501,7 +500,7 @@ func TestFastForward(t *testing.T) {
 			// After fast-forward, new nonces should start from 1000
 			nonce, err := tm.manager.GetNonce(ctx)
 			require.NoError(t, err)
-			require.Equal(t, nonce.Nonce.Int64(), int64(1000))
+			require.Equal(t, int64(1000), nonce.Nonce.Int64())
 			err = nonce.Consume()
 			require.NoError(t, err)
 
@@ -511,7 +510,7 @@ func TestFastForward(t *testing.T) {
 			for range 10 {
 				nonce, err := tm.manager.GetNonce(ctx)
 				require.NoError(t, err)
-				require.EqualValues(t, expectedNonce, nonce.Nonce.Int64())
+				require.Equal(t, expectedNonce, nonce.Nonce.Int64())
 				require.NoError(t, nonce.Consume())
 				expectedNonce++
 			}
@@ -601,7 +600,7 @@ func TestStressTest(t *testing.T) {
 
 			// Verify total allocations
 			expectedAllocations := numWorkers * operationsPerWorker
-			require.Equal(t, expectedAllocations, len(allAllocatedNonces),
+			require.Len(t, allAllocatedNonces, expectedAllocations,
 				"Should have allocated exactly %d nonces", expectedAllocations)
 
 			// Critical test: consumed nonces should be unique (no consumed nonce should appear twice)
@@ -645,14 +644,14 @@ func TestSequentialConsistency(t *testing.T) {
 			errors := make([]error, numWorkers)
 
 			// Launch concurrent workers
-			for i := 0; i < numWorkers; i++ {
+			for i := range numWorkers {
 				wg.Add(1)
 				go func(workerID int) {
 					defer wg.Done()
 
 					workerNonces := make([]int64, 0, noncesPerWorker)
 
-					for j := 0; j < noncesPerWorker; j++ {
+					for range noncesPerWorker {
 						nonce, err := tm.manager.GetNonce(ctx)
 						if err != nil {
 							errors[workerID] = err

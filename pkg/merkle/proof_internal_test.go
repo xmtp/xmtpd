@@ -183,7 +183,7 @@ func TestGetNextProofElement(t *testing.T) {
 
 	// Test error when out of proof elements.
 	p, err = proof.getNextProofElement(&idx)
-	assert.ErrorIs(t, err, ErrNoProofs)
+	require.ErrorIs(t, err, ErrNoProofs)
 	assert.Nil(t, p)
 }
 
@@ -209,7 +209,7 @@ func TestBuildNodeQueue(t *testing.T) {
 	// Build the node queue with 4 leaves, as it's the balanced leaf count for 4 leaves.
 	queue, err := proof.buildNodeQueue(4)
 	require.NoError(t, err)
-	assert.Equal(t, 2, len(queue))
+	assert.Len(t, queue, 2)
 
 	// Check queue order and values.
 	assert.Equal(t, 5, queue[0].index) // 4+1 (balanced leaf count + index)

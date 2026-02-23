@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"time"
 
@@ -58,11 +59,11 @@ func bridgeSendHandler(opts BridgeSendOpts) error {
 		return fmt.Errorf("build logger: %w", err)
 	}
 	if len(opts.Keys) == 0 {
-		return fmt.Errorf("at least one --key is required")
+		return errors.New("at least one --key is required")
 	}
 
 	if opts.TimeoutSec <= 0 {
-		return fmt.Errorf("timeout must be a positive integer")
+		return errors.New("timeout must be a positive integer")
 	}
 
 	if opts.TimeoutSec > 3600 {

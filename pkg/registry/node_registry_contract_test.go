@@ -25,7 +25,7 @@ func requireNodeEquals(t *testing.T, a, b r.Node) {
 }
 
 func requireAllNodesEqual(t *testing.T, a, b []r.Node) {
-	require.Equal(t, len(a), len(b))
+	require.Len(t, b, len(a))
 	for i, node := range a {
 		requireNodeEquals(t, node, b[i])
 	}

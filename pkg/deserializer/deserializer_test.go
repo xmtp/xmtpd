@@ -51,7 +51,7 @@ func TestDeserializeMessagesFromCSV(t *testing.T) {
 		require.True(t, ok)
 
 		if isCommit {
-			require.EqualValues(
+			require.Equal(
 				t,
 				deserializer.ContentTypeCommit,
 				pub.ContentType,
@@ -59,7 +59,7 @@ func TestDeserializeMessagesFromCSV(t *testing.T) {
 				rowNum,
 			)
 		} else {
-			require.NotEqualValues(t, deserializer.ContentTypeCommit, pub.ContentType,
+			require.NotEqual(t, deserializer.ContentTypeCommit, pub.ContentType,
 				"row %d: expected non-commit message, got commit", rowNum)
 		}
 	}
@@ -95,7 +95,7 @@ func TestMinimalHex(t *testing.T) {
 			priv, ok := msg.Body.(*deserializer.PrivateMessageIn)
 			require.True(t, ok, "Expected PrivateMessageIn type")
 
-			require.EqualValues(t, tt.expectedType, priv.ContentType, "Unexpected content_type")
+			require.Equal(t, tt.expectedType, priv.ContentType, "Unexpected content_type")
 		})
 	}
 }

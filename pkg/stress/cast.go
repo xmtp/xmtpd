@@ -23,8 +23,7 @@ func buildCastSendCommand(c *CastSendCommand) string {
 	var cmd strings.Builder
 	fmt.Fprintf(&cmd, "cast send '%s' '%s'",
 		c.ContractAddress,
-		c.Function,
-	)
+		c.Function)
 
 	for _, arg := range c.FunctionArgs {
 		fmt.Fprintf(&cmd, " '%s'", arg)

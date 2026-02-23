@@ -37,7 +37,7 @@ func TestValidateKeyPackages(t *testing.T) {
 	res, err := svc.ValidateKeyPackages(context.Background(), [][]byte{testutils.RandomBytes(32)})
 	require.NoError(t, err)
 	require.Len(t, res, 1)
-	require.Equal(t, mockResponse.InstallationPublicKey, res[0].InstallationKey)
+	require.Equal(t, mockResponse.GetInstallationPublicKey(), res[0].InstallationKey)
 	require.Nil(t, res[0].Credential)
 }
 
@@ -72,6 +72,6 @@ func TestGetAssociationState(t *testing.T) {
 		[]*associations.IdentityUpdate{},
 	)
 	require.NoError(t, err)
-	require.Equal(t, inboxID, res.AssociationState.InboxId)
-	require.Equal(t, address, res.StateDiff.NewMembers[0].GetEthereumAddress())
+	require.Equal(t, inboxID, res.AssociationState.GetInboxId())
+	require.Equal(t, address, res.StateDiff.GetNewMembers()[0].GetEthereumAddress())
 }

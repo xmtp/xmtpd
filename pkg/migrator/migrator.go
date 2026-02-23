@@ -159,12 +159,12 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 
 	payerPrivateKey, err := utils.ParseEcdsaPrivateKey(cfg.options.PayerPrivateKey)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse payer private key: %v", err)
+		return nil, fmt.Errorf("unable to parse payer private key: %w", err)
 	}
 
 	nodeSigningKey, err := utils.ParseEcdsaPrivateKey(cfg.options.NodeSigningKey)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse node signing key: %v", err)
+		return nil, fmt.Errorf("unable to parse node signing key: %w", err)
 	}
 
 	logger := cfg.logger.Named(utils.MigratorLoggerName)
@@ -185,11 +185,20 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 	readDB := db.NewDBHandler(reader, db.WithReadReplica(reader))
 
 	readers := map[string]ISourceReader{
-		groupMessagesTableName:   NewGroupMessageReader(readDB.DB()),
-		inboxLogTableName:        NewInboxLogReader(readDB.DB()),
-		keyPackagesTableName:     NewKeyPackageReader(readDB.DB()),
-		welcomeMessagesTableName: NewWelcomeMessageReader(readDB.DB()),
-		commitMessagesTableName:  NewCommitMessageReader(readDB.DB()),
+		groupMessagesTableName: NewGroupMessageReader(
+			readDB.DB(),
+			cfg.options.LowerLimits.Get(config.MigrationSourceGroupMessages),
+		),
+		inboxLogTableName: NewInboxLogReader(readDB.DB()),
+		keyPackagesTableName: NewKeyPackageReader(
+			readDB.DB(),
+			cfg.options.LowerLimits.Get(config.MigrationSourceKeyPackages),
+		),
+		welcomeMessagesTableName: NewWelcomeMessageReader(
+			readDB.DB(),
+			cfg.options.LowerLimits.Get(config.MigrationSourceWelcomeMessages),
+		),
+		commitMessagesTableName: NewCommitMessageReader(readDB.DB()),
 	}
 
 	transformer := NewTransformer(cfg.feeCalculator, payerPrivateKey, nodeSigningKey)
@@ -229,7 +238,7 @@ func (m *Migrator) Start() error {
 	defer m.mu.Unlock()
 
 	if m.running.Swap(true) {
-		return fmt.Errorf("migration service is already running")
+		return errors.New("migration service is already running")
 	}
 
 	if err := m.startKeyPackagesWorker(); err != nil {
@@ -262,7 +271,7 @@ func (m *Migrator) Stop() error {
 	defer m.mu.Unlock()
 
 	if !m.running.Swap(false) {
-		return fmt.Errorf("migration service is not running")
+		return errors.New("migration service is not running")
 	}
 
 	m.cancel()

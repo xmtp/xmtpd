@@ -4,7 +4,6 @@ package apiutils
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"net"
 	"net/http"
 	"testing"
@@ -13,7 +12,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/xmtp/xmtpd/pkg/config"
-	"github.com/xmtp/xmtpd/pkg/db"
+	dbPkg "github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/interceptors/server"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -53,7 +52,7 @@ func NewTestGRPCReplicationAPIClient(
 
 	client, err := utils.NewConnectGRPCReplicationAPIClient(
 		t.Context(),
-		fmt.Sprintf("http://localhost:%s", port),
+		"http://localhost:"+port,
 		extraDialOpts...,
 	)
 	if err != nil {
@@ -73,7 +72,7 @@ func NewTestGRPCGatewayAPIClient(
 
 	client, err := utils.NewConnectGatewayAPIClient(
 		t.Context(),
-		fmt.Sprintf("http://localhost:%s", port),
+		"http://localhost:"+port,
 		extraDialOpts...,
 	)
 	if err != nil {
@@ -97,7 +96,7 @@ func NewTestGRPCMetadataAPIClient(
 
 	client, err := utils.NewConnectMetadataAPIClient(
 		t.Context(),
-		fmt.Sprintf("http://localhost:%s", port),
+		"http://localhost:"+port,
 		options...,
 	)
 	if err != nil {
@@ -164,7 +163,7 @@ func NewTestAPIServer(
 		ctx, cancel           = context.WithCancel(context.Background())
 		log                   = testutils.NewLog(t)
 		sqlDB, _              = testutils.NewRawDB(t, ctx)
-		db                    = db.NewDBHandler(sqlDB)
+		db                    = dbPkg.NewDBHandler(sqlDB)
 		mockMessagePublisher  = blockchain.NewMockIBlockchainPublisher(t)
 		mockValidationService = mlsvalidateMocks.NewMockMLSValidationService(t)
 	)
@@ -217,6 +216,7 @@ func NewTestAPIServer(
 			},
 			false,
 			10*time.Millisecond,
+			dbPkg.NewCachedOriginatorList(db.ReadQuery(), 100*time.Millisecond, log),
 		)
 		require.NoError(t, err)
 

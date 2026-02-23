@@ -163,7 +163,7 @@ func (s *Service) GetPayerInfo(
 		)
 	}
 
-	if len(req.Msg.PayerAddresses) == 0 {
+	if len(req.Msg.GetPayerAddresses()) == 0 {
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
 			errors.New("payer_addresses cannot be empty"),
@@ -172,7 +172,7 @@ func (s *Service) GetPayerInfo(
 
 	// Map the granularity enum to the internal type
 	var groupBy PayerInfoGroupBy
-	switch req.Msg.Granularity {
+	switch req.Msg.GetGranularity() {
 	case metadata_api.PayerInfoGranularity_PAYER_INFO_GRANULARITY_HOUR:
 		groupBy = PayerInfoGroupByHour
 	case metadata_api.PayerInfoGranularity_PAYER_INFO_GRANULARITY_DAY:
@@ -188,11 +188,11 @@ func (s *Service) GetPayerInfo(
 	})
 
 	// Look up each payer address and fetch their info
-	for _, address := range req.Msg.PayerAddresses {
+	for _, address := range req.Msg.GetPayerAddresses() {
 		// Look up payer ID from the database
 		payerID, err := s.payerInfoFetcher.GetPayerByAddress(ctx, address)
 		if err != nil {
-			if err == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) {
 				return nil, connect.NewError(
 					connect.CodeNotFound,
 					fmt.Errorf("payer address not found: %s", address),

@@ -49,7 +49,7 @@ func NewEnvelopesGenerator(
 	privateKey, err := utils.ParseEcdsaPrivateKey(privateKeyString)
 	if err != nil {
 		cancel()
-		return nil, fmt.Errorf("unable to parse payer private key: %v", err)
+		return nil, fmt.Errorf("unable to parse payer private key: %w", err)
 	}
 
 	var client message_apiconnect.ReplicationApiClient
@@ -122,7 +122,7 @@ func (e *EnvelopesGenerator) PublishWelcomeMessageEnvelopes(
 
 	payerEnvelopes, err := e.buildAndSignPayerEnvelopes(clientEnvelopes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build and sign payer envelopes: %v", err)
+		return nil, fmt.Errorf("failed to build and sign payer envelopes: %w", err)
 	}
 
 	return e.publishPayerEnvelopes(ctx, payerEnvelopes)
@@ -141,7 +141,7 @@ func (e *EnvelopesGenerator) PublishKeyPackageEnvelopes(
 
 	payerEnvelopes, err := e.buildAndSignPayerEnvelopes(clientEnvelopes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build and sign payer envelopes: %v", err)
+		return nil, fmt.Errorf("failed to build and sign payer envelopes: %w", err)
 	}
 
 	return e.publishPayerEnvelopes(ctx, payerEnvelopes)
@@ -161,7 +161,7 @@ func (e *EnvelopesGenerator) PublishGroupMessageEnvelopes(
 
 	payerEnvelopes, err := e.buildAndSignPayerEnvelopes(clientEnvelopes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build and sign payer envelopes: %v", err)
+		return nil, fmt.Errorf("failed to build and sign payer envelopes: %w", err)
 	}
 
 	return e.publishPayerEnvelopes(ctx, payerEnvelopes)
@@ -178,10 +178,10 @@ func (e *EnvelopesGenerator) publishPayerEnvelopes(
 		}),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to publish payer envelopes: %v", err)
+		return nil, fmt.Errorf("failed to publish payer envelopes: %w", err)
 	}
 
-	return r.Msg.OriginatorEnvelopes, nil
+	return r.Msg.GetOriginatorEnvelopes(), nil
 }
 
 func (e *EnvelopesGenerator) buildAndSignPayerEnvelopes(

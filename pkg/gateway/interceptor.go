@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -43,7 +44,7 @@ func (i *GatewayInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc
 		if err != nil {
 			return nil, connect.NewError(
 				connect.CodeInternal,
-				fmt.Errorf("failed to get identity: %v", err),
+				fmt.Errorf("failed to get identity: %w", err),
 			)
 		}
 
@@ -54,13 +55,13 @@ func (i *GatewayInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc
 			if !ok {
 				return nil, connect.NewError(
 					connect.CodeInternal,
-					fmt.Errorf("invalid request type"),
+					errors.New("invalid request type"),
 				)
 			}
 
 			// Create a summary of the request
 			summary := PublishRequestSummary{
-				TotalEnvelopes: len(publishReq.Envelopes),
+				TotalEnvelopes: len(publishReq.GetEnvelopes()),
 				// TODO: Calculate cost estimates
 			}
 
@@ -79,7 +80,7 @@ func (i *GatewayInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc
 						zap.String(identityKindField, string(identity.Kind)))
 					return nil, connect.NewError(
 						connect.CodeInternal,
-						fmt.Errorf("authorization error: %v", err),
+						fmt.Errorf("authorization error: %w", err),
 					)
 				}
 
@@ -89,7 +90,7 @@ func (i *GatewayInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc
 						zap.String(identityKindField, string(identity.Kind)))
 					return nil, connect.NewError(
 						connect.CodePermissionDenied,
-						fmt.Errorf("unauthorized"),
+						errors.New("unauthorized"),
 					)
 				}
 			}
@@ -115,7 +116,7 @@ func (i *GatewayInterceptor) WrapStreamingHandler(
 			i.logger.Error("failed to get identity", zap.Error(err))
 			return connect.NewError(
 				connect.CodeInternal,
-				fmt.Errorf("failed to get identity: %v", err),
+				fmt.Errorf("failed to get identity: %w", err),
 			)
 		}
 
@@ -132,7 +133,7 @@ func returnRetryAfterError(rlError GatewayServiceError) error {
 
 	retryAfter := rlError.RetryAfter()
 	if retryAfter != nil {
-		retryAfterValue := fmt.Sprintf("%d", int(retryAfter.Seconds()))
+		retryAfterValue := strconv.Itoa(int(retryAfter.Seconds()))
 		connectErr.Meta().Set("Retry-After", retryAfterValue)
 	}
 

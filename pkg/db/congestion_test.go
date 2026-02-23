@@ -46,11 +46,11 @@ func TestGet5MinutesOfCongestion(t *testing.T) {
 	congestion, err := db.Get5MinutesOfCongestion(ctx, querier, originatorID, endMinute)
 	require.NoError(t, err)
 
-	require.Equal(t, congestion[0], int32(0))
-	require.Equal(t, congestion[1], int32(1))
-	require.Equal(t, congestion[2], int32(1))
-	require.Equal(t, congestion[3], int32(0))
-	require.Equal(t, congestion[4], int32(0))
+	require.Equal(t, int32(0), congestion[0])
+	require.Equal(t, int32(1), congestion[1])
+	require.Equal(t, int32(1), congestion[2])
+	require.Equal(t, int32(0), congestion[3])
+	require.Equal(t, int32(0), congestion[4])
 }
 
 func TestMultipleIncrements(t *testing.T) {
@@ -66,11 +66,11 @@ func TestMultipleIncrements(t *testing.T) {
 	congestion, err := db.Get5MinutesOfCongestion(ctx, querier, originatorID, endMinute)
 	require.NoError(t, err)
 
-	require.Equal(t, congestion[0], int32(3))
-	require.Equal(t, congestion[1], int32(0))
-	require.Equal(t, congestion[2], int32(0))
-	require.Equal(t, congestion[3], int32(0))
-	require.Equal(t, congestion[4], int32(0))
+	require.Equal(t, int32(3), congestion[0])
+	require.Equal(t, int32(0), congestion[1])
+	require.Equal(t, int32(0), congestion[2])
+	require.Equal(t, int32(0), congestion[3])
+	require.Equal(t, int32(0), congestion[4])
 }
 
 func TestNoCongestion(t *testing.T) {
@@ -82,5 +82,5 @@ func TestNoCongestion(t *testing.T) {
 	congestion, err := db.Get5MinutesOfCongestion(ctx, querier, originatorID, endMinute)
 	require.NoError(t, err)
 
-	require.Equal(t, congestion, [5]int32{0, 0, 0, 0, 0})
+	require.Equal(t, [5]int32{0, 0, 0, 0, 0}, congestion)
 }

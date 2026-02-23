@@ -145,7 +145,7 @@ func TestSyncWorkerSuccess(t *testing.T) {
 	err := origStream.listen()
 	var retryAfter *backoff.RetryAfterError
 	require.ErrorAs(t, err, &retryAfter)
-	require.Equal(t, retryAfter.Duration.Seconds(), float64(1))
+	require.InEpsilon(t, float64(1), retryAfter.Duration.Seconds(), 0.001)
 
 	require.Eventually(t, func() bool {
 		envs := getAllMessagesForOriginator(t, dbStorerInstance, nodeID)
@@ -184,7 +184,7 @@ func TestSyncWorkerIgnoresInvalidEnvelopes(t *testing.T) {
 	// Give the write worker a chance to save the envelope
 	time.Sleep(50 * time.Millisecond)
 	envs := getAllMessagesForOriginator(t, dbStorerInstance, nodeID)
-	require.Len(t, envs, 0)
+	require.Empty(t, envs)
 }
 
 func TestEnvelopeSinkShutdownViaClose(t *testing.T) {
@@ -288,7 +288,7 @@ func TestSyncWorkerRejectsEnvelopeFromUnpermittedOriginator(t *testing.T) {
 	// Ensure nothing got stored
 	time.Sleep(50 * time.Millisecond) // give sink a moment (defensive)
 	envs := getAllMessagesForOriginator(t, dbStorerInstance, badOriginatorID)
-	require.Len(t, envs, 0)
+	require.Empty(t, envs)
 }
 
 func TestSyncWorkerAcceptsEnvelopeFromPermittedOriginator(t *testing.T) {

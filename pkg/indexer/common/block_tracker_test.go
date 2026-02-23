@@ -97,11 +97,11 @@ func TestConcurrentUpdates(t *testing.T) {
 	wg := sync.WaitGroup{}
 
 	// Launch multiple goroutines to update the block number
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		wg.Add(1)
 		go func(startBlock int) {
 			defer wg.Done()
-			for j := 0; j < updatesPerGoroutine; j++ {
+			for j := range updatesPerGoroutine {
 				blockNum := uint64(startBlock + j)
 				err := tracker.UpdateLatestBlock(
 					ctx,

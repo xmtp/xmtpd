@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"regexp"
+	"strconv"
 	"sync"
 	"time"
 
@@ -57,8 +58,9 @@ func parsePgxPoolConfig(dsn string, statementTimeout time.Duration) (*pgxpool.Co
 		return nil, err
 	}
 
-	config.ConnConfig.RuntimeParams["statement_timeout"] = fmt.Sprint(
+	config.ConnConfig.RuntimeParams["statement_timeout"] = strconv.FormatInt(
 		statementTimeout.Milliseconds(),
+		10,
 	)
 
 	return config, nil

@@ -66,7 +66,7 @@ func newTransformerTest(t *testing.T) *transformerTest {
 func TestTransformGroupMessage(t *testing.T) {
 	var (
 		test   = newTransformerTest(t)
-		reader = migrator.NewGroupMessageReader(test.db)
+		reader = migrator.NewGroupMessageReader(test.db, 0)
 	)
 
 	defer test.cleanup()
@@ -119,12 +119,12 @@ func TestTransformGroupMessage(t *testing.T) {
 
 	// Originator node checks: fees.
 	// Base fee is calculated based on message size and retention days.
-	require.Greater(t, envelope.UnsignedOriginatorEnvelope.Proto().BaseFeePicodollars, uint64(0))
+	require.Positive(t, envelope.UnsignedOriginatorEnvelope.Proto().GetBaseFeePicodollars())
 	// Migrator does not pay congestion fees.
 	require.Equal(
 		t,
 		uint64(0),
-		envelope.UnsignedOriginatorEnvelope.Proto().CongestionFeePicodollars,
+		envelope.UnsignedOriginatorEnvelope.Proto().GetCongestionFeePicodollars(),
 	)
 
 	// Signature checks.
@@ -188,12 +188,12 @@ func TestTransformCommitMessage(t *testing.T) {
 
 	// Originator node checks: fees.
 	// Blockchain-bound messages (commits) don't have fees calculated.
-	require.Equal(t, uint64(0), envelope.UnsignedOriginatorEnvelope.Proto().BaseFeePicodollars)
+	require.Equal(t, uint64(0), envelope.UnsignedOriginatorEnvelope.Proto().GetBaseFeePicodollars())
 	// Migrator does not pay congestion fees.
 	require.Equal(
 		t,
 		uint64(0),
-		envelope.UnsignedOriginatorEnvelope.Proto().CongestionFeePicodollars,
+		envelope.UnsignedOriginatorEnvelope.Proto().GetCongestionFeePicodollars(),
 	)
 
 	// Signature checks.
@@ -247,7 +247,7 @@ func TestTransformInboxLog(t *testing.T) {
 	require.Equal(
 		t,
 		hex.EncodeToString(migratedInboxLog.InboxID[:]),
-		identityUpdatePayload.IdentityUpdate.InboxId,
+		identityUpdatePayload.IdentityUpdate.GetInboxId(),
 	)
 
 	migratedIdentityUpdateProto := &associations.IdentityUpdate{}
@@ -268,12 +268,12 @@ func TestTransformInboxLog(t *testing.T) {
 
 	// Originator node checks: fees.
 	// Blockchain-bound messages (inbox logs) don't have fees calculated.
-	require.Equal(t, uint64(0), envelope.UnsignedOriginatorEnvelope.Proto().BaseFeePicodollars)
+	require.Equal(t, uint64(0), envelope.UnsignedOriginatorEnvelope.Proto().GetBaseFeePicodollars())
 	// Migrator does not pay congestion fees.
 	require.Equal(
 		t,
 		uint64(0),
-		envelope.UnsignedOriginatorEnvelope.Proto().CongestionFeePicodollars,
+		envelope.UnsignedOriginatorEnvelope.Proto().GetCongestionFeePicodollars(),
 	)
 
 	// Signature checks.
@@ -284,7 +284,7 @@ func TestTransformInboxLog(t *testing.T) {
 func TestTransformKeyPackage(t *testing.T) {
 	var (
 		test   = newTransformerTest(t)
-		reader = migrator.NewKeyPackageReader(test.db)
+		reader = migrator.NewKeyPackageReader(test.db, 0)
 	)
 
 	defer test.cleanup()
@@ -326,7 +326,7 @@ func TestTransformKeyPackage(t *testing.T) {
 
 	require.Equal(
 		t,
-		uploadKeyPackagePayload.UploadKeyPackage.KeyPackage.GetKeyPackageTlsSerialized(),
+		uploadKeyPackagePayload.UploadKeyPackage.GetKeyPackage().GetKeyPackageTlsSerialized(),
 		migratedInstallation.KeyPackage,
 	)
 
@@ -339,12 +339,12 @@ func TestTransformKeyPackage(t *testing.T) {
 
 	// Originator node checks: fees.
 	// Base fee is calculated based on message size and retention days.
-	require.Greater(t, envelope.UnsignedOriginatorEnvelope.Proto().BaseFeePicodollars, uint64(0))
+	require.Positive(t, envelope.UnsignedOriginatorEnvelope.Proto().GetBaseFeePicodollars())
 	// Migrator does not pay congestion fees.
 	require.Equal(
 		t,
 		uint64(0),
-		envelope.UnsignedOriginatorEnvelope.Proto().CongestionFeePicodollars,
+		envelope.UnsignedOriginatorEnvelope.Proto().GetCongestionFeePicodollars(),
 	)
 
 	// Signature checks.
@@ -355,7 +355,7 @@ func TestTransformKeyPackage(t *testing.T) {
 func TestTransformWelcomeMessage(t *testing.T) {
 	var (
 		test   = newTransformerTest(t)
-		reader = migrator.NewWelcomeMessageReader(test.db)
+		reader = migrator.NewWelcomeMessageReader(test.db, 0)
 	)
 
 	defer test.cleanup()
@@ -400,13 +400,13 @@ func TestTransformWelcomeMessage(t *testing.T) {
 
 	welcomeMessageV1 := welcomeMessagePayload.WelcomeMessage.GetV1()
 	require.NotNil(t, welcomeMessageV1)
-	require.Equal(t, migratedWelcomeMessage.InstallationKey, welcomeMessageV1.InstallationKey)
-	require.Equal(t, migratedWelcomeMessage.Data, welcomeMessageV1.Data)
-	require.Equal(t, migratedWelcomeMessage.HpkePublicKey, welcomeMessageV1.HpkePublicKey)
+	require.Equal(t, migratedWelcomeMessage.InstallationKey, welcomeMessageV1.GetInstallationKey())
+	require.Equal(t, migratedWelcomeMessage.Data, welcomeMessageV1.GetData())
+	require.Equal(t, migratedWelcomeMessage.HpkePublicKey, welcomeMessageV1.GetHpkePublicKey())
 	require.Equal(
 		t,
 		migratedWelcomeMessage.WrapperAlgorithm,
-		int16(welcomeMessageV1.WrapperAlgorithm),
+		int16(welcomeMessageV1.GetWrapperAlgorithm()),
 	)
 
 	// Payer checks: expiration.
@@ -418,12 +418,12 @@ func TestTransformWelcomeMessage(t *testing.T) {
 
 	// Originator node checks: fees.
 	// Base fee is calculated based on message size and retention days.
-	require.Greater(t, envelope.UnsignedOriginatorEnvelope.Proto().BaseFeePicodollars, uint64(0))
+	require.Positive(t, envelope.UnsignedOriginatorEnvelope.Proto().GetBaseFeePicodollars())
 	// Migrator does not pay congestion fees.
 	require.Equal(
 		t,
 		uint64(0),
-		envelope.UnsignedOriginatorEnvelope.Proto().CongestionFeePicodollars,
+		envelope.UnsignedOriginatorEnvelope.Proto().GetCongestionFeePicodollars(),
 	)
 
 	// Signature checks.
@@ -487,10 +487,10 @@ func checkOriginatorSignature(
 	require.NoError(t, err)
 
 	// Both signatures (recovered and generated) are the same.
-	require.Equal(t, recoveredSignature.Bytes, generatedSignature)
+	require.Equal(t, recoveredSignature.GetBytes(), generatedSignature)
 
 	// Both addresses are the same.
-	publicKey, err := crypto.SigToPub(hash, recoveredSignature.Bytes)
+	publicKey, err := crypto.SigToPub(hash, recoveredSignature.GetBytes())
 	require.NoError(t, err)
 	require.Equal(t, nodeAddress, crypto.PubkeyToAddress(*publicKey).Hex())
 }

@@ -164,7 +164,7 @@ func generateEnvelopes(
 
 	topic := topic.NewTopic(
 		topic.TopicKindGroupMessagesV1,
-		[]byte(fmt.Sprintf("generic-topic-%v", rand.Int())),
+		fmt.Appendf(nil, "generic-topic-%v", rand.Int()),
 	)
 
 	out := make([]queries.InsertGatewayEnvelopeParams, 0, len(seqIDs))

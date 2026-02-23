@@ -124,7 +124,7 @@ func TestGetCursorBasic(t *testing.T) {
 		200: 1,
 	}
 
-	require.Equal(t, expectedCursor, cursor.Msg.LatestSync.NodeIdToSequenceId)
+	require.Equal(t, expectedCursor, cursor.Msg.GetLatestSync().GetNodeIdToSequenceId())
 
 	insertAdditionalRows(t, db)
 	require.Eventually(t, func() bool {
@@ -147,7 +147,10 @@ func TestGetCursorBasic(t *testing.T) {
 			return false
 		}
 
-		return assert.ObjectsAreEqual(expectedCursor, cursor.Msg.LatestSync.NodeIdToSequenceId)
+		return assert.ObjectsAreEqual(
+			expectedCursor,
+			cursor.Msg.GetLatestSync().GetNodeIdToSequenceId(),
+		)
 	}, 500*time.Millisecond, 50*time.Millisecond)
 }
 
@@ -176,7 +179,7 @@ func TestSubscribeSyncCursorBasic(t *testing.T) {
 		200: 1,
 	}
 
-	require.Equal(t, expectedCursor, firstUpdate.LatestSync.NodeIdToSequenceId)
+	require.Equal(t, expectedCursor, firstUpdate.GetLatestSync().GetNodeIdToSequenceId())
 
 	insertAdditionalRows(t, db)
 
@@ -189,7 +192,10 @@ func TestSubscribeSyncCursorBasic(t *testing.T) {
 		if stream.Receive() {
 			cursor := stream.Msg()
 			require.NotNil(t, cursor)
-			return assert.ObjectsAreEqual(expectedCursor, cursor.LatestSync.NodeIdToSequenceId)
+			return assert.ObjectsAreEqual(
+				expectedCursor,
+				cursor.GetLatestSync().GetNodeIdToSequenceId(),
+			)
 		}
 		return false
 	}, 2000*time.Millisecond, 10*time.Millisecond)

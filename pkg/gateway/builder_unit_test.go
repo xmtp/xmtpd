@@ -9,6 +9,7 @@ import (
 	grpcprom "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/config"
 	mockblockchain "github.com/xmtp/xmtpd/pkg/mocks/blockchain"
 	mocknoncemanager "github.com/xmtp/xmtpd/pkg/mocks/noncemanager"
@@ -120,7 +121,7 @@ func TestBuilderConfigValidation(t *testing.T) {
 		builder := NewGatewayServiceBuilder(nil)
 		service, err := builder.Build()
 
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, ErrMissingConfig, err)
 		assert.Nil(t, service)
 	})
@@ -139,7 +140,7 @@ func TestBuilderConfigValidation(t *testing.T) {
 			WithLogger(mockLogger).
 			Build()
 
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, service)
 		assert.Contains(t, err.Error(), "failed to parse gateway private key")
 	})
@@ -159,7 +160,7 @@ func TestBuilderConfigValidation(t *testing.T) {
 			WithLogger(mockLogger).
 			Build()
 
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, service)
 		// The error could be from parsing or connection, check that it's Redis-related
 		assert.Contains(t, err.Error(), "redis")
@@ -180,7 +181,7 @@ func TestBuilderConfigValidation(t *testing.T) {
 			WithLogger(mockLogger).
 			Build()
 
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, service)
 		assert.Contains(t, err.Error(), "redis URL is empty")
 	})

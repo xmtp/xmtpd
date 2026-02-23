@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -90,7 +91,7 @@ func appPauseGetHandler(target options.Target) error {
 		}
 		logger.Info("app-chain gateway pause", zap.Bool("paused", p))
 	default:
-		return fmt.Errorf("target must be identity|group|app-chain-gateway")
+		return errors.New("target must be identity|group|app-chain-gateway")
 	}
 
 	return nil
@@ -146,7 +147,7 @@ func appPauseUpdateHandler(target options.Target) error {
 		}
 		logger.Info("app-chain gateway pause updated")
 	default:
-		return fmt.Errorf("target must be identity|group|app-chain-gateway")
+		return errors.New("target must be identity|group|app-chain-gateway")
 	}
 
 	return nil
@@ -345,7 +346,7 @@ func appPayloadSizeGetHandler(target options.Target, bound options.PayloadBound)
 			)
 		}
 	default:
-		return fmt.Errorf("target must be identity|group")
+		return errors.New("target must be identity|group")
 	}
 	return nil
 }
@@ -411,7 +412,7 @@ func appPayloadSizeUpdateHandler(
 			}
 		}
 	default:
-		return fmt.Errorf("target must be identity|group")
+		return errors.New("target must be identity|group")
 	}
 
 	logger.Info("payload size updated",

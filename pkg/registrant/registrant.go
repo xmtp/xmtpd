@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -153,7 +154,7 @@ func getRegistryRecord(
 		return e.SigningKey.Equal(&privateKey.PublicKey)
 	})
 	if i == -1 {
-		return nil, fmt.Errorf("no matching public key found in registry")
+		return nil, errors.New("no matching public key found in registry")
 	}
 
 	return &records[i], nil
@@ -185,10 +186,10 @@ func ensureDatabaseMatches(ctx context.Context, db *queries.Queries, record *reg
 		return fmt.Errorf("unable to retrieve node info from database: %w", err)
 	}
 	if nodeInfo.NodeID != int32(record.NodeID) {
-		return fmt.Errorf("registry node ID does not match ID in database")
+		return errors.New("registry node ID does not match ID in database")
 	}
 	if !bytes.Equal(nodeInfo.PublicKey, crypto.FromECDSAPub(record.SigningKey)) {
-		return fmt.Errorf("registry public key does not match public key in database")
+		return errors.New("registry public key does not match public key in database")
 	}
 
 	return nil

@@ -42,7 +42,7 @@ func TestRedisGetNonce_RevertMany(t *testing.T) {
 	err = nonceManager.Replenish(t.Context(), *big.NewInt(0))
 	require.NoError(t, err)
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		nonce, err := nonceManager.GetNonce(t.Context())
 		require.NoError(t, err)
 		require.EqualValues(t, 0, nonce.Nonce.Int64())
@@ -64,7 +64,7 @@ func TestRedisGetNonce_ConsumeMany(t *testing.T) {
 	err = nonceManager.Replenish(t.Context(), *big.NewInt(0))
 	require.NoError(t, err)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		nonce, err := nonceManager.GetNonce(t.Context())
 		require.NoError(t, err)
 		require.EqualValues(t, i, nonce.Nonce.Int64())

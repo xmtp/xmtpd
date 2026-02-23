@@ -26,7 +26,7 @@ func TestBalancedTrees(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create leaves.
 			leaves := make([]merkle.Leaf, tc.leafCount)
-			for i := 0; i < tc.leafCount; i++ {
+			for i := range tc.leafCount {
 				leaves[i] = []byte(tc.name + "_leaf" + string(rune('A'+i)))
 			}
 
@@ -43,15 +43,14 @@ func TestBalancedTrees(t *testing.T) {
 			assert.NotNil(t, tree.Root(), "Root should not be nil")
 
 			expectedArraySize := tc.leafCount * 2
-			assert.Equal(
+			assert.Len(
 				t,
-				expectedArraySize,
-				len(tree.Tree()),
+				tree.Tree(), expectedArraySize,
 				"Tree array size should be 2*tc.leafCount",
 			)
 
 			// Check that all leaves are present.
-			for i := 0; i < tc.leafCount; i++ {
+			for i := range tc.leafCount {
 				leafIndex := tc.leafCount + i
 				assert.NotNil(t, tree.Tree()[leafIndex], "Leaf node should not be nil")
 				assert.Equal(
@@ -89,7 +88,7 @@ func TestUnbalancedTrees(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create leaves.
 			leaves := make([]merkle.Leaf, tc.leafCount)
-			for i := 0; i < tc.leafCount; i++ {
+			for i := range tc.leafCount {
 				leaves[i] = []byte(tc.name + "_leaf" + string(rune('A'+i)))
 			}
 
@@ -109,15 +108,14 @@ func TestUnbalancedTrees(t *testing.T) {
 			require.NoError(t, err)
 
 			expectedArraySize := balancedLeafCount << 1
-			assert.Equal(
+			assert.Len(
 				t,
-				expectedArraySize,
-				len(tree.Tree()),
+				tree.Tree(), expectedArraySize,
 				"Tree array size should be balancedLeafCount + tc.leafCount",
 			)
 
 			// Check that all leaves are present.
-			for i := 0; i < tc.leafCount; i++ {
+			for i := range tc.leafCount {
 				leafIndex := balancedLeafCount + i
 				assert.NotNil(t, tree.Tree()[leafIndex], "Leaf node should not be nil")
 				assert.Equal(
@@ -147,7 +145,7 @@ func TestLargeTrees(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			leaves := make([]merkle.Leaf, tc.leafCount)
-			for i := 0; i < tc.leafCount; i++ {
+			for i := range tc.leafCount {
 				leaves[i] = []byte{
 					byte(i & 0xFF),
 					byte((i >> 8) & 0xFF),
@@ -171,15 +169,14 @@ func TestLargeTrees(t *testing.T) {
 			// Verify tree structure size.
 			balancedLeafCount, err := merkle.CalculateBalancedNodesCount(tc.leafCount)
 			require.NoError(t, err)
-			assert.Equal(
+			assert.Len(
 				t,
-				tc.expectedTreeSize,
-				len(tree.Tree()),
+				tree.Tree(), tc.expectedTreeSize,
 				"Tree array size should be tc.expectedTreeSize",
 			)
 
 			// Sample testing.
-			for i := 0; i < 5; i++ {
+			for i := range 5 {
 				idx := i * (tc.leafCount / 5)
 				if idx >= tc.leafCount {
 					idx = tc.leafCount - 1
@@ -267,7 +264,7 @@ func TestTreeWithEmptyLeaves(t *testing.T) {
 
 	leafCount, err := merkle.CalculateBalancedNodesCount(len(leaves))
 	require.NoError(t, err)
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		leafIndex := leafCount + i
 		assert.Equal(
 			t,
@@ -286,8 +283,8 @@ func TestTreeWithNilLeaves(t *testing.T) {
 	}
 
 	_, err := merkle.NewMerkleTree(leaves)
-	assert.Error(t, err, "Should error on nil leaves")
-	assert.ErrorAs(t, err, &merkle.ErrNilLeaf)
+	require.Error(t, err, "Should error on nil leaves")
+	assert.ErrorIs(t, err, merkle.ErrNilLeaf)
 }
 
 func TestTreeInternals(t *testing.T) {
@@ -315,10 +312,9 @@ func TestTreeInternals(t *testing.T) {
 
 	// For a 3-leaf tree, the balanced leaf count is 4
 	// So the tree array should have size 8 (2*4)
-	assert.Equal(
+	assert.Len(
 		t,
-		8,
-		len(internalTree),
+		internalTree, 8,
 		"Tree array should have size balancedLeafCount + leafCount",
 	)
 	assert.True(t, bytes.Equal(tree.Root(), internalTree[0]), "Root should be at index 0")
@@ -411,12 +407,15 @@ func TestCalculateBalancedLeafCount(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := merkle.CalculateBalancedNodesCount(tt.input)
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				if result != tt.expected {
-					t.Errorf("CalculateBalancedLeafCount(%d) = %d, expected %d",
-						tt.input, result, tt.expected,
+					t.Errorf(
+						"CalculateBalancedLeafCount(%d) = %d, expected %d",
+						tt.input,
+						result,
+						tt.expected,
 					)
 				}
 			}
@@ -433,7 +432,7 @@ func TestCalculateBalancedLeafCountError(t *testing.T) {
 	// This is larger than max uint32 and should cause an error
 	massiveInput := int(^uint32(0)) + 1
 	_, err := merkle.CalculateBalancedNodesCount(massiveInput)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "count must be less than or equal than max int32")
 }
 

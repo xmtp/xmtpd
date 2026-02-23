@@ -184,7 +184,7 @@ func TestPublishIdentityUpdate(t *testing.T) {
 			require.NotNil(t, logMessage)
 			require.Equal(t, tt.inboxID, logMessage.InboxId)
 			require.Equal(t, tt.identityUpdate, logMessage.Update)
-			require.Greater(t, logMessage.SequenceId, uint64(0))
+			require.Positive(t, logMessage.SequenceId)
 			require.NotNil(t, logMessage.Raw.TxHash)
 		})
 	}
@@ -251,7 +251,7 @@ func TestBootstrapIdentityUpdate(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.NotNil(t, logMessages)
-			require.Equal(t, len(tt.inboxIDs), len(logMessages))
+			require.Len(t, logMessages, len(tt.inboxIDs))
 			for i, logMessage := range logMessages {
 				require.Equal(t, tt.inboxIDs[i], logMessage.InboxId)
 				require.Equal(t, tt.updates[i], logMessage.Update)
@@ -307,7 +307,7 @@ func TestPublishGroupMessage(t *testing.T) {
 			require.NotNil(t, logMessage)
 			require.Equal(t, tt.groupID, logMessage.GroupId)
 			require.Equal(t, tt.message, logMessage.Message)
-			require.Greater(t, logMessage.SequenceId, uint64(0))
+			require.Positive(t, logMessage.SequenceId)
 			require.NotNil(t, logMessage.Raw.TxHash)
 		})
 	}
@@ -374,7 +374,7 @@ func TestBootstrapGroupMessages(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.NotNil(t, logMessages)
-			require.Equal(t, len(tt.groupIDs), len(logMessages))
+			require.Len(t, logMessages, len(tt.groupIDs))
 			for i, logMessage := range logMessages {
 				require.Equal(t, tt.groupIDs[i], logMessage.GroupId)
 				require.Equal(t, tt.messages[i], logMessage.Message)
@@ -392,7 +392,7 @@ func TestPublishGroupMessageConcurrent(t *testing.T) {
 	var wg sync.WaitGroup
 	errSet := sync.Map{}
 
-	for i := 0; i < parallelRuns; i++ {
+	for range parallelRuns {
 		wg.Go(func() {
 			_, err := publisher.PublishGroupMessage(
 				context.Background(),

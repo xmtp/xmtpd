@@ -280,7 +280,7 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 		}
 
 		if gatewayAPIService == nil {
-			return nil, fmt.Errorf("gateway api service is nil")
+			return nil, errors.New("gateway api service is nil")
 		}
 
 		b.logger.Info(
@@ -339,7 +339,7 @@ func SetupRedisClient(
 ) (redis.UniversalClient, error) {
 	redisURL := cfg.RedisURL
 	if redisURL == "" {
-		return nil, fmt.Errorf("redis URL is empty")
+		return nil, errors.New("redis URL is empty")
 	}
 
 	opts, err := redis.ParseURL(redisURL)

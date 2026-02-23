@@ -184,10 +184,10 @@ func TestRates_WriteThenRead(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.EqualValues(t, uint64(want.MessageFee), msg2)
-	require.EqualValues(t, uint64(want.StorageFee), store2)
-	require.EqualValues(t, uint64(want.CongestionFee), cong2)
-	require.EqualValues(t, want.TargetRatePerMinute, target2)
+	require.Equal(t, uint64(want.MessageFee), msg2)
+	require.Equal(t, uint64(want.StorageFee), store2)
+	require.Equal(t, uint64(want.CongestionFee), cong2)
+	require.Equal(t, want.TargetRatePerMinute, target2)
 }
 
 func TestRates_WriteZeroes_ReadZeroes(t *testing.T) {

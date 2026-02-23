@@ -503,7 +503,7 @@ func startAPIServer(
 
 		if replicationService == nil {
 			svc.logger.Error("replication service is nil")
-			return nil, fmt.Errorf("replication service is nil")
+			return nil, errors.New("replication service is nil")
 		}
 
 		replicationPath, replicationHandler := message_apiconnect.NewReplicationApiHandler(
@@ -529,7 +529,7 @@ func startAPIServer(
 
 		if metadataService == nil {
 			svc.logger.Error("metadata service is nil")
-			return nil, fmt.Errorf("metadata service is nil")
+			return nil, errors.New("metadata service is nil")
 		}
 
 		metadataPath, metadataHandler := metadata_apiconnect.NewMetadataApiHandler(

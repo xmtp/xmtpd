@@ -13,6 +13,7 @@ dev/up       # install deps (brew, go mod tidy), start docker (postgres, prometh
 dev/down     # stop docker
 dev/run      # start replication server with local env vars
 dev/test     # run tests (excludes abis, config, proto, mock, testing packages)
+dev/lint-fix # run golangci-lint with --fix to auto-fix and format code
 dev/psql     # connect to local postgres (localhost:8765, user=postgres, pass=xmtp)
 ```
 
@@ -64,6 +65,7 @@ dev/gen/migration {name} # create new up/down migration files via golang-migrate
 **Linters** (`.golangci.yaml`):
 - Linters: errcheck, govet, ineffassign, staticcheck, unused, nilerr, nakedret
 - Formatters: gofmt, golines, gofumpt
+- Before committing, run `dev/lint-fix` to auto-fix lint issues and format code
 
 ## Key Directories
 

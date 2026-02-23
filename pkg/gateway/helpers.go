@@ -61,12 +61,12 @@ func LoadConfigFromEnv() (*config.GatewayConfig, error) {
 
 	logger, _, err := utils.BuildLogger(cfg.Log)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build logger: %v", err)
+		return nil, fmt.Errorf("failed to build logger: %w", err)
 	}
 
 	validator := config.NewOptionsValidator(logger)
 	if err = validator.ParseJSONConfig(&cfg.Contracts); err != nil {
-		return nil, fmt.Errorf("could not parse contracts JSON config: %s", err)
+		return nil, fmt.Errorf("could not parse contracts JSON config: %w", err)
 	}
 
 	return &cfg, nil

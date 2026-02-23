@@ -2,6 +2,7 @@ package commands
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -89,7 +90,7 @@ func getPubKeyHandler() error {
 
 	privateKey := viper.GetString("private-key")
 	if privateKey == "" {
-		return fmt.Errorf("private key is not set")
+		return errors.New("private key is not set")
 	}
 
 	privKey, err := utils.ParseEcdsaPrivateKey(privateKey)

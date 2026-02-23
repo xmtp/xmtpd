@@ -297,7 +297,7 @@ func (s *Service) publishToNodeWithRetry(
 		retryCount = cmp.Or(s.cfg.PublishRetries, 1)
 	)
 
-	for retries := 0; retries < int(retryCount); retries++ {
+	for retries := range retryCount {
 
 		nctx, cancel := context.WithTimeout(ctx, s.cfg.PublishTimeout)
 		defer cancel()
@@ -305,7 +305,7 @@ func (s *Service) publishToNodeWithRetry(
 		result, err = s.publishToNode(nctx, nodeID, indexedEnvelopes)
 		if err == nil {
 			if retries != 0 {
-				metrics.EmitGatewayBanlistRetries(originatorID, retries)
+				metrics.EmitGatewayBanlistRetries(originatorID, int(retries))
 			}
 			return result, nil
 		}

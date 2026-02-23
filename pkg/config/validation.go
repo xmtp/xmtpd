@@ -74,7 +74,7 @@ func (v *OptionsValidator) ValidateServerOptions(options *ServerOptions) error {
 			}
 			errs = append(
 				errs,
-				fmt.Sprintf("Missing required arguments: %s", strings.Join(errorMessages, ", ")),
+				"Missing required arguments: "+strings.Join(errorMessages, ", "),
 			)
 		}
 		if len(customSet) > 0 {
@@ -113,7 +113,7 @@ func (v *OptionsValidator) ValidatePruneOptions(options PruneOptions) error {
 	}
 
 	if options.PruneConfig.MaxCycles < 1 {
-		return fmt.Errorf("max-cycles must be greater than 0")
+		return errors.New("max-cycles must be greater than 0")
 	}
 
 	return nil
@@ -381,7 +381,7 @@ func (v *OptionsValidator) validateField(value any, fieldName string, set map[st
 	switch v := value.(type) {
 	case string:
 		if v == "" {
-			set[fmt.Sprintf("--%s", fieldName)] = struct{}{}
+			set["--"+fieldName] = struct{}{}
 		}
 	case int:
 		if v <= 0 {

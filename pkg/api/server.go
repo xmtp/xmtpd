@@ -3,7 +3,7 @@ package api
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"net"
 	"net/http"
 	"strings"
@@ -75,19 +75,19 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 	}
 
 	if cfg.Ctx == nil {
-		return nil, fmt.Errorf("context is required")
+		return nil, errors.New("context is required")
 	}
 
 	if cfg.Logger == nil {
-		return nil, fmt.Errorf("logger is required")
+		return nil, errors.New("logger is required")
 	}
 
 	if cfg.Listener == nil {
-		return nil, fmt.Errorf("listener is required")
+		return nil, errors.New("listener is required")
 	}
 
 	if cfg.RegistrationFunc == nil {
-		return nil, fmt.Errorf("registration function is required")
+		return nil, errors.New("registration function is required")
 	}
 
 	svc := &APIServer{

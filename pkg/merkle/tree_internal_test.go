@@ -18,7 +18,7 @@ func TestMakeLeafNodes(t *testing.T) {
 
 	nodes, err := makeLeafNodes(leaves)
 	require.NoError(t, err)
-	assert.Equal(t, 3, len(nodes))
+	assert.Len(t, nodes, 3)
 
 	for i, leaf := range leaves {
 		assert.Equal(t, Node(HashLeaf(leaf)), nodes[i])
@@ -27,7 +27,7 @@ func TestMakeLeafNodes(t *testing.T) {
 	// Test with empty leaves.
 	nodes, err = makeLeafNodes([]Leaf{})
 	require.NoError(t, err)
-	assert.Equal(t, 0, len(nodes))
+	assert.Empty(t, nodes)
 }
 
 // TestMakeTree tests the internal makeTree function.
@@ -39,7 +39,7 @@ func TestMakeTree(t *testing.T) {
 
 	tree, err := makeTree(nodes)
 	require.NoError(t, err)
-	assert.Equal(t, 0, len(tree))
+	assert.Empty(t, tree)
 
 	// Test single node tree.
 	singleLeaf := []Leaf{[]byte("single")}
@@ -48,7 +48,7 @@ func TestMakeTree(t *testing.T) {
 
 	tree, err = makeTree(nodes)
 	require.NoError(t, err)
-	assert.Equal(t, 4, len(tree))
+	assert.Len(t, tree, 4)
 	assert.Equal(t, nodes[0], tree[2])
 
 	// Test small balanced tree (2 nodes).
@@ -58,7 +58,7 @@ func TestMakeTree(t *testing.T) {
 
 	tree, err = makeTree(nodes)
 	require.NoError(t, err)
-	assert.Equal(t, 4, len(tree))
+	assert.Len(t, tree, 4)
 
 	// Root should be parent of two leaves.
 	expectedRoot := HashNodePair(nodes[0], nodes[1])
@@ -75,7 +75,7 @@ func TestMakeTree(t *testing.T) {
 
 	tree, err = makeTree(nodes)
 	require.NoError(t, err)
-	assert.Equal(t, 8, len(tree))
+	assert.Len(t, tree, 8)
 
 	// Check internal nodes.
 	leftSubtreeRoot := HashNodePair(nodes[0], nodes[1])
@@ -95,7 +95,7 @@ func TestLeaves(t *testing.T) {
 	require.NoError(t, err)
 
 	leaves := tree.Leaves()
-	assert.Equal(t, 0, len(leaves))
+	assert.Empty(t, leaves)
 	assert.Equal(t, originalLeaves, leaves)
 
 	// Test with normal leaves.
@@ -109,7 +109,7 @@ func TestLeaves(t *testing.T) {
 	require.NoError(t, err)
 
 	leaves = tree.Leaves()
-	assert.Equal(t, 3, len(leaves))
+	assert.Len(t, leaves, 3)
 	assert.Equal(t, originalLeaves, leaves)
 
 	// Test with exactly power of 2 leaves.
@@ -124,7 +124,7 @@ func TestLeaves(t *testing.T) {
 	require.NoError(t, err)
 
 	leaves = tree.Leaves()
-	assert.Equal(t, 4, len(leaves))
+	assert.Len(t, leaves, 4)
 	assert.Equal(t, originalLeaves, leaves)
 }
 

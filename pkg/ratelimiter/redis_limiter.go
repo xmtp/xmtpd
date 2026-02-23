@@ -45,7 +45,7 @@ func (l *RedisLimiter) buildKeys(subject string) []string {
 	baseKey := l.baseKey(subject)
 	// First key is timestamp, then one key per limit
 	keys := make([]string, 1+len(l.limits))
-	keys[0] = fmt.Sprintf("%s:ts", baseKey)
+	keys[0] = baseKey + ":ts"
 	for i := range l.limits {
 		keys[i+1] = fmt.Sprintf("%s:%d", baseKey, i+1)
 	}

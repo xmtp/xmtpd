@@ -226,7 +226,7 @@ func (s *Service) catchUpFromCursor(
 		return nil
 	}
 
-	cursor := query.LastSeen.GetNodeIdToSequenceId()
+	cursor := query.GetLastSeen().GetNodeIdToSequenceId()
 	// GRPC does not distinguish between empty map and nil
 	if cursor == nil {
 		cursor = make(map[uint32]uint64)
@@ -398,15 +398,13 @@ func (s *Service) validateQuery(
 	query *message_api.EnvelopesQuery,
 ) error {
 	if query == nil {
-		return fmt.Errorf("missing query")
+		return errors.New("missing query")
 	}
 
 	topics := query.GetTopics()
 	originators := query.GetOriginatorNodeIds()
 	if len(topics) != 0 && len(originators) != 0 {
-		return fmt.Errorf(
-			"cannot filter by both topic and originator in same subscription request",
-		)
+		return errors.New("cannot filter by both topic and originator in same subscription request")
 	}
 
 	numQueries := len(topics) + len(originators)
@@ -570,7 +568,7 @@ func (s *Service) PublishPayerEnvelopes(
 	if s.migrationEnabled {
 		return nil, connect.NewError(
 			connect.CodeInternal,
-			fmt.Errorf("D14N API is read-only while migration is enabled"),
+			errors.New("D14N API is read-only while migration is enabled"),
 		)
 	}
 
@@ -579,7 +577,7 @@ func (s *Service) PublishPayerEnvelopes(
 	if len(payerEnvelopes) == 0 {
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
-			fmt.Errorf("missing payer envelope"),
+			errors.New("missing payer envelope"),
 		)
 	}
 
@@ -782,7 +780,7 @@ func (s *Service) GetInboxIds(
 
 	addresses := []string{}
 
-	for _, request := range req.Msg.Requests {
+	for _, request := range req.Msg.GetRequests() {
 		addresses = append(addresses, request.GetIdentifier())
 	}
 
@@ -808,7 +806,7 @@ func (s *Service) GetInboxIds(
 		response.Msg.Responses[index] = &resp
 	}
 
-	logger.Debug("got inbox ids", utils.NumResponsesField(len(response.Msg.Responses)))
+	logger.Debug("got inbox ids", utils.NumResponsesField(len(response.Msg.GetResponses())))
 
 	return response, nil
 }
@@ -831,7 +829,7 @@ func (s *Service) GetNewestEnvelope(
 	}
 
 	var (
-		topics       = req.Msg.Topics
+		topics       = req.Msg.GetTopics()
 		originalSort = make(map[string]int)
 	)
 
@@ -952,7 +950,7 @@ func (s *Service) validateKeyPackage(
 
 	validationResult, err := s.validationService.ValidateKeyPackages(
 		ctx,
-		[][]byte{payload.UploadKeyPackage.KeyPackage.KeyPackageTlsSerialized},
+		[][]byte{payload.UploadKeyPackage.GetKeyPackage().GetKeyPackageTlsSerialized()},
 	)
 	if err != nil {
 		return connect.NewError(
@@ -997,8 +995,8 @@ func (s *Service) validateClientInfo(clientEnv *envelopes.ClientEnvelope) error 
 
 	if aad.GetDependsOn() != nil {
 		lastSeenCursor := s.cu.GetCursor()
-		for nodeID, seqID := range aad.GetDependsOn().NodeIdToSequenceId {
-			lastSeqID, exists := lastSeenCursor.NodeIdToSequenceId[nodeID]
+		for nodeID, seqID := range aad.GetDependsOn().GetNodeIdToSequenceId() {
+			lastSeqID, exists := lastSeenCursor.GetNodeIdToSequenceId()[nodeID]
 			if nodeID >= 100 {
 				// The failure scenarios of non-commits are different from the blockchain path
 				// and as such should be prevented

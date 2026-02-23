@@ -224,5 +224,5 @@ func TestReportWithNoEnvelopesFromOriginator(t *testing.T) {
 	require.Equal(t, uint32(originatorID), report.OriginatorNodeID)
 	require.Equal(t, uint64(0), report.StartSequenceID)
 	require.Equal(t, uint64(0), report.EndSequenceID)
-	require.Equal(t, 0, len(report.Payers))
+	require.Empty(t, report.Payers)
 }

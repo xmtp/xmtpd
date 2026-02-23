@@ -47,7 +47,7 @@ func buildDevImage() error {
 	if err := cmd.Run(); err != nil {
 		// Handle timeout separately
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return fmt.Errorf("build process timed out after 5 minutes")
+			return errors.New("build process timed out after 5 minutes")
 		} else {
 			return fmt.Errorf("build process failed: %s\n", errBuf.String())
 		}
@@ -73,7 +73,7 @@ func buildGatewayDevImage() error {
 	if err := cmd.Run(); err != nil {
 		// Handle timeout separately
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return fmt.Errorf("build process timed out after 5 minutes")
+			return errors.New("build process timed out after 5 minutes")
 		} else {
 			return fmt.Errorf("build process failed: %s\n", errBuf.String())
 		}

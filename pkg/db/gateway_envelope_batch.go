@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -43,7 +44,7 @@ func InsertGatewayEnvelopeBatchTransactional(
 	input *types.GatewayEnvelopeBatch,
 ) (int64, error) {
 	if input.Len() == 0 {
-		return 0, fmt.Errorf("empty input")
+		return 0, errors.New("empty input")
 	}
 
 	params := input.ToParams()

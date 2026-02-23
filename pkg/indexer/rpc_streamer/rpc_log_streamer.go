@@ -75,7 +75,7 @@ func WithBackfillBlockPageSize(backfillBlockSize uint64) RPCLogStreamerOption {
 func WithContractConfig(cfg *ContractConfig) RPCLogStreamerOption {
 	return func(streamer *RPCLogStreamer) error {
 		if cfg == nil {
-			return fmt.Errorf("contract config is nil")
+			return errors.New("contract config is nil")
 		}
 
 		if _, ok := streamer.watchers[cfg.ID]; ok {
@@ -208,13 +208,12 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 			default:
 				response, err := r.GetNextPage(r.ctx, cfg, backfillFromBlockNumber, backfillFromBlockHash)
 				if err != nil {
-					switch err {
-					case ErrEndOfBackfill:
+					switch {
+					case errors.Is(err, ErrEndOfBackfill):
 						if response.NextBlockNumber != nil {
 							backfillFromBlockNumber = *response.NextBlockNumber
 							backfillFromBlockHash = response.NextBlockHash
 						}
-
 						if len(response.Logs) > 0 {
 							for _, log := range response.Logs {
 								cfg.eventChannel <- log
@@ -222,13 +221,10 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 						} else {
 							cfg.eventChannel <- c.NewUpdateProgressLog(backfillFromBlockNumber, backfillFromBlockHash)
 						}
-
 						logger.Info("backfill complete, switching to subscription")
 						break backfillLoop
-
-					case ErrReorg:
+					case errors.Is(err, ErrReorg):
 						logger.Warn("reorg detected, rolled back to block", utils.BlockNumberField(*response.NextBlockNumber))
-
 					default:
 						if isBlockPageSizeError(err) {
 							blockPageSize, err := extractBlockPageSize(err.Error())
@@ -236,19 +232,11 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 								logger.Error("incorrect backfill block page size, please check your configuration", zap.Error(err))
 								continue
 							}
-
 							logger.Info("adjusting backfill block page size", zap.Uint64("new_block_page_size", blockPageSize))
 							r.backfillBlockPageSize = blockPageSize
-
 							continue
 						}
-
-						logger.Error(
-							"error getting next page",
-							utils.BlockNumberField(backfillFromBlockNumber),
-							zap.Error(err),
-						)
-
+						logger.Error("error getting next page", utils.BlockNumberField(backfillFromBlockNumber), zap.Error(err))
 						time.Sleep(sleepTimeOnError)
 						continue
 					}
@@ -510,11 +498,11 @@ func (r *RPCLogStreamer) buildSubscriptionWithBackoff(
 
 func (r *RPCLogStreamer) validateWatcher(cfg *ContractConfig) error {
 	if cfg == nil {
-		return fmt.Errorf("watcher is nil")
+		return errors.New("watcher is nil")
 	}
 
 	if cfg.eventChannel == nil {
-		return fmt.Errorf("event channel is nil")
+		return errors.New("event channel is nil")
 	}
 
 	testCh := make(chan types.Log, 100)
@@ -580,7 +568,7 @@ func extractBlockPageSize(s string) (uint64, error) {
 	}
 
 	if blockPageSize == 0 {
-		return 0, fmt.Errorf("block page size is 0")
+		return 0, errors.New("block page size is 0")
 	}
 
 	// The error message is inclusive, so we subtract 1 to get the correct block page size.

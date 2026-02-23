@@ -2,7 +2,6 @@ package migrator
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -94,7 +93,7 @@ func TestRegistryRead(t *testing.T) {
 
 	nodes, err := ReadFromRegistry(registryCaller)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(nodes))
+	require.Len(t, nodes, 2)
 
 	require.Equal(t, node1.OwnerAddress, nodes[0].OwnerAddress)
 	require.Equal(t, node1.HTTPAddress, nodes[0].HTTPAddress)
@@ -118,7 +117,7 @@ func TestFileDump(t *testing.T) {
 
 	// Create a temporary file path for testing
 	tempDir := t.TempDir()
-	tempFilePath := filepath.Join(tempDir, fmt.Sprintf("%s.json", testutils.RandomString(12)))
+	tempFilePath := filepath.Join(tempDir, testutils.RandomString(12)+".json")
 
 	err = DumpNodesToFile(nodes, tempFilePath)
 	require.NoError(t, err)
@@ -137,7 +136,7 @@ func TestRegistryWrite(t *testing.T) {
 
 	nodes, err := ReadFromRegistry(registryCaller)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(nodes))
+	require.Len(t, nodes, 2)
 
 	oldNodes := make([]SerializableNode, 0)
 
@@ -147,7 +146,7 @@ func TestRegistryWrite(t *testing.T) {
 
 	restoredNodes, err := ReadFromRegistry(registryCaller2)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(restoredNodes))
+	require.Len(t, restoredNodes, 2)
 
 	// Old parameters should be the same.
 	require.Equal(t, node1.OwnerAddress, restoredNodes[0].OwnerAddress)
@@ -158,8 +157,8 @@ func TestRegistryWrite(t *testing.T) {
 	require.Equal(t, node2.SigningKeyPub, restoredNodes[1].SigningKeyPub)
 
 	// New parameters should be the default values.
-	require.Equal(t, false, restoredNodes[0].InCanonicalNetwork)
-	require.Equal(t, false, restoredNodes[1].InCanonicalNetwork)
+	require.False(t, restoredNodes[0].InCanonicalNetwork)
+	require.False(t, restoredNodes[1].InCanonicalNetwork)
 }
 
 // 1) Empty -> New registry: adds nodes, keeps defaults (not in canonical network)
@@ -172,21 +171,21 @@ func TestRegistryWrite_AddsNewNodesAndKeepsDefaults(t *testing.T) {
 
 	newNodes, err := ReadFromRegistry(registryCallerSrc)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(newNodes))
+	require.Len(t, newNodes, 2)
 
 	// Destination: fresh/empty registry.
 	registryAdminDst, registryCallerDst := setupRegistry(t)
 
 	oldNodesDst, err := ReadFromRegistry(registryCallerDst)
 	require.NoError(t, err)
-	require.Len(t, oldNodesDst, 0)
+	require.Empty(t, oldNodesDst)
 
 	err = WriteToRegistry(t.Context(), newNodes, oldNodesDst, registryAdminDst)
 	require.NoError(t, err)
 
 	restored, err := ReadFromRegistry(registryCallerDst)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(restored))
+	require.Len(t, restored, 2)
 
 	require.Equal(t, node1.OwnerAddress, restored[0].OwnerAddress)
 	require.Equal(t, node1.HTTPAddress, restored[0].HTTPAddress)
@@ -209,7 +208,7 @@ func TestRegistryWrite_AddsToNetworkForExistingNodes(t *testing.T) {
 
 	existing, err := ReadFromRegistry(caller)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(existing))
+	require.Len(t, existing, 2)
 
 	desired := make([]SerializableNode, len(existing))
 	copy(desired, existing)
@@ -222,7 +221,7 @@ func TestRegistryWrite_AddsToNetworkForExistingNodes(t *testing.T) {
 
 	after, err := ReadFromRegistry(caller)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(after))
+	require.Len(t, after, 2)
 	require.True(t, after[0].InCanonicalNetwork)
 	require.True(t, after[1].InCanonicalNetwork)
 
@@ -245,7 +244,7 @@ func TestRegistryWrite_MixedExistingAndNew(t *testing.T) {
 	// Snapshot "oldNodes" from destination.
 	oldDst, err := ReadFromRegistry(callerDst)
 	require.NoError(t, err)
-	require.Equal(t, 1, len(oldDst))
+	require.Len(t, oldDst, 1)
 	require.Equal(t, existingNode.SigningKeyPub, oldDst[0].SigningKeyPub)
 
 	// Create a NEW node we want to add (use another registry just to fabricate a valid node struct).
@@ -253,7 +252,7 @@ func TestRegistryWrite_MixedExistingAndNew(t *testing.T) {
 	newNode := registerRandomNode(t, adminTmp)
 	tmpNodes, err := ReadFromRegistry(callerTmp)
 	require.NoError(t, err)
-	require.Equal(t, 1, len(tmpNodes))
+	require.Len(t, tmpNodes, 1)
 
 	desired := []SerializableNode{
 		{
@@ -276,7 +275,7 @@ func TestRegistryWrite_MixedExistingAndNew(t *testing.T) {
 
 	after, err := ReadFromRegistry(callerDst)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(after))
+	require.Len(t, after, 2)
 
 	byPub := map[string]SerializableNode{
 		after[0].SigningKeyPub: after[0],

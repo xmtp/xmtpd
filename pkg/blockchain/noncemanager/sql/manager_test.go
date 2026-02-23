@@ -120,7 +120,7 @@ func TestGetNonce_RevertMany(t *testing.T) {
 	err = nonceManager.Replenish(ctx, *big.NewInt(0))
 	require.NoError(t, err)
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		nonce, err := nonceManager.GetNonce(ctx)
 		require.NoError(t, err)
 		require.EqualValues(t, 0, nonce.Nonce.Int64())
@@ -139,7 +139,7 @@ func TestGetNonce_ConsumeMany(t *testing.T) {
 	err = nonceManager.Replenish(ctx, *big.NewInt(0))
 	require.NoError(t, err)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		nonce, err := nonceManager.GetNonce(ctx)
 		require.NoError(t, err)
 		require.EqualValues(t, i, nonce.Nonce.Int64())
@@ -163,7 +163,7 @@ func TestGetNonce_ConsumeManyConcurrent(t *testing.T) {
 	numClients := 20
 	errCh := make(chan error, numClients)
 
-	for i := 0; i < numClients; i++ {
+	for range numClients {
 		wg.Go(func() {
 			nonce, err := nonceManager.GetNonce(ctx)
 			if err != nil {

@@ -2,6 +2,7 @@ package migrator
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"math"
 	"time"
@@ -127,11 +128,11 @@ func (t *Transformer) TransformInboxLog(
 	inboxLog *InboxLog,
 ) (*envelopes.OriginatorEnvelope, error) {
 	if inboxLog == nil {
-		return nil, fmt.Errorf("inboxLog is nil")
+		return nil, errors.New("inboxLog is nil")
 	}
 
 	if inboxLog.InboxID == nil {
-		return nil, fmt.Errorf("inboxID is nil")
+		return nil, errors.New("inboxID is nil")
 	}
 
 	_, err := utils.ParseInboxID(inboxLog.InboxID)
@@ -140,7 +141,7 @@ func (t *Transformer) TransformInboxLog(
 	}
 
 	if len(inboxLog.IdentityUpdateProto) <= 0 {
-		return nil, fmt.Errorf("identityUpdateProto is empty")
+		return nil, errors.New("identityUpdateProto is empty")
 	}
 
 	var identityUpdateProto associations.IdentityUpdate
@@ -173,11 +174,11 @@ func (t *Transformer) TransformKeyPackage(
 	keyPackage *KeyPackage,
 ) (*envelopes.OriginatorEnvelope, error) {
 	if keyPackage == nil {
-		return nil, fmt.Errorf("keyPackage is nil")
+		return nil, errors.New("keyPackage is nil")
 	}
 
 	if len(keyPackage.KeyPackage) <= 0 {
-		return nil, fmt.Errorf("keyPackage is empty")
+		return nil, errors.New("keyPackage is empty")
 	}
 
 	protoClientEnvelope := &proto.ClientEnvelope{
@@ -207,7 +208,7 @@ func (t *Transformer) TransformWelcomeMessage(
 	welcomeMessage *WelcomeMessage,
 ) (*envelopes.OriginatorEnvelope, error) {
 	if welcomeMessage == nil {
-		return nil, fmt.Errorf("welcomeMessage is nil")
+		return nil, errors.New("welcomeMessage is nil")
 	}
 
 	protoClientEnvelope := &proto.ClientEnvelope{
@@ -248,7 +249,7 @@ func (t *Transformer) originatorEnvelope(
 	creationTime time.Time,
 ) (*envelopes.OriginatorEnvelope, error) {
 	if protoClientEnvelope == nil {
-		return nil, fmt.Errorf("protoClientEnvelope is nil")
+		return nil, errors.New("protoClientEnvelope is nil")
 	}
 
 	payerEnvelope, err := t.buildAndSignPayerEnvelope(protoClientEnvelope, originatorID)
@@ -277,7 +278,7 @@ func (t *Transformer) buildAndSignPayerEnvelope(
 	}
 
 	if protoClientEnvelope == nil {
-		return nil, fmt.Errorf("protoClientEnvelope is nil")
+		return nil, errors.New("protoClientEnvelope is nil")
 	}
 
 	clientEnvelope, err := envelopes.NewClientEnvelope(protoClientEnvelope)
@@ -324,7 +325,7 @@ func (t *Transformer) buildAndSignOriginatorEnvelope(
 	creationTime time.Time,
 ) (*envelopes.OriginatorEnvelope, error) {
 	if payerEnvelope == nil {
-		return nil, fmt.Errorf("payerEnvelope is nil")
+		return nil, errors.New("payerEnvelope is nil")
 	}
 
 	payerEnvelopeBytes, err := payerEnvelope.Bytes()
@@ -391,11 +392,11 @@ func (t *Transformer) buildAndSignOriginatorEnvelope(
 // transformGroupMessage transforms a GroupMessage (commit or not) to a ClientEnvelope.
 func transformGroupMessage(groupMessage *GroupMessage) (*proto.ClientEnvelope, error) {
 	if groupMessage == nil {
-		return nil, fmt.Errorf("groupMessage is nil")
+		return nil, errors.New("groupMessage is nil")
 	}
 
 	if groupMessage.GroupID == nil {
-		return nil, fmt.Errorf("groupID is nil")
+		return nil, errors.New("groupID is nil")
 	}
 
 	_, err := utils.ParseGroupID(groupMessage.GroupID)
@@ -404,7 +405,7 @@ func transformGroupMessage(groupMessage *GroupMessage) (*proto.ClientEnvelope, e
 	}
 
 	if len(groupMessage.Data) <= 0 {
-		return nil, fmt.Errorf("data is empty")
+		return nil, errors.New("data is empty")
 	}
 
 	return &proto.ClientEnvelope{

@@ -255,22 +255,22 @@ func TestSignStagedEnvelopeSuccess(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotEmpty(t, env.GetUnsignedOriginatorEnvelope())
-	require.NotEmpty(t, env.GetOriginatorSignature().Bytes)
+	require.NotEmpty(t, env.GetOriginatorSignature().GetBytes())
 
 	signingKey, err := crypto.SigToPub(
 		utils.HashOriginatorSignatureInput(env.GetUnsignedOriginatorEnvelope()),
-		env.GetOriginatorSignature().Bytes,
+		env.GetOriginatorSignature().GetBytes(),
 	)
 	require.NoError(t, err)
 	require.True(t, signingKey.Equal(&deps.privKey1.PublicKey))
 
 	unsignedEnv := &envelopes.UnsignedOriginatorEnvelope{}
 	require.NoError(t, proto.Unmarshal(env.GetUnsignedOriginatorEnvelope(), unsignedEnv))
-	require.Equal(t, unsignedEnv.GetOriginatorNodeId(), uint32(1))
-	require.Equal(t, unsignedEnv.GetOriginatorSequenceId(), uint64(50))
+	require.Equal(t, uint32(1), unsignedEnv.GetOriginatorNodeId())
+	require.Equal(t, uint64(50), unsignedEnv.GetOriginatorSequenceId())
 
 	payerEnv := &envelopes.PayerEnvelope{}
 	err = proto.Unmarshal(unsignedEnv.GetPayerEnvelopeBytes(), payerEnv)
 	require.NoError(t, err)
-	require.Equal(t, payerEnv.GetUnsignedClientEnvelope()[0], uint8(3))
+	require.Equal(t, uint8(3), payerEnv.GetUnsignedClientEnvelope()[0])
 }

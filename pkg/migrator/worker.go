@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -87,7 +86,7 @@ func (w *Worker) StartReader(ctx context.Context, reader ISourceReader) error {
 	tracing.GoPanicWrap(
 		ctx,
 		&w.wg,
-		fmt.Sprintf("reader-%s", w.tableName),
+		"reader-"+w.tableName,
 		func(ctx context.Context) {
 			defer close(w.recvChan)
 
@@ -142,26 +141,21 @@ func (w *Worker) StartReader(ctx context.Context, reader ISourceReader) error {
 						},
 					)
 					if err != nil {
-						switch err {
-						case sql.ErrNoRows:
+						switch {
+						case errors.Is(err, sql.ErrNoRows):
 							logger.Info(noMoreRecordsToMigrateMessage)
-
 							metrics.EmitMigratorReaderNumRowsFound(w.tableName, 0)
-
 							select {
 							case <-ctx.Done():
 								return
 							case <-time.After(sleepTimeOnNoRows):
 							}
-
 						default:
 							metrics.EmitMigratorReaderError(w.tableName, err.Error())
-
 							logger.Error(
 								"getting next batch of records failed, retrying",
 								zap.Error(err),
 							)
-
 							select {
 							case <-ctx.Done():
 								return
@@ -232,7 +226,7 @@ func (w *Worker) StartTransformer(ctx context.Context, transformer IDataTransfor
 	tracing.GoPanicWrap(
 		ctx,
 		&w.wg,
-		fmt.Sprintf("transformer-%s", w.tableName),
+		"transformer-"+w.tableName,
 		func(ctx context.Context) {
 			defer close(w.wrtrChan)
 
@@ -304,7 +298,7 @@ func (w *Worker) StartDatabaseWriter(ctx context.Context) error {
 	tracing.GoPanicWrap(
 		ctx,
 		&w.wg,
-		fmt.Sprintf("writer-database-%s", w.tableName),
+		"writer-database-"+w.tableName,
 		func(ctx context.Context) {
 			ticker := time.NewTicker(250 * time.Millisecond)
 			defer ticker.Stop()
@@ -482,7 +476,7 @@ func (w *Worker) StartDatabaseWriter(ctx context.Context) error {
 						),
 						OriginatorEnvelope: envelopeBytes,
 						SpendPicodollars: int64(
-							envelope.UnsignedOriginatorEnvelope.Proto().BaseFeePicodollars,
+							envelope.UnsignedOriginatorEnvelope.Proto().GetBaseFeePicodollars(),
 						),
 					})
 
@@ -536,7 +530,7 @@ func (w *Worker) StartBlockchainWriterBatch(ctx context.Context) error {
 	tracing.GoPanicWrap(
 		ctx,
 		&w.wg,
-		fmt.Sprintf("writer-chain-%s", w.tableName),
+		"writer-chain-"+w.tableName,
 		func(ctx context.Context) {
 			// Flush the batch every 250 milliseconds. Arbitrum Orbit L3 min block time.
 			ticker := time.NewTicker(250 * time.Millisecond)

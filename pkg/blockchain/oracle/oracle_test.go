@@ -41,7 +41,7 @@ func TestOracleGetGasPrice(t *testing.T) {
 	// By forcing waiting, we ensure that the gas price is fetched from the blockchain.
 	time.Sleep(500 * time.Millisecond)
 	gasPrice := o.GetGasPrice()
-	require.Greater(t, gasPrice, int64(0))
+	require.Positive(t, gasPrice)
 }
 
 func TestOracleGetGasPriceAfterNew(t *testing.T) {
@@ -50,7 +50,7 @@ func TestOracleGetGasPriceAfterNew(t *testing.T) {
 	// GetGasPrice should return a valid price immediately after New()
 	// because it fetches lazily on first call
 	gasPrice := o.GetGasPrice()
-	require.Greater(t, gasPrice, int64(0))
+	require.Positive(t, gasPrice)
 }
 
 func TestOracleConcurrentGetGasPrice(t *testing.T) {
@@ -58,14 +58,14 @@ func TestOracleConcurrentGetGasPrice(t *testing.T) {
 
 	// Get initial gas price to warm up
 	initialPrice := o.GetGasPrice()
-	require.Greater(t, initialPrice, int64(0))
+	require.Positive(t, initialPrice)
 
 	// GetGasPrice is safe for concurrent calls
 	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		wg.Go(func() {
 			price := o.GetGasPrice()
-			require.Greater(t, price, int64(0))
+			require.Positive(t, price)
 		})
 	}
 	wg.Wait()
@@ -75,15 +75,15 @@ func TestOracleGetGasPriceRandom(t *testing.T) {
 	o := buildOracle(t)
 
 	initialPrice := o.GetGasPrice()
-	require.Greater(t, initialPrice, int64(0))
+	require.Positive(t, initialPrice)
 
 	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		wg.Go(func() {
 			// Force the oracle to fetch a new gas price for some goroutines.
 			time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
 			price := o.GetGasPrice()
-			require.Greater(t, price, int64(0))
+			require.Positive(t, price)
 		})
 	}
 	wg.Wait()
@@ -95,7 +95,7 @@ func TestOracleGasPriceRefreshesAfterStaleness(t *testing.T) {
 	// Get initial gas price
 	initialPrice := o.GetGasPrice()
 	t.Logf("initial gas price: %d", initialPrice)
-	require.Greater(t, initialPrice, int64(0))
+	require.Positive(t, initialPrice)
 
 	// Wait for staleness (250ms + buffer)
 	time.Sleep(300 * time.Millisecond)
@@ -103,7 +103,7 @@ func TestOracleGasPriceRefreshesAfterStaleness(t *testing.T) {
 	// Price should still be valid after refresh
 	currentPrice := o.GetGasPrice()
 	t.Logf("current gas price: %d", currentPrice)
-	require.Greater(t, currentPrice, int64(0))
+	require.Positive(t, currentPrice)
 }
 
 func TestOracleCloseIdempotent(t *testing.T) {
@@ -132,7 +132,7 @@ func TestOracleGracefulShutdown(t *testing.T) {
 
 	// Get a gas price to ensure connection is established
 	price := o.GetGasPrice()
-	require.Greater(t, price, int64(0))
+	require.Positive(t, price)
 
 	// Cancel context
 	cancel()

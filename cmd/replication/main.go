@@ -3,6 +3,7 @@ package main
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -34,10 +35,11 @@ var options config.ServerOptions
 func main() {
 	_, err := flags.Parse(&options)
 	if err != nil {
-		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
-			fatal("could not parse options: %s", err)
+		var flagsErr *flags.Error
+		if errors.As(err, &flagsErr) && flagsErr.Type == flags.ErrHelp {
+			return
 		}
-		return
+		fatal("could not parse options: %s", err)
 	}
 
 	if Version == "" {
@@ -58,7 +60,7 @@ func main() {
 	}
 
 	logger = logger.Named(utils.BaseLoggerName)
-	logger.Info(fmt.Sprintf("version: %s", Version))
+	logger.Info("version: " + Version)
 
 	version, err := semver.NewVersion(Version)
 	if err != nil {

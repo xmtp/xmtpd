@@ -195,7 +195,7 @@ func makeTree(leafNodes []Node) ([]Node, error) {
 	upperBound := balancedLeafCount + leafCount - 1
 
 	// Copy leaves into the tree, starting at index N.
-	for i := 0; i < leafCount; i++ {
+	for i := range leafCount {
 		tree[lowerBound+i] = leafNodes[i]
 	}
 
@@ -252,7 +252,7 @@ func makeLeafNodes(leaves []Leaf) ([]Node, error) {
 // Returns an error if the leaf count is too large to be represented in a int32.
 func CalculateBalancedNodesCount(count int) (int, error) {
 	if count < 0 {
-		return 0, fmt.Errorf("count cannot be negative")
+		return 0, errors.New("count cannot be negative")
 	}
 
 	if count > 1<<31-1 {
@@ -305,7 +305,7 @@ func makeIndices(startingIndex, count int) ([]int, error) {
 	}
 
 	indices := make([]int, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		indices[i] = startingIndex + i
 	}
 

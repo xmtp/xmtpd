@@ -115,8 +115,7 @@ func (w *Worker) runDBCheck(ctx context.Context) error {
 
 	for nodeID, seqID := range vc {
 
-		// NOTE: We're doing uint64 => int64 conversion and arithmethic, so let's be pedantic.
-		// Not sure how soon we can expect to see this.
+		// NOTE: We're doing uint64 => int64 conversion and arithmetic, so let's be pedantic.
 		if seqID > math.MaxInt64 {
 			w.log.Warn("sequence ID value larger than int64 range", zap.Uint64("value", seqID))
 			continue

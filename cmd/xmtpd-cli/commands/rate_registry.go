@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -123,10 +124,10 @@ func validateStartTime(startTime uint64) error {
 	}
 	startAt := time.Unix(startTimeInt, 0)
 	if startAt.Before(time.Now()) {
-		return fmt.Errorf("--start-time must be in the future")
+		return errors.New("--start-time must be in the future")
 	}
 	if startAt.After(time.Now().Add(365 * 24 * time.Hour)) {
-		return fmt.Errorf("--start-time must be less than 1 year in the future")
+		return errors.New("--start-time must be less than 1 year in the future")
 	}
 	return nil
 }

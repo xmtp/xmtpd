@@ -61,6 +61,7 @@ type Service struct {
 	feeCalculator     fees.IFeeCalculator
 	options           config.APIOptions
 	migrationEnabled  bool
+	originatorList    db.OriginatorLister
 }
 
 var _ message_apiconnect.ReplicationApiHandler = (*Service)(nil)
@@ -77,6 +78,7 @@ func NewReplicationAPIService(
 	options config.APIOptions,
 	migrationEnabled bool,
 	sleepOnFailureTime time.Duration,
+	originatorList db.OriginatorLister,
 ) (*Service, error) {
 	if validationService == nil {
 		return nil, errors.New("validation service must not be nil")
@@ -113,6 +115,7 @@ func NewReplicationAPIService(
 		feeCalculator:     feeCalculator,
 		options:           options,
 		migrationEnabled:  migrationEnabled,
+		originatorList:    originatorList,
 	}, nil
 }
 
@@ -485,7 +488,19 @@ func (s *Service) fetchEnvelopes(
 			CursorSequenceIds: nil,
 		}
 
-		db.SetVectorClockByTopics(&params, query.GetLastSeen().GetNodeIdToSequenceId())
+		vc := query.GetLastSeen().GetNodeIdToSequenceId()
+		if vc == nil {
+			vc = make(db.VectorClock)
+		}
+		allOriginators, err := s.originatorList.GetOriginatorNodeIDs(ctx)
+		if err != nil {
+			return nil, connect.NewError(
+				connect.CodeInternal,
+				fmt.Errorf("could not get originator list: %w", err),
+			)
+		}
+		db.FillMissingOriginators(vc, allOriginators)
+		db.SetVectorClockByTopics(&params, vc)
 
 		rows, err := s.store.ReadQuery().SelectGatewayEnvelopesByTopics(ctx, params)
 		if err != nil {

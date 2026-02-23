@@ -493,6 +493,9 @@ func startAPIServer(
 			cfg.Options.API,
 			isMigrationEnabled,
 			10*time.Millisecond,
+			db.NewCachedOriginatorList(
+				cfg.DB.ReadQuery(), cfg.Options.API.OriginatorCacheTTL, cfg.Logger,
+			),
 		)
 		if err != nil {
 			return nil, err

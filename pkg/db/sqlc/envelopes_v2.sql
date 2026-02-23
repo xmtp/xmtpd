@@ -101,61 +101,64 @@ JOIN gateway_envelope_blobs AS b
 ORDER BY f.originator_node_id, f.originator_sequence_id;
 
 -- name: SelectGatewayEnvelopesByTopics :many
+-- V3b LATERAL per (topic, originator) with per-originator blob join.
+-- Requires callers to include ALL originators in cursor arrays (use seq_id=0 for unseen).
+-- Uses gem_topic_orig_seq_idx for index-only scans.
+-- row_limit is required and caps total rows returned.
 WITH cursors AS (
-    SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
-    FROM unnest(@cursor_node_ids::INT[]) WITH ORDINALITY AS x(node_id, ord)
-    JOIN unnest(@cursor_sequence_ids::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord)
-    USING (ord)
+	SELECT x.node_id AS cursor_node_id, y.seq_id AS cursor_sequence_id
+	FROM unnest(@cursor_node_ids::INT[]) WITH ORDINALITY AS x(node_id, ord)
+	JOIN unnest(@cursor_sequence_ids::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord)
+	USING (ord)
 ),
-min_cursor_seq AS (
-    -- Pre-compute minimum cursor sequence for RANGE pruning
-    SELECT COALESCE(MIN(seq_id), 0) AS min_seq
-    FROM unnest(@cursor_sequence_ids::BIGINT[]) AS t(seq_id)
+cursor_entries AS (
+	SELECT t.topic, c.cursor_node_id AS node_id, c.cursor_sequence_id AS seq_id
+	FROM unnest(@topics::BYTEA[]) AS t(topic)
+	CROSS JOIN cursors AS c
 ),
 filtered AS (
-    -- A) topic + cursor (with partition pruning hints)
-    SELECT m.originator_node_id,
-           m.originator_sequence_id,
-           m.gateway_time,
-           m.topic
-    FROM gateway_envelopes_meta AS m
-    JOIN cursors AS c
-         ON m.originator_node_id = c.cursor_node_id
-         AND m.originator_sequence_id > c.cursor_sequence_id
-    WHERE m.topic = ANY (@topics::BYTEA[])
-      -- Redundant but enables LIST partition pruning:
-      AND m.originator_node_id = ANY(@cursor_node_ids::INT[])
-      -- Enables RANGE partition pruning (using min cursor as floor):
-      AND m.originator_sequence_id > (SELECT min_seq FROM min_cursor_seq)
-
-    UNION ALL
-
-    -- B) topic + no-cursor (new originators - still needs full scan)
-    SELECT m.originator_node_id,
-           m.originator_sequence_id,
-           m.gateway_time,
-           m.topic
-    FROM gateway_envelopes_meta AS m
-    WHERE m.topic = ANY (@topics::BYTEA[])
-      AND m.originator_sequence_id > 0
-      AND NOT EXISTS (
-          SELECT 1 FROM cursors AS c
-          WHERE c.cursor_node_id = m.originator_node_id
-      )
-
-    ORDER BY originator_node_id, originator_sequence_id
-    LIMIT NULLIF(@row_limit::INT, 0)
+	SELECT sub.originator_node_id,
+	       sub.originator_sequence_id,
+	       sub.gateway_time,
+	       sub.topic
+	FROM cursor_entries AS ce
+	CROSS JOIN LATERAL (
+		SELECT m.originator_node_id,
+		       m.originator_sequence_id,
+		       m.gateway_time,
+		       m.topic
+		FROM gateway_envelopes_meta AS m
+		WHERE m.topic = ce.topic
+		  AND m.originator_node_id = ce.node_id
+		  AND m.originator_sequence_id > ce.seq_id
+		ORDER BY m.originator_sequence_id
+		LIMIT @row_limit::INT
+	) AS sub
+	ORDER BY sub.originator_node_id, sub.originator_sequence_id
+	LIMIT @row_limit::INT
+),
+originator_ids AS (
+	SELECT DISTINCT originator_node_id FROM filtered
 )
-SELECT f.originator_node_id,
-       f.originator_sequence_id,
-       f.gateway_time,
-       f.topic,
-       b.originator_envelope
-FROM filtered AS f
-JOIN gateway_envelope_blobs AS b
-     ON b.originator_node_id = f.originator_node_id
-     AND b.originator_sequence_id = f.originator_sequence_id
-ORDER BY f.originator_node_id, f.originator_sequence_id;
+SELECT bl.originator_node_id,
+       bl.originator_sequence_id,
+       bl.gateway_time,
+       bl.topic,
+       bl.originator_envelope
+FROM originator_ids AS oi
+CROSS JOIN LATERAL (
+	SELECT f.originator_node_id,
+	       f.originator_sequence_id,
+	       f.gateway_time,
+	       f.topic,
+	       b.originator_envelope
+	FROM filtered AS f
+	JOIN gateway_envelope_blobs AS b
+	    ON b.originator_node_id = oi.originator_node_id
+	   AND b.originator_sequence_id = f.originator_sequence_id
+	WHERE f.originator_node_id = oi.originator_node_id
+) AS bl
+ORDER BY bl.originator_node_id, bl.originator_sequence_id;
 
 
 -- name: SelectGatewayEnvelopesUnfiltered :many

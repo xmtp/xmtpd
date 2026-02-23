@@ -13,7 +13,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/xmtp/xmtpd/pkg/config"
-	"github.com/xmtp/xmtpd/pkg/db"
+	dbPkg "github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/interceptors/server"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -164,7 +164,7 @@ func NewTestAPIServer(
 		ctx, cancel           = context.WithCancel(context.Background())
 		log                   = testutils.NewLog(t)
 		sqlDB, _              = testutils.NewRawDB(t, ctx)
-		db                    = db.NewDBHandler(sqlDB)
+		db                    = dbPkg.NewDBHandler(sqlDB)
 		mockMessagePublisher  = blockchain.NewMockIBlockchainPublisher(t)
 		mockValidationService = mlsvalidateMocks.NewMockMLSValidationService(t)
 	)
@@ -217,6 +217,7 @@ func NewTestAPIServer(
 			},
 			false,
 			10*time.Millisecond,
+			dbPkg.NewCachedOriginatorList(db.ReadQuery(), 100*time.Millisecond, log),
 		)
 		require.NoError(t, err)
 

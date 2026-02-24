@@ -184,6 +184,30 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 
 	readDB := db.NewDBHandler(reader, db.WithReadReplica(reader))
 
+	logger.Info(
+		"running migration service with lower limits configured as",
+		zap.Int64(
+			string(config.MigrationSourceGroupMessages),
+			cfg.options.LowerLimits.Get(config.MigrationSourceGroupMessages),
+		),
+		zap.Int64(
+			string(config.MigrationSourceKeyPackages),
+			cfg.options.LowerLimits.Get(config.MigrationSourceKeyPackages),
+		),
+		zap.Int64(
+			string(config.MigrationSourceWelcomeMessages),
+			cfg.options.LowerLimits.Get(config.MigrationSourceWelcomeMessages),
+		),
+		zap.Int64(
+			string(config.MigrationSourceInboxLog),
+			cfg.options.LowerLimits.Get(config.MigrationSourceInboxLog),
+		),
+		zap.Int64(
+			string(config.MigrationSourceCommitMessages),
+			cfg.options.LowerLimits.Get(config.MigrationSourceCommitMessages),
+		),
+	)
+
 	readers := map[string]ISourceReader{
 		groupMessagesTableName: NewGroupMessageReader(
 			readDB.DB(),

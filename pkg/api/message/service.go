@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/utils/retryerrors"
@@ -247,33 +248,58 @@ func (s *Service) catchUpFromCursor(
 			logger.Debug("fetched envelopes", utils.CountField(int64(len(rows))))
 		}
 
-		envs := make([]*envelopes.OriginatorEnvelope, 0, len(rows))
-		for _, r := range rows {
-			env, err := envelopes.NewOriginatorEnvelopeFromBytes(r.OriginatorEnvelope)
+		var (
+			responseEnvelopes = make([]*envelopes.OriginatorEnvelope, 0)
+			responseBytes     = 0
+			byteLimited       = false
+		)
+
+		for _, row := range rows {
+			envelope, err := envelopes.NewOriginatorEnvelopeFromBytes(row.OriginatorEnvelope)
 			if err != nil {
 				// We expect to have already validated the envelope when it was inserted
 				s.logger.Error(
 					"could not unmarshal originator envelope",
 					zap.Error(err),
-					utils.OriginatorIDField(uint32(r.OriginatorNodeID)),
-					utils.SequenceIDField(r.OriginatorSequenceID),
+					utils.OriginatorIDField(uint32(row.OriginatorNodeID)),
+					utils.SequenceIDField(row.OriginatorSequenceID),
 				)
 				continue
 			}
-			envs = append(envs, env)
+
+			if len(row.OriginatorEnvelope) > constants.GRPCPayloadLimit {
+				s.logger.Error(
+					"originator envelope too large, skipping",
+					utils.OriginatorIDField(uint32(row.OriginatorNodeID)),
+					utils.SequenceIDField(row.OriginatorSequenceID),
+				)
+				continue
+			}
+
+			if len(responseEnvelopes) > 0 &&
+				responseBytes+len(row.OriginatorEnvelope) > constants.GRPCPayloadLimit {
+				byteLimited = true
+				break
+			}
+
+			responseBytes += len(row.OriginatorEnvelope)
+			responseEnvelopes = append(responseEnvelopes, envelope)
 		}
 
-		err = s.sendEnvelopes(stream, query, envs)
+		err = s.sendEnvelopes(stream, query, responseEnvelopes)
 		if err != nil {
 			return connect.NewError(
 				connect.CodeInternal,
 				fmt.Errorf("error sending envelopes: %w", err),
 			)
 		}
-		if len(rows) < int(maxRequestedRows) {
-			// There were no more envelopes in DB at time of fetch
+
+		// Stop only when the DB returned fewer rows than requested (exhausted)
+		// AND we were able to fit all of them in the response (no byte truncation).
+		if len(rows) < int(maxRequestedRows) && !byteLimited {
 			break
 		}
+
 		time.Sleep(pagingInterval)
 	}
 
@@ -357,16 +383,20 @@ func (s *Service) QueryEnvelopes(
 		return nil, err
 	}
 
-	response := connect.NewResponse(&message_api.QueryEnvelopesResponse{
-		Envelopes: make([]*envelopesProto.OriginatorEnvelope, 0, len(rows)),
-	})
+	var (
+		responseEnvelopes = make([]*envelopesProto.OriginatorEnvelope, 0)
+		responseBytes     = 0
+	)
 
 	// Track last sequence per originator
 	lastSeen := make(map[int32]int64)
 
 	for _, row := range rows {
-		nodeID := row.OriginatorNodeID
-		seqID := row.OriginatorSequenceID
+		var (
+			nodeID   = row.OriginatorNodeID
+			seqID    = row.OriginatorSequenceID
+			envelope = &envelopesProto.OriginatorEnvelope{}
+		)
 
 		if last, ok := lastSeen[nodeID]; ok && seqID < last {
 			// 🛑 Hard crash on out-of-order sequences for the same originator
@@ -379,8 +409,7 @@ func (s *Service) QueryEnvelopes(
 		}
 		lastSeen[nodeID] = seqID
 
-		originatorEnv := &envelopesProto.OriginatorEnvelope{}
-		err := proto.Unmarshal(row.OriginatorEnvelope, originatorEnv)
+		err := proto.Unmarshal(row.OriginatorEnvelope, envelope)
 		if err != nil {
 			// We expect to have already validated the envelope when it was inserted
 			logger.Error("could not unmarshal originator envelope", zap.Error(err),
@@ -388,10 +417,28 @@ func (s *Service) QueryEnvelopes(
 				utils.SequenceIDField(row.OriginatorSequenceID))
 			continue
 		}
-		response.Msg.Envelopes = append(response.Msg.Envelopes, originatorEnv)
+
+		if len(row.OriginatorEnvelope) > constants.GRPCPayloadLimit {
+			s.logger.Error(
+				"originator envelope too large, skipping",
+				utils.OriginatorIDField(uint32(row.OriginatorNodeID)),
+				utils.SequenceIDField(row.OriginatorSequenceID),
+			)
+			continue
+		}
+
+		if len(responseEnvelopes) > 0 &&
+			responseBytes+len(row.OriginatorEnvelope) > constants.GRPCPayloadLimit {
+			break
+		}
+
+		responseEnvelopes = append(responseEnvelopes, envelope)
+		responseBytes += len(row.OriginatorEnvelope)
 	}
 
-	return response, nil
+	return connect.NewResponse(&message_api.QueryEnvelopesResponse{
+		Envelopes: responseEnvelopes,
+	}), nil
 }
 
 func (s *Service) validateQuery(

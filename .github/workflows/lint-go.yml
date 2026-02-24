@@ -17,22 +17,33 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
           version: v2.10.1
+
+      - name: golangci-lint (bench)
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.10.1
+          args: --build-tags bench ./pkg/db/bench/...
+
       - name: sqlc
         uses: nickcharlton/diff-check@v1.0.0
         with:
           command: go tool -modfile=tools/go.mod sqlc generate
+
       - name: generate
         uses: nickcharlton/diff-check@v1.0.0
         with:
           command: go generate ./...
+
       - name: mockery
         uses: nickcharlton/diff-check@v1.0.0
         with:
           command: go tool -modfile=tools/go.mod mockery
+
       - name: metrics catalog
         uses: nickcharlton/diff-check@v1.0.0
         with:

@@ -251,7 +251,7 @@ func (s *subscribeWorker) dispatchToListeners(
 		select {
 		case <-l.ctx.Done():
 			if s.logger.Core().Enabled(zap.DebugLevel) {
-				s.logger.Debug("stream closed, removing listener", utils.BodyField(l.ch))
+				s.logger.Debug("stream closed, removing listener")
 			}
 
 			s.closeListener(l)

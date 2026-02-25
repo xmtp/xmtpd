@@ -84,6 +84,10 @@ func NewReplicationAPIService(
 		return nil, errors.New("validation service must not be nil")
 	}
 
+	if options.SendKeepAliveInterval <= 0 {
+		return nil, errors.New("send keep alive interval must be positive")
+	}
+
 	publishWorker, err := startPublishWorker(
 		ctx,
 		logger,
@@ -247,21 +251,7 @@ func (s *Service) catchUpFromCursor(
 			logger.Debug("fetched envelopes", utils.CountField(int64(len(rows))))
 		}
 
-		envs := make([]*envelopes.OriginatorEnvelope, 0, len(rows))
-		for _, r := range rows {
-			env, err := envelopes.NewOriginatorEnvelopeFromBytes(r.OriginatorEnvelope)
-			if err != nil {
-				// We expect to have already validated the envelope when it was inserted
-				s.logger.Error(
-					"could not unmarshal originator envelope",
-					zap.Error(err),
-					utils.OriginatorIDField(uint32(r.OriginatorNodeID)),
-					utils.SequenceIDField(r.OriginatorSequenceID),
-				)
-				continue
-			}
-			envs = append(envs, env)
-		}
+		envs := unmarshalEnvelopes(rows, s.logger)
 
 		err = s.sendEnvelopes(stream, query, envs)
 		if err != nil {
@@ -437,15 +427,9 @@ func (s *Service) fetchEnvelopesWithRetry(
 	query *message_api.EnvelopesQuery,
 	rowLimit int32,
 ) ([]queries.GatewayEnvelopesView, error) {
-	bo := backoff.NewExponentialBackOff()
-	bo.InitialInterval = 50 * time.Millisecond
-	bo.MaxInterval = 300 * time.Millisecond
-	bo.Multiplier = 2.0
-	bo.RandomizationFactor = 0.5
-	bo.MaxElapsedTime = 2 * time.Second
-
-	// Wrap the backoff with context
-	boCtx := backoff.WithContext(bo, ctx)
+	boCtx := backoff.WithContext(
+		utils.NewBackoff(50*time.Millisecond, 300*time.Millisecond, 2*time.Second), ctx,
+	)
 
 	var result []queries.GatewayEnvelopesView
 
@@ -540,6 +524,37 @@ func (s *Service) fetchEnvelopes(
 	rows := make([]queries.GatewayEnvelopesView, 0)
 
 	return rows, nil
+}
+
+// envelopeRow is implemented by any sqlc-generated row type that carries an
+// originator envelope blob alongside its originator metadata.
+type envelopeRow interface {
+	queries.GatewayEnvelopesView | queries.SelectGatewayEnvelopesBySingleOriginatorRow
+}
+
+// unmarshalEnvelopes converts raw DB rows into OriginatorEnvelope structs,
+// logging and skipping any rows that fail to unmarshal.
+func unmarshalEnvelopes[T envelopeRow](
+	rows []T,
+	logger *zap.Logger,
+) []*envelopes.OriginatorEnvelope {
+	envs := make([]*envelopes.OriginatorEnvelope, 0, len(rows))
+	for i := range rows {
+		// Both row types share the same memory layout; convert to access fields.
+		r := queries.GatewayEnvelopesView(rows[i])
+		env, err := envelopes.NewOriginatorEnvelopeFromBytes(r.OriginatorEnvelope)
+		if err != nil {
+			logger.Error(
+				"could not unmarshal originator envelope",
+				zap.Error(err),
+				utils.OriginatorIDField(uint32(r.OriginatorNodeID)),
+				utils.SequenceIDField(r.OriginatorSequenceID),
+			)
+			continue
+		}
+		envs = append(envs, env)
+	}
+	return envs
 }
 
 type ValidatedBytesWithTopic struct {

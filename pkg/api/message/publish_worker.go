@@ -35,7 +35,9 @@ type publishWorker struct {
 	feeCalculator      fees.IFeeCalculator
 	sleepOnFailureTime time.Duration
 	// traceContextStore enables async trace context propagation from staging
-	// requests to worker processing, allowing end-to-end distributed tracing
+	// requests to worker processing, allowing end-to-end distributed tracing.
+	// When tracing is disabled, all operations on this store and the spans it
+	// produces are zero-cost no-ops (see tracing.noopSpan).
 	traceContextStore *tracing.TraceContextStore
 }
 
@@ -142,8 +144,11 @@ func (p *publishWorker) start() {
 func (p *publishWorker) publishStagedEnvelope(
 	stagedEnv queries.StagedOriginatorEnvelope,
 ) (success bool) {
-	// Retrieve parent span context from async trace propagation
-	// This links the worker processing to the original staging request
+	// All tracing calls below are safe when tracing is disabled — the tracing
+	// package returns singleton no-op spans with zero-cost Finish/SetTag methods.
+
+	// Retrieve parent span context from async trace propagation.
+	// This links the worker processing to the original staging request.
 	parentCtx := p.traceContextStore.Retrieve(stagedEnv.ID)
 
 	// Create APM span, linked to parent if available

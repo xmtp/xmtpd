@@ -16,13 +16,13 @@ import (
 
 // Config controls the size and shape of the seeded dataset.
 type Config struct {
-	NumEnvelopes    int
-	NumOriginators  int
-	NumTopics       int
-	NumPayers       int
-	BlobSize        int
-	LogInterval     int
-	NumUsageMinutes int
+	NumEnvelopes    uint64
+	NumOriginators  uint64
+	NumTopics       uint64
+	NumPayers       uint64
+	BlobSize        uint64
+	LogInterval     uint64
+	NumUsageMinutes int32
 }
 
 // DefaultConfig returns a config matching the bench suite defaults.
@@ -88,7 +88,7 @@ func SeedEnvelopes(
 	}
 
 	var (
-		blob   = randomBytes(cfg.BlobSize)
+		blob   = randomBytes(int(cfg.BlobSize))
 		seqIDs = make([]int64, cfg.NumOriginators)
 	)
 
@@ -106,6 +106,7 @@ func SeedEnvelopes(
 			queries.InsertGatewayEnvelopeParams{
 				OriginatorNodeID:     origID,
 				OriginatorSequenceID: seqIDs[origIdx],
+				PayerID:              sql.NullInt32{Int32: payerIDs[i%cfg.NumPayers], Valid: true},
 				Topic:                topics[i%cfg.NumTopics],
 				Expiry:               time.Now().Add(24 * time.Hour).Unix(),
 				OriginatorEnvelope:   blob,
@@ -118,15 +119,15 @@ func SeedEnvelopes(
 		if cfg.LogInterval > 0 && (i+1)%cfg.LogInterval == 0 {
 			if logger != nil {
 				logger.Info("seeding envelopes",
-					zap.Int("seeded", i+1),
-					zap.Int("total", cfg.NumEnvelopes),
+					zap.Int("seeded", int(i+1)),
+					zap.Int("total", int(cfg.NumEnvelopes)),
 				)
 			}
 		}
 	}
 
 	if logger != nil {
-		logger.Info("envelopes seeded", zap.Int("total", cfg.NumEnvelopes))
+		logger.Info("envelopes seeded", zap.Int("total", int(cfg.NumEnvelopes)))
 	}
 
 	return SeedResult{
@@ -147,11 +148,11 @@ func SeedUsage(
 ) error {
 	q := queries.New(dbConn)
 
-	total := len(result.PayerIDs) * len(result.OriginatorIDs) * cfg.NumUsageMinutes
+	total := len(result.PayerIDs) * len(result.OriginatorIDs) * int(cfg.NumUsageMinutes)
 
 	for _, payerID := range result.PayerIDs {
 		for _, origID := range result.OriginatorIDs {
-			for minute := range int32(cfg.NumUsageMinutes) {
+			for minute := range cfg.NumUsageMinutes {
 				err := q.IncrementUnsettledUsage(
 					ctx,
 					queries.IncrementUnsettledUsageParams{
@@ -175,7 +176,7 @@ func SeedUsage(
 		logger.Info("usage seeded",
 			zap.Int("payers", len(result.PayerIDs)),
 			zap.Int("originators", len(result.OriginatorIDs)),
-			zap.Int("minutes", cfg.NumUsageMinutes),
+			zap.Int("minutes", int(cfg.NumUsageMinutes)),
 			zap.Int("total_rows", total),
 		)
 	}

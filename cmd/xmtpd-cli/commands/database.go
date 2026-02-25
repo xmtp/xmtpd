@@ -14,11 +14,11 @@ func databaseCmd() *cobra.Command {
 	var (
 		dbConnectionString string
 		namespace          string
-		numEnvelopes       int
-		numOriginators     int
-		numTopics          int
-		numPayers          int
-		blobSize           int
+		numEnvelopes       uint64
+		numOriginators     uint64
+		numTopics          uint64
+		numPayers          uint64
+		blobSize           uint64
 	)
 
 	cmd := &cobra.Command{
@@ -91,11 +91,12 @@ xmtpd-cli generate populate --namespace <namespace> --envelopes 1000000 --payers
 	)
 	_ = cmd.MarkFlagRequired("namespace")
 
-	cmd.Flags().IntVar(&numEnvelopes, "envelopes", 1_000_000, "number of gateway envelopes to seed")
-	cmd.Flags().IntVar(&numOriginators, "originators", 3, "number of originator node IDs")
-	cmd.Flags().IntVar(&numTopics, "topics", 100, "number of distinct topics")
-	cmd.Flags().IntVar(&numPayers, "payers", 5, "number of payer accounts")
-	cmd.Flags().IntVar(&blobSize, "blob-size", 500, "size of each envelope blob in bytes")
+	cmd.Flags().
+		Uint64Var(&numEnvelopes, "envelopes", 1_000_000, "number of gateway envelopes to seed")
+	cmd.Flags().Uint64Var(&numOriginators, "originators", 3, "number of originator node IDs")
+	cmd.Flags().Uint64Var(&numTopics, "topics", 100, "number of distinct topics")
+	cmd.Flags().Uint64Var(&numPayers, "payers", 5, "number of payer accounts")
+	cmd.Flags().Uint64Var(&blobSize, "blob-size", 500, "size of each envelope blob in bytes")
 
 	return cmd
 }

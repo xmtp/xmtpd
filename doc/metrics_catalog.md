@@ -15,6 +15,7 @@ This document catalogs the [OpenMetrics](https://prometheus.io/docs/specs/om/ope
 | `xmtp_api_incoming_node_connection_by_version_gauge` | `Gauge` | Number of incoming node connections by version | `pkg/metrics/api.go` |
 | `xmtp_api_node_connection_requests_by_version_counter` | `Counter` | Number of incoming node connections by version | `pkg/metrics/api.go` |
 | `xmtp_api_open_connections_gauge` | `Gauge` | Number of open API connections | `pkg/metrics/api.go` |
+| `xmtp_api_outgoing_envelopes_total` | `Counter` | Total number of envelopes successfully published to gateway_envelopes by this node | `pkg/metrics/api.go` |
 | `xmtp_api_staged_envelope_processing_delay_seconds` | `Histogram` | Delay in seconds between receiving a staged envelope and processing it | `pkg/metrics/api.go` |
 | `xmtp_api_wait_for_gateway_publish_seconds` | `Histogram` | Time spend waiting for staging envelope handing | `pkg/metrics/api.go` |
 | `xmtp_blockchain_broadcast_transaction_seconds` | `Histogram` | Time to publish a payload to the blockchain | `pkg/metrics/blockchain.go` |

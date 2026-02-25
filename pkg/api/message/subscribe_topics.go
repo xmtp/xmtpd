@@ -14,6 +14,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
+	"github.com/xmtp/xmtpd/pkg/metrics"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -346,6 +347,8 @@ func (s *Service) sendTopicEnvelopes(
 			fmt.Errorf("error sending envelopes: %w", err),
 		)
 	}
+
+	metrics.EmitApiOutgoingEnvelopes(len(envs))
 
 	return nil
 }

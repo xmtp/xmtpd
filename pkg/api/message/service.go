@@ -155,7 +155,6 @@ func (s *Service) SubscribeEnvelopes(
 			fmt.Errorf("could not send keepalive: %w", err),
 		)
 	}
-
 	query := req.Msg.GetQuery()
 
 	if err := s.validateQuery(query); err != nil {
@@ -308,6 +307,8 @@ func (s *Service) sendEnvelopes(
 		)
 	}
 
+	metrics.EmitApiOutgoingEnvelopes(len(envsToSend))
+
 	return nil
 }
 
@@ -380,6 +381,8 @@ func (s *Service) QueryEnvelopes(
 		}
 		response.Msg.Envelopes = append(response.Msg.Envelopes, originatorEnv)
 	}
+
+	metrics.EmitApiOutgoingEnvelopes(len(response.Msg.GetEnvelopes()))
 
 	return response, nil
 }
@@ -870,6 +873,7 @@ func (s *Service) GetNewestEnvelope(
 		Results: make([]*message_api.GetNewestEnvelopeResponse_Response, len(topics)),
 	})
 
+	sent := 0
 	for _, row := range rows {
 		idx, ok := originalSort[string(row.Topic)]
 		if !ok {
@@ -889,7 +893,10 @@ func (s *Service) GetNewestEnvelope(
 		response.Msg.Results[idx] = &message_api.GetNewestEnvelopeResponse_Response{
 			OriginatorEnvelope: originatorEnv,
 		}
+		sent++
 	}
+
+	metrics.EmitApiOutgoingEnvelopes(sent)
 
 	return response, nil
 }

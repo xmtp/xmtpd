@@ -116,7 +116,7 @@ func EmitApiStagedEnvelopeProcessingDelay(duration time.Duration) {
 var apiOutgoingEnvelopesTotal = prometheus.NewCounter(
 	prometheus.CounterOpts{
 		Name: "xmtp_api_outgoing_envelopes_total",
-		Help: "Total number of envelopes successfully published to gateway_envelopes by this node",
+		Help: "Total number of envelopes delivered to clients via subscribe and query APIs",
 	},
 )
 

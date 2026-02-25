@@ -13,6 +13,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
+	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	r "github.com/xmtp/xmtpd/pkg/registry"
@@ -24,6 +25,7 @@ import (
 	registryTestUtils "github.com/xmtp/xmtpd/pkg/testutils/registry"
 	serverTestUtils "github.com/xmtp/xmtpd/pkg/testutils/server"
 	"github.com/xmtp/xmtpd/pkg/topic"
+	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
 const (
@@ -394,4 +396,79 @@ func TestCreateServer_AllOptionPermutations(t *testing.T) {
 			server.Shutdown(0)
 		})
 	}
+}
+
+func TestGRPCPayloadLimit(t *testing.T) {
+	var (
+		ctx              = t.Context()
+		dbs              = testutils.NewDBs(t, ctx, 1)
+		port             = networkTestUtils.OpenFreePort(t)
+		privateKey       = testutils.RandomPrivateKey(t)
+		wsURL, rpcURL    = anvil.StartAnvil(t, false)
+		contractsOptions = testutils.NewContractsOptions(t, rpcURL, wsURL)
+
+		nodes = []r.Node{
+			registryTestUtils.CreateNode(
+				server1NodeID,
+				port,
+				privateKey,
+			),
+		}
+
+		registry = registryTestUtils.CreateMockRegistry(t, nodes)
+
+		server = serverTestUtils.NewTestBaseServer(t, serverTestUtils.TestServerCfg{
+			Port:             port,
+			DB:               dbs[0],
+			Registry:         registry,
+			PrivateKey:       privateKey,
+			ContractsOptions: contractsOptions,
+			Services: serverTestUtils.EnabledServices{
+				API: true,
+			},
+		})
+	)
+
+	defer server.Shutdown(0)
+
+	largePayload := make([]byte, 500*1024)
+	for i := range largePayload {
+		largePayload[i] = byte(i % 256)
+	}
+
+	totalPayloadSize := 0
+	payerEnvelopes := make([]*envelopes.PayerEnvelope, 0)
+
+	for totalPayloadSize < constants.GRPCPayloadLimit {
+		clientEnv := envelopeTestUtils.CreateGroupMessageClientEnvelope(
+			[16]byte{1, 2, 3},
+			largePayload,
+		)
+		payerEnvelope := envelopeTestUtils.CreatePayerEnvelopeWithSigner(
+			t, server1NodeID, privateKey, constants.DefaultStorageDurationDays, clientEnv,
+		)
+		totalPayloadSize += len(payerEnvelope.GetUnsignedClientEnvelope())
+		payerEnvelopes = append(payerEnvelopes, payerEnvelope)
+	}
+
+	t.Run("gRPC payload limit should be respected", func(t *testing.T) {
+		client, err := utils.NewConnectReplicationAPIClient(
+			ctx,
+			fmt.Sprintf("http://localhost:%d", port),
+		)
+		require.NoError(t, err)
+
+		_, err = client.PublishPayerEnvelopes(
+			ctx,
+			&connect.Request[message_api.PublishPayerEnvelopesRequest]{
+				Msg: &message_api.PublishPayerEnvelopesRequest{
+					PayerEnvelopes: payerEnvelopes,
+				},
+			},
+		)
+		require.Error(t, err)
+
+		code := connect.CodeOf(err)
+		require.Equal(t, connect.CodeResourceExhausted, code)
+	})
 }

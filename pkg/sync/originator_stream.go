@@ -207,7 +207,7 @@ func (s *originatorStream) validateEnvelope(
 			zap.Uint64("expected_sequence_id", lastSeq+1),
 		)
 		tracing.SpanTag(span, tracing.TagOutOfOrder, true)
-		tracing.SpanTag(span, "expected_sequence_id", s.lastSequenceId+1)
+		tracing.SpanTag(span, "expected_sequence_id", lastSeq+1)
 	}
 
 	if seqID > lastSeq {

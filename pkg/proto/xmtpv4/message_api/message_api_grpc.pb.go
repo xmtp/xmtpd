@@ -22,7 +22,11 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	ReplicationApi_SubscribeEnvelopes_FullMethodName    = "/xmtp.xmtpv4.message_api.ReplicationApi/SubscribeEnvelopes"
+<<<<<<< HEAD
 	ReplicationApi_SubscribeTopics_FullMethodName       = "/xmtp.xmtpv4.message_api.ReplicationApi/SubscribeTopics"
+=======
+	ReplicationApi_SubscribeAllEnvelopes_FullMethodName = "/xmtp.xmtpv4.message_api.ReplicationApi/SubscribeAllEnvelopes"
+>>>>>>> 47df8b3c (Update protos - add SubscribeAll code)
 	ReplicationApi_QueryEnvelopes_FullMethodName        = "/xmtp.xmtpv4.message_api.ReplicationApi/QueryEnvelopes"
 	ReplicationApi_PublishPayerEnvelopes_FullMethodName = "/xmtp.xmtpv4.message_api.ReplicationApi/PublishPayerEnvelopes"
 	ReplicationApi_GetInboxIds_FullMethodName           = "/xmtp.xmtpv4.message_api.ReplicationApi/GetInboxIds"
@@ -35,7 +39,11 @@ const (
 type ReplicationApiClient interface {
 	// This will be renamed to SubscribeOriginators
 	SubscribeEnvelopes(ctx context.Context, in *SubscribeEnvelopesRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SubscribeEnvelopesResponse], error)
+<<<<<<< HEAD
 	SubscribeTopics(ctx context.Context, in *SubscribeTopicsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SubscribeTopicsResponse], error)
+=======
+	SubscribeAllEnvelopes(ctx context.Context, in *SubscribeAllEnvelopesRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SubscribeAllEnvelopesResponse], error)
+>>>>>>> 47df8b3c (Update protos - add SubscribeAll code)
 	QueryEnvelopes(ctx context.Context, in *QueryEnvelopesRequest, opts ...grpc.CallOption) (*QueryEnvelopesResponse, error)
 	PublishPayerEnvelopes(ctx context.Context, in *PublishPayerEnvelopesRequest, opts ...grpc.CallOption) (*PublishPayerEnvelopesResponse, error)
 	GetInboxIds(ctx context.Context, in *GetInboxIdsRequest, opts ...grpc.CallOption) (*GetInboxIdsResponse, error)
@@ -70,6 +78,7 @@ func (c *replicationApiClient) SubscribeEnvelopes(ctx context.Context, in *Subsc
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type ReplicationApi_SubscribeEnvelopesClient = grpc.ServerStreamingClient[SubscribeEnvelopesResponse]
 
+<<<<<<< HEAD
 func (c *replicationApiClient) SubscribeTopics(ctx context.Context, in *SubscribeTopicsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SubscribeTopicsResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &ReplicationApi_ServiceDesc.Streams[1], ReplicationApi_SubscribeTopics_FullMethodName, cOpts...)
@@ -77,6 +86,15 @@ func (c *replicationApiClient) SubscribeTopics(ctx context.Context, in *Subscrib
 		return nil, err
 	}
 	x := &grpc.GenericClientStream[SubscribeTopicsRequest, SubscribeTopicsResponse]{ClientStream: stream}
+=======
+func (c *replicationApiClient) SubscribeAllEnvelopes(ctx context.Context, in *SubscribeAllEnvelopesRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SubscribeAllEnvelopesResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &ReplicationApi_ServiceDesc.Streams[1], ReplicationApi_SubscribeAllEnvelopes_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[SubscribeAllEnvelopesRequest, SubscribeAllEnvelopesResponse]{ClientStream: stream}
+>>>>>>> 47df8b3c (Update protos - add SubscribeAll code)
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -87,7 +105,11 @@ func (c *replicationApiClient) SubscribeTopics(ctx context.Context, in *Subscrib
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+<<<<<<< HEAD
 type ReplicationApi_SubscribeTopicsClient = grpc.ServerStreamingClient[SubscribeTopicsResponse]
+=======
+type ReplicationApi_SubscribeAllEnvelopesClient = grpc.ServerStreamingClient[SubscribeAllEnvelopesResponse]
+>>>>>>> 47df8b3c (Update protos - add SubscribeAll code)
 
 func (c *replicationApiClient) QueryEnvelopes(ctx context.Context, in *QueryEnvelopesRequest, opts ...grpc.CallOption) (*QueryEnvelopesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
@@ -135,7 +157,11 @@ func (c *replicationApiClient) GetNewestEnvelope(ctx context.Context, in *GetNew
 type ReplicationApiServer interface {
 	// This will be renamed to SubscribeOriginators
 	SubscribeEnvelopes(*SubscribeEnvelopesRequest, grpc.ServerStreamingServer[SubscribeEnvelopesResponse]) error
+<<<<<<< HEAD
 	SubscribeTopics(*SubscribeTopicsRequest, grpc.ServerStreamingServer[SubscribeTopicsResponse]) error
+=======
+	SubscribeAllEnvelopes(*SubscribeAllEnvelopesRequest, grpc.ServerStreamingServer[SubscribeAllEnvelopesResponse]) error
+>>>>>>> 47df8b3c (Update protos - add SubscribeAll code)
 	QueryEnvelopes(context.Context, *QueryEnvelopesRequest) (*QueryEnvelopesResponse, error)
 	PublishPayerEnvelopes(context.Context, *PublishPayerEnvelopesRequest) (*PublishPayerEnvelopesResponse, error)
 	GetInboxIds(context.Context, *GetInboxIdsRequest) (*GetInboxIdsResponse, error)
@@ -153,8 +179,13 @@ type UnimplementedReplicationApiServer struct{}
 func (UnimplementedReplicationApiServer) SubscribeEnvelopes(*SubscribeEnvelopesRequest, grpc.ServerStreamingServer[SubscribeEnvelopesResponse]) error {
 	return status.Errorf(codes.Unimplemented, "method SubscribeEnvelopes not implemented")
 }
+<<<<<<< HEAD
 func (UnimplementedReplicationApiServer) SubscribeTopics(*SubscribeTopicsRequest, grpc.ServerStreamingServer[SubscribeTopicsResponse]) error {
 	return status.Errorf(codes.Unimplemented, "method SubscribeTopics not implemented")
+=======
+func (UnimplementedReplicationApiServer) SubscribeAllEnvelopes(*SubscribeAllEnvelopesRequest, grpc.ServerStreamingServer[SubscribeAllEnvelopesResponse]) error {
+	return status.Errorf(codes.Unimplemented, "method SubscribeAllEnvelopes not implemented")
+>>>>>>> 47df8b3c (Update protos - add SubscribeAll code)
 }
 func (UnimplementedReplicationApiServer) QueryEnvelopes(context.Context, *QueryEnvelopesRequest) (*QueryEnvelopesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method QueryEnvelopes not implemented")
@@ -199,6 +230,7 @@ func _ReplicationApi_SubscribeEnvelopes_Handler(srv interface{}, stream grpc.Ser
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type ReplicationApi_SubscribeEnvelopesServer = grpc.ServerStreamingServer[SubscribeEnvelopesResponse]
 
+<<<<<<< HEAD
 func _ReplicationApi_SubscribeTopics_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(SubscribeTopicsRequest)
 	if err := stream.RecvMsg(m); err != nil {
@@ -209,6 +241,18 @@ func _ReplicationApi_SubscribeTopics_Handler(srv interface{}, stream grpc.Server
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type ReplicationApi_SubscribeTopicsServer = grpc.ServerStreamingServer[SubscribeTopicsResponse]
+=======
+func _ReplicationApi_SubscribeAllEnvelopes_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(SubscribeAllEnvelopesRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ReplicationApiServer).SubscribeAllEnvelopes(m, &grpc.GenericServerStream[SubscribeAllEnvelopesRequest, SubscribeAllEnvelopesResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ReplicationApi_SubscribeAllEnvelopesServer = grpc.ServerStreamingServer[SubscribeAllEnvelopesResponse]
+>>>>>>> 47df8b3c (Update protos - add SubscribeAll code)
 
 func _ReplicationApi_QueryEnvelopes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(QueryEnvelopesRequest)
@@ -313,8 +357,13 @@ var ReplicationApi_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 		{
+<<<<<<< HEAD
 			StreamName:    "SubscribeTopics",
 			Handler:       _ReplicationApi_SubscribeTopics_Handler,
+=======
+			StreamName:    "SubscribeAllEnvelopes",
+			Handler:       _ReplicationApi_SubscribeAllEnvelopes_Handler,
+>>>>>>> 47df8b3c (Update protos - add SubscribeAll code)
 			ServerStreams: true,
 		},
 	},

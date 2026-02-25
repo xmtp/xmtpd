@@ -15,7 +15,219 @@
   "produces": [
     "application/json"
   ],
-  "paths": {},
+  "paths": {
+    "/mls/v2/get-inbox-ids": {
+      "post": {
+        "operationId": "ReplicationApi_GetInboxIds",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/xmtpv4message_apiGetInboxIdsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/xmtpv4message_apiGetInboxIdsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ReplicationApi"
+        ]
+      }
+    },
+    "/mls/v2/get-newest-envelope": {
+      "post": {
+        "summary": "Get the newest envelope for each topic",
+        "operationId": "ReplicationApi_GetNewestEnvelope",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/message_apiGetNewestEnvelopeResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/message_apiGetNewestEnvelopeRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ReplicationApi"
+        ]
+      }
+    },
+    "/mls/v2/publish-payer-envelopes": {
+      "post": {
+        "operationId": "ReplicationApi_PublishPayerEnvelopes",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/message_apiPublishPayerEnvelopesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/message_apiPublishPayerEnvelopesRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ReplicationApi"
+        ]
+      }
+    },
+    "/mls/v2/query-envelopes": {
+      "post": {
+        "operationId": "ReplicationApi_QueryEnvelopes",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/message_apiQueryEnvelopesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/message_apiQueryEnvelopesRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ReplicationApi"
+        ]
+      }
+    },
+    "/mls/v2/subscribe-all-envelopes": {
+      "post": {
+        "operationId": "ReplicationApi_SubscribeAllEnvelopes",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/message_apiSubscribeAllEnvelopesResponse"
+                },
+                "error": {
+                  "$ref": "#/definitions/rpcStatus"
+                }
+              },
+              "title": "Stream result of message_apiSubscribeAllEnvelopesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/message_apiSubscribeAllEnvelopesRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ReplicationApi"
+        ]
+      }
+    },
+    "/mls/v2/subscribe-envelopes": {
+      "post": {
+        "operationId": "ReplicationApi_SubscribeEnvelopes",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/message_apiSubscribeEnvelopesResponse"
+                },
+                "error": {
+                  "$ref": "#/definitions/rpcStatus"
+                }
+              },
+              "title": "Stream result of message_apiSubscribeEnvelopesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/message_apiSubscribeEnvelopesRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ReplicationApi"
+        ]
+      }
+    }
+  },
   "definitions": {
     "SubscribeTopicsRequestTopicFilter": {
       "type": "object",
@@ -202,6 +414,39 @@
       },
       "title": "Query envelopes response"
     },
+<<<<<<< HEAD
+=======
+    "message_apiSubscribeAllEnvelopesRequest": {
+      "type": "object",
+      "properties": {
+        "lastSeen": {
+          "$ref": "#/definitions/xmtpv4envelopesCursor"
+        }
+      },
+      "title": "Batch subscribe to all envelopes"
+    },
+    "message_apiSubscribeAllEnvelopesResponse": {
+      "type": "object",
+      "properties": {
+        "envelopes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/envelopesOriginatorEnvelope"
+          }
+        }
+      },
+      "title": "Streamed response for batch subscribe - can be multiple envelopes at once"
+    },
+    "message_apiSubscribeEnvelopesRequest": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "$ref": "#/definitions/message_apiEnvelopesQuery"
+        }
+      }
+    },
+>>>>>>> 47df8b3c (Update protos - add SubscribeAll code)
     "message_apiSubscribeEnvelopesResponse": {
       "type": "object",
       "properties": {

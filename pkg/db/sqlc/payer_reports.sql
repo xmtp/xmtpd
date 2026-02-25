@@ -207,19 +207,6 @@ SET submission_status = @new_status,
 WHERE id = @report_id
 	AND submission_status = ANY(sqlc.arg(prev_status)::SMALLINT []);
 
--- name: FetchAttestations :many
-SELECT *
-FROM payer_report_attestations
-	LEFT JOIN payer_reports ON payer_reports.id = payer_report_attestations.payer_report_id
-WHERE (
-		sqlc.narg(payer_report_id)::BYTEA IS NULL
-		OR sqlc.narg(payer_report_id)::BYTEA = payer_report_id
-	)
-	AND (
-		sqlc.narg(attester_node_id)::INT IS NULL
-		OR sqlc.narg(attester_node_id)::INT = node_id
-	);
-
 -- name: ClearUnsettledUsage :exec
 DELETE FROM unsettled_usage
 WHERE originator_id = @originator_id

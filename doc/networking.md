@@ -23,13 +23,11 @@ This document describes the communication protocols and APIs implemented in the 
 The xmtpd system uses a **dual-protocol architecture**:
 
 - **External/Client-Facing APIs**: Implemented with **Connect-RPC handlers** that automatically support three protocols:
-
   - Connect (HTTP/1.1 or HTTP/2 with standard HTTP semantics). **Currently not allowed**.
   - gRPC (HTTP/2 with gRPC protocol)
   - gRPC-Web (browser-compatible gRPC)
 
 - **Internal Node-to-Node Communication**: Uses **native gRPC clients** for:
-
   - Sync worker (node-to-node envelope replication)
   - MLS validation service
   - Gateway client manager (gateway-to-node communication)
@@ -136,11 +134,9 @@ When running in production, prefer HTTPS with HTTP/2 (no h2c) unless traffic is 
 ### When to use which protocol
 
 - Connect (default via connect-go)
-
   - Not supported currently.
 
 - gRPC (classic)
-
   - Use when interoperating with existing gRPC-only clients/infra
   - Requires HTTP/2; commonly secured with TLS in production
   - Strong ecosystem of tooling (`grpcurl`, language SDKs)
@@ -665,6 +661,19 @@ grpcurl -plaintext -d 'DATA_FRAME' \
 grpcurl -plaintext \
   localhost:5050 \
   xmtp.xmtpv4.metadata_api.MetadataApi/GetVersion
+
+# Query envelopes
+grpcurl --plaintext -d '{
+    "query": {
+        "originator_node_ids": [10],
+        "last_seen": {
+            "node_id_to_sequence_id": {
+                "10": "191604"
+            }
+        }
+    },
+    "limit":1000
+}' localhost:5050 xmtp.xmtpv4.message_api.ReplicationApi/QueryEnvelopes
 ```
 
 **Subscribe to a stream**:

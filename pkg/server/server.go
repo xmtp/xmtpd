@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/trace/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
+	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/migrator"
@@ -508,6 +509,8 @@ func startAPIServer(
 
 		replicationPath, replicationHandler := message_apiconnect.NewReplicationApiHandler(
 			replicationService,
+			connect.WithReadMaxBytes(constants.GRPCPayloadLimit),
+			connect.WithSendMaxBytes(constants.GRPCPayloadLimit),
 			connect.WithInterceptors(interceptors...),
 		)
 
@@ -534,6 +537,8 @@ func startAPIServer(
 
 		metadataPath, metadataHandler := metadata_apiconnect.NewMetadataApiHandler(
 			metadataService,
+			connect.WithReadMaxBytes(constants.GRPCPayloadLimit),
+			connect.WithSendMaxBytes(constants.GRPCPayloadLimit),
 			connect.WithInterceptors(interceptors...),
 		)
 

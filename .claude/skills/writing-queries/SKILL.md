@@ -108,7 +108,7 @@ Return inserted/affected data. `RETURNING *` (InsertStagedOriginatorEnvelope), `
 sqlc.narg('name')::TYPE IS NULL OR condition
 ```
 
-Used in FetchPayerReports, FetchAttestations.
+Used in FetchPayerReports.
 
 ### Zero-means-unset optional filters
 

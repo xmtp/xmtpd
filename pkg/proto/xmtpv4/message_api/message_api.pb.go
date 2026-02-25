@@ -404,51 +404,6 @@ func (x *SubscribeAllEnvelopesRequest) GetLastSeen() *envelopes.Cursor {
 	return nil
 }
 
-// Streamed response for batch subscribe - can be multiple envelopes at once
-type SubscribeAllEnvelopesResponse struct {
-	state         protoimpl.MessageState          `protogen:"open.v1"`
-	Envelopes     []*envelopes.OriginatorEnvelope `protobuf:"bytes,1,rep,name=envelopes,proto3" json:"envelopes,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SubscribeAllEnvelopesResponse) Reset() {
-	*x = SubscribeAllEnvelopesResponse{}
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SubscribeAllEnvelopesResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SubscribeAllEnvelopesResponse) ProtoMessage() {}
-
-func (x *SubscribeAllEnvelopesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SubscribeAllEnvelopesResponse.ProtoReflect.Descriptor instead.
-func (*SubscribeAllEnvelopesResponse) Descriptor() ([]byte, []int) {
-	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *SubscribeAllEnvelopesResponse) GetEnvelopes() []*envelopes.OriginatorEnvelope {
-	if x != nil {
-		return x.Envelopes
-	}
-	return nil
-}
-
 // Query envelopes request
 type QueryEnvelopesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -460,7 +415,7 @@ type QueryEnvelopesRequest struct {
 
 func (x *QueryEnvelopesRequest) Reset() {
 	*x = QueryEnvelopesRequest{}
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[5]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -472,7 +427,7 @@ func (x *QueryEnvelopesRequest) String() string {
 func (*QueryEnvelopesRequest) ProtoMessage() {}
 
 func (x *QueryEnvelopesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[5]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -485,7 +440,7 @@ func (x *QueryEnvelopesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueryEnvelopesRequest.ProtoReflect.Descriptor instead.
 func (*QueryEnvelopesRequest) Descriptor() ([]byte, []int) {
-	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{5}
+	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *QueryEnvelopesRequest) GetQuery() *EnvelopesQuery {
@@ -512,7 +467,7 @@ type QueryEnvelopesResponse struct {
 
 func (x *QueryEnvelopesResponse) Reset() {
 	*x = QueryEnvelopesResponse{}
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[6]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -524,7 +479,7 @@ func (x *QueryEnvelopesResponse) String() string {
 func (*QueryEnvelopesResponse) ProtoMessage() {}
 
 func (x *QueryEnvelopesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[6]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -537,7 +492,7 @@ func (x *QueryEnvelopesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueryEnvelopesResponse.ProtoReflect.Descriptor instead.
 func (*QueryEnvelopesResponse) Descriptor() ([]byte, []int) {
-	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{6}
+	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *QueryEnvelopesResponse) GetEnvelopes() []*envelopes.OriginatorEnvelope {
@@ -556,7 +511,7 @@ type PublishPayerEnvelopesRequest struct {
 
 func (x *PublishPayerEnvelopesRequest) Reset() {
 	*x = PublishPayerEnvelopesRequest{}
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[7]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -568,7 +523,7 @@ func (x *PublishPayerEnvelopesRequest) String() string {
 func (*PublishPayerEnvelopesRequest) ProtoMessage() {}
 
 func (x *PublishPayerEnvelopesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[7]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -581,7 +536,7 @@ func (x *PublishPayerEnvelopesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PublishPayerEnvelopesRequest.ProtoReflect.Descriptor instead.
 func (*PublishPayerEnvelopesRequest) Descriptor() ([]byte, []int) {
-	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{7}
+	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *PublishPayerEnvelopesRequest) GetPayerEnvelopes() []*envelopes.PayerEnvelope {
@@ -600,7 +555,7 @@ type PublishPayerEnvelopesResponse struct {
 
 func (x *PublishPayerEnvelopesResponse) Reset() {
 	*x = PublishPayerEnvelopesResponse{}
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[8]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -612,7 +567,7 @@ func (x *PublishPayerEnvelopesResponse) String() string {
 func (*PublishPayerEnvelopesResponse) ProtoMessage() {}
 
 func (x *PublishPayerEnvelopesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[8]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -625,7 +580,7 @@ func (x *PublishPayerEnvelopesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PublishPayerEnvelopesResponse.ProtoReflect.Descriptor instead.
 func (*PublishPayerEnvelopesResponse) Descriptor() ([]byte, []int) {
-	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{8}
+	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *PublishPayerEnvelopesResponse) GetOriginatorEnvelopes() []*envelopes.OriginatorEnvelope {
@@ -645,7 +600,7 @@ type GetInboxIdsRequest struct {
 
 func (x *GetInboxIdsRequest) Reset() {
 	*x = GetInboxIdsRequest{}
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[9]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -657,7 +612,7 @@ func (x *GetInboxIdsRequest) String() string {
 func (*GetInboxIdsRequest) ProtoMessage() {}
 
 func (x *GetInboxIdsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[9]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -670,7 +625,7 @@ func (x *GetInboxIdsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInboxIdsRequest.ProtoReflect.Descriptor instead.
 func (*GetInboxIdsRequest) Descriptor() ([]byte, []int) {
-	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{9}
+	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetInboxIdsRequest) GetRequests() []*GetInboxIdsRequest_Request {
@@ -690,7 +645,7 @@ type GetInboxIdsResponse struct {
 
 func (x *GetInboxIdsResponse) Reset() {
 	*x = GetInboxIdsResponse{}
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[10]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -702,7 +657,7 @@ func (x *GetInboxIdsResponse) String() string {
 func (*GetInboxIdsResponse) ProtoMessage() {}
 
 func (x *GetInboxIdsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[10]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -715,7 +670,7 @@ func (x *GetInboxIdsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInboxIdsResponse.ProtoReflect.Descriptor instead.
 func (*GetInboxIdsResponse) Descriptor() ([]byte, []int) {
-	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{10}
+	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetInboxIdsResponse) GetResponses() []*GetInboxIdsResponse_Response {
@@ -735,7 +690,7 @@ type GetNewestEnvelopeRequest struct {
 
 func (x *GetNewestEnvelopeRequest) Reset() {
 	*x = GetNewestEnvelopeRequest{}
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[11]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -747,7 +702,7 @@ func (x *GetNewestEnvelopeRequest) String() string {
 func (*GetNewestEnvelopeRequest) ProtoMessage() {}
 
 func (x *GetNewestEnvelopeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[11]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -760,7 +715,7 @@ func (x *GetNewestEnvelopeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNewestEnvelopeRequest.ProtoReflect.Descriptor instead.
 func (*GetNewestEnvelopeRequest) Descriptor() ([]byte, []int) {
-	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{11}
+	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetNewestEnvelopeRequest) GetTopics() [][]byte {
@@ -781,7 +736,7 @@ type GetNewestEnvelopeResponse struct {
 
 func (x *GetNewestEnvelopeResponse) Reset() {
 	*x = GetNewestEnvelopeResponse{}
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[12]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -793,7 +748,7 @@ func (x *GetNewestEnvelopeResponse) String() string {
 func (*GetNewestEnvelopeResponse) ProtoMessage() {}
 
 func (x *GetNewestEnvelopeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[12]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -806,7 +761,7 @@ func (x *GetNewestEnvelopeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNewestEnvelopeResponse.ProtoReflect.Descriptor instead.
 func (*GetNewestEnvelopeResponse) Descriptor() ([]byte, []int) {
-	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{12}
+	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetNewestEnvelopeResponse) GetResults() []*GetNewestEnvelopeResponse_Response {
@@ -968,10 +923,14 @@ type GetInboxIdsRequest_Request struct {
 func (x *GetInboxIdsRequest_Request) Reset() {
 	*x = GetInboxIdsRequest_Request{}
 <<<<<<< HEAD
+<<<<<<< HEAD
 	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[16]
 =======
 	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[13]
 >>>>>>> 47df8b3c (Update protos - add SubscribeAll code)
+=======
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[12]
+>>>>>>> 70bdbd28 (Update protos - share output format with the regular query/subscribe type)
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -984,10 +943,14 @@ func (*GetInboxIdsRequest_Request) ProtoMessage() {}
 
 func (x *GetInboxIdsRequest_Request) ProtoReflect() protoreflect.Message {
 <<<<<<< HEAD
+<<<<<<< HEAD
 	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[16]
 =======
 	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[13]
 >>>>>>> 47df8b3c (Update protos - add SubscribeAll code)
+=======
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[12]
+>>>>>>> 70bdbd28 (Update protos - share output format with the regular query/subscribe type)
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1000,7 +963,7 @@ func (x *GetInboxIdsRequest_Request) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInboxIdsRequest_Request.ProtoReflect.Descriptor instead.
 func (*GetInboxIdsRequest_Request) Descriptor() ([]byte, []int) {
-	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{9, 0}
+	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{8, 0}
 }
 
 func (x *GetInboxIdsRequest_Request) GetIdentifier() string {
@@ -1030,10 +993,14 @@ type GetInboxIdsResponse_Response struct {
 func (x *GetInboxIdsResponse_Response) Reset() {
 	*x = GetInboxIdsResponse_Response{}
 <<<<<<< HEAD
+<<<<<<< HEAD
 	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[17]
 =======
 	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[14]
 >>>>>>> 47df8b3c (Update protos - add SubscribeAll code)
+=======
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[13]
+>>>>>>> 70bdbd28 (Update protos - share output format with the regular query/subscribe type)
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1046,10 +1013,14 @@ func (*GetInboxIdsResponse_Response) ProtoMessage() {}
 
 func (x *GetInboxIdsResponse_Response) ProtoReflect() protoreflect.Message {
 <<<<<<< HEAD
+<<<<<<< HEAD
 	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[17]
 =======
 	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[14]
 >>>>>>> 47df8b3c (Update protos - add SubscribeAll code)
+=======
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[13]
+>>>>>>> 70bdbd28 (Update protos - share output format with the regular query/subscribe type)
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1062,7 +1033,7 @@ func (x *GetInboxIdsResponse_Response) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInboxIdsResponse_Response.ProtoReflect.Descriptor instead.
 func (*GetInboxIdsResponse_Response) Descriptor() ([]byte, []int) {
-	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{10, 0}
+	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{9, 0}
 }
 
 func (x *GetInboxIdsResponse_Response) GetIdentifier() string {
@@ -1096,10 +1067,14 @@ type GetNewestEnvelopeResponse_Response struct {
 func (x *GetNewestEnvelopeResponse_Response) Reset() {
 	*x = GetNewestEnvelopeResponse_Response{}
 <<<<<<< HEAD
+<<<<<<< HEAD
 	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[18]
 =======
 	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[15]
 >>>>>>> 47df8b3c (Update protos - add SubscribeAll code)
+=======
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[14]
+>>>>>>> 70bdbd28 (Update protos - share output format with the regular query/subscribe type)
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1112,10 +1087,14 @@ func (*GetNewestEnvelopeResponse_Response) ProtoMessage() {}
 
 func (x *GetNewestEnvelopeResponse_Response) ProtoReflect() protoreflect.Message {
 <<<<<<< HEAD
+<<<<<<< HEAD
 	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[18]
 =======
 	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[15]
 >>>>>>> 47df8b3c (Update protos - add SubscribeAll code)
+=======
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[14]
+>>>>>>> 70bdbd28 (Update protos - share output format with the regular query/subscribe type)
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1128,7 +1107,7 @@ func (x *GetNewestEnvelopeResponse_Response) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use GetNewestEnvelopeResponse_Response.ProtoReflect.Descriptor instead.
 func (*GetNewestEnvelopeResponse_Response) Descriptor() ([]byte, []int) {
-	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{12, 0}
+	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{11, 0}
 }
 
 func (x *GetNewestEnvelopeResponse_Response) GetOriginatorEnvelope() *envelopes.OriginatorEnvelope {
@@ -1171,9 +1150,7 @@ const file_xmtpv4_message_api_message_api_proto_rawDesc = "" +
 	"\x1aSubscribeEnvelopesResponse\x12G\n" +
 	"\tenvelopes\x18\x01 \x03(\v2).xmtp.xmtpv4.envelopes.OriginatorEnvelopeR\tenvelopes\"Z\n" +
 	"\x1cSubscribeAllEnvelopesRequest\x12:\n" +
-	"\tlast_seen\x18\x01 \x01(\v2\x1d.xmtp.xmtpv4.envelopes.CursorR\blastSeen\"h\n" +
-	"\x1dSubscribeAllEnvelopesResponse\x12G\n" +
-	"\tenvelopes\x18\x01 \x03(\v2).xmtp.xmtpv4.envelopes.OriginatorEnvelopeR\tenvelopes\"l\n" +
+	"\tlast_seen\x18\x01 \x01(\v2\x1d.xmtp.xmtpv4.envelopes.CursorR\blastSeen\"l\n" +
 	"\x15QueryEnvelopesRequest\x12=\n" +
 	"\x05query\x18\x01 \x01(\v2'.xmtp.xmtpv4.message_api.EnvelopesQueryR\x05query\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\rR\x05limit\"a\n" +
@@ -1206,6 +1183,7 @@ const file_xmtpv4_message_api_message_api_proto_rawDesc = "" +
 	"\bResponse\x12_\n" +
 	"\x13originator_envelope\x18\x01 \x01(\v2).xmtp.xmtpv4.envelopes.OriginatorEnvelopeH\x00R\x12originatorEnvelope\x88\x01\x01B\x16\n" +
 <<<<<<< HEAD
+<<<<<<< HEAD
 	"\x14_originator_envelope2\xf8\x05\n" +
 	"\x0eReplicationApi\x12\x81\x01\n" +
 	"\x12SubscribeEnvelopes\x122.xmtp.xmtpv4.message_api.SubscribeEnvelopesRequest\x1a3.xmtp.xmtpv4.message_api.SubscribeEnvelopesResponse\"\x000\x01\x12x\n" +
@@ -1216,9 +1194,12 @@ const file_xmtpv4_message_api_message_api_proto_rawDesc = "" +
 	"\x11GetNewestEnvelope\x121.xmtp.xmtpv4.message_api.GetNewestEnvelopeRequest\x1a2.xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse\"\x00B\xdc\x01\n" +
 =======
 	"\x14_originator_envelope2\xf0\a\n" +
+=======
+	"\x14_originator_envelope2\xed\a\n" +
+>>>>>>> 70bdbd28 (Update protos - share output format with the regular query/subscribe type)
 	"\x0eReplicationApi\x12\xa7\x01\n" +
-	"\x12SubscribeEnvelopes\x122.xmtp.xmtpv4.message_api.SubscribeEnvelopesRequest\x1a3.xmtp.xmtpv4.message_api.SubscribeEnvelopesResponse\"&\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/mls/v2/subscribe-envelopes0\x01\x12\xb4\x01\n" +
-	"\x15SubscribeAllEnvelopes\x125.xmtp.xmtpv4.message_api.SubscribeAllEnvelopesRequest\x1a6.xmtp.xmtpv4.message_api.SubscribeAllEnvelopesResponse\"*\x82\xd3\xe4\x93\x02$:\x01*\"\x1f/mls/v2/subscribe-all-envelopes0\x01\x12\x95\x01\n" +
+	"\x12SubscribeEnvelopes\x122.xmtp.xmtpv4.message_api.SubscribeEnvelopesRequest\x1a3.xmtp.xmtpv4.message_api.SubscribeEnvelopesResponse\"&\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/mls/v2/subscribe-envelopes0\x01\x12\xb1\x01\n" +
+	"\x15SubscribeAllEnvelopes\x125.xmtp.xmtpv4.message_api.SubscribeAllEnvelopesRequest\x1a3.xmtp.xmtpv4.message_api.SubscribeEnvelopesResponse\"*\x82\xd3\xe4\x93\x02$:\x01*\"\x1f/mls/v2/subscribe-all-envelopes0\x01\x12\x95\x01\n" +
 	"\x0eQueryEnvelopes\x12..xmtp.xmtpv4.message_api.QueryEnvelopesRequest\x1a/.xmtp.xmtpv4.message_api.QueryEnvelopesResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/mls/v2/query-envelopes\x12\xb2\x01\n" +
 	"\x15PublishPayerEnvelopes\x125.xmtp.xmtpv4.message_api.PublishPayerEnvelopesRequest\x1a6.xmtp.xmtpv4.message_api.PublishPayerEnvelopesResponse\"*\x82\xd3\xe4\x93\x02$:\x01*\"\x1f/mls/v2/publish-payer-envelopes\x12\x8a\x01\n" +
 	"\vGetInboxIds\x12+.xmtp.xmtpv4.message_api.GetInboxIdsRequest\x1a,.xmtp.xmtpv4.message_api.GetInboxIdsResponse\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/mls/v2/get-inbox-ids\x12\xa2\x01\n" +
@@ -1238,6 +1219,7 @@ func file_xmtpv4_message_api_message_api_proto_rawDescGZIP() []byte {
 	return file_xmtpv4_message_api_message_api_proto_rawDescData
 }
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 var file_xmtpv4_message_api_message_api_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_xmtpv4_message_api_message_api_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
@@ -1306,31 +1288,34 @@ var file_xmtpv4_message_api_message_api_proto_depIdxs = []int32{
 	0,  // [0:19] is the sub-list for field type_name
 =======
 var file_xmtpv4_message_api_message_api_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+=======
+var file_xmtpv4_message_api_message_api_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+>>>>>>> 70bdbd28 (Update protos - share output format with the regular query/subscribe type)
 var file_xmtpv4_message_api_message_api_proto_goTypes = []any{
 	(*EnvelopesQuery)(nil),                     // 0: xmtp.xmtpv4.message_api.EnvelopesQuery
 	(*SubscribeEnvelopesRequest)(nil),          // 1: xmtp.xmtpv4.message_api.SubscribeEnvelopesRequest
 	(*SubscribeEnvelopesResponse)(nil),         // 2: xmtp.xmtpv4.message_api.SubscribeEnvelopesResponse
 	(*SubscribeAllEnvelopesRequest)(nil),       // 3: xmtp.xmtpv4.message_api.SubscribeAllEnvelopesRequest
-	(*SubscribeAllEnvelopesResponse)(nil),      // 4: xmtp.xmtpv4.message_api.SubscribeAllEnvelopesResponse
-	(*QueryEnvelopesRequest)(nil),              // 5: xmtp.xmtpv4.message_api.QueryEnvelopesRequest
-	(*QueryEnvelopesResponse)(nil),             // 6: xmtp.xmtpv4.message_api.QueryEnvelopesResponse
-	(*PublishPayerEnvelopesRequest)(nil),       // 7: xmtp.xmtpv4.message_api.PublishPayerEnvelopesRequest
-	(*PublishPayerEnvelopesResponse)(nil),      // 8: xmtp.xmtpv4.message_api.PublishPayerEnvelopesResponse
-	(*GetInboxIdsRequest)(nil),                 // 9: xmtp.xmtpv4.message_api.GetInboxIdsRequest
-	(*GetInboxIdsResponse)(nil),                // 10: xmtp.xmtpv4.message_api.GetInboxIdsResponse
-	(*GetNewestEnvelopeRequest)(nil),           // 11: xmtp.xmtpv4.message_api.GetNewestEnvelopeRequest
-	(*GetNewestEnvelopeResponse)(nil),          // 12: xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse
-	(*GetInboxIdsRequest_Request)(nil),         // 13: xmtp.xmtpv4.message_api.GetInboxIdsRequest.Request
-	(*GetInboxIdsResponse_Response)(nil),       // 14: xmtp.xmtpv4.message_api.GetInboxIdsResponse.Response
-	(*GetNewestEnvelopeResponse_Response)(nil), // 15: xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse.Response
-	(*envelopes.Cursor)(nil),                   // 16: xmtp.xmtpv4.envelopes.Cursor
-	(*envelopes.OriginatorEnvelope)(nil),       // 17: xmtp.xmtpv4.envelopes.OriginatorEnvelope
-	(*envelopes.PayerEnvelope)(nil),            // 18: xmtp.xmtpv4.envelopes.PayerEnvelope
-	(associations.IdentifierKind)(0),           // 19: xmtp.identity.associations.IdentifierKind
+	(*QueryEnvelopesRequest)(nil),              // 4: xmtp.xmtpv4.message_api.QueryEnvelopesRequest
+	(*QueryEnvelopesResponse)(nil),             // 5: xmtp.xmtpv4.message_api.QueryEnvelopesResponse
+	(*PublishPayerEnvelopesRequest)(nil),       // 6: xmtp.xmtpv4.message_api.PublishPayerEnvelopesRequest
+	(*PublishPayerEnvelopesResponse)(nil),      // 7: xmtp.xmtpv4.message_api.PublishPayerEnvelopesResponse
+	(*GetInboxIdsRequest)(nil),                 // 8: xmtp.xmtpv4.message_api.GetInboxIdsRequest
+	(*GetInboxIdsResponse)(nil),                // 9: xmtp.xmtpv4.message_api.GetInboxIdsResponse
+	(*GetNewestEnvelopeRequest)(nil),           // 10: xmtp.xmtpv4.message_api.GetNewestEnvelopeRequest
+	(*GetNewestEnvelopeResponse)(nil),          // 11: xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse
+	(*GetInboxIdsRequest_Request)(nil),         // 12: xmtp.xmtpv4.message_api.GetInboxIdsRequest.Request
+	(*GetInboxIdsResponse_Response)(nil),       // 13: xmtp.xmtpv4.message_api.GetInboxIdsResponse.Response
+	(*GetNewestEnvelopeResponse_Response)(nil), // 14: xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse.Response
+	(*envelopes.Cursor)(nil),                   // 15: xmtp.xmtpv4.envelopes.Cursor
+	(*envelopes.OriginatorEnvelope)(nil),       // 16: xmtp.xmtpv4.envelopes.OriginatorEnvelope
+	(*envelopes.PayerEnvelope)(nil),            // 17: xmtp.xmtpv4.envelopes.PayerEnvelope
+	(associations.IdentifierKind)(0),           // 18: xmtp.identity.associations.IdentifierKind
 }
 var file_xmtpv4_message_api_message_api_proto_depIdxs = []int32{
-	16, // 0: xmtp.xmtpv4.message_api.EnvelopesQuery.last_seen:type_name -> xmtp.xmtpv4.envelopes.Cursor
+	15, // 0: xmtp.xmtpv4.message_api.EnvelopesQuery.last_seen:type_name -> xmtp.xmtpv4.envelopes.Cursor
 	0,  // 1: xmtp.xmtpv4.message_api.SubscribeEnvelopesRequest.query:type_name -> xmtp.xmtpv4.message_api.EnvelopesQuery
+<<<<<<< HEAD
 	17, // 2: xmtp.xmtpv4.message_api.SubscribeEnvelopesResponse.envelopes:type_name -> xmtp.xmtpv4.envelopes.OriginatorEnvelope
 	16, // 3: xmtp.xmtpv4.message_api.SubscribeAllEnvelopesRequest.last_seen:type_name -> xmtp.xmtpv4.envelopes.Cursor
 	17, // 4: xmtp.xmtpv4.message_api.SubscribeAllEnvelopesResponse.envelopes:type_name -> xmtp.xmtpv4.envelopes.OriginatorEnvelope
@@ -1362,6 +1347,37 @@ var file_xmtpv4_message_api_message_api_proto_depIdxs = []int32{
 	15, // [15:15] is the sub-list for extension extendee
 	0,  // [0:15] is the sub-list for field type_name
 >>>>>>> 47df8b3c (Update protos - add SubscribeAll code)
+=======
+	16, // 2: xmtp.xmtpv4.message_api.SubscribeEnvelopesResponse.envelopes:type_name -> xmtp.xmtpv4.envelopes.OriginatorEnvelope
+	15, // 3: xmtp.xmtpv4.message_api.SubscribeAllEnvelopesRequest.last_seen:type_name -> xmtp.xmtpv4.envelopes.Cursor
+	0,  // 4: xmtp.xmtpv4.message_api.QueryEnvelopesRequest.query:type_name -> xmtp.xmtpv4.message_api.EnvelopesQuery
+	16, // 5: xmtp.xmtpv4.message_api.QueryEnvelopesResponse.envelopes:type_name -> xmtp.xmtpv4.envelopes.OriginatorEnvelope
+	17, // 6: xmtp.xmtpv4.message_api.PublishPayerEnvelopesRequest.payer_envelopes:type_name -> xmtp.xmtpv4.envelopes.PayerEnvelope
+	16, // 7: xmtp.xmtpv4.message_api.PublishPayerEnvelopesResponse.originator_envelopes:type_name -> xmtp.xmtpv4.envelopes.OriginatorEnvelope
+	12, // 8: xmtp.xmtpv4.message_api.GetInboxIdsRequest.requests:type_name -> xmtp.xmtpv4.message_api.GetInboxIdsRequest.Request
+	13, // 9: xmtp.xmtpv4.message_api.GetInboxIdsResponse.responses:type_name -> xmtp.xmtpv4.message_api.GetInboxIdsResponse.Response
+	14, // 10: xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse.results:type_name -> xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse.Response
+	18, // 11: xmtp.xmtpv4.message_api.GetInboxIdsRequest.Request.identifier_kind:type_name -> xmtp.identity.associations.IdentifierKind
+	18, // 12: xmtp.xmtpv4.message_api.GetInboxIdsResponse.Response.identifier_kind:type_name -> xmtp.identity.associations.IdentifierKind
+	16, // 13: xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse.Response.originator_envelope:type_name -> xmtp.xmtpv4.envelopes.OriginatorEnvelope
+	1,  // 14: xmtp.xmtpv4.message_api.ReplicationApi.SubscribeEnvelopes:input_type -> xmtp.xmtpv4.message_api.SubscribeEnvelopesRequest
+	3,  // 15: xmtp.xmtpv4.message_api.ReplicationApi.SubscribeAllEnvelopes:input_type -> xmtp.xmtpv4.message_api.SubscribeAllEnvelopesRequest
+	4,  // 16: xmtp.xmtpv4.message_api.ReplicationApi.QueryEnvelopes:input_type -> xmtp.xmtpv4.message_api.QueryEnvelopesRequest
+	6,  // 17: xmtp.xmtpv4.message_api.ReplicationApi.PublishPayerEnvelopes:input_type -> xmtp.xmtpv4.message_api.PublishPayerEnvelopesRequest
+	8,  // 18: xmtp.xmtpv4.message_api.ReplicationApi.GetInboxIds:input_type -> xmtp.xmtpv4.message_api.GetInboxIdsRequest
+	10, // 19: xmtp.xmtpv4.message_api.ReplicationApi.GetNewestEnvelope:input_type -> xmtp.xmtpv4.message_api.GetNewestEnvelopeRequest
+	2,  // 20: xmtp.xmtpv4.message_api.ReplicationApi.SubscribeEnvelopes:output_type -> xmtp.xmtpv4.message_api.SubscribeEnvelopesResponse
+	2,  // 21: xmtp.xmtpv4.message_api.ReplicationApi.SubscribeAllEnvelopes:output_type -> xmtp.xmtpv4.message_api.SubscribeEnvelopesResponse
+	5,  // 22: xmtp.xmtpv4.message_api.ReplicationApi.QueryEnvelopes:output_type -> xmtp.xmtpv4.message_api.QueryEnvelopesResponse
+	7,  // 23: xmtp.xmtpv4.message_api.ReplicationApi.PublishPayerEnvelopes:output_type -> xmtp.xmtpv4.message_api.PublishPayerEnvelopesResponse
+	9,  // 24: xmtp.xmtpv4.message_api.ReplicationApi.GetInboxIds:output_type -> xmtp.xmtpv4.message_api.GetInboxIdsResponse
+	11, // 25: xmtp.xmtpv4.message_api.ReplicationApi.GetNewestEnvelope:output_type -> xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse
+	20, // [20:26] is the sub-list for method output_type
+	14, // [14:20] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
+>>>>>>> 70bdbd28 (Update protos - share output format with the regular query/subscribe type)
 }
 
 func init() { file_xmtpv4_message_api_message_api_proto_init() }
@@ -1369,6 +1385,7 @@ func file_xmtpv4_message_api_message_api_proto_init() {
 	if File_xmtpv4_message_api_message_api_proto != nil {
 		return
 	}
+<<<<<<< HEAD
 <<<<<<< HEAD
 	file_xmtpv4_message_api_message_api_proto_msgTypes[3].OneofWrappers = []any{
 		(*SubscribeTopicsResponse_Envelopes_)(nil),
@@ -1380,6 +1397,10 @@ func file_xmtpv4_message_api_message_api_proto_init() {
 	file_xmtpv4_message_api_message_api_proto_msgTypes[14].OneofWrappers = []any{}
 	file_xmtpv4_message_api_message_api_proto_msgTypes[15].OneofWrappers = []any{}
 >>>>>>> 47df8b3c (Update protos - add SubscribeAll code)
+=======
+	file_xmtpv4_message_api_message_api_proto_msgTypes[13].OneofWrappers = []any{}
+	file_xmtpv4_message_api_message_api_proto_msgTypes[14].OneofWrappers = []any{}
+>>>>>>> 70bdbd28 (Update protos - share output format with the regular query/subscribe type)
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
@@ -1390,8 +1411,12 @@ func file_xmtpv4_message_api_message_api_proto_init() {
 			NumMessages:   19,
 =======
 			NumEnums:      0,
+<<<<<<< HEAD
 			NumMessages:   16,
 >>>>>>> 47df8b3c (Update protos - add SubscribeAll code)
+=======
+			NumMessages:   15,
+>>>>>>> 70bdbd28 (Update protos - share output format with the regular query/subscribe type)
 			NumExtensions: 0,
 			NumServices:   1,
 		},

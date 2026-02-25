@@ -64,7 +64,7 @@ type ReplicationApiClient interface {
 	// This will be renamed to SubscribeOriginators
 	SubscribeEnvelopes(context.Context, *connect.Request[message_api.SubscribeEnvelopesRequest]) (*connect.ServerStreamForClient[message_api.SubscribeEnvelopesResponse], error)
 	SubscribeTopics(context.Context, *connect.Request[message_api.SubscribeTopicsRequest]) (*connect.ServerStreamForClient[message_api.SubscribeTopicsResponse], error)
-	SubscribeAllEnvelopes(context.Context, *connect.Request[message_api.SubscribeAllEnvelopesRequest]) (*connect.ServerStreamForClient[message_api.SubscribeAllEnvelopesResponse], error)
+	SubscribeAllEnvelopes(context.Context, *connect.Request[message_api.SubscribeAllEnvelopesRequest]) (*connect.ServerStreamForClient[message_api.SubscribeEnvelopesResponse], error)
 	QueryEnvelopes(context.Context, *connect.Request[message_api.QueryEnvelopesRequest]) (*connect.Response[message_api.QueryEnvelopesResponse], error)
 	PublishPayerEnvelopes(context.Context, *connect.Request[message_api.PublishPayerEnvelopesRequest]) (*connect.Response[message_api.PublishPayerEnvelopesResponse], error)
 	GetInboxIds(context.Context, *connect.Request[message_api.GetInboxIdsRequest]) (*connect.Response[message_api.GetInboxIdsResponse], error)
@@ -94,7 +94,7 @@ func NewReplicationApiClient(httpClient connect.HTTPClient, baseURL string, opts
 			baseURL+ReplicationApiSubscribeTopicsProcedure,
 			connect.WithSchema(replicationApiMethods.ByName("SubscribeTopics")),
 		),
-		subscribeAllEnvelopes: connect.NewClient[message_api.SubscribeAllEnvelopesRequest, message_api.SubscribeAllEnvelopesResponse](
+		subscribeAllEnvelopes: connect.NewClient[message_api.SubscribeAllEnvelopesRequest, message_api.SubscribeEnvelopesResponse](
 			httpClient,
 			baseURL+ReplicationApiSubscribeAllEnvelopesProcedure,
 			connect.WithSchema(replicationApiMethods.ByName("SubscribeAllEnvelopes")),
@@ -131,7 +131,7 @@ func NewReplicationApiClient(httpClient connect.HTTPClient, baseURL string, opts
 type replicationApiClient struct {
 	subscribeEnvelopes    *connect.Client[message_api.SubscribeEnvelopesRequest, message_api.SubscribeEnvelopesResponse]
 	subscribeTopics       *connect.Client[message_api.SubscribeTopicsRequest, message_api.SubscribeTopicsResponse]
-	subscribeAllEnvelopes *connect.Client[message_api.SubscribeAllEnvelopesRequest, message_api.SubscribeAllEnvelopesResponse]
+	subscribeAllEnvelopes *connect.Client[message_api.SubscribeAllEnvelopesRequest, message_api.SubscribeEnvelopesResponse]
 	queryEnvelopes        *connect.Client[message_api.QueryEnvelopesRequest, message_api.QueryEnvelopesResponse]
 	publishPayerEnvelopes *connect.Client[message_api.PublishPayerEnvelopesRequest, message_api.PublishPayerEnvelopesResponse]
 	getInboxIds           *connect.Client[message_api.GetInboxIdsRequest, message_api.GetInboxIdsResponse]
@@ -149,7 +149,7 @@ func (c *replicationApiClient) SubscribeTopics(ctx context.Context, req *connect
 }
 
 // SubscribeAllEnvelopes calls xmtp.xmtpv4.message_api.ReplicationApi.SubscribeAllEnvelopes.
-func (c *replicationApiClient) SubscribeAllEnvelopes(ctx context.Context, req *connect.Request[message_api.SubscribeAllEnvelopesRequest]) (*connect.ServerStreamForClient[message_api.SubscribeAllEnvelopesResponse], error) {
+func (c *replicationApiClient) SubscribeAllEnvelopes(ctx context.Context, req *connect.Request[message_api.SubscribeAllEnvelopesRequest]) (*connect.ServerStreamForClient[message_api.SubscribeEnvelopesResponse], error) {
 	return c.subscribeAllEnvelopes.CallServerStream(ctx, req)
 }
 
@@ -178,7 +178,7 @@ type ReplicationApiHandler interface {
 	// This will be renamed to SubscribeOriginators
 	SubscribeEnvelopes(context.Context, *connect.Request[message_api.SubscribeEnvelopesRequest], *connect.ServerStream[message_api.SubscribeEnvelopesResponse]) error
 	SubscribeTopics(context.Context, *connect.Request[message_api.SubscribeTopicsRequest], *connect.ServerStream[message_api.SubscribeTopicsResponse]) error
-	SubscribeAllEnvelopes(context.Context, *connect.Request[message_api.SubscribeAllEnvelopesRequest], *connect.ServerStream[message_api.SubscribeAllEnvelopesResponse]) error
+	SubscribeAllEnvelopes(context.Context, *connect.Request[message_api.SubscribeAllEnvelopesRequest], *connect.ServerStream[message_api.SubscribeEnvelopesResponse]) error
 	QueryEnvelopes(context.Context, *connect.Request[message_api.QueryEnvelopesRequest]) (*connect.Response[message_api.QueryEnvelopesResponse], error)
 	PublishPayerEnvelopes(context.Context, *connect.Request[message_api.PublishPayerEnvelopesRequest]) (*connect.Response[message_api.PublishPayerEnvelopesResponse], error)
 	GetInboxIds(context.Context, *connect.Request[message_api.GetInboxIdsRequest]) (*connect.Response[message_api.GetInboxIdsResponse], error)
@@ -267,7 +267,7 @@ func (UnimplementedReplicationApiHandler) SubscribeTopics(context.Context, *conn
 	return connect.NewError(connect.CodeUnimplemented, errors.New("xmtp.xmtpv4.message_api.ReplicationApi.SubscribeTopics is not implemented"))
 }
 
-func (UnimplementedReplicationApiHandler) SubscribeAllEnvelopes(context.Context, *connect.Request[message_api.SubscribeAllEnvelopesRequest], *connect.ServerStream[message_api.SubscribeAllEnvelopesResponse]) error {
+func (UnimplementedReplicationApiHandler) SubscribeAllEnvelopes(context.Context, *connect.Request[message_api.SubscribeAllEnvelopesRequest], *connect.ServerStream[message_api.SubscribeEnvelopesResponse]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("xmtp.xmtpv4.message_api.ReplicationApi.SubscribeAllEnvelopes is not implemented"))
 }
 

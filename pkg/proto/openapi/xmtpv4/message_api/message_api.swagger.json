@@ -155,13 +155,13 @@
               "type": "object",
               "properties": {
                 "result": {
-                  "$ref": "#/definitions/message_apiSubscribeAllEnvelopesResponse"
+                  "$ref": "#/definitions/message_apiSubscribeEnvelopesResponse"
                 },
                 "error": {
                   "$ref": "#/definitions/rpcStatus"
                 }
               },
-              "title": "Stream result of message_apiSubscribeAllEnvelopesResponse"
+              "title": "Stream result of message_apiSubscribeEnvelopesResponse"
             }
           },
           "default": {
@@ -424,19 +424,6 @@
         }
       },
       "title": "Batch subscribe to all envelopes"
-    },
-    "message_apiSubscribeAllEnvelopesResponse": {
-      "type": "object",
-      "properties": {
-        "envelopes": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/envelopesOriginatorEnvelope"
-          }
-        }
-      },
-      "title": "Streamed response for batch subscribe - can be multiple envelopes at once"
     },
     "message_apiSubscribeEnvelopesRequest": {
       "type": "object",

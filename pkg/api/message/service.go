@@ -148,6 +148,42 @@ func (s *Service) SubscribeEnvelopes(
 		)
 	}
 
+	return s.doSubscribe(ctx, req.Msg.GetQuery(), stream, logger)
+}
+
+func (s *Service) SubscribeAllEnvelopes(
+	ctx context.Context,
+	req *connect.Request[message_api.SubscribeAllEnvelopesRequest],
+	stream *connect.ServerStream[message_api.SubscribeEnvelopesResponse],
+) error {
+	if req.Msg == nil {
+		return connect.NewError(
+			connect.CodeInvalidArgument,
+			errors.New(requestMissingMessageError),
+		)
+	}
+
+	logger := s.logger.With(utils.MethodField(req.Spec().Procedure))
+
+	if s.logger.Core().Enabled(zap.DebugLevel) {
+		logger.Debug("received request",
+			utils.BodyField(req),
+		)
+	}
+
+	query := &message_api.EnvelopesQuery{
+		LastSeen: req.Msg.GetLastSeen(),
+	}
+
+	return s.doSubscribe(ctx, query, stream, logger)
+}
+
+func (s *Service) doSubscribe(
+	ctx context.Context,
+	query *message_api.EnvelopesQuery,
+	stream *connect.ServerStream[message_api.SubscribeEnvelopesResponse],
+	logger *zap.Logger,
+) error {
 	// Send a keepalive immediately, so wasm based clients maintain the connection open.
 	err := stream.Send(&message_api.SubscribeEnvelopesResponse{})
 	if err != nil {
@@ -156,7 +192,6 @@ func (s *Service) SubscribeEnvelopes(
 			fmt.Errorf("could not send keepalive: %w", err),
 		)
 	}
-	query := req.Msg.GetQuery()
 
 	if err := s.validateQuery(query); err != nil {
 		return connect.NewError(
@@ -165,7 +200,7 @@ func (s *Service) SubscribeEnvelopes(
 		)
 	}
 
-	envelopesCh := s.subscribeWorker.listen(ctx, query)
+	ch := s.subscribeWorker.listen(ctx, query)
 
 	err = s.catchUpFromCursor(ctx, stream, query, logger)
 	if err != nil {
@@ -189,7 +224,7 @@ func (s *Service) SubscribeEnvelopes(
 				)
 			}
 
-		case envs, open := <-envelopesCh:
+		case envs, open := <-ch:
 			ticker.Reset(s.options.SendKeepAliveInterval)
 
 			if !open {
@@ -278,9 +313,6 @@ func (s *Service) sendEnvelopes(
 	cursor := query.GetLastSeen().GetNodeIdToSequenceId()
 	if cursor == nil {
 		cursor = make(map[uint32]uint64)
-		query.LastSeen = &envelopesProto.Cursor{
-			NodeIdToSequenceId: cursor,
-		}
 	}
 
 	var (

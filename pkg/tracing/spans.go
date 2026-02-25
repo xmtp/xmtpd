@@ -60,11 +60,31 @@ const (
 	TagNotificationMiss = "notification_miss"
 	TagTraceLinked      = "trace_linked"
 	TagOutOfOrder       = "out_of_order"
-	TagDBRole           = "db.role"
-	TagDBStatement      = "db.statement"
-	TagDBRowsAffected   = "db.rows_affected"
-	TagDBSystem         = "db.system"
-	TagDBService        = "db.service"
+
+	// Batch processing tags
+	TagBatchSize       = "batch_size"
+	TagEnvelopesParsed = "envelopes_parsed"
+	TagParseErrors     = "parse_errors"
+	TagValidCount      = "valid_count"
+	TagInvalidCount    = "invalid_count"
+
+	// Subscribe worker tags
+	TagReason             = "reason"
+	TagDroppedEnvelopes   = "dropped_envelopes"
+	TagWrongOriginator    = "wrong_originator"
+	TagExpectedSequenceID = "expected_sequence_id"
+
+	// Sync worker tags
+	TagMigrationMode     = "migration_mode"
+	TagConnectionSuccess = "connection_success"
+	TagTargetAddress     = "target_address"
+
+	// Database tags
+	TagDBRole         = "db.role"
+	TagDBStatement    = "db.statement"
+	TagDBRowsAffected = "db.rows_affected"
+	TagDBSystem       = "db.system"
+	TagDBService      = "db.service"
 )
 
 // Trigger values for the trigger tag

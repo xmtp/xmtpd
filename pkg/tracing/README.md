@@ -5,7 +5,8 @@ This package provides Datadog APM distributed tracing for xmtpd, enabling end-to
 ## Configuration
 
 Tracing is **disabled by default** and must be explicitly enabled via the application flag.
-When enabled, tracing is **deterministic** — 100% of traces are collected, with no sampling.
+Sampling rate defaults to **100% in dev/test** and **10% in production/staging**.
+Override with the `APM_SAMPLE_RATE` environment variable (0.0–1.0).
 
 ### Enabling Tracing
 
@@ -25,8 +26,9 @@ tracing_enable = true
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `XMTPD_TRACING_ENABLE` | `false` | Set to `true` to enable tracing. **This is the only control.** |
+| `XMTPD_TRACING_ENABLE` | `false` | Set to `true` to enable tracing |
 | `ENV` | `test` | Environment name (used as Datadog env tag) |
+| `APM_SAMPLE_RATE` | env-based | Sample rate 0.0–1.0 (default: 1.0 dev/test, 0.1 prod/staging) |
 | `DD_AGENT_HOST` | `localhost` | Datadog agent host (standard DD env var) |
 | `DD_TRACE_AGENT_PORT` | `8126` | Datadog agent port (standard DD env var) |
 

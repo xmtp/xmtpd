@@ -90,9 +90,9 @@ func (s *originatorStream) listen() error {
 			}
 
 			// Create span for processing this batch of envelopes
-			batchSpan := tracing.StartSpan(tracing.SpanSyncReceiveBatch)
+			batchSpan, batchCtx := tracing.StartSpanFromContext(s.ctx, tracing.SpanSyncReceiveBatch)
 			tracing.SpanTag(batchSpan, tracing.TagSourceNode, s.node.NodeID)
-			tracing.SpanTag(batchSpan, tracing.TagNumEnvelopes, len(envs.Envelopes))
+			tracing.SpanTag(batchSpan, tracing.TagNumEnvelopes, len(envs.GetEnvelopes()))
 
 			s.logger.Debug(
 				"received envelopes",
@@ -103,7 +103,7 @@ func (s *originatorStream) listen() error {
 			invalidCount := 0
 			for _, env := range envs.GetEnvelopes() {
 				// Any message that fails validation here will be dropped permanently
-				parsedEnv, err := s.validateEnvelope(env)
+				parsedEnv, err := s.validateEnvelope(batchCtx, env)
 				if err != nil {
 					s.logger.Error("discarding envelope after validation failed", zap.Error(err))
 					invalidCount++
@@ -113,8 +113,8 @@ func (s *originatorStream) listen() error {
 				s.writeQueue <- parsedEnv
 			}
 
-			tracing.SpanTag(batchSpan, "valid_count", validCount)
-			tracing.SpanTag(batchSpan, "invalid_count", invalidCount)
+			tracing.SpanTag(batchSpan, tracing.TagValidCount, validCount)
+			tracing.SpanTag(batchSpan, tracing.TagInvalidCount, invalidCount)
 			batchSpan.Finish()
 
 		case err, ok := <-errChan:
@@ -148,10 +148,11 @@ func (s *originatorStream) listen() error {
 // validateEnvelope performs all static validation on an envelope
 // if an error is encountered, the envelope will be dropped and the stream will continue
 func (s *originatorStream) validateEnvelope(
+	ctx context.Context,
 	envProto *envelopes.OriginatorEnvelope,
 ) (*envUtils.OriginatorEnvelope, error) {
-	// Create span for envelope validation
-	span := tracing.StartSpan(tracing.SpanSyncValidateEnvelope)
+	// Create span as child of the batch span
+	span, _ := tracing.StartSpanFromContext(ctx, tracing.SpanSyncValidateEnvelope)
 	tracing.SpanTag(span, tracing.TagSourceNode, s.node.NodeID)
 
 	env, err := envUtils.NewOriginatorEnvelope(envProto)
@@ -182,7 +183,7 @@ func (s *originatorStream) validateEnvelope(
 			permittedIDs,
 		)
 		metrics.EmitSyncOriginatorErrorMessages(s.node.NodeID, 1)
-		tracing.SpanTag(span, "wrong_originator", env.OriginatorNodeID())
+		tracing.SpanTag(span, tracing.TagWrongOriginator, env.OriginatorNodeID())
 
 		s.logger.Error("received envelope from invalid originator",
 			zap.Uint32("originator_id", originatorID),
@@ -207,7 +208,7 @@ func (s *originatorStream) validateEnvelope(
 			zap.Uint64("expected_sequence_id", lastSeq+1),
 		)
 		tracing.SpanTag(span, tracing.TagOutOfOrder, true)
-		tracing.SpanTag(span, "expected_sequence_id", lastSeq+1)
+		tracing.SpanTag(span, tracing.TagExpectedSequenceID, lastSeq+1)
 	}
 
 	if seqID > lastSeq {

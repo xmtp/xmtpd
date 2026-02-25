@@ -8,6 +8,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/ext"
 )
 
 type PollableDBQuery[ValueType any, CursorType any] func(
@@ -104,7 +105,7 @@ func (s *DBSubscription[ValueType, CursorType]) poll(trigger string) {
 		}
 
 		if err != nil {
-			span.SetTag("error", true)
+			span.SetTag(ext.Error, true)
 			// Log is extremely noisy during test teardown
 			s.logger.Error(
 				"error querying for database subscription",

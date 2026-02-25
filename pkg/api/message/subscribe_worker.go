@@ -146,15 +146,15 @@ func (s *subscribeWorker) start() {
 
 			// Create span for dispatching this batch to subscribers
 			span := tracing.StartSpan(tracing.SpanSubscribeWorkerDispatch)
-			tracing.SpanTag(span, "batch_size", len(batch))
+			tracing.SpanTag(span, tracing.TagBatchSize, len(batch))
 
 			s.logger.Debug("received new batch", utils.NumEnvelopesField(len(batch)))
 
 			envs := unmarshalEnvelopes(batch, s.logger)
 
-			tracing.SpanTag(span, "envelopes_parsed", len(envs))
+			tracing.SpanTag(span, tracing.TagEnvelopesParsed, len(envs))
 			if parseErrors := len(batch) - len(envs); parseErrors > 0 {
-				tracing.SpanTag(span, "parse_errors", parseErrors)
+				tracing.SpanTag(span, tracing.TagParseErrors, parseErrors)
 			}
 
 			s.dispatchToOriginators(envs)
@@ -256,7 +256,7 @@ func (s *subscribeWorker) dispatchToListeners(
 
 			// Track listener closure in APM - helps debug client disconnect issues
 			span := tracing.StartSpan(tracing.SpanSubscribeWorkerListenerClosed)
-			tracing.SpanTag(span, "reason", "context_done")
+			tracing.SpanTag(span, tracing.TagReason, "context_done")
 			span.Finish()
 
 			s.closeListener(l)
@@ -279,8 +279,8 @@ func (s *subscribeWorker) dispatchToListeners(
 
 				// Track channel full events - indicates slow client or backpressure
 				span := tracing.StartSpan(tracing.SpanSubscribeWorkerListenerClosed)
-				tracing.SpanTag(span, "reason", "channel_full")
-				tracing.SpanTag(span, "dropped_envelopes", len(envs))
+				tracing.SpanTag(span, tracing.TagReason, "channel_full")
+				tracing.SpanTag(span, tracing.TagDroppedEnvelopes, len(envs))
 				span.Finish()
 
 				s.closeListener(l)

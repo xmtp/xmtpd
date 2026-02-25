@@ -302,7 +302,7 @@ func (s *syncWorker) connectToNode(
 	defer span.Finish()
 
 	tracing.SpanTag(span, tracing.TagTargetNode, node.NodeID)
-	tracing.SpanTag(span, "target_address", node.HTTPAddress)
+	tracing.SpanTag(span, tracing.TagTargetAddress, node.HTTPAddress)
 
 	s.logger.Info("attempting to connect to node",
 		utils.OriginatorIDField(node.NodeID),
@@ -337,7 +337,7 @@ func (s *syncWorker) connectToNode(
 		return nil, fmt.Errorf("failed to connect to node at %s: %w", node.HTTPAddress, err)
 	}
 
-	tracing.SpanTag(span, "connection_success", true)
+	tracing.SpanTag(span, tracing.TagConnectionSuccess, true)
 	s.logger.Debug("successfully opened a connection to node",
 		utils.OriginatorIDField(node.NodeID),
 		utils.NodeHTTPAddressField(node.HTTPAddress),
@@ -389,7 +389,7 @@ func (s *syncWorker) setupStream(
 	if s.migration.Enable && syncNodeID == migratorNodeID && migratorNodeID != localNodeID {
 		originatorNodeIDs = append(originatorNodeIDs, migrator.MigratorOriginatorIDs()...)
 
-		tracing.SpanTag(span, "migration_mode", true)
+		tracing.SpanTag(span, tracing.TagMigrationMode, true)
 
 		if s.logger.Core().Enabled(zap.DebugLevel) {
 			s.logger.Debug(

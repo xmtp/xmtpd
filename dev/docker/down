@@ -20,7 +20,5 @@ docker compose \
 
 docker compose \
   -f dev/docker/docker-compose-register.yml \
-  --env-file dev/local.env \
-  --profile "${profile}" \
   -p "xmtpd_register_nodes" \
   down --remove-orphans --volumes

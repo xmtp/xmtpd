@@ -18,6 +18,7 @@ func generateCmd() *cobra.Command {
 		welcomeMessageCmd(),
 		groupMessageCmd(),
 		keyPackageCmd(),
+		databaseCmd(),
 	)
 	return &cmd
 }

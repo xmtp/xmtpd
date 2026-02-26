@@ -112,3 +112,14 @@ var apiStagedEnvelopeProcessingDelay = prometheus.NewHistogram(
 func EmitApiStagedEnvelopeProcessingDelay(duration time.Duration) {
 	apiStagedEnvelopeProcessingDelay.Observe(duration.Seconds())
 }
+
+var apiOutgoingEnvelopesTotal = prometheus.NewCounter(
+	prometheus.CounterOpts{
+		Name: "xmtp_api_outgoing_envelopes_total",
+		Help: "Total number of envelopes delivered to clients via subscribe and query APIs",
+	},
+)
+
+func EmitApiOutgoingEnvelopes(n int) {
+	apiOutgoingEnvelopesTotal.Add(float64(n))
+}

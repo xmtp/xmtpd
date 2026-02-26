@@ -4,6 +4,7 @@ package tracing
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"runtime/pprof"
 	"strconv"
@@ -190,12 +191,28 @@ func Wrap(
 ) error {
 	span, ctx := StartSpanFromContext(ctx, operation)
 	logger = Link(span, logger.With(zap.String("span", operation)))
-	err := action(ctx, logger, span)
-	if err != nil {
-		span.Finish(WithError(err))
-	} else {
-		span.Finish()
-	}
+
+	var err error
+	defer func() {
+		r := recover()
+		if r != nil {
+			// A panic occurred - finish span with error and re-panic
+			if panicErr, ok := r.(error); ok {
+				span.Finish(WithError(panicErr))
+			} else {
+				span.Finish(WithError(fmt.Errorf("panic: %v", r)))
+			}
+			panic(r)
+		}
+		// Normal path - finish span with error if action returned one
+		if err != nil {
+			span.Finish(WithError(err))
+		} else {
+			span.Finish()
+		}
+	}()
+
+	err = action(ctx, logger, span)
 	return err
 }
 

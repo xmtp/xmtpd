@@ -24,6 +24,7 @@ const (
 	CommitMessageOriginatorID  uint32 = 14
 )
 
+// MigratorOriginatorIDs return the database bound migrator originator IDs.
 func MigratorOriginatorIDs() []uint32 {
 	return []uint32{
 		GroupMessageOriginatorID,

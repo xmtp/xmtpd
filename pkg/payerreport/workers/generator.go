@@ -126,11 +126,7 @@ func (w *GeneratorWorker) GenerateReports() error {
 		return err
 	}
 
-	nodeIDs := []uint32{
-		migrator.GroupMessageOriginatorID,
-		migrator.WelcomeMessageOriginatorID,
-		migrator.KeyPackagesOriginatorID,
-	}
+	nodeIDs := migrator.MigratorOriginatorIDs()
 
 	for _, node := range allNodes {
 		nodeIDs = append(nodeIDs, node.NodeID)

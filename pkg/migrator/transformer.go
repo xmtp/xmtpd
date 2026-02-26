@@ -273,7 +273,7 @@ func (t *Transformer) buildAndSignPayerEnvelope(
 	protoClientEnvelope *proto.ClientEnvelope,
 	originatorID uint32,
 ) (*envelopes.PayerEnvelope, error) {
-	if !isValidOriginatorID(originatorID) {
+	if !IsMigratorOriginatorID(originatorID) {
 		return nil, fmt.Errorf("invalid originatorID: %d", originatorID)
 	}
 

@@ -42,7 +42,7 @@ type noopSpanContext struct{}
 
 var noopSpanCtxInstance ddtrace.SpanContext = &noopSpanContext{}
 
-func (*noopSpan) SetTag(string, interface{})     {}
+func (*noopSpan) SetTag(string, any)             {}
 func (*noopSpan) SetOperationName(string)        {}
 func (*noopSpan) BaggageItem(string) string      { return "" }
 func (*noopSpan) SetBaggageItem(string, string)  {}

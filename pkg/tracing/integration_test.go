@@ -186,7 +186,7 @@ func TestIntegration_DBSubscriptionTriggerTags(t *testing.T) {
 	// mocktracer stores bools as strings
 	assert.Equal(t, "true", timerFallbackSpan.Tag(tracing.TagNotificationMiss))
 	// mocktracer stores ints as float64
-	assert.Equal(t, float64(0), timerFallbackSpan.Tag("num_results"))
+	assert.InDelta(t, float64(0), timerFallbackSpan.Tag("num_results"), 0)
 }
 
 // TestIntegration_CrossNodeReplication verifies the sync worker span flow.

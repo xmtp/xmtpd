@@ -139,7 +139,7 @@ func TestTraceContextStore_ConcurrentAccess(t *testing.T) {
 
 	// Writer goroutine
 	go func() {
-		for i := int64(0); i < 100; i++ {
+		for i := range int64(100) {
 			span := StartSpan("test.operation")
 			store.Store(i, span)
 			span.Finish()
@@ -149,7 +149,7 @@ func TestTraceContextStore_ConcurrentAccess(t *testing.T) {
 
 	// Reader goroutine
 	go func() {
-		for i := int64(0); i < 100; i++ {
+		for i := range int64(100) {
 			store.Retrieve(i)
 		}
 		done <- true
@@ -180,7 +180,7 @@ func TestNoopSpan_WhenDisabled(t *testing.T) {
 	span.SetTag("key", "value")
 	span.SetOperationName("noop")
 	span.SetBaggageItem("k", "v")
-	assert.Equal(t, "", span.BaggageItem("k"))
+	assert.Empty(t, span.BaggageItem("k"))
 	span.Finish() // must not panic
 
 	// StartSpanFromContext should return no-op and unchanged context
@@ -308,9 +308,9 @@ func TestSpanTag_NonStringsUnchanged(t *testing.T) {
 	require.Len(t, spans, 1)
 
 	// mocktracer stores numbers as float64
-	assert.Equal(t, float64(12345), spans[0].Tag("int_value"))
+	assert.InDelta(t, float64(12345), spans[0].Tag("int_value"), 0)
 	assert.Equal(t, "true", spans[0].Tag("bool_value")) // mocktracer converts to string
-	assert.Equal(t, 3.14, spans[0].Tag("float_value"))
+	assert.InDelta(t, 3.14, spans[0].Tag("float_value"), 0.001)
 }
 
 func TestTraceContextStore_MaxSizeLimit(t *testing.T) {
@@ -322,7 +322,7 @@ func TestTraceContextStore_MaxSizeLimit(t *testing.T) {
 
 	// Fill store to capacity
 	spans := make([]Span, MaxStoreSize+100)
-	for i := 0; i < MaxStoreSize; i++ {
+	for i := range MaxStoreSize {
 		spans[i] = StartSpan("test.operation")
 		store.Store(int64(i), spans[i])
 	}

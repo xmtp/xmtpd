@@ -9,32 +9,28 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
-	"github.com/xmtp/xmtpd/pkg/metrics"
-	"github.com/xmtp/xmtpd/pkg/registry"
-	"github.com/xmtp/xmtpd/pkg/utils/retryerrors"
-
 	"connectrpc.com/connect"
-	"github.com/xmtp/xmtpd/pkg/deserializer"
-	"github.com/xmtp/xmtpd/pkg/utils"
-
-	"github.com/xmtp/xmtpd/pkg/config"
-
+	"github.com/cenkalti/backoff/v4"
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
-	"github.com/xmtp/xmtpd/pkg/fees"
-
+	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/deserializer"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
+	"github.com/xmtp/xmtpd/pkg/fees"
+	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	message_apiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/registrant"
+	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/topic"
-	"google.golang.org/protobuf/proto"
-
+	"github.com/xmtp/xmtpd/pkg/tracing"
+	"github.com/xmtp/xmtpd/pkg/utils"
+	"github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -315,6 +311,10 @@ func (s *Service) QueryEnvelopes(
 	ctx context.Context,
 	req *connect.Request[message_api.QueryEnvelopesRequest],
 ) (*connect.Response[message_api.QueryEnvelopesResponse], error) {
+	// Create APM span for query operation
+	span, ctx := tracing.StartSpanFromContext(ctx, tracing.SpanNodeQueryEnvelopes)
+	defer span.Finish()
+
 	if req.Msg == nil {
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
@@ -323,12 +323,14 @@ func (s *Service) QueryEnvelopes(
 	}
 
 	logger := s.logger.With(utils.MethodField(req.Spec().Procedure))
+	logger = tracing.Link(span, logger)
 
 	if s.logger.Core().Enabled(zap.DebugLevel) {
 		logger.Debug("received request", utils.BodyField(req))
 	}
 
 	if err := s.validateQuery(req.Msg.GetQuery()); err != nil {
+		tracing.SpanTag(span, "error", err)
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
 			fmt.Errorf("invalid query: %w", err),
@@ -341,6 +343,11 @@ func (s *Service) QueryEnvelopes(
 	} else {
 		limit = int32(req.Msg.GetLimit())
 	}
+
+	// Tag with query parameters for debugging
+	tracing.SpanTag(span, "limit", limit)
+	tracing.SpanTag(span, "num_originator_ids", len(req.Msg.GetQuery().GetOriginatorNodeIds()))
+	tracing.SpanTag(span, "num_topics", len(req.Msg.GetQuery().GetTopics()))
 
 	rows, err := s.fetchEnvelopesWithRetry(ctx, req.Msg.GetQuery(), limit)
 	if err != nil {
@@ -379,6 +386,12 @@ func (s *Service) QueryEnvelopes(
 			continue
 		}
 		response.Msg.Envelopes = append(response.Msg.Envelopes, originatorEnv)
+	}
+
+	// Tag with result count for debugging
+	tracing.SpanTag(span, tracing.TagNumResults, len(response.Msg.GetEnvelopes()))
+	if len(response.Msg.GetEnvelopes()) == 0 {
+		tracing.SpanTag(span, tracing.TagZeroResults, true)
 	}
 
 	return response, nil
@@ -567,6 +580,10 @@ func (s *Service) PublishPayerEnvelopes(
 	ctx context.Context,
 	req *connect.Request[message_api.PublishPayerEnvelopesRequest],
 ) (*connect.Response[message_api.PublishPayerEnvelopesResponse], error) {
+	// Create APM span for publish operation - this is the staging transaction entry point
+	span, ctx := tracing.StartSpanFromContext(ctx, tracing.SpanNodePublishPayerEnvelopes)
+	defer span.Finish()
+
 	if req.Msg == nil {
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
@@ -575,6 +592,11 @@ func (s *Service) PublishPayerEnvelopes(
 	}
 
 	logger := s.logger.With(utils.MethodField(req.Spec().Procedure))
+	logger = tracing.Link(span, logger)
+
+	// Tag with envelope count for debugging
+	tracing.SpanTag(span, tracing.TagNumEnvelopes, len(req.Msg.GetPayerEnvelopes()))
+	tracing.SpanTag(span, tracing.TagOriginatorNode, s.registrant.NodeID())
 
 	if s.logger.Core().Enabled(zap.DebugLevel) {
 		logger.Debug("received request", utils.BodyField(req))
@@ -607,8 +629,14 @@ func (s *Service) PublishPayerEnvelopes(
 	var results []*envelopesProto.OriginatorEnvelope
 	var latestStaged *queries.StagedOriginatorEnvelope
 
+	// Span for the staging transaction
+	txSpan, txCtx := tracing.StartSpanFromContext(ctx, tracing.SpanNodeStageTransaction)
+
+	// Track staged IDs for async trace propagation
+	var stagedIDs []int64
+
 	err = db.RunInTx(
-		ctx,
+		txCtx,
 		s.store.DB(),
 		nil,
 		func(ctx context.Context, querier *queries.Queries) error {
@@ -624,6 +652,9 @@ func (s *Service) PublishPayerEnvelopes(
 				if err != nil {
 					return fmt.Errorf("could not insert staged envelope: %w", err)
 				}
+
+				// Track for trace context propagation
+				stagedIDs = append(stagedIDs, stagedEnvelope.ID)
 
 				baseFee, congestionFee, err := s.publishWorker.calculateFees(
 					&stagedEnvelope,
@@ -650,14 +681,30 @@ func (s *Service) PublishPayerEnvelopes(
 		},
 	)
 	if err != nil {
+		txSpan.Finish(tracing.WithError(err))
 		return nil, connect.NewError(
 			connect.CodeInternal,
 			err,
 		)
 	}
+	if latestStaged != nil {
+		tracing.SpanTag(txSpan, tracing.TagStagedID, latestStaged.ID)
+	}
+	txSpan.Finish()
 
+	// Store trace context for async propagation to publish_worker
+	// This enables end-to-end distributed tracing across the async boundary
+	for _, stagedID := range stagedIDs {
+		s.publishWorker.storeTraceContext(stagedID, span)
+	}
+
+	// Notify publish worker - this triggers the async processing
 	s.publishWorker.notifyStagedPublish()
-	s.waitForGatewayPublish(ctx, latestStaged, logger)
+
+	// Wait for gateway publish - this is where we wait for the envelope to be fully processed
+	waitSpan, waitCtx := tracing.StartSpanFromContext(ctx, tracing.SpanNodeWaitGatewayPublish)
+	s.waitForGatewayPublish(waitCtx, latestStaged, logger)
+	waitSpan.Finish()
 
 	metrics.EmitSyncLastSeenOriginatorSequenceID(
 		s.registrant.NodeID(),

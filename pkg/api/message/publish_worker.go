@@ -2,10 +2,13 @@ package message
 
 import (
 	"context"
+	"encoding/hex"
+	"errors"
 	"sync/atomic"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/metrics"
+	"github.com/xmtp/xmtpd/pkg/tracing"
 
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db"
@@ -18,6 +21,8 @@ import (
 	"go.uber.org/zap"
 )
 
+var errPublishFailed = errors.New("publish staged envelope failed")
+
 type publishWorker struct {
 	ctx                context.Context
 	logger             *zap.Logger
@@ -29,6 +34,11 @@ type publishWorker struct {
 	lastProcessed      atomic.Int64
 	feeCalculator      fees.IFeeCalculator
 	sleepOnFailureTime time.Duration
+	// traceContextStore enables async trace context propagation from staging
+	// requests to worker processing, allowing end-to-end distributed tracing.
+	// When tracing is disabled, all operations on this store and the spans it
+	// produces are zero-cost no-ops (see tracing.noopSpan).
+	traceContextStore *tracing.TraceContextStore
 }
 
 func startPublishWorker(
@@ -83,6 +93,7 @@ func startPublishWorker(
 		store:              store,
 		feeCalculator:      feeCalculator,
 		sleepOnFailureTime: sleepOnFailureTime,
+		traceContextStore:  tracing.NewTraceContextStore(),
 	}
 	go worker.start()
 
@@ -96,6 +107,13 @@ func (p *publishWorker) notifyStagedPublish() {
 	case p.notifier <- true:
 	default:
 	}
+}
+
+// storeTraceContext saves the span context for a staged envelope ID.
+// This enables async trace propagation from the staging request to
+// worker processing, creating a complete distributed trace.
+func (p *publishWorker) storeTraceContext(stagedID int64, span tracing.Span) {
+	p.traceContextStore.Store(stagedID, span)
 }
 
 func (p *publishWorker) start() {
@@ -123,13 +141,49 @@ func (p *publishWorker) start() {
 	}
 }
 
-func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginatorEnvelope) bool {
+func (p *publishWorker) publishStagedEnvelope(
+	stagedEnv queries.StagedOriginatorEnvelope,
+) (success bool) {
+	// All tracing calls below are safe when tracing is disabled — the tracing
+	// package returns singleton no-op spans with zero-cost Finish/SetTag methods.
+
+	// Retrieve parent span context from async trace propagation.
+	// This links the worker processing to the original staging request.
+	parentCtx := p.traceContextStore.Retrieve(stagedEnv.ID)
+
+	// Create APM span, linked to parent if available
+	var span tracing.Span
+	var ctx context.Context
+	if parentCtx != nil {
+		// Linked to original staging request - full distributed trace!
+		span = tracing.StartSpanWithParent(tracing.SpanPublishWorkerProcess, parentCtx)
+		ctx = tracing.ContextWithSpan(p.ctx, span)
+		tracing.SpanTag(span, tracing.TagTraceLinked, true)
+	} else {
+		// No parent context - timer fallback or context expired
+		span, ctx = tracing.StartSpanFromContext(p.ctx, tracing.SpanPublishWorkerProcess)
+		tracing.SpanTag(span, tracing.TagTraceLinked, false)
+	}
+	defer func() {
+		if !success {
+			span.Finish(tracing.WithError(errPublishFailed))
+		} else {
+			span.Finish()
+		}
+	}()
+
 	originatorID := int32(p.registrant.NodeID())
+
+	// Add searchable tags for debugging (same info as our PERF_TRACE logs)
+	tracing.SpanTag(span, tracing.TagStagedID, stagedEnv.ID)
+	tracing.SpanTag(span, tracing.TagOriginatorNode, originatorID)
+	tracing.SpanTag(span, tracing.TagTopic, hex.EncodeToString(stagedEnv.Topic))
 
 	logger := p.logger.With(
 		utils.SequenceIDField(stagedEnv.ID),
 		utils.OriginatorIDField(uint32(originatorID)),
 	)
+	logger = tracing.Link(span, logger)
 
 	env, err := envelopes.NewPayerEnvelopeFromBytes(stagedEnv.PayerEnvelope)
 	if err != nil {
@@ -150,12 +204,19 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 	)
 
 	if !isReservedTopic {
-		if baseFee, congestionFee, err = p.calculateFees(&stagedEnv, retentionDays); err != nil {
+		feeSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanPublishWorkerCalculateFees)
+		baseFee, congestionFee, err = p.calculateFees(&stagedEnv, retentionDays)
+		if err != nil {
+			feeSpan.Finish(tracing.WithError(err))
 			logger.Error("failed to calculate fees", zap.Error(err))
 			return false
 		}
+		tracing.SpanTag(feeSpan, "base_fee", int64(baseFee))
+		tracing.SpanTag(feeSpan, "congestion_fee", int64(congestionFee))
+		feeSpan.Finish()
 	}
 
+	signSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanPublishWorkerSignEnvelope)
 	originatorEnv, err := p.registrant.SignStagedEnvelope(
 		stagedEnv,
 		baseFee,
@@ -163,12 +224,14 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 		retentionDays,
 	)
 	if err != nil {
+		signSpan.Finish(tracing.WithError(err))
 		logger.Error(
 			"failed to sign staged envelope",
 			zap.Error(err),
 		)
 		return false
 	}
+	signSpan.Finish()
 
 	validatedEnvelope, err := envelopes.NewOriginatorEnvelope(originatorEnv)
 	if err != nil {
@@ -188,7 +251,7 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 		return false
 	}
 
-	payerID, err := p.store.WriteQuery().FindOrCreatePayer(p.ctx, payerAddress.Hex())
+	payerID, err := p.store.WriteQuery().FindOrCreatePayer(ctx, payerAddress.Hex())
 	if err != nil {
 		logger.Error("failed to find or create payer", zap.Error(err))
 		return false
@@ -197,11 +260,14 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 	// On unique constraint conflicts, no error is thrown, but numRows is 0
 	var inserted int64
 
+	insertSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanPublishWorkerInsertGateway)
+	tracing.SpanTag(insertSpan, "is_reserved_topic", isReservedTopic)
+
 	if isReservedTopic {
 
 		// Reserved topics are not charged fees, so we only need to insert the envelope into the database.
 		rows, err := db.InsertGatewayEnvelopeWithChecksStandalone(
-			p.ctx,
+			ctx,
 			p.store.WriteQuery(),
 			queries.InsertGatewayEnvelopeParams{
 				OriginatorNodeID:     originatorID,
@@ -214,6 +280,7 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 				),
 			})
 		if err != nil {
+			insertSpan.Finish(tracing.WithError(err))
 			logger.Error("failed to insert gateway envelope with reserved topic", zap.Error(err))
 			return false
 		}
@@ -224,7 +291,7 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 
 	} else {
 		inserted, err = db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
-			p.ctx,
+			ctx,
 			p.store.DB(),
 			queries.InsertGatewayEnvelopeParams{
 				OriginatorNodeID:     originatorID,
@@ -246,28 +313,39 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 		)
 	}
 
-	if p.ctx.Err() != nil {
+	if ctx.Err() != nil {
+		insertSpan.Finish()
 		return false
 	} else if err != nil {
+		insertSpan.Finish(tracing.WithError(err))
 		logger.Error("failed to insert gateway envelope", zap.Error(err))
 		return false
 	} else if inserted == 0 {
 		// Envelope was already inserted by another worker
+		tracing.SpanTag(insertSpan, "already_inserted", true)
 		logger.Debug("envelope already inserted")
 	}
+	tracing.SpanTag(insertSpan, "inserted_rows", inserted)
+	insertSpan.Finish()
 
 	// Try to delete the row regardless of if the gateway envelope was inserted elsewhere
-	deleted, err := p.store.WriteQuery().DeleteStagedOriginatorEnvelope(p.ctx, stagedEnv.ID)
-	if p.ctx.Err() != nil {
+	deleteSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanPublishWorkerDeleteStaged)
+	deleted, err := p.store.WriteQuery().DeleteStagedOriginatorEnvelope(ctx, stagedEnv.ID)
+	if ctx.Err() != nil {
+		deleteSpan.Finish()
 		return true
 	} else if err != nil {
+		deleteSpan.Finish(tracing.WithError(err))
 		logger.Error("failed to delete staged envelope", zap.Error(err))
 		// Envelope is already inserted, so it is safe to continue
 		return true
 	} else if deleted == 0 {
 		// Envelope was already deleted by another worker
+		tracing.SpanTag(deleteSpan, "already_deleted", true)
 		logger.Debug("envelope already deleted")
 	}
+	tracing.SpanTag(deleteSpan, "deleted_rows", deleted)
+	deleteSpan.Finish()
 
 	return true
 }

@@ -129,14 +129,23 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 
 	grpcMetricsInterceptor := interceptors.NewGRPCMetricsInterceptor()
 
-	// Register services.
-	servicePaths, err := cfg.RegistrationFunc(
-		mux,
+	// Build interceptor chain. Tracing is first (outermost span) when enabled.
+	serverInterceptors := []connect.Interceptor{}
+	if tracing.IsEnabled() {
+		serverInterceptors = append(
+			serverInterceptors,
+			interceptors.NewTracingInterceptor(),
+		)
+	}
+	serverInterceptors = append(serverInterceptors,
 		protocolValidationInterceptor,
 		grpcMetricsInterceptor,
 		openConnInterceptor,
 		loggingInterceptor,
 	)
+
+	// Register services.
+	servicePaths, err := cfg.RegistrationFunc(mux, serverInterceptors...)
 	if err != nil {
 		return nil, err
 	}

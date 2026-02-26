@@ -86,15 +86,16 @@ jobs:
           name: ${{ matrix.image }}-digest
           path: ${{ matrix.image }}.txt
 
-  deploy:
-    name: Aggregate digests & deploy to infra
+  prepare:
+    name: Aggregate digests
     runs-on: ubuntu-latest
     needs: push_to_registry
     if: github.ref == 'refs/heads/main'
+    outputs:
+      xmtpd_image: ${{ steps.digests.outputs.xmtpd_image }}
+      prune_image: ${{ steps.digests.outputs.prune_image }}
+      gateway_image: ${{ steps.digests.outputs.gateway_image }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
       - name: Download xmtpd digest
         uses: actions/download-artifact@v4
         with:
@@ -134,17 +135,16 @@ jobs:
             exit 1
           fi
 
-          XMTPD_IMAGE="ghcr.io/xmtp/xmtpd@$XMTPD_DIGEST"
-          CLI_IMAGE="ghcr.io/xmtp/xmtpd-cli@$CLI_DIGEST"
-          PRUNE_IMAGE="ghcr.io/xmtp/xmtpd-prune@$PRUNE_DIGEST"
-          GATEWAY_IMAGE="ghcr.io/xmtp/xmtpd-gateway@$GATEWAY_DIGEST"
+          echo "xmtpd_image=ghcr.io/xmtp/xmtpd@$XMTPD_DIGEST"         >> $GITHUB_OUTPUT
+          echo "prune_image=ghcr.io/xmtp/xmtpd-prune@$PRUNE_DIGEST"   >> $GITHUB_OUTPUT
+          echo "gateway_image=ghcr.io/xmtp/xmtpd-gateway@$GATEWAY_DIGEST" >> $GITHUB_OUTPUT
 
-          echo "xmtpd_image=$XMTPD_IMAGE"     >> $GITHUB_OUTPUT
-          echo "cli_image=$CLI_IMAGE"         >> $GITHUB_OUTPUT
-          echo "prune_image=$PRUNE_IMAGE"     >> $GITHUB_OUTPUT
-          echo "gateway_image=$GATEWAY_IMAGE" >> $GITHUB_OUTPUT
-
-      - name: Deploy Testnet
+  deploy_testnet_staging:
+    name: Deploy to testnet-staging
+    runs-on: ubuntu-latest
+    needs: prepare
+    steps:
+      - name: Deploy Testnet Staging
         uses: xmtp-labs/terraform-deployer@v1
         timeout-minutes: 45
         with:
@@ -153,5 +153,22 @@ jobs:
           terraform-org: xmtp
           terraform-workspace: testnet-staging
           variable-name: "xmtpd_server_docker_image,xmtpd_prune_docker_image,xmtpd_gateway_docker_image,xmtpd_migrator_docker_image"
-          variable-value: "${{ steps.digests.outputs.xmtpd_image }},${{ steps.digests.outputs.prune_image }},${{ steps.digests.outputs.gateway_image }},${{ steps.digests.outputs.xmtpd_image }}"
+          variable-value: "${{ needs.prepare.outputs.xmtpd_image }},${{ needs.prepare.outputs.prune_image }},${{ needs.prepare.outputs.gateway_image }},${{ needs.prepare.outputs.xmtpd_image }}"
+          variable-value-required-prefix: "ghcr.io/xmtp/"
+
+  deploy_testnet:
+    name: Deploy to testnet
+    runs-on: ubuntu-latest
+    needs: prepare
+    steps:
+      - name: Deploy Testnet
+        uses: xmtp-labs/terraform-deployer@v1
+        timeout-minutes: 45
+        with:
+          timeout: 45m
+          terraform-token: ${{ secrets.TERRAFORM_TOKEN }}
+          terraform-org: xmtp
+          terraform-workspace: testnet
+          variable-name: "xmtpd_server_docker_image,xmtpd_prune_docker_image,xmtpd_gateway_docker_image,xmtpd_migrator_docker_image"
+          variable-value: "${{ needs.prepare.outputs.xmtpd_image }},${{ needs.prepare.outputs.prune_image }},${{ needs.prepare.outputs.gateway_image }},${{ needs.prepare.outputs.xmtpd_image }}"
           variable-value-required-prefix: "ghcr.io/xmtp/"

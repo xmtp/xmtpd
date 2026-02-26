@@ -148,6 +148,15 @@ func (s *Service) SubscribeEnvelopes(
 		)
 	}
 
+	// Validate query and ensure either topics or originators are specified.
+	err := s.validateQuery(req.Msg.GetQuery(), false)
+	if err != nil {
+		return connect.NewError(
+			connect.CodeInvalidArgument,
+			fmt.Errorf("invalid subscription request: %w", err),
+		)
+	}
+
 	return s.doSubscribe(ctx, req.Msg.GetQuery(), stream, logger)
 }
 
@@ -190,13 +199,6 @@ func (s *Service) doSubscribe(
 		return connect.NewError(
 			connect.CodeInternal,
 			fmt.Errorf("could not send keepalive: %w", err),
-		)
-	}
-
-	if err := s.validateQuery(query); err != nil {
-		return connect.NewError(
-			connect.CodeInvalidArgument,
-			fmt.Errorf("invalid subscription request: %w", err),
 		)
 	}
 
@@ -313,6 +315,9 @@ func (s *Service) sendEnvelopes(
 	cursor := query.GetLastSeen().GetNodeIdToSequenceId()
 	if cursor == nil {
 		cursor = make(map[uint32]uint64)
+		query.LastSeen = &envelopesProto.Cursor{
+			NodeIdToSequenceId: cursor,
+		}
 	}
 
 	var (
@@ -413,7 +418,9 @@ func (s *Service) QueryEnvelopes(
 		logger.Debug("received request", utils.BodyField(req))
 	}
 
-	if err := s.validateQuery(req.Msg.GetQuery()); err != nil {
+	// TODO: Check how query envelopes works, should it be allowed to accept empty filters?
+	err := s.validateQuery(req.Msg.GetQuery(), true)
+	if err != nil {
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
 			fmt.Errorf("invalid query: %w", err),
@@ -473,6 +480,7 @@ func (s *Service) QueryEnvelopes(
 
 func (s *Service) validateQuery(
 	query *message_api.EnvelopesQuery,
+	allowEmpty bool,
 ) error {
 	if query == nil {
 		return errors.New("missing query")
@@ -490,6 +498,9 @@ func (s *Service) validateQuery(
 			"too many subscriptions: %d, consider subscribing to fewer topics or subscribing without a filter",
 			numQueries,
 		)
+	}
+	if !allowEmpty && numQueries == 0 {
+		return errors.New("query must contain either topics or originators")
 	}
 
 	for _, topic := range topics {

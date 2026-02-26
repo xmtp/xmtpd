@@ -24,7 +24,16 @@ const (
 	CommitMessageOriginatorID  uint32 = 14
 )
 
-func isValidOriginatorID(originatorID uint32) bool {
+// MigratorOriginatorIDs return the database bound migrator originator IDs.
+func MigratorOriginatorIDs() []uint32 {
+	return []uint32{
+		GroupMessageOriginatorID,
+		WelcomeMessageOriginatorID,
+		KeyPackagesOriginatorID,
+	}
+}
+
+func IsMigratorOriginatorID(originatorID uint32) bool {
 	return originatorID == GroupMessageOriginatorID ||
 		originatorID == WelcomeMessageOriginatorID ||
 		originatorID == InboxLogOriginatorID ||

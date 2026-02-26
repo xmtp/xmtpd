@@ -243,6 +243,7 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 				MinutesSinceEpoch: utils.MinutesSinceEpoch(stagedEnv.OriginatorTime),
 				SpendPicodollars:  int64(baseFee) + int64(congestionFee),
 			},
+			true,
 		)
 	}
 

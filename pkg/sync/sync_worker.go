@@ -364,12 +364,8 @@ func (s *syncWorker) setupStream(
 	}
 
 	if s.migration.Enable && syncNodeID == migratorNodeID && migratorNodeID != localNodeID {
-		originatorNodeIDs = []uint32{
-			syncNodeID,
-			migrator.GroupMessageOriginatorID,
-			migrator.WelcomeMessageOriginatorID,
-			migrator.KeyPackagesOriginatorID,
-		}
+		originatorNodeIDs = append(originatorNodeIDs, migrator.MigratorOriginatorIDs()...)
+
 		if s.logger.Core().Enabled(zap.DebugLevel) {
 			s.logger.Debug(
 				"requesting additional migrated payloads from originator node",

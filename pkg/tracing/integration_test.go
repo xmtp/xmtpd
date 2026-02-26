@@ -69,8 +69,8 @@ func TestIntegration_SpanHierarchy(t *testing.T) {
 	assert.Equal(t, parent.TraceID(), db.TraceID(), "db should share trace ID with parent")
 
 	// Verify tags (mocktracer stores numbers as float64)
-	assert.Equal(t, float64(1), parent.Tag("num_envelopes"))
-	assert.Equal(t, float64(12345), tx.Tag("staged_id"))
+	assert.InDelta(t, float64(1), parent.Tag("num_envelopes"), 0)
+	assert.InDelta(t, float64(12345), tx.Tag("staged_id"), 0)
 	assert.Equal(t, "writer", db.Tag("db.role"))
 }
 
@@ -186,7 +186,7 @@ func TestIntegration_DBSubscriptionTriggerTags(t *testing.T) {
 	// mocktracer stores bools as strings
 	assert.Equal(t, "true", timerFallbackSpan.Tag(tracing.TagNotificationMiss))
 	// mocktracer stores ints as float64
-	assert.Equal(t, float64(0), timerFallbackSpan.Tag("num_results"))
+	assert.InDelta(t, float64(0), timerFallbackSpan.Tag("num_results"), 0)
 }
 
 // TestIntegration_CrossNodeReplication verifies the sync worker span flow.

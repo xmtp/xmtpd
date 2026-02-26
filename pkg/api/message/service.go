@@ -389,8 +389,8 @@ func (s *Service) QueryEnvelopes(
 	}
 
 	// Tag with result count for debugging
-	tracing.SpanTag(span, tracing.TagNumResults, len(response.Msg.Envelopes))
-	if len(response.Msg.Envelopes) == 0 {
+	tracing.SpanTag(span, tracing.TagNumResults, len(response.Msg.GetEnvelopes()))
+	if len(response.Msg.GetEnvelopes()) == 0 {
 		tracing.SpanTag(span, tracing.TagZeroResults, true)
 	}
 

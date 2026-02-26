@@ -55,6 +55,7 @@ func TestInsertAndIncrement(t *testing.T) {
 		db,
 		insertParams,
 		incrementParams,
+		true,
 	)
 	require.NoError(t, err)
 	require.Equal(t, int64(1), numInserted)
@@ -90,6 +91,7 @@ func TestPayerMustExist(t *testing.T) {
 		db,
 		insertParams,
 		incrementParams,
+		true,
 	)
 	require.Error(t, err)
 }
@@ -118,6 +120,7 @@ func TestInsertAndIncrementParallel(t *testing.T) {
 			db,
 			insertParams,
 			incrementParams,
+			true,
 		)
 		require.NoError(t, err)
 		atomic.AddInt64(&totalInserted, numInserted)
@@ -169,6 +172,7 @@ func TestInsertAndIncrementWithOutOfOrderSequenceID(t *testing.T) {
 		db,
 		insertParams,
 		incrementParams,
+		true,
 	)
 	require.NoError(t, err)
 
@@ -181,6 +185,7 @@ func TestInsertAndIncrementWithOutOfOrderSequenceID(t *testing.T) {
 		db,
 		insertParams,
 		incrementParams,
+		true,
 	)
 	require.NoError(t, err)
 

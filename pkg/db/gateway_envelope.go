@@ -28,6 +28,7 @@ func InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 	db *sql.DB,
 	insertParams queries.InsertGatewayEnvelopeParams,
 	incrementParams queries.IncrementUnsettledUsageParams,
+	incrementCongestion bool,
 ) (int64, error) {
 	return RunInTxWithResult(
 		ctx,
@@ -60,6 +61,10 @@ func InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 			err = txQueries.IncrementUnsettledUsage(ctx, incrementParams)
 			if err != nil {
 				return 0, err
+			}
+
+			if !incrementCongestion {
+				return numInserted.InsertedMetaRows, nil
 			}
 
 			err = txQueries.IncrementOriginatorCongestion(

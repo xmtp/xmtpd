@@ -88,7 +88,7 @@ func newTestOriginatorStream(
 	t *testing.T,
 	node *registry.Node,
 	stream message_api.ReplicationApi_SubscribeEnvelopesClient,
-	lastSequenceId map[uint32]uint64,
+	lastSequenceID map[uint32]uint64,
 	writeQueue chan *envUtils.OriginatorEnvelope,
 ) *originatorStream {
 	log := testutils.NewLog(t)
@@ -101,7 +101,7 @@ func newTestOriginatorStream(
 		t.Context(),
 		log,
 		node,
-		lastSequenceId,
+		lastSequenceID,
 		permittedOriginators,
 		stream,
 		writeQueue,

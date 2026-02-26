@@ -165,6 +165,7 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 			SpendPicodollars:  int64(ourFeeCalculation),
 			MessageCount:      1,
 		},
+		!migrator.IsMigratorOriginatorID(env.OriginatorNodeID()),
 	)
 
 	if err != nil {

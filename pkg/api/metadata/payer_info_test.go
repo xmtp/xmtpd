@@ -71,6 +71,7 @@ func (ts *testSetup) insertMessages(t *testing.T, messages []testMessage) {
 			ts.database.DB(),
 			insertParams,
 			incrementParams,
+			true,
 		)
 		require.NoError(t, err, msg)
 		require.Equal(t, int64(1), numInserted)

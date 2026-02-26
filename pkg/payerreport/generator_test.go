@@ -78,6 +78,7 @@ func addEnvelope(
 			MinutesSinceEpoch: utils.MinutesSinceEpoch(timestamp),
 			SpendPicodollars:  100,
 		},
+		true,
 	)
 	require.NoError(t, err)
 }

@@ -75,6 +75,7 @@ func insertEnvelope(t *testing.T, db *sql.DB, params envelopeCreateParams) {
 			MinutesSinceEpoch: utils.MinutesSinceEpoch(params.timestamp),
 			SpendPicodollars:  int64(params.cost),
 		},
+		true,
 	)
 	require.NoError(t, err)
 }

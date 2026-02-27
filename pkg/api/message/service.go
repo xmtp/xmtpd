@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/utils/retryerrors"
@@ -269,7 +270,6 @@ func (s *Service) catchUpFromCursor(
 	return nil
 }
 
-// TODO: Make this method context aware.
 func (s *Service) sendEnvelopes(
 	stream *connect.ServerStream[message_api.SubscribeEnvelopesResponse],
 	query *message_api.EnvelopesQuery,
@@ -283,33 +283,85 @@ func (s *Service) sendEnvelopes(
 		}
 	}
 
-	envsToSend := make([]*envelopesProto.OriginatorEnvelope, 0, len(envs))
-	for _, env := range envs {
-		if cursor[uint32(env.OriginatorNodeID())] >= env.OriginatorSequenceID() {
-			continue
+	var (
+		batch          = make([]*envelopesProto.OriginatorEnvelope, 0, len(envs))
+		batchWireBytes = 0
+	)
+
+	flush := func() error {
+		if len(batch) == 0 {
+			return nil
 		}
 
-		envsToSend = append(envsToSend, env.Proto())
-		cursor[uint32(env.OriginatorNodeID())] = env.OriginatorSequenceID()
-	}
+		if err := stream.Send(&message_api.SubscribeEnvelopesResponse{
+			Envelopes: batch,
+		}); err != nil {
+			return connect.NewError(
+				connect.CodeInternal,
+				fmt.Errorf("error sending envelopes: %w", err),
+			)
+		}
 
-	if len(envsToSend) == 0 {
+		metrics.EmitApiOutgoingEnvelopes(len(batch))
+
+		batchWireBytes = 0
+		batch = batch[:0]
+
 		return nil
 	}
 
-	err := stream.Send(&message_api.SubscribeEnvelopesResponse{
-		Envelopes: envsToSend,
-	})
-	if err != nil {
-		return connect.NewError(
-			connect.CodeInternal,
-			fmt.Errorf("error sending envelopes: %w", err),
+	for _, env := range envs {
+		var (
+			origID = env.OriginatorNodeID()
+			seqID  = env.OriginatorSequenceID()
 		)
+
+		// Skip if we've already seen this envelope.
+		if cursor[origID] >= seqID {
+			continue
+		}
+
+		var (
+			envProto     = env.Proto()
+			envProtoSize = proto.Size(envProto)
+			envWireSize  = envProtoSize + envelopeOverhead(uint64(envProtoSize))
+		)
+
+		// If the batch is not empty and the total bytes exceeds the limit, flush current batch.
+		if len(batch) > 0 && batchWireBytes+envWireSize > constants.GRPCPayloadLimit {
+			if err := flush(); err != nil {
+				return err
+			}
+		}
+
+		batch = append(batch, envProto)
+		batchWireBytes += envWireSize
+		cursor[origID] = seqID
 	}
 
-	metrics.EmitApiOutgoingEnvelopes(len(envsToSend))
+	return flush()
+}
 
-	return nil
+// https://protobuf.dev/programming-guides/encoding/
+//
+// Protobuf encodes length-delimited fields as: <tag> <length (varint)> <payload bytes>.
+//
+// For SubscribeEnvelopesResponse.envelopes the tag is field 1, wire type 2 (bytes),
+//   - tag = (1<<3)|2 = 10 (0x0A), which is 1 byte on the wire.
+//
+// So each envelope contributes overhead of:
+//   - 1 byte (tag) + varint_size(envelope_len).
+//
+// The payload bytes are the serialized OriginatorEnvelope itself.
+func envelopeOverhead(envelopeLen uint64) int {
+	varintSize := 1
+	for envelopeLen >= 1<<7 {
+		varintSize++
+		envelopeLen >>= 7
+	}
+
+	// 1 byte tag + varint length size
+	return 1 + varintSize
 }
 
 func (s *Service) QueryEnvelopes(

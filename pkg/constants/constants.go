@@ -13,9 +13,8 @@ const (
 	GroupMessageOriginatorID   = 0
 	IdentityUpdateOriginatorID = 1
 
-	// TODO: Revert to 25 * 1024 * 1024 after node sync is migrated to use the new API with pagination.
 	// Has to be in sync with xmtp/libxmtp/crates/xmtp_configuration/src/common/api.rs GRPC_PAYLOAD_LIMIT.
-	GRPCPayloadLimit = 50 * 1024 * 1024
+	GRPCPayloadLimit = 25 * 1024 * 1024
 )
 
 type VerifiedNodeRequestCtxKey struct{}

@@ -41,6 +41,7 @@ var (
 	ledgerDB      *sql.DB
 	indexerDB     *sql.DB
 	usageDB       *sql.DB
+	hotPathDB     *sql.DB
 
 	// Seeded data references for non-envelope groups.
 	congestionOriginators []int32
@@ -50,6 +51,7 @@ var (
 	usagePayerIDs         []int32
 	usageOriginators      []int32
 	usageMaxMinute        int32
+	hotPathPayerIDs       []int32
 )
 
 func TestMain(m *testing.M) {
@@ -113,6 +115,10 @@ func TestMain(m *testing.M) {
 	usageDB, cleanup = createBenchDB(ctlDB, "usage")
 	cleanups = append(cleanups, cleanup)
 	seedUsage(benchCtx, usageDB)
+
+	hotPathDB, cleanup = createBenchDB(ctlDB, "hot_path")
+	cleanups = append(cleanups, cleanup)
+	seedHotPath(benchCtx, hotPathDB)
 
 	os.Exit(m.Run())
 }

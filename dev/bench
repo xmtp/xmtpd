@@ -1,6 +1,41 @@
 #!/bin/bash
 set -euo pipefail
 
+show_help() {
+  cat <<'EOF'
+Usage: dev/bench [OPTIONS]
+
+Run database benchmarks and save filtered output to benchmarks/results/YYYY-MM-DD.txt.
+
+Options:
+  -h, --help    Show this help message and exit
+
+Environment variables:
+  BENCH_TIER    Optional tier filter from pkg/db/bench/main_test.go.
+                Valid values: 100K, 1M, 10M (case-insensitive).
+                If unset, all tiers run.
+
+Examples:
+  dev/bench
+  BENCH_TIER=100K dev/bench
+  BENCH_TIER=10M dev/bench
+EOF
+}
+
+if [[ $# -gt 0 ]]; then
+  case "${1:-}" in
+    -h|--help)
+      show_help
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      echo "Run 'dev/bench --help' for usage." >&2
+      exit 1
+      ;;
+  esac
+fi
+
 RESULTS_DIR="benchmarks/results"
 mkdir -p "$RESULTS_DIR"
 

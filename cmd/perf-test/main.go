@@ -44,17 +44,17 @@ var testCases = []TestCase{
 }
 
 type TestResult struct {
-	Name       string  `json:"name"`
-	Count      uint64  `json:"count"`
-	RPS        float64 `json:"rps"`
-	AvgLatency float64 `json:"avg_latency_ms"`
-	P50Latency float64 `json:"p50_latency_ms"`
-	P95Latency float64 `json:"p95_latency_ms"`
-	P99Latency float64 `json:"p99_latency_ms"`
-	StdDev     float64 `json:"stddev_ms"`
-	ErrorPct   float64 `json:"error_pct"`
-	OKCount    int     `json:"ok_count"`
-	ErrCount   int     `json:"err_count"`
+	Name       string         `json:"name"`
+	Count      uint64         `json:"count"`
+	RPS        float64        `json:"rps"`
+	AvgLatency float64        `json:"avg_latency_ms"`
+	P50Latency float64        `json:"p50_latency_ms"`
+	P95Latency float64        `json:"p95_latency_ms"`
+	P99Latency float64        `json:"p99_latency_ms"`
+	StdDev     float64        `json:"stddev_ms"`
+	ErrorPct   float64        `json:"error_pct"`
+	OKCount    int            `json:"ok_count"`
+	ErrCount   int            `json:"err_count"`
 	Errors     map[string]int `json:"errors,omitempty"`
 }
 

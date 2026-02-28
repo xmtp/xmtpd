@@ -1,0 +1,31 @@
+{
+  "name": "@xmtp/gateway",
+  "version": "0.1.0-dev",
+  "description": "XMTP gateway sidecar — ships the Go gateway binary as an npm package",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "postinstall": "node install.js",
+    "build": "tsc",
+    "test": "vitest"
+  },
+  "optionalDependencies": {
+    "@xmtp/gateway-darwin-arm64": "0.1.0-dev",
+    "@xmtp/gateway-darwin-x64": "0.1.0-dev",
+    "@xmtp/gateway-linux-arm64": "0.1.0-dev",
+    "@xmtp/gateway-linux-x64": "0.1.0-dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0",
+    "@types/node": "^22.0.0"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "dist",
+    "install.js"
+  ],
+  "license": "MIT"
+}

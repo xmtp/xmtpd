@@ -421,11 +421,12 @@ WITH second_newest_minute AS (
 	ORDER BY unsettled_usage.minutes_since_epoch DESC
 	LIMIT 1 OFFSET 1
 )
-SELECT coalesce(max(last_sequence_id), 0)::BIGINT AS max_sequence_id,
-	coalesce(max(unsettled_usage.minutes_since_epoch), 0)::INT AS minutes_since_epoch
-FROM unsettled_usage
-	JOIN second_newest_minute ON second_newest_minute.minutes_since_epoch = unsettled_usage.minutes_since_epoch
-WHERE unsettled_usage.originator_id = $1
+SELECT coalesce(max(u.last_sequence_id), 0)::BIGINT AS max_sequence_id,
+	coalesce(max(u.minutes_since_epoch), 0)::INT AS minutes_since_epoch
+FROM second_newest_minute snm
+LEFT JOIN unsettled_usage u
+    ON u.originator_id = $1
+AND u.minutes_since_epoch = snm.minutes_since_epoch
 `
 
 type GetSecondNewestMinuteParams struct {

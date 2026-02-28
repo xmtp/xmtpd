@@ -271,7 +271,7 @@ func runTest(addr string, nodeID uint32, tc TestCase, concurrency, connections i
 
 func main() {
 	addr := flag.String("addr", "grpc.testnet-staging.xmtp.network:443", "gRPC host:port")
-	nodeID := flag.Uint("node-id", 100, "Target originator node ID")
+	nodeID := flag.Uint64("node-id", 100, "Target originator node ID")
 	concurrency := flag.Int("c", 8, "Concurrent workers")
 	connections := flag.Int("conn", 4, "Client connections")
 	dur := flag.Duration("dur", 10*time.Second, "Duration per test")
@@ -279,6 +279,11 @@ func main() {
 	tests := flag.String("tests", "all", "Comma-separated: Welcome,KeyPackage,GroupMessage-256B,GroupMessage-512B,GroupMessage-1KB,GroupMessage-5KB or 'all'")
 	outPath := flag.String("out", "perf_results.json", "JSON results output path")
 	flag.Parse()
+
+	if *nodeID > math.MaxUint32 {
+		fmt.Fprintf(os.Stderr, "Error: node-id must be <= %d (got %d)\n", uint64(math.MaxUint32), *nodeID)
+		os.Exit(1)
+	}
 
 	selectedTests := testCases
 	if *tests != "all" {

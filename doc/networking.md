@@ -411,7 +411,7 @@ message GetPayerInfoResponse {
 
 ### Health Check API
 
-gRPC Health Check API, implemented using [Connect-RPC grpchealth](connectrpc.com/grpchealth).
+gRPC Health Check API, implemented using [Connect-RPC grpchealth](https://connectrpc.com/grpchealth).
 
 **Service Name**: `grpc.health.v1.Health`
 
@@ -431,7 +431,7 @@ curl -X POST http://localhost:5050/grpc.health.v1.Health/Check \
 
 ### Reflection API
 
-gRPC Server Reflection API for service discovery, implemented using [Connect-RPC grpcreflect](connectrpc.com/grpcreflect).
+gRPC Server Reflection API for service discovery, implemented using [Connect-RPC grpcreflect](https://connectrpc.com/grpcreflect).
 
 **Service Names**:
 

@@ -328,6 +328,7 @@ func main() {
 	fmt.Println("╚══════════════════════╩══════════╩══════════╩══════════╩══════════╩══════════╩════════╝")
 
 	b, _ := json.MarshalIndent(results, "", "  ")
+
 	if err := os.WriteFile(*outPath, b, 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "\nERROR: failed to save results to %s: %v\n", *outPath, err)
 	} else {

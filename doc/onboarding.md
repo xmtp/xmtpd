@@ -42,4 +42,4 @@ Once you've confirmed that their node is registered, let the node operator know.
 You can provide them with the following links:
 
 - Take the next step in deploying your node to the XMTP testnet: [Step 3: Set up dependencies](https://github.com/xmtp/xmtpd-infrastructure/blob/main/helm/README.md#step-3-set-up-dependencies)
-- Optionally, you can use Kubernetes and Prometheus to set up observability: [Set up Prometheus service discovery for xmtpd in Kubernetes using Helm](/doc/k8s-prometheus-monitoring.md)
+- Optionally, you can use Kubernetes and Prometheus to set up observability: Set up Prometheus service discovery for xmtpd in Kubernetes using Helm

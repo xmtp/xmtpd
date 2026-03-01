@@ -15,11 +15,11 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
-	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	registryMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/registry"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
 )
@@ -28,7 +28,7 @@ type deps struct {
 	ctx         context.Context
 	logger      *zap.Logger
 	db          *queries.Queries
-	registry    *mocks.MockNodeRegistry
+	registry    *registryMocks.MockNodeRegistry
 	privKey1    *ecdsa.PrivateKey
 	privKey1Str string
 	privKey2    *ecdsa.PrivateKey
@@ -39,7 +39,7 @@ type deps struct {
 func setup(t *testing.T) *deps {
 	ctx := context.Background()
 	log := testutils.NewLog(t)
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	db, _ := testutils.NewRawDB(t, ctx)
 	queries := queries.New(db)
 	privKey1, err := crypto.GenerateKey()

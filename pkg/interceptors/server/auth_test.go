@@ -9,7 +9,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/constants"
-	"github.com/xmtp/xmtpd/pkg/mocks/authn"
+	authnMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/authn"
 	"go.uber.org/zap/zaptest"
 )
 
@@ -42,7 +42,7 @@ func (m *mockStreamingConnAuthInterceptor) Peer() connect.Peer {
 }
 
 func TestUnaryInterceptor(t *testing.T) {
-	mockVerifier := authn.NewMockJWTVerifier(t)
+	mockVerifier := authnMocks.NewMockJWTVerifier(t)
 	logger := zaptest.NewLogger(t)
 	interceptor := NewServerAuthInterceptor(mockVerifier, logger)
 
@@ -131,7 +131,7 @@ func TestUnaryInterceptor(t *testing.T) {
 }
 
 func TestStreamInterceptor(t *testing.T) {
-	mockVerifier := authn.NewMockJWTVerifier(t)
+	mockVerifier := authnMocks.NewMockJWTVerifier(t)
 	logger := zaptest.NewLogger(t)
 	interceptor := NewServerAuthInterceptor(mockVerifier, logger)
 

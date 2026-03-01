@@ -13,10 +13,10 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/merkle"
-	blockchainMocks "github.com/xmtp/xmtpd/pkg/mocks/blockchain"
-	payerreportMocks "github.com/xmtp/xmtpd/pkg/mocks/payerreport"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	blockchainMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/blockchain"
+	payerreportMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/payerreport"
 )
 
 func testSettlementWorker(

@@ -9,8 +9,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
-	"github.com/xmtp/xmtpd/pkg/mocks/blockchain"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	blockchainMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/blockchain"
 )
 
 var (
@@ -22,7 +22,7 @@ func TestInitialize(t *testing.T) {
 	ctx := t.Context()
 	db, _ := testutils.NewDB(t, ctx)
 
-	mockClient := blockchain.NewMockChainClient(t)
+	mockClient := blockchainMocks.NewMockChainClient(t)
 	mockClient.On("HeaderByNumber", ctx, big.NewInt(0)).
 		Return(mockBlock.Header(), nil)
 
@@ -40,7 +40,7 @@ func TestUpdateLatestBlock(t *testing.T) {
 	ctx := t.Context()
 	db, _ := testutils.NewDB(t, ctx)
 
-	mockClient := blockchain.NewMockChainClient(t)
+	mockClient := blockchainMocks.NewMockChainClient(t)
 	mockClient.On("HeaderByNumber", ctx, big.NewInt(0)).
 		Return(mockBlock.Header(), nil)
 
@@ -82,7 +82,7 @@ func TestUpdateLatestBlock(t *testing.T) {
 func TestConcurrentUpdates(t *testing.T) {
 	ctx := t.Context()
 	db, _ := testutils.NewDB(t, ctx)
-	mockClient := blockchain.NewMockChainClient(t)
+	mockClient := blockchainMocks.NewMockChainClient(t)
 
 	mockClient.On("HeaderByNumber", ctx, big.NewInt(0)).
 		Return(mockBlock.Header(), nil)
@@ -147,7 +147,7 @@ func TestMultipleContractAddresses(t *testing.T) {
 	address1 := common.HexToAddress("0x0000000000000000000000000000000000000001")
 	address2 := common.HexToAddress("0x0000000000000000000000000000000000000002")
 
-	mockClient := blockchain.NewMockChainClient(t)
+	mockClient := blockchainMocks.NewMockChainClient(t)
 	mockClient.On("HeaderByNumber", ctx, big.NewInt(0)).
 		Return(mockBlock.Header(), nil)
 

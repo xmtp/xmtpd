@@ -9,14 +9,14 @@ The question: can per-topic cursors be queried efficiently at production scale?
 ## Production Data Profile (Feb 2026)
 
 | Originator | Max Seq | Est. Rows | RANGE Partitions |
-|---|---|---|---|
-| o0 | 5.6M | ~5.6M | ~6 |
-| o1 | 3.5M | ~3.5M | ~4 |
-| o10 | 22.7M | ~22.7M | ~23 |
-| o11 | 111.5M | ~111.5M | ~112 |
-| o13 | 3.1M | ~3.1M | ~4 |
-| o100 | 40K | ~40K | 1 |
-| o200 | 31K | ~31K | 1 |
+| ---------- | ------- | --------- | ---------------- |
+| o0         | 5.6M    | ~5.6M     | ~6               |
+| o1         | 3.5M    | ~3.5M     | ~4               |
+| o10        | 22.7M   | ~22.7M    | ~23              |
+| o11        | 111.5M  | ~111.5M   | ~112             |
+| o13        | 3.1M    | ~3.1M     | ~4               |
+| o100       | 40K     | ~40K      | 1                |
+| o200       | 31K     | ~31K      | 1                |
 
 - **Total**: ~146M rows, ~53K distinct topics, 7 originators, ~151 leaf partitions
 - **Skew**: o11 has 76% of all data
@@ -26,11 +26,11 @@ The question: can per-topic cursors be queried efficiently at production scale?
 
 **Yes**, with the right query and index. At 10M rows with production-realistic skew (76%/15%/7.6% across 3 originators, 50K topics, 500 subscribed):
 
-| Cursor Position | V0 (status quo) | V3b + Index (per-topic) |
-|---|---|---|
-| 80% (nearly caught up) | 1,476ms | **23ms** |
-| 20% (far behind) | 1,749ms | **23ms** |
-| Mixed (half at 80%, half at 20%) | 1,880ms | **23ms** |
+| Cursor Position                  | V0 (status quo) | V3b + Index (per-topic) |
+| -------------------------------- | --------------- | ----------------------- |
+| 80% (nearly caught up)           | 1,476ms         | **23ms**                |
+| 20% (far behind)                 | 1,749ms         | **23ms**                |
+| Mixed (half at 80%, half at 20%) | 1,880ms         | **23ms**                |
 
 V3b with `gem_topic_orig_seq_idx` is **57-82x faster** than V0 across all cursor distributions, while also providing per-topic cursor precision that eliminates redundant data transfer.
 
@@ -66,6 +66,7 @@ The API layer handles this via two components:
 2. **`FillMissingOriginators`** (`pkg/db/types.go`) — Takes the caller's `SelectGatewayEnvelopesByTopicsParams` and the full originator list, appending any missing originators with `seq_id=0`.
 
 The call chain in `pkg/api/message/service.go` is:
+
 ```
 allOriginators := s.originatorList.GetOriginatorNodeIDs(ctx)
 db.FillMissingOriginators(&params, allOriginators)
@@ -75,16 +76,16 @@ For specialized callers (e.g., `IdentityUpdateStorer`) that query a single known
 
 ## Comparison to V0 (Status Quo)
 
-| Dimension | V0 | V3b + Index |
-|---|---|---|
-| **Cursor model** | Shared (one per originator) | Per-topic (one per topic x originator) |
-| **Meta access** | O(partitions) — one scan per partition with `ANY(topics)` | O(topics x originators) — one index probe per pair |
-| **Planning time** | 9-35ms (grows with topic count due to `ANY(large_array)`) | 0.4-0.5ms (stable) |
-| **Execution at 10M rows** | 1,024-1,845ms | 22-23ms |
-| **Sensitivity to cursor position** | Moderate (44ms-416ms meta phase depending on cursor) | Minimal (22-23ms regardless) |
-| **Redundant re-fetching** | Yes — shared cursor forces re-scanning already-seen data | No — each topic tracks its own position |
-| **Index requirement** | Uses existing `gem_topic_time_idx` | Requires `gem_topic_orig_seq_idx` (but allows dropping 3 old indexes) |
-| **Write overhead** | N/A | Marginal — net fewer indexes after cleanup |
+| Dimension                          | V0                                                        | V3b + Index                                                           |
+| ---------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------- |
+| **Cursor model**                   | Shared (one per originator)                               | Per-topic (one per topic x originator)                                |
+| **Meta access**                    | O(partitions) — one scan per partition with `ANY(topics)` | O(topics x originators) — one index probe per pair                    |
+| **Planning time**                  | 9-35ms (grows with topic count due to `ANY(large_array)`) | 0.4-0.5ms (stable)                                                    |
+| **Execution at 10M rows**          | 1,024-1,845ms                                             | 22-23ms                                                               |
+| **Sensitivity to cursor position** | Moderate (44ms-416ms meta phase depending on cursor)      | Minimal (22-23ms regardless)                                          |
+| **Redundant re-fetching**          | Yes — shared cursor forces re-scanning already-seen data  | No — each topic tracks its own position                               |
+| **Index requirement**              | Uses existing `gem_topic_time_idx`                        | Requires `gem_topic_orig_seq_idx` (but allows dropping 3 old indexes) |
+| **Write overhead**                 | N/A                                                       | Marginal — net fewer indexes after cleanup                            |
 
 **Key trade-off**: V3b makes O(topics x originators) individual index probes instead of V0's O(partitions) batch scans. Without the covering index, V3b's per-probe cost is high enough (heap fetches, missing indexes on some partitions) that V0's batch approach wins. With the index, each probe is a sub-microsecond index-only seek, and the 1500 probes (500 topics x 3 originators) complete in ~22ms total.
 
@@ -112,12 +113,12 @@ V3b's LATERAL subquery selects `gateway_time` alongside the key columns. Without
 Without the index, V3b's performance degrades sharply as cursors move backward:
 
 | Cursor | V3b (no index) | V3b (with index) |
-|---|---|---|
-| 80% | 321ms | 23ms |
-| 20% | 603ms | 23ms |
-| Mixed | 412ms | 22ms |
+| ------ | -------------- | ---------------- |
+| 80%    | 321ms          | 23ms             |
+| 20%    | 603ms          | 23ms             |
+| Mixed  | 412ms          | 22ms             |
 
-At low cursor positions, more rows exist past each cursor, so each LATERAL probe scans more data before hitting the LIMIT. With the covering index, the probe is an index-only range scan that starts exactly at the cursor position and reads forward — the cost is proportional to the number of rows *returned*, not the number of rows *after the cursor*. Without the index, the probe uses bitmap heap scans that degrade with the volume of post-cursor data.
+At low cursor positions, more rows exist past each cursor, so each LATERAL probe scans more data before hitting the LIMIT. With the covering index, the probe is an index-only range scan that starts exactly at the cursor position and reads forward — the cost is proportional to the number of rows _returned_, not the number of rows _after the cursor_. Without the index, the probe uses bitmap heap scans that degrade with the volume of post-cursor data.
 
 ### 4. The numbers in context
 
@@ -170,9 +171,9 @@ Before performance testing: V0c confirmed identical to V0, V3b confirmed as supe
 
 ## Source Documents
 
-- `docs/plans/2026-02-13-per-topic-cursor-query-design.md` — Initial investigation at 10K and ~9M rows
-- `docs/plans/2026-02-16-scaled-query-investigation-design.md` — 10M-row test design and results
-- `docs/plans/2026-02-16-scaled-query-investigation-plan.md` — Implementation plan for the test harness
+- `doc/plans/2026-02-13-per-topic-cursor-query-design.md` — Initial investigation at 10K and ~9M rows
+- `doc/plans/2026-02-16-scaled-query-investigation-design.md` — 10M-row test design and results
+- `doc/plans/2026-02-16-scaled-query-investigation-plan.md` — Implementation plan for the test harness
 
 ---
 
@@ -630,17 +631,17 @@ CREATE INDEX gem_topic_orig_seq_idx ON gateway_envelopes_meta
 
 ### Indexes to Drop (Superseded)
 
-| Index | Definition | Why Redundant |
-|---|---|---|
-| `gem_topic_time_idx` | `(topic, gateway_time, originator_node_id, originator_sequence_id)` | New index is strictly better for all consumers; `gateway_time` never appears in WHERE |
-| `gem_time_node_seq_idx` | `(gateway_time, originator_node_id, originator_sequence_id)` | No query uses `gateway_time` as leading filter; legacy index |
-| `gem_originator_node_id` | `(originator_node_id)` | Redundant with LIST partitioning + PRIMARY KEY |
+| Index                    | Definition                                                          | Why Redundant                                                                         |
+| ------------------------ | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `gem_topic_time_idx`     | `(topic, gateway_time, originator_node_id, originator_sequence_id)` | New index is strictly better for all consumers; `gateway_time` never appears in WHERE |
+| `gem_time_node_seq_idx`  | `(gateway_time, originator_node_id, originator_sequence_id)`        | No query uses `gateway_time` as leading filter; legacy index                          |
+| `gem_originator_node_id` | `(originator_node_id)`                                              | Redundant with LIST partitioning + PRIMARY KEY                                        |
 
 ### Indexes to Keep
 
-| Index | Definition | Reason |
-|---|---|---|
+| Index                     | Definition                                                                        | Reason                               |
+| ------------------------- | --------------------------------------------------------------------------------- | ------------------------------------ |
 | `gem_topic_time_desc_idx` | `(topic, gateway_time DESC) INCLUDE (originator_node_id, originator_sequence_id)` | Required by `SelectNewestFromTopics` |
-| `gem_expiry_idx` | `(expiry) INCLUDE (...) WHERE expiry IS NOT NULL` | Required by all pruning queries |
+| `gem_expiry_idx`          | `(expiry) INCLUDE (...) WHERE expiry IS NOT NULL`                                 | Required by all pruning queries      |
 
 **Net result**: Adding 1 index and dropping 3 reduces total count from 5 to 3, lowering write amplification while dramatically improving read performance.

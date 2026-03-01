@@ -22,10 +22,8 @@ import (
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
 	"github.com/xmtp/xmtpd/pkg/api/payer"
 	"github.com/xmtp/xmtpd/pkg/authn"
-	"github.com/xmtp/xmtpd/pkg/mocks/blockchain"
+	blockchainMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/blockchain"
 
-	mlsvalidateMocks "github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
-	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api/payer_apiconnect"
@@ -33,6 +31,8 @@ import (
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/testutils/fees"
+	mlsvalidateMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/mlsvalidate"
+	registryMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/registry"
 	networkTestUtils "github.com/xmtp/xmtpd/pkg/testutils/network"
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
@@ -107,9 +107,9 @@ func NewTestGRPCMetadataAPIClient(
 }
 
 type APIServerMocks struct {
-	MockRegistry          *mocks.MockNodeRegistry
+	MockRegistry          *registryMocks.MockNodeRegistry
 	MockValidationService *mlsvalidateMocks.MockMLSValidationService
-	MockMessagePublisher  *blockchain.MockIBlockchainPublisher
+	MockMessagePublisher  *blockchainMocks.MockIBlockchainPublisher
 }
 
 type APIServerTestSuite struct {
@@ -134,8 +134,8 @@ func WithRegistryNodes(nodes []registry.Node) TestAPIOption {
 	}
 }
 
-func createMockRegistry(t *testing.T, nodes []registry.Node) *mocks.MockNodeRegistry {
-	reg := mocks.NewMockNodeRegistry(t)
+func createMockRegistry(t *testing.T, nodes []registry.Node) *registryMocks.MockNodeRegistry {
+	reg := registryMocks.NewMockNodeRegistry(t)
 
 	reg.EXPECT().GetNodes().Return(nodes, nil)
 
@@ -164,7 +164,7 @@ func NewTestAPIServer(
 		log                   = testutils.NewLog(t)
 		sqlDB, _              = testutils.NewRawDB(t, ctx)
 		db                    = dbPkg.NewDBHandler(sqlDB)
-		mockMessagePublisher  = blockchain.NewMockIBlockchainPublisher(t)
+		mockMessagePublisher  = blockchainMocks.NewMockIBlockchainPublisher(t)
 		mockValidationService = mlsvalidateMocks.NewMockMLSValidationService(t)
 	)
 

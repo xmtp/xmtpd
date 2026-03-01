@@ -7,17 +7,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/xmtp/xmtpd/pkg/api/payer/selectors"
-
 	"github.com/stretchr/testify/require"
-	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
+	"github.com/xmtp/xmtpd/pkg/api/payer/selectors"
 	"github.com/xmtp/xmtpd/pkg/registry"
+	registryMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/registry"
 	nodeRegistry "github.com/xmtp/xmtpd/pkg/testutils/registry"
 	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
 func TestGetNode_StableAssignment(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 		nodeRegistry.GetHealthyNode(200),
@@ -40,7 +39,7 @@ func TestGetNode_StableAssignment(t *testing.T) {
 }
 
 func TestGetNode_EmptyNodes(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{}, nil)
 	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("stable_key"))
 	selector := selectors.NewStableHashingNodeSelectorAlgorithm(mockRegistry)
@@ -50,7 +49,7 @@ func TestGetNode_EmptyNodes(t *testing.T) {
 }
 
 func TestGetNode_NoAvailableNodesError(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return(nil, errors.New("node fetch error"))
 
 	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("stable_key"))
@@ -62,7 +61,7 @@ func TestGetNode_NoAvailableNodesError(t *testing.T) {
 }
 
 func TestGetNode_CorrectAssignment(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 		nodeRegistry.GetHealthyNode(200),
@@ -82,7 +81,7 @@ func TestGetNode_CorrectAssignment(t *testing.T) {
 }
 
 func TestGetNode_NodeReassignment(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 		nodeRegistry.GetHealthyNode(200),
@@ -98,7 +97,7 @@ func TestGetNode_NodeReassignment(t *testing.T) {
 	require.NoError(t, err)
 
 	// pretend to remove the hashed node
-	newMockRegistry := mocks.NewMockNodeRegistry(t)
+	newMockRegistry := registryMocks.NewMockNodeRegistry(t)
 	newMockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 	}, nil)
@@ -112,7 +111,7 @@ func TestGetNode_NodeReassignment(t *testing.T) {
 }
 
 func TestGetNode_NodeReassignmentStability(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 		nodeRegistry.GetHealthyNode(200),
@@ -128,7 +127,7 @@ func TestGetNode_NodeReassignmentStability(t *testing.T) {
 	require.NoError(t, err)
 
 	// pretend to remove the hashed node
-	newMockRegistry := mocks.NewMockNodeRegistry(t)
+	newMockRegistry := registryMocks.NewMockNodeRegistry(t)
 	newMockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 		nodeRegistry.GetHealthyNode(200),
@@ -157,7 +156,7 @@ func TestGetNode_FindTopics(t *testing.T) {
 		nodeRegistry.GetHealthyNode(1200),
 	}
 
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return(nodes, nil)
 
 	selector := selectors.NewStableHashingNodeSelectorAlgorithm(mockRegistry)
@@ -195,7 +194,7 @@ func TestGetNode_ConfirmTopicBalance(t *testing.T) {
 		nodeRegistry.GetHealthyNode(8000),
 	}
 
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return(nodes, nil)
 
 	selector := selectors.NewStableHashingNodeSelectorAlgorithm(mockRegistry)
@@ -229,7 +228,7 @@ func TestGetNode_ConfirmTopicBalance(t *testing.T) {
 }
 
 func TestGetNode_NodeGetNextIfBanned(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 		nodeRegistry.GetHealthyNode(200),
@@ -268,7 +267,7 @@ func TestGetNode_NodeGetNextIfBanned(t *testing.T) {
 }
 
 func TestManualNodeSelector_SingleNode(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 		nodeRegistry.GetHealthyNode(200),
@@ -284,7 +283,7 @@ func TestManualNodeSelector_SingleNode(t *testing.T) {
 }
 
 func TestManualNodeSelector_MultipleNodes(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 		nodeRegistry.GetHealthyNode(200),
@@ -300,7 +299,7 @@ func TestManualNodeSelector_MultipleNodes(t *testing.T) {
 }
 
 func TestManualNodeSelector_WithBanlist(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 		nodeRegistry.GetHealthyNode(200),
@@ -316,7 +315,7 @@ func TestManualNodeSelector_WithBanlist(t *testing.T) {
 }
 
 func TestManualNodeSelector_NoNodesConfigured(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 
 	selector := selectors.NewManualNodeSelectorAlgorithm(mockRegistry, []uint32{})
 	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
@@ -327,7 +326,7 @@ func TestManualNodeSelector_NoNodesConfigured(t *testing.T) {
 }
 
 func TestManualNodeSelector_NodeNotInRegistry(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 	}, nil)
@@ -341,7 +340,7 @@ func TestManualNodeSelector_NodeNotInRegistry(t *testing.T) {
 }
 
 func TestOrderedPreferenceNodeSelector_FirstPreferred(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 		nodeRegistry.GetHealthyNode(200),
@@ -360,7 +359,7 @@ func TestOrderedPreferenceNodeSelector_FirstPreferred(t *testing.T) {
 }
 
 func TestOrderedPreferenceNodeSelector_FallbackToSecond(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 		nodeRegistry.GetHealthyNode(200),
@@ -379,7 +378,7 @@ func TestOrderedPreferenceNodeSelector_FallbackToSecond(t *testing.T) {
 }
 
 func TestOrderedPreferenceNodeSelector_WithBanlist(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 		nodeRegistry.GetHealthyNode(200),
@@ -398,7 +397,7 @@ func TestOrderedPreferenceNodeSelector_WithBanlist(t *testing.T) {
 }
 
 func TestOrderedPreferenceNodeSelector_FallbackToAny(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 		nodeRegistry.GetHealthyNode(200),
@@ -417,7 +416,7 @@ func TestOrderedPreferenceNodeSelector_FallbackToAny(t *testing.T) {
 }
 
 func TestRandomNodeSelector_ReturnsValidNode(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 		nodeRegistry.GetHealthyNode(200),
@@ -433,7 +432,7 @@ func TestRandomNodeSelector_ReturnsValidNode(t *testing.T) {
 }
 
 func TestRandomNodeSelector_Distribution(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 		nodeRegistry.GetHealthyNode(200),
@@ -459,7 +458,7 @@ func TestRandomNodeSelector_Distribution(t *testing.T) {
 }
 
 func TestRandomNodeSelector_WithBanlist(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 		nodeRegistry.GetHealthyNode(200),
@@ -475,7 +474,7 @@ func TestRandomNodeSelector_WithBanlist(t *testing.T) {
 }
 
 func TestRandomNodeSelector_EmptyNodes(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{}, nil)
 
 	selector := selectors.NewRandomNodeSelectorAlgorithm(mockRegistry)
@@ -487,7 +486,7 @@ func TestRandomNodeSelector_EmptyNodes(t *testing.T) {
 }
 
 func TestClosestNodeSelector_ReturnsNode(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 	}, nil)
@@ -504,7 +503,7 @@ func TestClosestNodeSelector_ReturnsNode(t *testing.T) {
 }
 
 func TestNewNodeSelector_StableStrategy(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 		nodeRegistry.GetHealthyNode(200),
@@ -526,7 +525,7 @@ func TestNewNodeSelector_StableStrategy(t *testing.T) {
 }
 
 func TestNewNodeSelector_ManualStrategy(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 		nodeRegistry.GetHealthyNode(200),
@@ -546,7 +545,7 @@ func TestNewNodeSelector_ManualStrategy(t *testing.T) {
 }
 
 func TestNewNodeSelector_ManualStrategyNoNodes(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 
 	_, err := selectors.NewNodeSelector(mockRegistry, selectors.NodeSelectorConfig{
 		Strategy:       selectors.NodeSelectorStrategyManual,
@@ -557,7 +556,7 @@ func TestNewNodeSelector_ManualStrategyNoNodes(t *testing.T) {
 }
 
 func TestNewNodeSelector_OrderedStrategy(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 		nodeRegistry.GetHealthyNode(200),
@@ -578,7 +577,7 @@ func TestNewNodeSelector_OrderedStrategy(t *testing.T) {
 }
 
 func TestNewNodeSelector_OrderedStrategyNoNodes(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 
 	_, err := selectors.NewNodeSelector(mockRegistry, selectors.NodeSelectorConfig{
 		Strategy: selectors.NodeSelectorStrategyOrdered,
@@ -588,7 +587,7 @@ func TestNewNodeSelector_OrderedStrategyNoNodes(t *testing.T) {
 }
 
 func TestNewNodeSelector_RandomStrategy(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 		nodeRegistry.GetHealthyNode(200),
@@ -607,7 +606,7 @@ func TestNewNodeSelector_RandomStrategy(t *testing.T) {
 }
 
 func TestNewNodeSelector_ClosestStrategy(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 
 	selector, err := selectors.NewNodeSelector(mockRegistry, selectors.NodeSelectorConfig{
 		Strategy: selectors.NodeSelectorStrategyClosest,
@@ -617,7 +616,7 @@ func TestNewNodeSelector_ClosestStrategy(t *testing.T) {
 }
 
 func TestNewNodeSelector_DefaultStrategy(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 	}, nil)
@@ -638,7 +637,7 @@ func TestNewNodeSelector_DefaultStrategy(t *testing.T) {
 }
 
 func TestNewNodeSelector_UnknownStrategy(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 
 	_, err := selectors.NewNodeSelector(mockRegistry, selectors.NodeSelectorConfig{
 		Strategy: "invalid",
@@ -648,7 +647,7 @@ func TestNewNodeSelector_UnknownStrategy(t *testing.T) {
 }
 
 func TestClosestNodeSelector_WithPreferredNodes(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 		nodeRegistry.GetHealthyNode(200),
@@ -684,7 +683,7 @@ func TestClosestNodeSelector_WithPreferredNodes(t *testing.T) {
 }
 
 func TestClosestNodeSelector_WithoutPreferredNodes(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(100),
 		nodeRegistry.GetHealthyNode(200),
@@ -713,7 +712,7 @@ func TestClosestNodeSelector_WithoutPreferredNodes(t *testing.T) {
 }
 
 func TestClosestNodeSelector_PreferredNodesFallback(t *testing.T) {
-	mockRegistry := mocks.NewMockNodeRegistry(t)
+	mockRegistry := registryMocks.NewMockNodeRegistry(t)
 	mockRegistry.On("GetNodes").Return([]registry.Node{
 		nodeRegistry.GetHealthyNode(300),
 	}, nil)

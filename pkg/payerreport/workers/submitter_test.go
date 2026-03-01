@@ -7,11 +7,11 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
-	blockchainMocks "github.com/xmtp/xmtpd/pkg/mocks/blockchain"
-	registrantMocks "github.com/xmtp/xmtpd/pkg/mocks/registrant"
-	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	blockchainMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/blockchain"
+	registrantMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/registrant"
+	registryMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/registry"
 )
 
 func testSubmitterWorker(
@@ -23,7 +23,7 @@ func testSubmitterWorker(
 		db, _          = testutils.NewDB(t, ctx)
 		store          = payerreport.NewStore(log, db)
 		mockRegistrant = registrantMocks.NewMockIRegistrant(t)
-		registry       = mocks.NewMockNodeRegistry(t)
+		registry       = registryMocks.NewMockNodeRegistry(t)
 		reportsManager = blockchainMocks.NewMockPayerReportsManager(t)
 		myNodeID       = uint32(1)
 	)

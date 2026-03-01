@@ -43,33 +43,38 @@ dev/gen/migration {name} # create new up/down migration files via golang-migrate
 **File naming:** `snake_case.go`
 
 **Logging** (zap):
+
 - Hierarchical logger names: `"xmtpd.api.publish-worker"` (defined in `pkg/utils/log.go`)
 - snake_case field names: `zap.String("app_chain_id", ...)`, `zap.Int64("block_number", ...)`
 - Lowercase log messages
 - Guard hot-path debug logs: `if logger.Core().Enabled(zap.DebugLevel)`
 
 **Errors:**
+
 - Lowercase messages: `fmt.Errorf("failed to parse config: %w", err)`
 - Wrap with `%w` for context; return bare `err` when no context needed
 
 **Testing:**
+
 - testify: `require` for fatal assertions, `assert` for non-fatal
 - Test utilities in `pkg/testutils/`
 - Integration tests use testcontainers for postgres
 
 **Config:**
+
 - Environment variables with `XMTPD_` prefix (e.g. `XMTPD_DB_WRITER_CONNECTION_STRING`)
 - CLI flags via `github.com/jessevdk/go-flags` with struct tags
 - Options pattern for function configuration
 
 **Linters** (`.golangci.yaml`):
+
 - Linters: errcheck, govet, ineffassign, staticcheck, unused, nilerr, nakedret
 - Formatters: gofmt, golines, gofumpt
 - Before committing, run `dev/lint-fix` to auto-fix lint issues and format code
 
 ## Key Directories
 
-```
+```text
 cmd/
   replication/   # main node binary
   gateway/       # gateway service
@@ -85,9 +90,9 @@ pkg/
   envelopes/     # envelope processing
   config/        # configuration structs
   testutils/     # shared test helpers
+    mocks/       # generated mocks
   registry/      # node registry client
   proto/         # generated protobuf code
-  mocks/         # generated mocks
   abi/           # generated contract bindings
 contracts/       # Foundry smart contract project
 dev/             # development scripts

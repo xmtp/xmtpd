@@ -14,32 +14,32 @@ pkg/db/
   db.go           # Handler (read/write routing)
   pgx.go          # connection management, NewNamespacedDB
   tx.go           # transaction helpers
-pkg/migrations/   # SQL migration files (up/down)
+pkg/db/migrations/   # SQL migration files (up/down)
 sqlc.yaml         # sqlc config (project root)
 ```
 
 ## Schema Summary
 
-| Table | Purpose | Key Columns |
-|---|---|---|
-| `gateway_envelopes_meta` | Envelope metadata (hot path, partitioned) | `originator_node_id`, `originator_sequence_id`, `topic`, `payer_id`, `expiry`, `gateway_time` |
-| `gateway_envelope_blobs` | Envelope payloads (cold path, partitioned) | `originator_node_id`, `originator_sequence_id`, `originator_envelope` |
-| `gateway_envelopes_view` | View joining meta + blobs | — |
-| `gateway_envelopes_latest` | Latest sequence ID per originator (trigger-maintained) | `originator_node_id`, `originator_sequence_id`, `gateway_time` |
-| `staged_originator_envelopes` | Publish queue before ordering | `id` (serial), `topic`, `payer_envelope` |
-| `node_info` | Local node identity (singleton) | `node_id`, `public_key` |
-| `address_log` | Address → inbox_id mapping | `address`, `inbox_id`, `association_sequence_id`, `revocation_sequence_id` |
-| `payers` | Payer addresses | `id`, `address` |
-| `unsettled_usage` | Per-payer per-originator usage tracking | `payer_id`, `originator_id`, `minutes_since_epoch`, `spend_picodollars` |
-| `payer_reports` | Cross-node payer settlement reports | `id`, `originator_node_id`, `start_sequence_id`, `end_sequence_id`, `submission_status`, `attestation_status` |
-| `payer_report_attestations` | Attestation signatures on reports | `payer_report_id`, `node_id`, `signature` |
-| `payer_ledger_events` | Deposit/withdrawal/settlement events | `event_id`, `payer_id`, `amount_picodollars`, `event_type` |
-| `blockchain_messages` | Links envelopes to blockchain blocks | `block_number`, `block_hash`, `originator_node_id`, `originator_sequence_id`, `is_canonical` |
-| `latest_block` | Last indexed block per contract | `contract_address`, `block_number` |
-| `originator_congestion` | Per-originator message rate tracking | `originator_id`, `minutes_since_epoch`, `num_messages` |
-| `nonce_table` | Transaction nonce management | `nonce` |
-| `migration_tracker` | Data migration progress tracking | `source_table`, `last_migrated_id` |
-| `migration_dead_letter_box` | Failed migration records for retry | `source_table`, `sequence_id`, `payload`, `reason`, `retryable` |
+| Table                         | Purpose                                                | Key Columns                                                                                                   |
+| ----------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| `gateway_envelopes_meta`      | Envelope metadata (hot path, partitioned)              | `originator_node_id`, `originator_sequence_id`, `topic`, `payer_id`, `expiry`, `gateway_time`                 |
+| `gateway_envelope_blobs`      | Envelope payloads (cold path, partitioned)             | `originator_node_id`, `originator_sequence_id`, `originator_envelope`                                         |
+| `gateway_envelopes_view`      | View joining meta + blobs                              | —                                                                                                             |
+| `gateway_envelopes_latest`    | Latest sequence ID per originator (trigger-maintained) | `originator_node_id`, `originator_sequence_id`, `gateway_time`                                                |
+| `staged_originator_envelopes` | Publish queue before ordering                          | `id` (serial), `topic`, `payer_envelope`                                                                      |
+| `node_info`                   | Local node identity (singleton)                        | `node_id`, `public_key`                                                                                       |
+| `address_log`                 | Address → inbox_id mapping                             | `address`, `inbox_id`, `association_sequence_id`, `revocation_sequence_id`                                    |
+| `payers`                      | Payer addresses                                        | `id`, `address`                                                                                               |
+| `unsettled_usage`             | Per-payer per-originator usage tracking                | `payer_id`, `originator_id`, `minutes_since_epoch`, `spend_picodollars`                                       |
+| `payer_reports`               | Cross-node payer settlement reports                    | `id`, `originator_node_id`, `start_sequence_id`, `end_sequence_id`, `submission_status`, `attestation_status` |
+| `payer_report_attestations`   | Attestation signatures on reports                      | `payer_report_id`, `node_id`, `signature`                                                                     |
+| `payer_ledger_events`         | Deposit/withdrawal/settlement events                   | `event_id`, `payer_id`, `amount_picodollars`, `event_type`                                                    |
+| `blockchain_messages`         | Links envelopes to blockchain blocks                   | `block_number`, `block_hash`, `originator_node_id`, `originator_sequence_id`, `is_canonical`                  |
+| `latest_block`                | Last indexed block per contract                        | `contract_address`, `block_number`                                                                            |
+| `originator_congestion`       | Per-originator message rate tracking                   | `originator_id`, `minutes_since_epoch`, `num_messages`                                                        |
+| `nonce_table`                 | Transaction nonce management                           | `nonce`                                                                                                       |
+| `migration_tracker`           | Data migration progress tracking                       | `source_table`, `last_migrated_id`                                                                            |
+| `migration_dead_letter_box`   | Failed migration records for retry                     | `source_table`, `sequence_id`, `payload`, `reason`, `retryable`                                               |
 
 ## Partitioning
 
@@ -84,11 +84,13 @@ RELEASE SAVEPOINT sp_part;
 ## Indexes
 
 On `gateway_envelopes_meta`:
+
 - `gem_topic_orig_seq_idx` — `(topic, originator_node_id, originator_sequence_id) INCLUDE (gateway_time)` — covering index for V3b LATERAL
 - `gem_topic_time_desc_idx` — `(topic, gateway_time DESC) INCLUDE (originator_node_id, originator_sequence_id)`
 - `gem_expiry_idx` — `(expiry) INCLUDE (...) WHERE expiry IS NOT NULL`
 
 Other notable indexes:
+
 - `blockchain_messages`: `(block_number, is_canonical)`
 - `unsettled_usage`: `(originator_id, minutes_since_epoch DESC)`
 - `payer_reports`: `(submission_status, created_at)`, `(attestation_status, created_at)`
@@ -99,6 +101,7 @@ Other notable indexes:
 **Handler** (`db.go`): Routes queries to write or read replica. `NewDBHandler(db, WithReadReplica(readDB))`. Methods: `Write()`, `Read()`, `WriteQuery()`, `ReadQuery()`.
 
 **Transaction helpers** (`tx.go`):
+
 - `RunInTx(ctx, db, opts, func(ctx, *queries.Queries) error)` — run in transaction with auto-rollback
 - `RunInTxWithResult[T](ctx, db, opts, func(ctx, *queries.Queries) (T, error))` — same with return value
 - `RunInTxRaw(ctx, db, opts, func(ctx, *sql.Tx) error)` — raw transaction access

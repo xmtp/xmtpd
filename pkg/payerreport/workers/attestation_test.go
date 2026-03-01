@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
-	payerreportMocks "github.com/xmtp/xmtpd/pkg/mocks/payerreport"
-	registrantMocks "github.com/xmtp/xmtpd/pkg/mocks/registrant"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	payerreportMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/payerreport"
+	registrantMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/registrant"
 )
 
 const originatorNodeID = 100

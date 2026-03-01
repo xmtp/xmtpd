@@ -6,14 +6,14 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	mocks "github.com/xmtp/xmtpd/pkg/mocks/mls_validationv1"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	proto "github.com/xmtp/xmtpd/pkg/proto/mls_validation/v1"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	mlsvalidateMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/mls_validationv1"
 )
 
 func TestValidateKeyPackages(t *testing.T) {
-	apiClient := mocks.NewMockValidationApiClient(t)
+	apiClient := mlsvalidateMocks.NewMockValidationApiClient(t)
 	svc := &MLSValidationServiceImpl{
 		grpcClient: apiClient,
 	}
@@ -42,7 +42,7 @@ func TestValidateKeyPackages(t *testing.T) {
 }
 
 func TestGetAssociationState(t *testing.T) {
-	apiClient := mocks.NewMockValidationApiClient(t)
+	apiClient := mlsvalidateMocks.NewMockValidationApiClient(t)
 	svc := &MLSValidationServiceImpl{
 		grpcClient: apiClient,
 	}

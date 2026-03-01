@@ -3,8 +3,8 @@
 # Work always from the root directory
 script_dir=$(dirname "$(realpath "$0")")
 repo_root=$(realpath "${script_dir}/../../")
-cd "${repo_root}"
+cd "${repo_root}" || exit
 
-rm -rf pkg/mocks/*
+rm -rf pkg/testutils/mocks/*
 
 go tool -modfile=tools/go.mod mockery

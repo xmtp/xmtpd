@@ -22,7 +22,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
-	"github.com/xmtp/xmtpd/pkg/migrations"
+	"github.com/xmtp/xmtpd/pkg/db/migrations"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 )
 

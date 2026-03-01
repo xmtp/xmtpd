@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/abi/noderegistry"
 	"github.com/xmtp/xmtpd/pkg/config"
-	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	r "github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	registryMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/registry"
 )
 
 const testPubkey = "04760c4460e5336ac9bbd87952a3c7ec4363fc0a97bd31c86430806e287b437fd1b01abc6e1db640cf3106b520344af1d58b00b57823db3e1407cbc433e1b6d04d"
@@ -46,7 +46,7 @@ func TestContractRegistryNewNodes(t *testing.T) {
 	enc, err := hex.DecodeString(testPubkey)
 	require.NoError(t, err)
 
-	mockContract := mocks.NewMockNodeRegistryContract(t)
+	mockContract := registryMocks.NewMockNodeRegistryContract(t)
 	mockContract.EXPECT().
 		GetAllNodes(mock.Anything).
 		Return([]noderegistry.INodeRegistryNodeWithId{
@@ -93,7 +93,7 @@ func TestContractRegistryChangedNodes(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	mockContract := mocks.NewMockNodeRegistryContract(t)
+	mockContract := registryMocks.NewMockNodeRegistryContract(t)
 
 	enc, err := hex.DecodeString(testPubkey)
 	require.NoError(t, err)

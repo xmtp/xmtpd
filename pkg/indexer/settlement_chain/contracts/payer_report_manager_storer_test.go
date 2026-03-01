@@ -15,10 +15,10 @@ import (
 	p "github.com/xmtp/xmtpd/pkg/abi/payerreportmanager"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
-	mocks "github.com/xmtp/xmtpd/pkg/mocks/contracts"
 	payerreport "github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
+	contractsMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/contracts"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	re "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 )
@@ -161,7 +161,7 @@ func TestStorePayerReportManagerPayerReportSubsetSettled(t *testing.T) {
 			db, _ := testutils.NewDB(t, ctx)
 
 			// Create mock contract
-			mockContract := mocks.NewMockPayerReportManagerContract(t)
+			mockContract := contractsMocks.NewMockPayerReportManagerContract(t)
 
 			// Set up DOMAINSEPARATOR expectation
 			domainSeparator := testutils.RandomBytes(32)
@@ -273,7 +273,7 @@ func TestStorePayerReportManagerPayerReportSubsetSettledIdempotency(t *testing.T
 	db, _ := testutils.NewDB(t, ctx)
 
 	// Create mock contract
-	mockContract := mocks.NewMockPayerReportManagerContract(t)
+	mockContract := contractsMocks.NewMockPayerReportManagerContract(t)
 
 	// Set up DOMAINSEPARATOR expectation
 	domainSeparator := testutils.RandomBytes(32)

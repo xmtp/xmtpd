@@ -18,14 +18,14 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	envUtils "github.com/xmtp/xmtpd/pkg/envelopes"
-	messageApiMocks "github.com/xmtp/xmtpd/pkg/mocks/message_api"
-	payerreportMocks "github.com/xmtp/xmtpd/pkg/mocks/payerreport"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
 	feesTestUtils "github.com/xmtp/xmtpd/pkg/testutils/fees"
+	messageApiMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/message_api"
+	payerreportMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/payerreport"
 	registryTestUtils "github.com/xmtp/xmtpd/pkg/testutils/registry"
 )
 

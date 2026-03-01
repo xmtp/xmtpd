@@ -11,15 +11,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/config"
-	mockblockchain "github.com/xmtp/xmtpd/pkg/mocks/blockchain"
-	mocknoncemanager "github.com/xmtp/xmtpd/pkg/mocks/noncemanager"
-	mockregistry "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
+	blockchainMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/blockchain"
+	nonceManagerMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/noncemanager"
+	registryMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/registry"
 	"go.uber.org/zap"
 )
 
-// Using mockery-generated mocks from pkg/mocks
+// Using mockery-generated mocks from pkg/testutils/mocks
 
 func createMinimalTestConfig(t *testing.T) *config.GatewayConfig {
 	wsURL, rpcURL := anvil.StartAnvil(t, false)
@@ -72,7 +72,7 @@ func TestBuilderMethodChaining(t *testing.T) {
 	assert.Equal(t, builder, result)
 
 	// Test WithNonceManager
-	mockNonceManager := mocknoncemanager.NewMockNonceManager(t)
+	mockNonceManager := nonceManagerMocks.NewMockNonceManager(t)
 	result = builder.WithNonceManager(mockNonceManager)
 	assert.Equal(t, builder, result)
 
@@ -91,9 +91,9 @@ func TestBuilderDependencyStorage(t *testing.T) {
 	cfg := createMinimalTestConfig(t)
 
 	// Create mock dependencies
-	mockBlockchainPublisher := mockblockchain.NewMockIBlockchainPublisher(t)
-	mockNodeRegistry := mockregistry.NewMockNodeRegistry(t)
-	mockNonceManager := mocknoncemanager.NewMockNonceManager(t)
+	mockBlockchainPublisher := blockchainMocks.NewMockIBlockchainPublisher(t)
+	mockNodeRegistry := registryMocks.NewMockNodeRegistry(t)
+	mockNonceManager := nonceManagerMocks.NewMockNonceManager(t)
 	mockLogger := zap.NewNop()
 	customPromRegistry := prometheus.NewRegistry()
 	customClientMetrics := grpcprom.NewClientMetrics()
@@ -130,8 +130,8 @@ func TestBuilderConfigValidation(t *testing.T) {
 		cfg := createMinimalTestConfig(t)
 		cfg.Payer.PrivateKey = "invalid_key"
 		// Mock dependencies to avoid other errors
-		mockBlockchainPublisher := mockblockchain.NewMockIBlockchainPublisher(t)
-		mockNodeRegistry := mockregistry.NewMockNodeRegistry(t)
+		mockBlockchainPublisher := blockchainMocks.NewMockIBlockchainPublisher(t)
+		mockNodeRegistry := registryMocks.NewMockNodeRegistry(t)
 		mockLogger := zap.NewNop()
 
 		service, err := NewGatewayServiceBuilder(cfg).
@@ -150,8 +150,8 @@ func TestBuilderConfigValidation(t *testing.T) {
 		cfg.Redis.RedisURL = "invalid://redis-url"
 
 		// Mock dependencies to avoid other errors
-		mockBlockchainPublisher := mockblockchain.NewMockIBlockchainPublisher(t)
-		mockNodeRegistry := mockregistry.NewMockNodeRegistry(t)
+		mockBlockchainPublisher := blockchainMocks.NewMockIBlockchainPublisher(t)
+		mockNodeRegistry := registryMocks.NewMockNodeRegistry(t)
 		mockLogger := zap.NewNop()
 
 		service, err := NewGatewayServiceBuilder(cfg).
@@ -171,8 +171,8 @@ func TestBuilderConfigValidation(t *testing.T) {
 		cfg.Redis.RedisURL = ""
 
 		// Mock dependencies to avoid other errors
-		mockBlockchainPublisher := mockblockchain.NewMockIBlockchainPublisher(t)
-		mockNodeRegistry := mockregistry.NewMockNodeRegistry(t)
+		mockBlockchainPublisher := blockchainMocks.NewMockIBlockchainPublisher(t)
+		mockNodeRegistry := registryMocks.NewMockNodeRegistry(t)
 		mockLogger := zap.NewNop()
 
 		service, err := NewGatewayServiceBuilder(cfg).
@@ -232,7 +232,7 @@ func TestBuilderAllMethodsReturnBuilder(t *testing.T) {
 	cfg := createMinimalTestConfig(t)
 
 	// Create mock dependencies for testing
-	mockNonceManager := mocknoncemanager.NewMockNonceManager(t)
+	mockNonceManager := nonceManagerMocks.NewMockNonceManager(t)
 
 	// Test method chaining returns proper interface
 	builder := NewGatewayServiceBuilder(cfg).

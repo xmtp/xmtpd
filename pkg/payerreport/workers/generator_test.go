@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	registrantMocks "github.com/xmtp/xmtpd/pkg/mocks/registrant"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	registrantMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/registrant"
 	"go.uber.org/zap"
 )
 

@@ -12,12 +12,12 @@ import (
 	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
-	mlsvalidateMock "github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 	envelopesTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
+	mlsvalidateMock "github.com/xmtp/xmtpd/pkg/testutils/mocks/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"google.golang.org/protobuf/proto"
 )

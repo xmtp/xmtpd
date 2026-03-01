@@ -12,14 +12,14 @@ description: >-
 
 Run `dev/gen/migration {name}` to produce:
 
-- `pkg/migrations/NNNNN_name.up.sql`
-- `pkg/migrations/NNNNN_name.down.sql`
+- `pkg/db/migrations/NNNNN_name.up.sql`
+- `pkg/db/migrations/NNNNN_name.down.sql`
 
 5-digit sequential numbering. Hyphen-separated lowercase names (e.g., `add-latest-block`, `payer-nonces`, `add-dead-letter-box`).
 
 ## How Migrations Run
 
-- Embedded via `//go:embed *.sql` in `pkg/migrations/migrations.go`
+- Embedded via `//go:embed *.sql` in `pkg/db/migrations/migrations.go`
 - Uses golang-migrate with PostgreSQL driver
 - Each migration runs in a transaction
 - Tracked in `schema_migrations` table
@@ -40,17 +40,17 @@ Additional conventions:
 
 Project data type conventions:
 
-| Type | Usage |
-|------|-------|
-| `BYTEA` | Binary data (keys, hashes, envelopes, topics) |
-| `TEXT` | String identifiers (addresses) |
-| `BIGINT` | Sequence IDs, unix timestamps, picodollar amounts |
-| `INTEGER` | Node IDs, payer IDs |
-| `SMALLINT` | Enum/status codes |
-| `SERIAL` / `BIGSERIAL` | Auto-increment PKs |
-| `TIMESTAMP` | With `DEFAULT NOW()` or `DEFAULT CURRENT_TIMESTAMP` |
-| `BOOLEAN` | Flags |
-| `INT[]` | Integer arrays |
+| Type                   | Usage                                               |
+| ---------------------- | --------------------------------------------------- |
+| `BYTEA`                | Binary data (keys, hashes, envelopes, topics)       |
+| `TEXT`                 | String identifiers (addresses)                      |
+| `BIGINT`               | Sequence IDs, unix timestamps, picodollar amounts   |
+| `INTEGER`              | Node IDs, payer IDs                                 |
+| `SMALLINT`             | Enum/status codes                                   |
+| `SERIAL` / `BIGSERIAL` | Auto-increment PKs                                  |
+| `TIMESTAMP`            | With `DEFAULT NOW()` or `DEFAULT CURRENT_TIMESTAMP` |
+| `BOOLEAN`              | Flags                                               |
+| `INT[]`                | Integer arrays                                      |
 
 ### Primary keys
 
@@ -152,12 +152,12 @@ Always use `IF EXISTS` for safety.
 
 ## Updating Migration Tests
 
-In `pkg/migrations/migrations_test.go`:
+In `pkg/db/migrations/migrations_test.go`:
 
 1. Increment `const currentMigration` to match new migration number
 2. Add a `checkXxx` function asserting new schema objects exist using helpers: `tableExists()`, `indexExists()`, `functionExists()`, `triggerExists()`, `viewExists()`, `constraintExists()`
 3. Add corresponding `t.Run("NNNNN_name", ...)` call in `TestMigrations`
-4. Run `dev/test ./pkg/migrations/...`
+4. Run `dev/test ./pkg/db/migrations/...`
 
 ## After Writing Migrations
 

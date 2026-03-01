@@ -129,8 +129,6 @@ func (q *Queries) InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(ctx conte
 }
 
 const selectGatewayEnvelopesByOriginators = `-- name: SelectGatewayEnvelopesByOriginators :many
--- LATERAL per originator with per-originator blob join.
--- Requires callers to include all desired originators in cursor arrays (use seq_id=0 for unseen).
 WITH cursor_entries AS (
     SELECT x.node_id AS node_id, y.seq_id AS seq_id
     FROM unnest($1::INT[]) WITH ORDINALITY AS x(node_id, ord)
@@ -195,12 +193,10 @@ type SelectGatewayEnvelopesByOriginatorsRow struct {
 	OriginatorEnvelope   []byte
 }
 
+// LATERAL per originator with per-originator blob join.
+// Requires callers to include all desired originators in cursor arrays (use seq_id=0 for unseen).
 func (q *Queries) SelectGatewayEnvelopesByOriginators(ctx context.Context, arg SelectGatewayEnvelopesByOriginatorsParams) ([]SelectGatewayEnvelopesByOriginatorsRow, error) {
-	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopesByOriginators,
-		pq.Array(arg.CursorNodeIds),
-		pq.Array(arg.CursorSequenceIds),
-		arg.RowLimit,
-	)
+	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopesByOriginators, pq.Array(arg.CursorNodeIds), pq.Array(arg.CursorSequenceIds), arg.RowLimit)
 	if err != nil {
 		return nil, err
 	}

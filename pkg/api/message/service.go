@@ -560,7 +560,11 @@ func (s *Service) fetchEnvelopes(
 			originatorNodeIds = append(originatorNodeIds, int32(o))
 		}
 
-		db.SetVectorClockByOriginators(&params, originatorNodeIds, query.GetLastSeen().GetNodeIdToSequenceId())
+		db.SetVectorClockByOriginators(
+			&params,
+			originatorNodeIds,
+			query.GetLastSeen().GetNodeIdToSequenceId(),
+		)
 
 		rows, err := s.store.ReadQuery().SelectGatewayEnvelopesByOriginators(ctx, params)
 		if err != nil {

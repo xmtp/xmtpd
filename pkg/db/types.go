@@ -93,8 +93,12 @@ func TransformRowsByTopic(
 	return result
 }
 
-func TransformRowsByOriginator(
-	rows []queries.SelectGatewayEnvelopesByOriginatorsRow,
+type GatewayEnvelopesByOriginatorRow interface {
+	queries.SelectGatewayEnvelopesBySingleOriginatorRow | queries.SelectGatewayEnvelopesByOriginatorsRow
+}
+
+func TransformRowsByOriginator[T GatewayEnvelopesByOriginatorRow](
+	rows []T,
 ) []queries.GatewayEnvelopesView {
 	result := make([]queries.GatewayEnvelopesView, len(rows))
 	for i, row := range rows {

@@ -550,7 +550,32 @@ func (s *Service) fetchEnvelopes(
 		return db.TransformRowsByTopic(rows), nil
 	}
 
-	if len(query.GetOriginatorNodeIds()) != 0 {
+	if len(query.GetOriginatorNodeIds()) == 1 {
+		var (
+			originatorNodeID = int32(query.GetOriginatorNodeIds()[0])
+			cursorSequenceID = int64(
+				query.GetLastSeen().GetNodeIdToSequenceId()[uint32(originatorNodeID)],
+			)
+		)
+
+		params := queries.SelectGatewayEnvelopesBySingleOriginatorParams{
+			OriginatorNodeID: originatorNodeID,
+			CursorSequenceID: cursorSequenceID,
+			RowLimit:         rowLimit,
+		}
+
+		rows, err := s.store.ReadQuery().SelectGatewayEnvelopesBySingleOriginator(ctx, params)
+		if err != nil {
+			return nil, connect.NewError(
+				connect.CodeInternal,
+				fmt.Errorf("could not select envelopes: %w", err),
+			)
+		}
+
+		return db.TransformRowsByOriginator(rows), nil
+	}
+
+	if len(query.GetOriginatorNodeIds()) > 1 {
 		params := queries.SelectGatewayEnvelopesByOriginatorsParams{
 			RowLimit: rowLimit,
 		}

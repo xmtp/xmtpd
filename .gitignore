@@ -52,3 +52,7 @@ contracts/config/anvil_localnet/*
 .env
 .version
 .wake
+
+# Perf test binaries and output
+cmd/perf-test/perf-test
+perf_results*.json

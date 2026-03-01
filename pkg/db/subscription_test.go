@@ -50,9 +50,8 @@ func envelopesQuery(
 	return func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelopesView, db.VectorClock, error) {
 		envs, err := queries.New(store).
 			SelectGatewayEnvelopesByOriginators(ctx, *db.SetVectorClockByOriginators(&queries.SelectGatewayEnvelopesByOriginatorsParams{
-				OriginatorNodeIds: []int32{100},
-				RowLimit:          numRows,
-			}, lastSeen))
+				RowLimit: numRows,
+			}, []int32{100}, lastSeen))
 		if err != nil {
 			return nil, lastSeen, err
 		}

@@ -52,7 +52,7 @@ func (v *RegistryVerifier) Verify(tokenString string) (uint32, CloseFunc, error)
 		&XmtpdClaims{},
 		v.getMatchingPublicKey,
 	); err != nil {
-		return 0, emptyClose, err
+		return 0, emptyClose, fmt.Errorf("parsing token failed: %w", err)
 	}
 	if err = v.validateAudience(token); err != nil {
 		return 0, emptyClose, err
@@ -98,7 +98,7 @@ func (v *RegistryVerifier) getMatchingPublicKey(token *jwt.Token) (any, error) {
 func (v *RegistryVerifier) validateAudience(token *jwt.Token) error {
 	audience, err := token.Claims.GetAudience()
 	if err != nil {
-		return err
+		return fmt.Errorf("could not get audience: %w", err)
 	}
 
 	for _, audienceString := range audience {
@@ -112,7 +112,7 @@ func (v *RegistryVerifier) validateAudience(token *jwt.Token) error {
 		}
 	}
 
-	return fmt.Errorf("could not find node ID in audience %v", audience)
+	return fmt.Errorf("could not find self in audience (value: %v)", audience)
 }
 
 func (v *RegistryVerifier) validateClaims(token *jwt.Token) (CloseFunc, error) {
@@ -133,12 +133,12 @@ func (v *RegistryVerifier) validateClaims(token *jwt.Token) (CloseFunc, error) {
 func getSubjectNodeID(token *jwt.Token) (uint32, error) {
 	subject, err := token.Claims.GetSubject()
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("could not get subject: %w", err)
 	}
 
 	nodeID, err := parseInt32(subject)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("could not parse nodeID (subject: %v): %w", subject, err)
 	}
 
 	return nodeID, nil
@@ -148,11 +148,11 @@ func getSubjectNodeID(token *jwt.Token) (uint32, error) {
 func validateExpiry(token *jwt.Token) error {
 	exp, err := token.Claims.GetExpirationTime()
 	if err != nil {
-		return err
+		return fmt.Errorf("could not get expiration time: %w", err)
 	}
 	issuedAt, err := token.Claims.GetIssuedAt()
 	if err != nil {
-		return err
+		return fmt.Errorf("could not get issuance time: %w", err)
 	}
 
 	// We allow tokens to be issued up to 2 minutes in the future to account for clock skew

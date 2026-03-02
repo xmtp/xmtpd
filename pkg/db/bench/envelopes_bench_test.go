@@ -131,7 +131,6 @@ func BenchmarkSelectGatewayEnvelopesByOriginators(b *testing.B) {
 			q := queries.New(tier.db)
 			midSeq := int64(tier.count / numOriginators / 2)
 			params := queries.SelectGatewayEnvelopesByOriginatorsParams{
-				OriginatorNodeIds: tier.originators,
 				RowLimit:          100,
 				CursorNodeIds:     tier.originators,
 				CursorSequenceIds: []int64{midSeq, midSeq, midSeq},

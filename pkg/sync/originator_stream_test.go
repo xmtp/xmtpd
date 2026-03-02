@@ -116,7 +116,8 @@ func getAllMessagesForOriginator(
 	envs, err := storer.db.ReadQuery().SelectGatewayEnvelopesByOriginators(
 		t.Context(),
 		queries.SelectGatewayEnvelopesByOriginatorsParams{
-			OriginatorNodeIds: []int32{int32(nodeID)},
+			CursorNodeIds:     []int32{int32(nodeID)},
+			CursorSequenceIds: []int64{0},
 		},
 	)
 	require.NoError(t, err)

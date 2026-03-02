@@ -38,18 +38,23 @@ func SetVectorClockByTopics(
 	return q
 }
 
+// SetVectorClockByOriginators populates the cursor arrays for
+// SelectGatewayEnvelopesByOriginators. All originatorNodeIds are included;
+// positions come from vc when present, otherwise default to 0 (start from beginning).
 func SetVectorClockByOriginators(
 	q *queries.SelectGatewayEnvelopesByOriginatorsParams,
+	originatorNodeIds []int32,
 	vc VectorClock,
 ) *queries.SelectGatewayEnvelopesByOriginatorsParams {
-	q.CursorNodeIds = make([]int32, 0, len(vc))
-	q.CursorSequenceIds = make([]int64, 0, len(vc))
-	for nodeID, sequenceID := range vc {
-		if nodeID > math.MaxInt32 {
-			continue
+	q.CursorNodeIds = make([]int32, 0, len(originatorNodeIds))
+	q.CursorSequenceIds = make([]int64, 0, len(originatorNodeIds))
+	for _, nodeID := range originatorNodeIds {
+		var seqID int64
+		if cursor, ok := vc[uint32(nodeID)]; ok {
+			seqID = int64(cursor)
 		}
-		q.CursorNodeIds = append(q.CursorNodeIds, int32(nodeID))
-		q.CursorSequenceIds = append(q.CursorSequenceIds, int64(sequenceID))
+		q.CursorNodeIds = append(q.CursorNodeIds, nodeID)
+		q.CursorSequenceIds = append(q.CursorSequenceIds, seqID)
 	}
 	return q
 }
@@ -88,8 +93,12 @@ func TransformRowsByTopic(
 	return result
 }
 
-func TransformRowsByOriginator(
-	rows []queries.SelectGatewayEnvelopesByOriginatorsRow,
+type GatewayEnvelopesByOriginatorRow interface {
+	queries.SelectGatewayEnvelopesBySingleOriginatorRow | queries.SelectGatewayEnvelopesByOriginatorsRow
+}
+
+func TransformRowsByOriginator[T GatewayEnvelopesByOriginatorRow](
+	rows []T,
 ) []queries.GatewayEnvelopesView {
 	result := make([]queries.GatewayEnvelopesView, len(rows))
 	for i, row := range rows {

@@ -4,7 +4,7 @@ package server
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"net"
 
 	"connectrpc.com/connect"
@@ -52,9 +52,18 @@ func (i *ServerAuthInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryF
 
 		nodeID, cancel, err := i.verifier.Verify(token)
 		if err != nil {
+
+			i.logger.Error("JWT verification failed",
+				zap.String("procedure", req.Spec().Procedure),
+				zap.String("protocol", req.Peer().Protocol),
+				zap.String("peer", req.Peer().Addr),
+				zap.Error(err),
+			)
+
+			// Do not expose too much information to the client (e.g. wrapped errors)
 			return nil, connect.NewError(
 				connect.CodeUnauthenticated,
-				fmt.Errorf("invalid auth token: %w", err),
+				errors.New("invalid auth token"),
 			)
 		}
 		defer cancel()
@@ -89,10 +98,16 @@ func (i *ServerAuthInterceptor) WrapStreamingHandler(
 
 		nodeID, cancel, err := i.verifier.Verify(token)
 		if err != nil {
-			return connect.NewError(
-				connect.CodeUnauthenticated,
-				fmt.Errorf("invalid auth token: %w", err),
+
+			i.logger.Error("JWT verification failed",
+				zap.String("procedure", conn.Spec().Procedure),
+				zap.String("protocol", conn.Peer().Protocol),
+				zap.String("peer", conn.Peer().Addr),
+				zap.Error(err),
 			)
+
+			// Do not expose too much information to the client (e.g. wrapped errors)
+			return connect.NewError(connect.CodeUnauthenticated, errors.New("invalid auth token"))
 		}
 		defer cancel()
 

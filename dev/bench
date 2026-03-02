@@ -39,7 +39,7 @@ fi
 RESULTS_DIR="benchmarks/results"
 mkdir -p "$RESULTS_DIR"
 
-OUTFILE="$RESULTS_DIR/$(date +%Y-%m-%d).txt"
+OUTFILE="$RESULTS_DIR/$(date +%Y-%m-%d-%H%M%S).txt"
 RAWFILE=$(mktemp)
 trap 'rm -f "$RAWFILE"' EXIT
 

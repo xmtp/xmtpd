@@ -5,7 +5,7 @@ show_help() {
   cat <<'EOF'
 Usage: dev/bench [OPTIONS]
 
-Run database benchmarks and save filtered output to benchmarks/results/YYYY-MM-DD.txt.
+Run database benchmarks and save filtered output to benchmarks/results/<BENCH_TIER>-YYYY-MM-DD-T<HHMMSS>.txt.
 
 Options:
   -h, --help    Show this help message and exit
@@ -39,7 +39,7 @@ fi
 RESULTS_DIR="benchmarks/results"
 mkdir -p "$RESULTS_DIR"
 
-OUTFILE="$RESULTS_DIR/$(date +%Y-%m-%d-%H%M%S).txt"
+OUTFILE="$RESULTS_DIR/${BENCH_TIER:-all}-$(date +%Y-%m-%d-T%H%M%S).txt"
 RAWFILE=$(mktemp)
 trap 'rm -f "$RAWFILE"' EXIT
 

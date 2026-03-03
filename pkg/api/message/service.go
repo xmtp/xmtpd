@@ -302,7 +302,7 @@ func (s *Service) sendEnvelopes(
 			)
 		}
 
-		metrics.EmitApiOutgoingEnvelopes(len(batch))
+		metrics.EmitAPIOutgoingEnvelopes(stream.Conn().Spec().Procedure, len(batch))
 
 		batchWireBytes = 0
 		batch = batch[:0]
@@ -434,7 +434,7 @@ func (s *Service) QueryEnvelopes(
 		response.Msg.Envelopes = append(response.Msg.Envelopes, originatorEnv)
 	}
 
-	metrics.EmitApiOutgoingEnvelopes(len(response.Msg.GetEnvelopes()))
+	metrics.EmitAPIOutgoingEnvelopes(req.Spec().Procedure, len(response.Msg.GetEnvelopes()))
 
 	return response, nil
 }
@@ -975,7 +975,7 @@ func (s *Service) GetNewestEnvelope(
 		sent++
 	}
 
-	metrics.EmitApiOutgoingEnvelopes(sent)
+	metrics.EmitAPIOutgoingEnvelopes(req.Spec().Procedure, sent)
 
 	return response, nil
 }
@@ -1149,7 +1149,7 @@ func (s *Service) waitForGatewayPublish(
 
 	startTime := time.Now()
 	defer func() {
-		metrics.EmitApiWaitForGatewayPublish(time.Since(startTime))
+		metrics.EmitAPIWaitForGatewayPublish(time.Since(startTime))
 	}()
 
 	timeout := time.After(30 * time.Second)

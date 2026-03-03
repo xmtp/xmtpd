@@ -348,7 +348,7 @@ func (s *Service) sendTopicEnvelopes(
 		)
 	}
 
-	metrics.EmitApiOutgoingEnvelopes(len(envs))
+	metrics.EmitAPIOutgoingEnvelopes(stream.Conn().Spec().Procedure, len(envs))
 
 	return nil
 }

@@ -143,7 +143,10 @@ func (s *syncWorker) subscribeToNode(nodeID uint32) {
 
 	s.subscriptions[nodeID] = struct{}{}
 
-	writeQueue := make(chan *envUtils.OriginatorEnvelope, 10)
+	// Buffer size matches the server-side maxRequestedRows (1000) so that the
+	// stream reader goroutine can drain a full backfill batch from Recv() without
+	// blocking, preventing HTTP/2 flow control back-pressure on the sender.
+	writeQueue := make(chan *envUtils.OriginatorEnvelope, 1000)
 
 	tracing.GoPanicWrap(
 		s.ctx,

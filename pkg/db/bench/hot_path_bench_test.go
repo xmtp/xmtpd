@@ -5,7 +5,6 @@ package bench
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"log"
 	"sync/atomic"
 	"testing"
@@ -257,104 +256,5 @@ func BenchmarkHotPathFullCycle(b *testing.B) {
 		// 4. Worker removes the processed staged envelope.
 		_, err = q.DeleteStagedOriginatorEnvelope(benchCtx, staged.ID)
 		require.NoError(b, err)
-	}
-}
-
-// BenchmarkHotPathBatchCycle measures the publish-worker's per-envelope
-// processing loop at different batch sizes. This is the critical path that
-// determines end-to-end latency: the last envelope in a batch must wait for
-// all preceding envelopes to complete their DB operations.
-//
-// Each iteration:
-//
-//	[untimed] Seeds N staged envelopes and selects them as a batch.
-//	[timed]   For each envelope: FindOrCreatePayer → gateway insert tx → delete staged.
-//
-// Sub-benchmarks: batch=1, batch=10, batch=100, batch=500
-func BenchmarkHotPathBatchCycle(b *testing.B) {
-	batchSizes := []int{1, 10, 100, 500}
-
-	for _, batchSize := range batchSizes {
-		b.Run(fmt.Sprintf("batch=%d", batchSize), func(b *testing.B) {
-			var (
-				q          = queries.New(hotPathDB)
-				topic      = testutils.RandomBytes(32)
-				blob       = testutils.RandomBytes(hotPathBlobSize)
-				payerAddr  = utils.HexEncode(testutils.RandomBytes(20))
-				now        = time.Now()
-				expiry     = now.Add(24 * time.Hour).Unix()
-				minute     = utils.MinutesSinceEpoch(now)
-				gatewaySeq atomic.Int64
-			)
-
-			// Start at 30M to avoid collisions with other hot path benchmarks.
-			gatewaySeq.Store(30_000_000)
-
-			for b.Loop() {
-				// --- Untimed: seed N staged envelopes ---
-				b.StopTimer()
-				var lastSeenID int64
-				for range batchSize {
-					staged, err := q.InsertStagedOriginatorEnvelope(
-						benchCtx,
-						queries.InsertStagedOriginatorEnvelopeParams{
-							Topic:         topic,
-							PayerEnvelope: blob,
-						},
-					)
-					require.NoError(b, err)
-					if lastSeenID == 0 {
-						lastSeenID = staged.ID - 1
-					}
-				}
-
-				// Fetch the batch (single SELECT, untimed).
-				batch, err := q.SelectStagedOriginatorEnvelopes(
-					benchCtx,
-					queries.SelectStagedOriginatorEnvelopesParams{
-						LastSeenID: lastSeenID,
-						NumRows:    int32(batchSize),
-					},
-				)
-				require.NoError(b, err)
-				require.Len(b, batch, batchSize)
-				b.StartTimer()
-
-				// --- Timed: process each envelope sequentially ---
-				for _, stagedEnv := range batch {
-					// 1. Find or create payer.
-					payerID, err := q.FindOrCreatePayer(benchCtx, payerAddr)
-					require.NoError(b, err)
-
-					// 2. Insert gateway envelope + usage + congestion (atomic tx).
-					seqID := gatewaySeq.Add(1)
-					_, err = db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
-						benchCtx,
-						hotPathDB,
-						queries.InsertGatewayEnvelopeParams{
-							OriginatorNodeID:     hotPathOriginatorID,
-							OriginatorSequenceID: seqID,
-							Topic:                topic,
-							OriginatorEnvelope:   blob,
-							PayerID:              db.NullInt32(payerID),
-							GatewayTime:          now,
-							Expiry:               expiry,
-						},
-						queries.IncrementUnsettledUsageParams{
-							PayerID:           payerID,
-							OriginatorID:      hotPathOriginatorID,
-							MinutesSinceEpoch: minute,
-							SpendPicodollars:  1_000_000,
-						},
-						true,
-					)
-					require.NoError(b, err)
-
-					// 3. Delete the staged envelope.
-					_, err = q.DeleteStagedOriginatorEnvelope(benchCtx, stagedEnv.ID)
-					require.NoError(b, err)
-				}
-			}
-		})
 	}
 }

@@ -57,6 +57,53 @@ func (q *Queries) BuildPayerReport(ctx context.Context, arg BuildPayerReportPara
 	return items, nil
 }
 
+const bulkFindOrCreatePayers = `-- name: BulkFindOrCreatePayers :many
+WITH input AS (
+    SELECT address FROM unnest($1::TEXT[]) AS t(address)
+),
+ins AS (
+    INSERT INTO payers(address)
+    SELECT address FROM input
+    ON CONFLICT (address) DO NOTHING
+    RETURNING id, address
+)
+SELECT address, id
+FROM ins
+UNION ALL
+SELECT i.address, p.id
+FROM input i
+JOIN payers p ON p.address = i.address
+WHERE i.address NOT IN (SELECT address FROM ins)
+`
+
+type BulkFindOrCreatePayersRow struct {
+	Address string
+	ID      int32
+}
+
+func (q *Queries) BulkFindOrCreatePayers(ctx context.Context, addresses []string) ([]BulkFindOrCreatePayersRow, error) {
+	rows, err := q.db.QueryContext(ctx, bulkFindOrCreatePayers, pq.Array(addresses))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []BulkFindOrCreatePayersRow
+	for rows.Next() {
+		var i BulkFindOrCreatePayersRow
+		if err := rows.Scan(&i.Address, &i.ID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const clearUnsettledUsage = `-- name: ClearUnsettledUsage :exec
 DELETE FROM unsettled_usage
 WHERE originator_id = $1

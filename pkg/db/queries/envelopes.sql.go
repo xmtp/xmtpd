@@ -7,15 +7,16 @@ package queries
 
 import (
 	"context"
+
+	"github.com/lib/pq"
 )
 
-const deleteStagedOriginatorEnvelope = `-- name: DeleteStagedOriginatorEnvelope :execrows
-DELETE FROM staged_originator_envelopes
-WHERE id = $1
+const bulkDeleteStagedOriginatorEnvelopes = `-- name: BulkDeleteStagedOriginatorEnvelopes :execrows
+DELETE FROM staged_originator_envelopes WHERE id = ANY($1::BIGINT[])
 `
 
-func (q *Queries) DeleteStagedOriginatorEnvelope(ctx context.Context, id int64) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteStagedOriginatorEnvelope, id)
+func (q *Queries) BulkDeleteStagedOriginatorEnvelopes(ctx context.Context, ids []int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, bulkDeleteStagedOriginatorEnvelopes, pq.Array(ids))
 	if err != nil {
 		return 0, err
 	}

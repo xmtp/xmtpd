@@ -35,5 +35,6 @@ type IFeeCalculator interface {
 		querier *queries.Queries,
 		messageTime time.Time,
 		originatorID uint32,
+		additionalMessages int32,
 	) (currency.PicoDollar, error)
 }

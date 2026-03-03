@@ -9,9 +9,8 @@ WHERE id > @last_seen_id
 ORDER BY id ASC
 LIMIT @num_rows;
 
--- name: DeleteStagedOriginatorEnvelope :execrows
-DELETE FROM staged_originator_envelopes
-WHERE id = @id;
+-- name: BulkDeleteStagedOriginatorEnvelopes :execrows
+DELETE FROM staged_originator_envelopes WHERE id = ANY(@ids::BIGINT[]);
 
 -- name: SelectVectorClock :many
 SELECT

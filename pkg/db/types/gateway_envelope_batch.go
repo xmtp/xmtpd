@@ -18,6 +18,7 @@ type GatewayEnvelopeRow struct {
 	Expiry               int64
 	OriginatorEnvelope   []byte
 	SpendPicodollars     int64
+	IsReserved           bool
 }
 
 type GatewayEnvelopeBatch struct {
@@ -80,6 +81,38 @@ func (b *GatewayEnvelopeBatch) ToParams() queries.InsertGatewayEnvelopeBatchAndI
 		params.Expiries[i] = row.Expiry
 		params.OriginatorEnvelopes[i] = row.OriginatorEnvelope
 		params.SpendPicodollars[i] = row.SpendPicodollars
+	}
+
+	return params
+}
+
+func (b *GatewayEnvelopeBatch) ToParamsV2() queries.InsertGatewayEnvelopeBatchV2Params {
+	n := b.Len()
+
+	b.ensureOrdered()
+
+	params := queries.InsertGatewayEnvelopeBatchV2Params{
+		OriginatorNodeIds:     make([]int32, n),
+		OriginatorSequenceIds: make([]int64, n),
+		Topics:                make([][]byte, n),
+		PayerIds:              make([]int32, n),
+		GatewayTimes:          make([]time.Time, n),
+		Expiries:              make([]int64, n),
+		OriginatorEnvelopes:   make([][]byte, n),
+		SpendPicodollars:      make([]int64, n),
+		IsReserved:            make([]bool, n),
+	}
+
+	for i, row := range b.Envelopes {
+		params.OriginatorNodeIds[i] = row.OriginatorNodeID
+		params.OriginatorSequenceIds[i] = row.OriginatorSequenceID
+		params.Topics[i] = row.Topic
+		params.PayerIds[i] = row.PayerID
+		params.GatewayTimes[i] = row.GatewayTime
+		params.Expiries[i] = row.Expiry
+		params.OriginatorEnvelopes[i] = row.OriginatorEnvelope
+		params.SpendPicodollars[i] = row.SpendPicodollars
+		params.IsReserved[i] = row.IsReserved
 	}
 
 	return params

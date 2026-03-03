@@ -128,6 +128,66 @@ func (q *Queries) InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(ctx conte
 	return i, err
 }
 
+const insertGatewayEnvelopeBatchV2 = `-- name: InsertGatewayEnvelopeBatchV2 :one
+SELECT
+    inserted_meta_rows::bigint,
+    inserted_blob_rows::bigint,
+    affected_usage_rows::bigint,
+    affected_congestion_rows::bigint
+FROM insert_gateway_envelope_batch_v2(
+    $1::int[],
+    $2::bigint[],
+    $3::bytea[],
+    $4::int[],
+    $5::timestamp[],
+    $6::bigint[],
+    $7::bytea[],
+    $8::bigint[],
+    $9::boolean[]
+)
+`
+
+type InsertGatewayEnvelopeBatchV2Params struct {
+	OriginatorNodeIds     []int32
+	OriginatorSequenceIds []int64
+	Topics                [][]byte
+	PayerIds              []int32
+	GatewayTimes          []time.Time
+	Expiries              []int64
+	OriginatorEnvelopes   [][]byte
+	SpendPicodollars      []int64
+	IsReserved            []bool
+}
+
+type InsertGatewayEnvelopeBatchV2Row struct {
+	InsertedMetaRows       int64
+	InsertedBlobRows       int64
+	AffectedUsageRows      int64
+	AffectedCongestionRows int64
+}
+
+func (q *Queries) InsertGatewayEnvelopeBatchV2(ctx context.Context, arg InsertGatewayEnvelopeBatchV2Params) (InsertGatewayEnvelopeBatchV2Row, error) {
+	row := q.db.QueryRowContext(ctx, insertGatewayEnvelopeBatchV2,
+		pq.Array(arg.OriginatorNodeIds),
+		pq.Array(arg.OriginatorSequenceIds),
+		pq.Array(arg.Topics),
+		pq.Array(arg.PayerIds),
+		pq.Array(arg.GatewayTimes),
+		pq.Array(arg.Expiries),
+		pq.Array(arg.OriginatorEnvelopes),
+		pq.Array(arg.SpendPicodollars),
+		pq.Array(arg.IsReserved),
+	)
+	var i InsertGatewayEnvelopeBatchV2Row
+	err := row.Scan(
+		&i.InsertedMetaRows,
+		&i.InsertedBlobRows,
+		&i.AffectedUsageRows,
+		&i.AffectedCongestionRows,
+	)
+	return i, err
+}
+
 const selectGatewayEnvelopesByOriginators = `-- name: SelectGatewayEnvelopesByOriginators :many
 WITH cursor_entries AS (
     SELECT x.node_id AS node_id, y.seq_id AS seq_id

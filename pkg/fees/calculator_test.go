@@ -80,15 +80,109 @@ func TestCalculateCongestionFee(t *testing.T) {
 	minutesSinceEpoch := utils.MinutesSinceEpoch(messageTime)
 
 	// Should return 0 if no congestion
-	congestionFee, err := calculator.CalculateCongestionFee(ctx, querier, messageTime, originatorID)
+	congestionFee, err := calculator.CalculateCongestionFee(
+		ctx,
+		querier,
+		messageTime,
+		originatorID,
+		0,
+	)
 	require.NoError(t, err)
 	require.Equal(t, currency.PicoDollar(0), congestionFee)
 
 	// Congestion rate is 100 because this is double the max
 	addCongestion(t, querier, originatorID, minutesSinceEpoch, 8)
-	congestionFee, err = calculator.CalculateCongestionFee(ctx, querier, messageTime, originatorID)
+	congestionFee, err = calculator.CalculateCongestionFee(
+		ctx,
+		querier,
+		messageTime,
+		originatorID,
+		0,
+	)
 	require.NoError(t, err)
 	require.Equal(t, currency.PicoDollar(20000), congestionFee)
+}
+
+func TestCalculateCongestionFeeWithAdditionalMessages(t *testing.T) {
+	calculator := setupCalculator()
+	db, _ := testutils.NewRawDB(t, context.Background())
+
+	ctx := context.Background()
+	querier := queries.New(db)
+	originatorID := uint32(testutils.RandomInt32())
+	messageTime := time.Now()
+	minutesSinceEpoch := utils.MinutesSinceEpoch(messageTime)
+
+	// Add congestion just at threshold (targetRatePerMinute=4)
+	addCongestion(t, querier, originatorID, minutesSinceEpoch, 4)
+
+	// With 0 additional messages, fee should be 0 (at target, not above)
+	fee0, err := calculator.CalculateCongestionFee(ctx, querier, messageTime, originatorID, 0)
+	require.NoError(t, err)
+	require.Equal(t, currency.PicoDollar(0), fee0)
+
+	// With 1 additional message pushing above target, fee should be > 0
+	// currentMinute=5, ratio=5/4=1.25, in exponential range
+	fee1, err := calculator.CalculateCongestionFee(ctx, querier, messageTime, originatorID, 1)
+	require.NoError(t, err)
+	require.Greater(t, fee1, currency.PicoDollar(0))
+
+	// With 2 additional messages, ratio=6/4=1.5, hitting max congestion
+	// Fee should be higher than with 1 additional message
+	fee2, err := calculator.CalculateCongestionFee(ctx, querier, messageTime, originatorID, 2)
+	require.NoError(t, err)
+	require.Greater(t, fee2, fee1)
+}
+
+func TestCongestionFeeParity_BatchVsSequential(t *testing.T) {
+	calculator := setupCalculator()
+	ctx := context.Background()
+
+	messageTime := time.Now()
+	minutesSinceEpoch := utils.MinutesSinceEpoch(messageTime)
+	seedCongestion := 3
+
+	// --- Sequential path: start from seeded state, compute 10 fees, incrementing DB after each ---
+	seqDB, _ := testutils.NewRawDB(t, ctx)
+	seqQuerier := queries.New(seqDB)
+	seqOriginatorID := uint32(testutils.RandomInt32())
+
+	addCongestion(t, seqQuerier, seqOriginatorID, minutesSinceEpoch, seedCongestion)
+
+	sequentialFees := make([]currency.PicoDollar, 10)
+	for i := range 10 {
+		fee, err := calculator.CalculateCongestionFee(
+			ctx, seqQuerier, messageTime, seqOriginatorID, 0,
+		)
+		require.NoError(t, err)
+		sequentialFees[i] = fee
+
+		// Increment congestion in DB to simulate the message being committed.
+		addCongestion(t, seqQuerier, seqOriginatorID, minutesSinceEpoch, 1)
+	}
+
+	// --- Batched path: same seed, compute 10 fees using additionalMessages=0..9 ---
+	batchDB, _ := testutils.NewRawDB(t, ctx)
+	batchQuerier := queries.New(batchDB)
+	batchOriginatorID := uint32(testutils.RandomInt32())
+
+	addCongestion(t, batchQuerier, batchOriginatorID, minutesSinceEpoch, seedCongestion)
+
+	batchedFees := make([]currency.PicoDollar, 10)
+	for i := range 10 {
+		fee, err := calculator.CalculateCongestionFee(
+			ctx, batchQuerier, messageTime, batchOriginatorID, int32(i),
+		)
+		require.NoError(t, err)
+		batchedFees[i] = fee
+	}
+
+	// Assert every fee matches between sequential and batched.
+	for i := range 10 {
+		require.Equal(t, sequentialFees[i], batchedFees[i],
+			"fee mismatch at message %d: sequential=%d batched=%d",
+			i, sequentialFees[i], batchedFees[i])
+	}
 }
 
 func TestOverflow(t *testing.T) {

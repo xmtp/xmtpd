@@ -180,12 +180,21 @@ func (s *originatorStream) validateEnvelope(
 	lastSeq := s.lastSequenceIds[originatorID]
 
 	if seqID != lastSeq+1 {
-		s.logger.Error(
-			"received out-of-order envelope",
-			utils.OriginatorIDField(originatorID),
-			utils.SequenceIDField(int64(seqID)),
-			zap.Uint64("expected_sequence_id", lastSeq+1),
-		)
+		if seqID < lastSeq {
+			s.logger.Error(
+				"received out-of-order envelope",
+				utils.OriginatorIDField(originatorID),
+				utils.SequenceIDField(int64(seqID)),
+				zap.Uint64("expected_sequence_id", lastSeq+1),
+			)
+		} else {
+			s.logger.Info(
+				"envelope gap detected",
+				utils.OriginatorIDField(originatorID),
+				utils.SequenceIDField(int64(seqID)),
+				zap.Uint64("expected_sequence_id", lastSeq+1),
+			)
+		}
 	}
 
 	if seqID > lastSeq {

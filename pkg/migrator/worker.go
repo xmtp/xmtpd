@@ -505,7 +505,12 @@ func (w *Worker) payerIDFromEnvelope(
 		return 0, err
 	}
 
-	payerID, err := w.writer.WriteQuery().FindOrCreatePayer(ctx, payerAddress.Hex())
+	payerID, err := db.FindOrCreatePayerWithRetry(
+		ctx,
+		w.writer.WriteQuery(),
+		payerAddress.Hex(),
+		db.DefaultFindOrCreatePayerMaxRetries,
+	)
 	if err != nil {
 		return 0, err
 	}

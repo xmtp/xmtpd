@@ -218,7 +218,6 @@ func (s *subscribeWorker) dispatchToTopics(envs []*envelopes.OriginatorEnvelope)
 }
 
 func (s *subscribeWorker) dispatchToGlobals(envs []*envelopes.OriginatorEnvelope) {
-	// only keep this to possibly close listeners
 	s.dispatchToListeners(&s.globalListeners, envs)
 }
 

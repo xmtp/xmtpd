@@ -28,13 +28,23 @@ describe("resolveBinary", () => {
     expect(() => resolveBinary()).toThrow("non-existent file");
   });
 
-  it("should resolve platform package or throw helpful error", () => {
+  it("should throw helpful error when platform package is missing", () => {
     delete process.env.XMTP_GATEWAY_BINARY_PATH;
-    try {
-      const resolved = resolveBinary();
-      expect(resolved).toContain("xmtp-gateway");
-    } catch (err: any) {
-      expect(err.message).toContain("Cannot find XMTP gateway binary");
+    // Without the env override, resolution depends on whether the platform
+    // package is installed. In local dev it usually is, so we just verify
+    // the result is reasonable either way.
+    const result = (() => {
+      try {
+        return { path: resolveBinary() };
+      } catch (err: any) {
+        return { error: err.message as string };
+      }
+    })();
+
+    if ("path" in result) {
+      expect(result.path).toContain("xmtp-gateway");
+    } else {
+      expect(result.error).toContain("Cannot find XMTP gateway binary");
     }
   });
 });

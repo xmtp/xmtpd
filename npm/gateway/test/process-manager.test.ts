@@ -10,11 +10,17 @@ const binaryPath = path.resolve(
 
 describe("startGateway", () => {
   let handle: GatewayHandle | undefined;
+  const savedBinaryPath = process.env.XMTP_GATEWAY_BINARY_PATH;
 
   afterEach(async () => {
     if (handle) {
       await handle.stop();
       handle = undefined;
+    }
+    if (savedBinaryPath !== undefined) {
+      process.env.XMTP_GATEWAY_BINARY_PATH = savedBinaryPath;
+    } else {
+      delete process.env.XMTP_GATEWAY_BINARY_PATH;
     }
   });
 
@@ -29,7 +35,8 @@ describe("startGateway", () => {
         appChainWssUrl: "ws://localhost:1112",
         settlementChainRpcUrl: "http://localhost:1113",
         settlementChainWssUrl: "ws://localhost:1114",
-        contractsEnvironment: "dev",
+        // Invalid environment to force the gateway to crash on startup
+        contractsEnvironment: "invalid_env_for_test",
         healthCheckTimeout: 5_000,
       }),
     ).rejects.toThrow();

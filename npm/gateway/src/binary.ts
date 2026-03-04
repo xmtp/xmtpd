@@ -11,13 +11,7 @@ const ARCH_MAP: Record<string, string> = {
   x64: "x64",
 };
 
-/**
- * Resolves the path to the xmtp-gateway binary for the current platform.
- *
- * Fallback order (same pattern as esbuild):
- * 1. XMTP_GATEWAY_BINARY_PATH environment variable
- * 2. Platform-specific optional dependency package
- */
+/** Resolves the path to the xmtp-gateway binary for the current platform. */
 export function resolveBinary(): string {
   const envPath = process.env.XMTP_GATEWAY_BINARY_PATH;
   if (envPath) {

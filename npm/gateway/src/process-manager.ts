@@ -1,15 +1,10 @@
 import { spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
-import { createServer } from "node:net";
+import { createConnection, createServer } from "node:net";
 import { resolveBinary } from "./binary.js";
 import type { GatewayConfig, GatewayHandle } from "./types.js";
 
-/**
- * Starts the XMTP gateway as a subprocess.
- *
- * Spawns the Go gateway binary with configuration passed via environment
- * variables and waits for it to become healthy before returning.
- */
+/** Starts the XMTP gateway as a subprocess and waits for it to become healthy. */
 export async function startGateway(
   config: GatewayConfig,
 ): Promise<GatewayHandle> {
@@ -24,18 +19,23 @@ export async function startGateway(
 
   setupLogForwarding(child);
 
+  const onExit = (code: number | null, signal: string | null) => {
+    earlyExitReject(
+      new Error(
+        `Gateway exited during startup (code=${code}, signal=${signal})`,
+      ),
+    );
+  };
+  const onError = (err: Error) => {
+    earlyExitReject(new Error(`Gateway failed to spawn: ${err.message}`));
+  };
+
+  let earlyExitReject: (err: Error) => void;
   const earlyExit = new Promise<never>((_, reject) => {
-    child.on("exit", (code, signal) => {
-      reject(
-        new Error(
-          `Gateway exited during startup (code=${code}, signal=${signal})`,
-        ),
-      );
-    });
-    child.on("error", (err) => {
-      reject(new Error(`Gateway failed to spawn: ${err.message}`));
-    });
+    earlyExitReject = reject;
   });
+  child.on("exit", onExit);
+  child.on("error", onError);
 
   const timeout = config.healthCheckTimeout ?? 30_000;
   try {
@@ -43,6 +43,9 @@ export async function startGateway(
   } catch (err) {
     child.kill("SIGKILL");
     throw err;
+  } finally {
+    child.removeListener("exit", onExit);
+    child.removeListener("error", onError);
   }
 
   return {
@@ -129,7 +132,8 @@ async function waitForHealthy(
   const start = Date.now();
 
   while (Date.now() - start < timeoutMs) {
-    if (await isPortInUse(port)) {
+    if (await isPortListening(port)) {
+      // Brief settle delay — the port may be open before the gRPC server is ready
       await sleep(200);
       return;
     }
@@ -141,7 +145,30 @@ async function waitForHealthy(
   );
 }
 
-function isPortInUse(port: number): Promise<boolean> {
+function isPortListening(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = createConnection({ port, host: "127.0.0.1" });
+    socket.once("connect", () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.once("error", () => {
+      socket.destroy();
+      resolve(false);
+    });
+  });
+}
+
+async function findAvailablePort(startPort: number): Promise<number> {
+  for (let port = startPort; port < startPort + 100; port++) {
+    if (!(await isPortBound(port))) return port;
+  }
+  throw new Error(
+    `No available port found in range ${startPort}-${startPort + 99}`,
+  );
+}
+
+function isPortBound(port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const server = createServer();
     server.once("error", () => resolve(true));
@@ -151,15 +178,6 @@ function isPortInUse(port: number): Promise<boolean> {
     });
     server.listen(port, "127.0.0.1");
   });
-}
-
-async function findAvailablePort(startPort: number): Promise<number> {
-  for (let port = startPort; port < startPort + 100; port++) {
-    if (!(await isPortInUse(port))) return port;
-  }
-  throw new Error(
-    `No available port found in range ${startPort}-${startPort + 99}`,
-  );
 }
 
 function gracefulShutdown(child: ChildProcess): Promise<void> {

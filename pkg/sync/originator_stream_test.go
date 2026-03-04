@@ -337,14 +337,14 @@ func TestSyncWorkerAcceptsEnvelopeFromPermittedOriginator(t *testing.T) {
 	}, time.Second, 50*time.Millisecond)
 }
 
-func TestSyncWorkerOutOfOrderStillAdvancesLastSequenceId(t *testing.T) {
+func TestSyncWorkerGapStillAdvancesLastSequenceId(t *testing.T) {
 	nodeID := uint32(200)
 
-	// Create seq=1 then seq=3 (skip 2 to force out-of-order)
+	// Create seq=3 then seq=1, this should never happen in production and is a violation of system invariants
 	env1 := envelopeTestUtils.CreateOriginatorEnvelope(t, nodeID, uint64(1))
 	env3 := envelopeTestUtils.CreateOriginatorEnvelope(t, nodeID, uint64(3))
 
-	stream := mockSubscriptionOnePage(t, []*envelopes.OriginatorEnvelope{env1, env3})
+	stream := mockSubscriptionOnePage(t, []*envelopes.OriginatorEnvelope{env3, env1})
 	node := registryTestUtils.CreateNode(nodeID, 999, testutils.RandomPrivateKey(t))
 
 	writeQueue := make(chan *envUtils.OriginatorEnvelope, 10)
@@ -385,6 +385,61 @@ func TestSyncWorkerOutOfOrderStillAdvancesLastSequenceId(t *testing.T) {
 		logs := recorded.All()
 		for _, log := range logs {
 			if log.Message == "received out-of-order envelope" {
+				return true
+			}
+		}
+		return false
+	}, time.Second, 50*time.Millisecond)
+}
+
+func TestSyncWorkerOutOfOrderStillAdvancesLastSequenceId(t *testing.T) {
+	nodeID := uint32(200)
+
+	// Create seq=1 then seq=3 (skip 2 to force oa warning)
+	env1 := envelopeTestUtils.CreateOriginatorEnvelope(t, nodeID, uint64(1))
+	env3 := envelopeTestUtils.CreateOriginatorEnvelope(t, nodeID, uint64(3))
+
+	stream := mockSubscriptionOnePage(t, []*envelopes.OriginatorEnvelope{env1, env3})
+	node := registryTestUtils.CreateNode(nodeID, 999, testutils.RandomPrivateKey(t))
+
+	writeQueue := make(chan *envUtils.OriginatorEnvelope, 10)
+	defer close(writeQueue)
+
+	dbStorerInstance := newTestEnvelopeSink(t, writeQueue, t.Context())
+	go dbStorerInstance.Start()
+
+	lastSequenceIds := make(map[uint32]uint64)
+
+	// --- Replace test logger with zap observer ---
+	core, recorded := observer.New(zap.InfoLevel)
+	logger := zap.New(core)
+
+	permitted := map[uint32]struct{}{
+		nodeID: {},
+	}
+
+	origStream := newOriginatorStream(
+		t.Context(),
+		logger, // use observed logger
+		&node,
+		lastSequenceIds,
+		permitted,
+		stream,
+		writeQueue,
+	)
+
+	_ = origStream.listen()
+
+	// ---- Assert lastSequenceId advanced to 3 ----
+	require.Eventually(t, func() bool {
+		return lastSequenceIds[nodeID] == 3
+	}, time.Second, 50*time.Millisecond)
+
+	// ---- Assert error log was emitted ----
+	require.Eventually(t, func() bool {
+		logs := recorded.All()
+		for _, log := range logs {
+			if log.Message == "envelope gap detected" {
 				return true
 			}
 		}

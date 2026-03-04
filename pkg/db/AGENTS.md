@@ -71,7 +71,7 @@ RELEASE SAVEPOINT sp_part;
 
 **Upserts** (`ON CONFLICT`): used throughout — `InsertNodeInfo`, `IncrementUnsettledUsage`, `FindOrCreatePayer`, `InsertOrIgnorePayerReport`
 
-**Batch operations** (`unnest()`): `InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage` accepts parallel arrays for bulk inserts
+**Batch operations** (`unnest()`): `InsertGatewayEnvelopeBatchV2` accepts parallel arrays for bulk inserts
 
 **Time bucketing**: `minutes_since_epoch` column for usage aggregation; payer reports use minute-level granularity
 

@@ -56,3 +56,7 @@ contracts/config/anvil_localnet/*
 # Perf test binaries and output
 cmd/perf-test/perf-test
 perf_results*.json
+
+# Claude plans
+doc/plans
+docs/plans

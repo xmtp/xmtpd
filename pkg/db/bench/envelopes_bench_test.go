@@ -15,6 +15,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db/types"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/utils"
+	"go.uber.org/zap"
 )
 
 const (
@@ -93,9 +94,10 @@ func seedEnvelopes(ctx context.Context, tier *envelopeTier) {
 		})
 
 		if batch.Len() == seedBatchSize {
-			_, err := db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
+			_, err := db.InsertGatewayEnvelopeBatchV2AndIncrementUnsettledUsage(
 				ctx,
 				tier.db,
+				zap.NewNop(),
 				batch,
 			)
 			if err != nil {
@@ -114,9 +116,10 @@ func seedEnvelopes(ctx context.Context, tier *envelopeTier) {
 
 	// Flush remaining envelopes
 	if batch.Len() > 0 {
-		_, err := db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
+		_, err := db.InsertGatewayEnvelopeBatchV2AndIncrementUnsettledUsage(
 			ctx,
 			tier.db,
+			zap.NewNop(),
 			batch,
 		)
 		if err != nil {
@@ -289,9 +292,13 @@ func BenchmarkInsertGatewayEnvelopeBatch(b *testing.B) {
 					expiries[j] = exp
 				}
 
-				_, err := q.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
+				countFlags := make([]bool, batchLen)
+				for j := range batchLen {
+					countFlags[j] = true
+				}
+				_, err := q.InsertGatewayEnvelopeBatchV2(
 					benchCtx,
-					queries.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageParams{
+					queries.InsertGatewayEnvelopeBatchV2Params{
 						OriginatorNodeIds:     nodeIDs,
 						OriginatorSequenceIds: seqIDs,
 						Topics:                topics,
@@ -300,6 +307,8 @@ func BenchmarkInsertGatewayEnvelopeBatch(b *testing.B) {
 						Expiries:              expiries,
 						OriginatorEnvelopes:   blobs,
 						SpendPicodollars:      spends,
+						CountUsage:            countFlags,
+						CountCongestion:       countFlags,
 					},
 				)
 				require.NoError(b, err)

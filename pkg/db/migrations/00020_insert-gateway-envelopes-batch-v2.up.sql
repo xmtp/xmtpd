@@ -7,12 +7,13 @@ CREATE OR REPLACE FUNCTION insert_gateway_envelope_batch_v2(
     p_expiries                bigint[],
     p_originator_envelopes    bytea[],
     p_spend_picodollars       bigint[],
-    p_is_reserved             boolean[]
+    p_count_usage             boolean[],
+    p_count_congestion        boolean[]
 )
 RETURNS TABLE (
-    inserted_meta_rows    bigint,
-    inserted_blob_rows    bigint,
-    affected_usage_rows   bigint,
+    inserted_meta_rows       bigint,
+    inserted_blob_rows       bigint,
+    affected_usage_rows      bigint,
     affected_congestion_rows bigint
 )
 LANGUAGE SQL
@@ -27,7 +28,8 @@ WITH input AS (
         expiry,
         originator_envelope,
         spend_picodollars,
-        is_reserved
+        count_usage,
+        count_congestion
     FROM unnest(
         p_originator_node_ids,
         p_originator_sequence_ids,
@@ -37,7 +39,8 @@ WITH input AS (
         p_expiries,
         p_originator_envelopes,
         p_spend_picodollars,
-        p_is_reserved
+        p_count_usage,
+        p_count_congestion
     ) AS t(
         originator_node_id,
         originator_sequence_id,
@@ -47,7 +50,8 @@ WITH input AS (
         expiry,
         originator_envelope,
         spend_picodollars,
-        is_reserved
+        count_usage,
+        count_congestion
     )
 ),
 
@@ -85,7 +89,8 @@ m_with_spend AS (
         m.payer_id,
         m.gateway_time,
         i.spend_picodollars,
-        i.is_reserved
+        i.count_usage,
+        i.count_congestion
     FROM m
     JOIN b USING (originator_node_id, originator_sequence_id)
     JOIN input i USING (originator_node_id, originator_sequence_id)
@@ -100,7 +105,7 @@ u_prep AS (
         max(originator_sequence_id)::bigint AS last_sequence_id,
         count(*)::int AS message_count
     FROM m_with_spend
-    WHERE payer_id IS NOT NULL AND NOT is_reserved
+    WHERE payer_id IS NOT NULL AND count_usage
     GROUP BY 1, 2, 3
 ),
 
@@ -130,7 +135,7 @@ c_prep AS (
         floor(extract(epoch from gateway_time) / 60)::int AS minutes_since_epoch,
         count(*)::int AS num_messages
     FROM m_with_spend
-    WHERE NOT is_reserved
+    WHERE count_congestion
     GROUP BY 1, 2
 ),
 

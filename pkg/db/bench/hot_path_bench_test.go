@@ -340,13 +340,14 @@ func BenchmarkHotPathBatchCycle(b *testing.B) {
 						Expiry:               expiry,
 						OriginatorEnvelope:   blob,
 						SpendPicodollars:     1_000_000,
-						IsReserved:           false,
+						CountUsage:           true,
+						CountCongestion:      true,
 					})
 					stagedIDs[i] = stagedEnv.ID
 				}
 
 				_, err = db.InsertGatewayEnvelopeBatchV2AndIncrementUnsettledUsage(
-					benchCtx, hotPathDB, batchInput,
+					benchCtx, hotPathDB, testutils.NewLog(b), batchInput,
 				)
 				require.NoError(b, err)
 

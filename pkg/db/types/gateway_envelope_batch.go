@@ -13,12 +13,17 @@ type GatewayEnvelopeRow struct {
 	OriginatorNodeID     int32
 	OriginatorSequenceID int64
 	Topic                []byte
-	PayerID              int32
-	GatewayTime          time.Time
-	Expiry               int64
-	OriginatorEnvelope   []byte
-	SpendPicodollars     int64
-	IsReserved           bool
+	// Payer IDs considerations:
+	//   - if not 0, they must exist.
+	//   - if 0, they are treated as null, as it's nullable in gateway_envelopes_meta.
+	//   - if 0, no unsettled usage is incremented.
+	PayerID            int32
+	GatewayTime        time.Time
+	Expiry             int64
+	OriginatorEnvelope []byte
+	SpendPicodollars   int64
+	CountUsage         bool // track unsettled usage for this envelope
+	CountCongestion    bool // track originator congestion for this envelope
 }
 
 type GatewayEnvelopeBatch struct {
@@ -56,36 +61,6 @@ func (b *GatewayEnvelopeBatch) Reset() {
 	b.Envelopes = make([]GatewayEnvelopeRow, 0)
 }
 
-func (b *GatewayEnvelopeBatch) ToParams() queries.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageParams {
-	n := b.Len()
-
-	b.ensureOrdered()
-
-	params := queries.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageParams{
-		OriginatorNodeIds:     make([]int32, n),
-		OriginatorSequenceIds: make([]int64, n),
-		Topics:                make([][]byte, n),
-		PayerIds:              make([]int32, n),
-		GatewayTimes:          make([]time.Time, n),
-		Expiries:              make([]int64, n),
-		OriginatorEnvelopes:   make([][]byte, n),
-		SpendPicodollars:      make([]int64, n),
-	}
-
-	for i, row := range b.Envelopes {
-		params.OriginatorNodeIds[i] = row.OriginatorNodeID
-		params.OriginatorSequenceIds[i] = row.OriginatorSequenceID
-		params.Topics[i] = row.Topic
-		params.PayerIds[i] = row.PayerID
-		params.GatewayTimes[i] = row.GatewayTime
-		params.Expiries[i] = row.Expiry
-		params.OriginatorEnvelopes[i] = row.OriginatorEnvelope
-		params.SpendPicodollars[i] = row.SpendPicodollars
-	}
-
-	return params
-}
-
 func (b *GatewayEnvelopeBatch) ToParamsV2() queries.InsertGatewayEnvelopeBatchV2Params {
 	n := b.Len()
 
@@ -100,7 +75,8 @@ func (b *GatewayEnvelopeBatch) ToParamsV2() queries.InsertGatewayEnvelopeBatchV2
 		Expiries:              make([]int64, n),
 		OriginatorEnvelopes:   make([][]byte, n),
 		SpendPicodollars:      make([]int64, n),
-		IsReserved:            make([]bool, n),
+		CountUsage:            make([]bool, n),
+		CountCongestion:       make([]bool, n),
 	}
 
 	for i, row := range b.Envelopes {
@@ -112,7 +88,8 @@ func (b *GatewayEnvelopeBatch) ToParamsV2() queries.InsertGatewayEnvelopeBatchV2
 		params.Expiries[i] = row.Expiry
 		params.OriginatorEnvelopes[i] = row.OriginatorEnvelope
 		params.SpendPicodollars[i] = row.SpendPicodollars
-		params.IsReserved[i] = row.IsReserved
+		params.CountUsage[i] = row.CountUsage
+		params.CountCongestion[i] = row.CountCongestion
 	}
 
 	return params

@@ -308,7 +308,6 @@ func (s *EnvelopeSink) calculateFees(
 		s.db.ReadQuery(),
 		messageTime,
 		env.OriginatorNodeID(),
-		0,
 	)
 	if err != nil {
 		return 0, err

@@ -78,56 +78,6 @@ func (q *Queries) InsertGatewayEnvelope(ctx context.Context, arg InsertGatewayEn
 	return i, err
 }
 
-const insertGatewayEnvelopeBatchAndIncrementUnsettledUsage = `-- name: InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage :one
-SELECT
-    inserted_meta_rows::bigint,
-    inserted_blob_rows::bigint,
-    affected_usage_rows::bigint
-FROM insert_gateway_envelope_batch(
-    $1::int[],
-    $2::bigint[],
-    $3::bytea[],
-    $4::int[],
-    $5::timestamp[],
-    $6::bigint[],
-    $7::bytea[],
-    $8::bigint[]
-)
-`
-
-type InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageParams struct {
-	OriginatorNodeIds     []int32
-	OriginatorSequenceIds []int64
-	Topics                [][]byte
-	PayerIds              []int32
-	GatewayTimes          []time.Time
-	Expiries              []int64
-	OriginatorEnvelopes   [][]byte
-	SpendPicodollars      []int64
-}
-
-type InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageRow struct {
-	InsertedMetaRows  int64
-	InsertedBlobRows  int64
-	AffectedUsageRows int64
-}
-
-func (q *Queries) InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(ctx context.Context, arg InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageParams) (InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageRow, error) {
-	row := q.db.QueryRowContext(ctx, insertGatewayEnvelopeBatchAndIncrementUnsettledUsage,
-		pq.Array(arg.OriginatorNodeIds),
-		pq.Array(arg.OriginatorSequenceIds),
-		pq.Array(arg.Topics),
-		pq.Array(arg.PayerIds),
-		pq.Array(arg.GatewayTimes),
-		pq.Array(arg.Expiries),
-		pq.Array(arg.OriginatorEnvelopes),
-		pq.Array(arg.SpendPicodollars),
-	)
-	var i InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageRow
-	err := row.Scan(&i.InsertedMetaRows, &i.InsertedBlobRows, &i.AffectedUsageRows)
-	return i, err
-}
-
 const insertGatewayEnvelopeBatchV2 = `-- name: InsertGatewayEnvelopeBatchV2 :one
 SELECT
     inserted_meta_rows::bigint,
@@ -143,7 +93,8 @@ FROM insert_gateway_envelope_batch_v2(
     $6::bigint[],
     $7::bytea[],
     $8::bigint[],
-    $9::boolean[]
+    $9::boolean[],
+    $10::boolean[]
 )
 `
 
@@ -156,7 +107,8 @@ type InsertGatewayEnvelopeBatchV2Params struct {
 	Expiries              []int64
 	OriginatorEnvelopes   [][]byte
 	SpendPicodollars      []int64
-	IsReserved            []bool
+	CountUsage            []bool
+	CountCongestion       []bool
 }
 
 type InsertGatewayEnvelopeBatchV2Row struct {
@@ -176,7 +128,8 @@ func (q *Queries) InsertGatewayEnvelopeBatchV2(ctx context.Context, arg InsertGa
 		pq.Array(arg.Expiries),
 		pq.Array(arg.OriginatorEnvelopes),
 		pq.Array(arg.SpendPicodollars),
-		pq.Array(arg.IsReserved),
+		pq.Array(arg.CountUsage),
+		pq.Array(arg.CountCongestion),
 	)
 	var i InsertGatewayEnvelopeBatchV2Row
 	err := row.Scan(

@@ -82,12 +82,14 @@ func (i *GRPCMetricsInterceptor) WrapStreamingHandler(
 		// Record that the RPC has started.
 		metrics.EmitGRPCServerStarted(grpcType, service, method)
 
-		// Wrap the connection to count messages.
+		// Wrap the connection to count messages and record per-message latency.
+		// lastSent is initialized to start so the first Send() measures time-to-first-message.
 		wrappedConn := &metricsStreamingHandlerConn{
 			StreamingHandlerConn: conn,
 			grpcType:             grpcType,
 			service:              service,
 			method:               method,
+			lastSent:             start,
 		}
 
 		// Call the next handler.
@@ -102,19 +104,18 @@ func (i *GRPCMetricsInterceptor) WrapStreamingHandler(
 		// Record completion metrics.
 		metrics.EmitGRPCServerHandled(grpcType, service, method, code)
 
-		duration := time.Since(start)
-		metrics.EmitGRPCServerHandlingTime(grpcType, service, method, duration)
-
 		return err
 	}
 }
 
-// metricsStreamingHandlerConn wraps a StreamingHandlerConn to count sent and received messages.
+// metricsStreamingHandlerConn wraps a StreamingHandlerConn to count sent/received messages
+// and record per-message handling time.
 type metricsStreamingHandlerConn struct {
 	connect.StreamingHandlerConn
 	grpcType string
 	service  string
 	method   string
+	lastSent time.Time
 }
 
 func (c *metricsStreamingHandlerConn) Receive(msg any) error {
@@ -129,6 +130,9 @@ func (c *metricsStreamingHandlerConn) Send(msg any) error {
 	err := c.StreamingHandlerConn.Send(msg)
 	if err == nil {
 		metrics.EmitGRPCServerMsgSent(c.grpcType, c.service, c.method)
+		now := time.Now()
+		metrics.EmitGRPCServerHandlingTime(c.grpcType, c.service, c.method, now.Sub(c.lastSent))
+		c.lastSent = now
 	}
 	return err
 }

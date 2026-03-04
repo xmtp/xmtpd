@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -68,14 +69,9 @@ func (s *EnvelopeSink) Start() {
 				continue
 			}
 
-			exp := backoff.NewExponentialBackOff()
-			exp.InitialInterval = 10 * time.Millisecond
-			exp.MaxInterval = s.errorRetrySleepTime
-			exp.Multiplier = 2.0
-			exp.RandomizationFactor = 0.5
-			exp.MaxElapsedTime = 0 // no limit
-
-			boCtx := backoff.WithContext(exp, s.ctx)
+			boCtx := backoff.WithContext(
+				utils.NewBackoff(10*time.Millisecond, s.errorRetrySleepTime, 0), s.ctx,
+			)
 
 			operation := func() error {
 				select {
@@ -169,6 +165,7 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 			SpendPicodollars:  int64(ourFeeCalculation),
 			MessageCount:      1,
 		},
+		!migrator.IsMigratorOriginatorID(env.OriginatorNodeID()),
 	)
 
 	if err != nil {
@@ -230,8 +227,11 @@ func (s *EnvelopeSink) storeReservedEnvelope(env *envUtils.OriginatorEnvelope) e
 func (s *EnvelopeSink) calculateFees(
 	env *envUtils.OriginatorEnvelope,
 ) (currency.PicoDollar, error) {
-	payerEnvelopeLength := len(env.UnsignedOriginatorEnvelope.PayerEnvelopeBytes())
-	messageTime := utils.NsToDate(env.OriginatorNs())
+	var (
+		payerEnvelopeLength = len(env.UnsignedOriginatorEnvelope.PayerEnvelopeBytes())
+		messageTime         = utils.NsToDate(env.OriginatorNs())
+		congestionFee       currency.PicoDollar
+	)
 
 	baseFee, err := s.feeCalculator.CalculateBaseFee(
 		messageTime,
@@ -242,10 +242,14 @@ func (s *EnvelopeSink) calculateFees(
 		return 0, err
 	}
 
+	if migrator.IsMigratorOriginatorID(env.OriginatorNodeID()) {
+		return baseFee + 0, nil
+	}
+
 	// NOTE: This is code smell IMO. We have a function that is (by name) a reader function,
 	// but it feels wrong to IMPOSE read limitation on it this way. However, if the goal is to
 	// have read queries work on a db read replica, then this should operate on the read db.
-	congestionFee, err := s.feeCalculator.CalculateCongestionFee(
+	congestionFee, err = s.feeCalculator.CalculateCongestionFee(
 		s.ctx,
 		s.db.ReadQuery(),
 		messageTime,

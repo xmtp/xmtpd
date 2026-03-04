@@ -104,7 +104,7 @@ func Bytes32ToInt(buffer []byte) (int, error) {
 	}
 
 	// Check that all of the first 28 bytes are 0
-	for i := 0; i < 28; i++ {
+	for i := range 28 {
 		if buffer[i] != 0 {
 			return 0, ErrInvalidBytes32ToIntInput
 		}

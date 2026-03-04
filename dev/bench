@@ -1,0 +1,60 @@
+#!/bin/bash
+set -euo pipefail
+
+show_help() {
+  cat <<'EOF'
+Usage: dev/bench [OPTIONS]
+
+Run database benchmarks and save filtered output to benchmarks/results/<BENCH_TIER>-YYYY-MM-DD-T<HHMMSS>.txt.
+
+Options:
+  -h, --help    Show this help message and exit
+
+Environment variables:
+  BENCH_TIER    Optional tier filter from pkg/db/bench/main_test.go.
+                Valid values: 100K, 1M, 10M (case-insensitive).
+                If unset, all tiers run.
+
+Examples:
+  dev/bench
+  BENCH_TIER=100K dev/bench
+  BENCH_TIER=10M dev/bench
+EOF
+}
+
+if [[ $# -gt 0 ]]; then
+  case "${1:-}" in
+    -h|--help)
+      show_help
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      echo "Run 'dev/bench --help' for usage." >&2
+      exit 1
+      ;;
+  esac
+fi
+
+RESULTS_DIR="benchmarks/results"
+mkdir -p "$RESULTS_DIR"
+
+OUTFILE="$RESULTS_DIR/${BENCH_TIER:-all}-$(date +%Y-%m-%d-T%H%M%S).txt"
+RAWFILE=$(mktemp)
+trap 'rm -f "$RAWFILE"' EXIT
+
+echo "Running benchmarks..."
+echo "Tier filter: ${BENCH_TIER:-all}"
+echo "Output: $OUTFILE"
+echo
+
+go test -tags bench -bench=. -benchmem -count=5 -timeout=60m \
+    -run='^$' \
+    ./pkg/db/bench/ 2>&1 | tee "$RAWFILE"
+
+# Filter to only benchstat-compatible output (strip setup/seed log lines)
+grep -E '^(goos:|goarch:|pkg:|cpu:|Benchmark|PASS$|ok[[:space:]])' "$RAWFILE" > "$OUTFILE"
+
+echo
+echo "Results written to $OUTFILE"
+echo "Compare with: benchstat benchmarks/results/old.txt $OUTFILE"

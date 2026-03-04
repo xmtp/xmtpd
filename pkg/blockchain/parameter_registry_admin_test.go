@@ -83,7 +83,7 @@ func TestSetUint16ParameterAndReadBack(t *testing.T) {
 
 	got, err := admin.GetParameterUint16(ctx, key)
 	require.NoError(t, err)
-	require.EqualValues(t, want, got)
+	require.Equal(t, want, got)
 }
 
 func TestSetUint16Parameter_ZeroAndMax(t *testing.T) {
@@ -133,7 +133,7 @@ func TestSetUint32ParameterAndReadBack(t *testing.T) {
 
 	got, err := admin.GetParameterUint32(ctx, key)
 	require.NoError(t, err)
-	require.EqualValues(t, want, got)
+	require.Equal(t, want, got)
 }
 
 func TestSetUint32Parameter_ZeroAndMax(t *testing.T) {
@@ -362,7 +362,7 @@ func TestSetUint64ParameterAndReadBack(t *testing.T) {
 
 	got, err := admin.GetParameterUint64(ctx, key)
 	require.NoError(t, err)
-	require.EqualValues(t, want, got)
+	require.Equal(t, want, got)
 }
 
 func TestSetUint64ParameterCanOverwrite(t *testing.T) {

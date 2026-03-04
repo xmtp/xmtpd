@@ -129,17 +129,14 @@ func (bt *BlockTracker) loadLatestBlock(
 
 	storedBlock, err := bt.db.ReadQuery().GetLatestBlock(ctx, address.Hex())
 	if err != nil {
-		switch err {
-		case sql.ErrNoRows:
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
 			header, err := client.HeaderByNumber(ctx, big.NewInt(int64(deploymentBlock)))
 			if err != nil {
 				return nil, err
 			}
-
 			block.save(deploymentBlock, header.Hash().Bytes())
-
 			return block, nil
-
 		default:
 			return nil, err
 		}

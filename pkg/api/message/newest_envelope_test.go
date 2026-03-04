@@ -53,10 +53,10 @@ func parseResults(
 	parsedEnvelopes := make([]*envelopes.OriginatorEnvelope, len(envs))
 	var err error
 	for i, env := range envs {
-		if env.OriginatorEnvelope == nil {
+		if env.GetOriginatorEnvelope() == nil {
 			continue
 		}
-		parsedEnvelopes[i], err = envelopes.NewOriginatorEnvelope(env.OriginatorEnvelope)
+		parsedEnvelopes[i], err = envelopes.NewOriginatorEnvelope(env.GetOriginatorEnvelope())
 		require.NoError(t, err)
 	}
 	return parsedEnvelopes
@@ -138,9 +138,9 @@ func TestGetNewestEnvelope(t *testing.T) {
 				}),
 			)
 			require.NoError(t, err)
-			require.Equal(t, c.expectedNumReturned, len(resp.Msg.Results))
+			require.Len(t, resp.Msg.GetResults(), c.expectedNumReturned)
 
-			parsedResults := parseResults(t, resp.Msg.Results)
+			parsedResults := parseResults(t, resp.Msg.GetResults())
 			for i, topic := range c.expectedTopics {
 				if topic == nil {
 					require.Nil(t, parsedResults[i])
@@ -152,7 +152,7 @@ func TestGetNewestEnvelope(t *testing.T) {
 				if seq == 0 {
 					require.Nil(t, parsedResults[i])
 				} else {
-					require.EqualValues(t, seq, parsedResults[i].OriginatorSequenceID())
+					require.Equal(t, seq, parsedResults[i].OriginatorSequenceID())
 				}
 			}
 		})

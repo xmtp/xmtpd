@@ -308,7 +308,7 @@ func TestStoreAttestation(t *testing.T) {
 	require.Len(t, fetchedReport.AttestationSignatures, 1)
 	require.Equal(
 		t,
-		fetchedReport.AttestationSignatures[0].NodeID,
+		attestation.NodeSignature.NodeID,
 		fetchedReport.AttestationSignatures[0].NodeID,
 	)
 }
@@ -584,7 +584,7 @@ func TestSetReportSettled(t *testing.T) {
 	// Helper to create unsettled usage for an originator
 	// Every increment is 100 picodollars
 	createUnsettledUsage := func(originatorID uint32, minutesSinceEpoch int32, payerCount int) {
-		for i := 0; i < payerCount; i++ {
+		for i := range payerCount {
 			payerID, err := store.Queries().FindOrCreatePayer(ctx, testutils.RandomAddress().Hex())
 			require.NoError(t, err)
 
@@ -1013,7 +1013,7 @@ func TestCreateAttestationConcurrency(t *testing.T) {
 	var wg sync.WaitGroup
 	errCh := make(chan error, numWorkers)
 
-	for i := 0; i < numWorkers; i++ {
+	for range numWorkers {
 		wg.Go(func() {
 			attestation := &payerreport.PayerReportAttestation{
 				Report: &report,

@@ -59,6 +59,35 @@ func (q *Queries) InsertStagedOriginatorEnvelope(ctx context.Context, arg Insert
 	return i, err
 }
 
+const selectOriginatorNodeIDs = `-- name: SelectOriginatorNodeIDs :many
+SELECT originator_node_id
+FROM gateway_envelopes_latest
+ORDER BY originator_node_id
+`
+
+func (q *Queries) SelectOriginatorNodeIDs(ctx context.Context) ([]int32, error) {
+	rows, err := q.db.QueryContext(ctx, selectOriginatorNodeIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int32
+	for rows.Next() {
+		var originator_node_id int32
+		if err := rows.Scan(&originator_node_id); err != nil {
+			return nil, err
+		}
+		items = append(items, originator_node_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const selectStagedOriginatorEnvelopes = `-- name: SelectStagedOriginatorEnvelopes :many
 SELECT id, originator_time, topic, payer_envelope
 FROM staged_originator_envelopes

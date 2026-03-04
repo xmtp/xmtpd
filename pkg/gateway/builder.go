@@ -36,9 +36,9 @@ var (
 )
 
 type GatewayServiceBuilder struct {
+	config              *config.GatewayConfig
 	identityFn          IdentityFn
 	authorizers         []AuthorizePublishFn
-	config              *config.GatewayConfig
 	blockchainPublisher blockchain.IBlockchainPublisher
 	nodeRegistry        registry.NodeRegistry
 	logger              *zap.Logger
@@ -272,13 +272,15 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 			clientMetrics,
 			b.config.Contracts.AppChain.MaxBlockchainPayloadSize,
 			nodeSelector,
+			payer.WithPublishTimeout(b.config.Payer.EnvelopePublishTimeout),
+			payer.WithPublishRetries(b.config.Payer.EnvelopePublishRetries),
 		)
 		if err != nil {
 			return nil, err
 		}
 
 		if gatewayAPIService == nil {
-			return nil, fmt.Errorf("gateway api service is nil")
+			return nil, errors.New("gateway api service is nil")
 		}
 
 		b.logger.Info(
@@ -337,7 +339,7 @@ func SetupRedisClient(
 ) (redis.UniversalClient, error) {
 	redisURL := cfg.RedisURL
 	if redisURL == "" {
-		return nil, fmt.Errorf("redis URL is empty")
+		return nil, errors.New("redis URL is empty")
 	}
 
 	opts, err := redis.ParseURL(redisURL)
@@ -359,7 +361,12 @@ func SetupRedisClient(
 			break
 		} else if time.Now().After(deadline) {
 			_ = client.Close()
-			return nil, fmt.Errorf("failed to connect to Redis at %s within %s: %w", redisURL, cfg.ConnectTimeout, err)
+			return nil, fmt.Errorf(
+				"failed to connect to Redis at %s within %s: %w",
+				redisURL,
+				cfg.ConnectTimeout,
+				err,
+			)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}

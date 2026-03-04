@@ -192,7 +192,6 @@ Redis (v7+) with jemalloc allocator has significant per-key overhead:
 
 **For 10,000 active IPv4 subjects with 2 limits:**
 - 10,000 × 262 bytes = **~2.62 MB**
-```
 
 **Notes:**
 - Keys automatically expire based on inactivity, so memory usage reflects only active subjects

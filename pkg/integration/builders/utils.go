@@ -33,7 +33,7 @@ func loadEnvFromShell() (map[string]string, error) {
 	err := cmd.Run()
 	if err != nil {
 		return nil, fmt.Errorf(
-			"error loading env via shell script: %v\nError: %s",
+			"error loading env via shell script: %w\nError: %s",
 			err,
 			errBuf.String(),
 		)
@@ -90,7 +90,7 @@ func handleExitedContainer(
 		logs, logErr := exitedContainer.Logs(context)
 		if logErr != nil {
 			return fmt.Errorf(
-				"container exited with code %d, but failed to get logs: %v",
+				"container exited with code %d, but failed to get logs: %w",
 				state.ExitCode,
 				logErr,
 			)

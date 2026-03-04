@@ -15,7 +15,7 @@ func TestConversion(t *testing.T) {
 	require.Equal(t, currency.PicoDollar(1250000000000), initial)
 
 	converted := initial.ToDollars()
-	require.Equal(t, 1.25, converted)
+	require.InEpsilon(t, 1.25, converted, 0.001)
 }
 
 func TestString(t *testing.T) {

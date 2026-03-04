@@ -64,12 +64,13 @@ func TestStoreGroupMessages(t *testing.T) {
 	gatewayEnvelopes, err := storer.queries.SelectGatewayEnvelopesByOriginators(
 		ctx,
 		queries.SelectGatewayEnvelopesByOriginatorsParams{
-			OriginatorNodeIds: []int32{constants.GroupMessageOriginatorID},
+			CursorNodeIds:     []int32{constants.GroupMessageOriginatorID},
+			CursorSequenceIds: []int64{0},
 		},
 	)
 	require.NoError(t, err)
 
-	require.Equal(t, len(gatewayEnvelopes), 1)
+	require.Len(t, gatewayEnvelopes, 1)
 
 	firstEnvelope := gatewayEnvelopes[0]
 	originatorEnvelope, err := envelopes.NewOriginatorEnvelopeFromBytes(
@@ -117,11 +118,14 @@ func TestStoreGroupMessageDuplicate(t *testing.T) {
 
 	envelopes, queryErr := storer.queries.SelectGatewayEnvelopesByOriginators(
 		ctx,
-		queries.SelectGatewayEnvelopesByOriginatorsParams{OriginatorNodeIds: []int32{0}},
+		queries.SelectGatewayEnvelopesByOriginatorsParams{
+			CursorNodeIds:     []int32{0},
+			CursorSequenceIds: []int64{0},
+		},
 	)
 	require.NoError(t, queryErr)
 
-	require.Equal(t, len(envelopes), 1)
+	require.Len(t, envelopes, 1)
 }
 
 func TestStoreGroupMessageMalformed(t *testing.T) {

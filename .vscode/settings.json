@@ -1,28 +1,16 @@
 {
-  "go.lintTool": "golangci-lint-v2",
-  "go.lintFlags": ["--path-mode=abs", "--fast-only"],
-  "go.formatTool": "custom",
-  "go.alternateTools": {
-    "customFormatter": "golangci-lint-v2"
-  },
-  "go.formatFlags": ["fmt", "--stdin"],
-  "[go]": {
-    "editor.formatOnSave": true
-  },
-  "[sql]": {
-    "editor.defaultFormatter": "mtxr.sqltools",
-    "editor.formatOnSave": true
-  },
-  "go.useLanguageServer": true,
-  "sqltools.highlightQuery": false,
-  "sqltools.format": {
-    "linesBetweenQueries": 2,
-    "language": "sql",
-    "reservedWordCase": "upper",
-    "typeCase": "upper"
-  },
-  // Instructions from https://github.com/segmentio/golines
-  "solidity.compileUsingRemoteVersion": "v0.8.28",
-  "solidity.formatter": "forge",
-  "wake.compiler.solc.remappings": []
+	"go.lintTool": "golangci-lint-v2",
+	"go.lintFlags": ["--path-mode=abs", "--fast-only"],
+	"go.formatTool": "custom",
+	"go.alternateTools": {
+		"customFormatter": "golangci-lint-v2"
+	},
+	"go.formatFlags": ["fmt", "--stdin"],
+	"[go]": {
+		"editor.formatOnSave": true
+	},
+	"[sql]": {
+		"editor.defaultFormatter": "mtxr.sqltools",
+		"editor.formatOnSave": true
+	}
 }

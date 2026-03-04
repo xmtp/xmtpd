@@ -2,134 +2,113 @@ package blockchain
 
 import (
 	"errors"
-	"fmt"
 	"regexp"
 )
 
 var (
-	ErrAlreadyClaimed = fmt.Errorf(
-		"AlreadyClaimed(uint32,uint256)",
-	)
-	ErrPayerReportAlreadySubmitted = fmt.Errorf(
+	ErrAlreadyClaimed              = errors.New("AlreadyClaimed(uint32,uint256)")
+	ErrPayerReportAlreadySubmitted = errors.New(
 		"PayerReportAlreadySubmitted(uint32,uint64,uint64)",
 	)
-	ErrArrayLengthMismatch  = fmt.Errorf("ArrayLengthMismatch()")
-	ErrDeployFailed         = fmt.Errorf("DeployFailed()")
-	ErrEmptyAdmins          = fmt.Errorf("EmptyAdmins()")
-	ErrEmptyArray           = fmt.Errorf("EmptyArray()")
-	ErrEmptyBytecode        = fmt.Errorf("EmptyBytecode()")
-	ErrEmptyCode            = fmt.Errorf("EmptyCode(address)")
-	ErrEndIndexOutOfRange   = fmt.Errorf("EndIndexOutOfRange()")
-	ErrERC721IncorrectOwner = fmt.Errorf(
+	ErrArrayLengthMismatch  = errors.New("ArrayLengthMismatch()")
+	ErrDeployFailed         = errors.New("DeployFailed()")
+	ErrEmptyAdmins          = errors.New("EmptyAdmins()")
+	ErrEmptyArray           = errors.New("EmptyArray()")
+	ErrEmptyBytecode        = errors.New("EmptyBytecode()")
+	ErrEmptyCode            = errors.New("EmptyCode(address)")
+	ErrEndIndexOutOfRange   = errors.New("EndIndexOutOfRange()")
+	ErrERC721IncorrectOwner = errors.New(
 		"ERC721IncorrectOwner(address,uint256,address)",
 	)
-	ErrERC721InsufficientApproval = fmt.Errorf(
+	ErrERC721InsufficientApproval = errors.New(
 		"ERC721InsufficientApproval(address,uint256)",
 	)
-	ErrERC721InvalidApprover             = fmt.Errorf("ERC721InvalidApprover(address)")
-	ErrERC721InvalidOperator             = fmt.Errorf("ERC721InvalidOperator(address)")
-	ErrERC721InvalidOwner                = fmt.Errorf("ERC721InvalidOwner(address)")
-	ErrERC721InvalidReceiver             = fmt.Errorf("ERC721InvalidReceiver(address)")
-	ErrERC721InvalidSender               = fmt.Errorf("ERC721InvalidSender(address)")
-	ErrFailedToAddNodeToCanonicalNetwork = fmt.Errorf(
-		"FailedToAddNodeToCanonicalNetwork()",
-	)
-	ErrFailedToRemoveNodeFromCanonicalNetwork = fmt.Errorf(
+	ErrERC721InvalidApprover                  = errors.New("ERC721InvalidApprover(address)")
+	ErrERC721InvalidOperator                  = errors.New("ERC721InvalidOperator(address)")
+	ErrERC721InvalidOwner                     = errors.New("ERC721InvalidOwner(address)")
+	ErrERC721InvalidReceiver                  = errors.New("ERC721InvalidReceiver(address)")
+	ErrERC721InvalidSender                    = errors.New("ERC721InvalidSender(address)")
+	ErrFailedToAddNodeToCanonicalNetwork      = errors.New("FailedToAddNodeToCanonicalNetwork()")
+	ErrFailedToRemoveNodeFromCanonicalNetwork = errors.New(
 		"FailedToRemoveNodeFromCanonicalNetwork()",
 	)
-	ErrFromIndexOutOfRange  = fmt.Errorf("FromIndexOutOfRange()")
-	ErrInitializationFailed = fmt.Errorf("InitializationFailed(bytes)")
-	ErrInsufficientBalance  = fmt.Errorf("InsufficientBalance()")
-	ErrInsufficientDeposit  = fmt.Errorf(
-		"InsufficientDeposit(uint96,uint96)",
-	)
-	ErrInsufficientSignatures = fmt.Errorf(
-		"InsufficientSignatures(uint8,uint8)",
-	)
-	ErrInvalidBitCount32Input = fmt.Errorf("InvalidBitCount32Input()")
-	ErrInvalidHTTPAddress     = fmt.Errorf("InvalidHttpAddress()")
-	ErrInvalidImplementation  = fmt.Errorf("InvalidImplementation()")
-	ErrInvalidLeafCount       = fmt.Errorf("InvalidLeafCount()")
-	ErrInvalidMaxPayloadSize  = fmt.Errorf("InvalidMaxPayloadSize()")
-	ErrInvalidMinPayloadSize  = fmt.Errorf("InvalidMinPayloadSize()")
-	ErrInvalidOwner           = fmt.Errorf("InvalidOwner()")
-	ErrInvalidPayloadSize     = fmt.Errorf(
+	ErrFromIndexOutOfRange    = errors.New("FromIndexOutOfRange()")
+	ErrInitializationFailed   = errors.New("InitializationFailed(bytes)")
+	ErrInsufficientBalance    = errors.New("InsufficientBalance()")
+	ErrInsufficientDeposit    = errors.New("InsufficientDeposit(uint96,uint96)")
+	ErrInsufficientSignatures = errors.New("InsufficientSignatures(uint8,uint8)")
+	ErrInvalidBitCount32Input = errors.New("InvalidBitCount32Input()")
+	ErrInvalidHTTPAddress     = errors.New("InvalidHttpAddress()")
+	ErrInvalidImplementation  = errors.New("InvalidImplementation()")
+	ErrInvalidLeafCount       = errors.New("InvalidLeafCount()")
+	ErrInvalidMaxPayloadSize  = errors.New("InvalidMaxPayloadSize()")
+	ErrInvalidMinPayloadSize  = errors.New("InvalidMinPayloadSize()")
+	ErrInvalidOwner           = errors.New("InvalidOwner()")
+	ErrInvalidPayloadSize     = errors.New(
 		"InvalidPayloadSize(uint256,uint256,uint256)",
 	)
-	ErrInvalidProof            = fmt.Errorf("InvalidProof()")
-	ErrInvalidProtocolFeeRate  = fmt.Errorf("InvalidProtocolFeeRate()")
-	ErrInvalidSequenceIDs      = fmt.Errorf("InvalidSequenceIds()")
-	ErrInvalidSigningPublicKey = fmt.Errorf("InvalidSigningPublicKey()")
-	ErrInvalidStartSequenceID  = fmt.Errorf(
-		"InvalidStartSequenceId(uint64,uint64)",
-	)
-	ErrInvalidURI                         = fmt.Errorf("InvalidURI()")
-	ErrMaxCanonicalNodesBelowCurrentCount = fmt.Errorf(
-		"MaxCanonicalNodesBelowCurrentCount()",
-	)
-	ErrMaxCanonicalNodesReached = fmt.Errorf("MaxCanonicalNodesReached()")
-	ErrMaxNodesReached          = fmt.Errorf("MaxNodesReached()")
-	ErrMigrationFailed          = fmt.Errorf(
-		"MigrationFailed(address,bytes)",
-	)
-	ErrNoChainIds          = fmt.Errorf("NoChainIds()")
-	ErrNoChange            = fmt.Errorf("NoChange()")
-	ErrNoExcess            = fmt.Errorf("NoExcess()")
-	ErrNoFeesOwed          = fmt.Errorf("NoFeesOwed()")
-	ErrNoKeyComponents     = fmt.Errorf("NoKeyComponents()")
-	ErrNoKeys              = fmt.Errorf("NoKeys()")
-	ErrNoLeaves            = fmt.Errorf("NoLeaves()")
-	ErrNoPendingWithdrawal = fmt.Errorf("NoPendingWithdrawal()")
-	ErrNoProofElements     = fmt.Errorf("NoProofElements()")
-	ErrNotAdmin            = fmt.Errorf("NotAdmin()")
-	ErrNotInPayerReport    = fmt.Errorf(
-		"NotInPayerReport(uint32,uint256)",
-	)
-	ErrNotNodeOwner                = fmt.Errorf("NotNodeOwner()")
-	ErrNotPaused                   = fmt.Errorf("NotPaused()")
-	ErrNotPayloadBootstrapper      = fmt.Errorf("NotPayloadBootstrapper()")
-	ErrNotSettlementChainGateway   = fmt.Errorf("NotSettlementChainGateway()")
-	ErrNotSettler                  = fmt.Errorf("NotSettler()")
-	ErrParameterOutOfTypeBounds    = fmt.Errorf("ParameterOutOfTypeBounds()")
-	ErrPaused                      = fmt.Errorf("Paused()")
-	ErrPayerFeesLengthTooLong      = fmt.Errorf("PayerFeesLengthTooLong()")
-	ErrPayerInDebt                 = fmt.Errorf("PayerInDebt()")
-	ErrPayerReportEntirelySettled  = fmt.Errorf("PayerReportEntirelySettled()")
-	ErrPayerReportIndexOutOfBounds = fmt.Errorf("PayerReportIndexOutOfBounds()")
-	ErrPayerReportNotSettled       = fmt.Errorf(
-		"PayerReportNotSettled(uint32,uint256)",
-	)
-	ErrPendingWithdrawalExists = fmt.Errorf("PendingWithdrawalExists()")
-	ErrTransferFailed          = fmt.Errorf("TransferFailed()")
-	ErrTransferFromFailed      = fmt.Errorf("TransferFromFailed()")
-	ErrUnorderedNodeIDs        = fmt.Errorf("UnorderedNodeIds()")
-	ErrUnsupportedChainID      = fmt.Errorf("UnsupportedChainId(uint256)")
-	ErrWithdrawalNotReady      = fmt.Errorf(
-		"WithdrawalNotReady(uint32,uint32)",
-	)
-	ErrZeroAdmin                  = fmt.Errorf("ZeroAdmin()")
-	ErrZeroAmount                 = fmt.Errorf("ZeroAmount()")
-	ErrZeroAppChainID             = fmt.Errorf("ZeroAppChainId()")
-	ErrZeroAppChainGateway        = fmt.Errorf("ZeroAppChainGateway()")
-	ErrZeroAvailableBalance       = fmt.Errorf("ZeroAvailableBalance()")
-	ErrZeroBalance                = fmt.Errorf("ZeroBalance()")
-	ErrZeroCount                  = fmt.Errorf("ZeroCount()")
-	ErrZeroFeeDistributor         = fmt.Errorf("ZeroFeeDistributor()")
-	ErrZeroFeeToken               = fmt.Errorf("ZeroFeeToken()")
-	ErrZeroImplementation         = fmt.Errorf("ZeroImplementation()")
-	ErrZeroMigrator               = fmt.Errorf("ZeroMigrator()")
-	ErrZeroMinimumDeposit         = fmt.Errorf("ZeroMinimumDeposit()")
-	ErrZeroNodeRegistry           = fmt.Errorf("ZeroNodeRegistry()")
-	ErrZeroPayer                  = fmt.Errorf("ZeroPayer()")
-	ErrZeroPayerRegistry          = fmt.Errorf("ZeroPayerRegistry()")
-	ErrZeroPayerReportManager     = fmt.Errorf("ZeroPayerReportManager()")
-	ErrZeroParameterRegistry      = fmt.Errorf("ZeroParameterRegistry()")
-	ErrZeroRecipient              = fmt.Errorf("ZeroRecipient()")
-	ErrZeroSettlementChainGateway = fmt.Errorf("ZeroSettlementChainGateway()")
-	ErrZeroSettler                = fmt.Errorf("ZeroSettler()")
-	ErrZeroTotalAmount            = fmt.Errorf("ZeroTotalAmount()")
-	ErrZeroUnderlying             = fmt.Errorf("ZeroUnderlying()")
-	ErrZeroWithdrawalAmount       = fmt.Errorf("ZeroWithdrawalAmount()")
+	ErrInvalidProof                       = errors.New("InvalidProof()")
+	ErrInvalidProtocolFeeRate             = errors.New("InvalidProtocolFeeRate()")
+	ErrInvalidSequenceIDs                 = errors.New("InvalidSequenceIds()")
+	ErrInvalidSigningPublicKey            = errors.New("InvalidSigningPublicKey()")
+	ErrInvalidStartSequenceID             = errors.New("InvalidStartSequenceId(uint64,uint64)")
+	ErrInvalidURI                         = errors.New("InvalidURI()")
+	ErrMaxCanonicalNodesBelowCurrentCount = errors.New("MaxCanonicalNodesBelowCurrentCount()")
+	ErrMaxCanonicalNodesReached           = errors.New("MaxCanonicalNodesReached()")
+	ErrMaxNodesReached                    = errors.New("MaxNodesReached()")
+	ErrMigrationFailed                    = errors.New("MigrationFailed(address,bytes)")
+	ErrNoChainIds                         = errors.New("NoChainIds()")
+	ErrNoChange                           = errors.New("NoChange()")
+	ErrNoExcess                           = errors.New("NoExcess()")
+	ErrNoFeesOwed                         = errors.New("NoFeesOwed()")
+	ErrNoKeyComponents                    = errors.New("NoKeyComponents()")
+	ErrNoKeys                             = errors.New("NoKeys()")
+	ErrNoLeaves                           = errors.New("NoLeaves()")
+	ErrNoPendingWithdrawal                = errors.New("NoPendingWithdrawal()")
+	ErrNoProofElements                    = errors.New("NoProofElements()")
+	ErrNotAdmin                           = errors.New("NotAdmin()")
+	ErrNotInPayerReport                   = errors.New("NotInPayerReport(uint32,uint256)")
+	ErrNotNodeOwner                       = errors.New("NotNodeOwner()")
+	ErrNotPaused                          = errors.New("NotPaused()")
+	ErrNotPayloadBootstrapper             = errors.New("NotPayloadBootstrapper()")
+	ErrNotSettlementChainGateway          = errors.New("NotSettlementChainGateway()")
+	ErrNotSettler                         = errors.New("NotSettler()")
+	ErrParameterOutOfTypeBounds           = errors.New("ParameterOutOfTypeBounds()")
+	ErrPaused                             = errors.New("Paused()")
+	ErrPayerFeesLengthTooLong             = errors.New("PayerFeesLengthTooLong()")
+	ErrPayerInDebt                        = errors.New("PayerInDebt()")
+	ErrPayerReportEntirelySettled         = errors.New("PayerReportEntirelySettled()")
+	ErrPayerReportIndexOutOfBounds        = errors.New("PayerReportIndexOutOfBounds()")
+	ErrPayerReportNotSettled              = errors.New("PayerReportNotSettled(uint32,uint256)")
+	ErrPendingWithdrawalExists            = errors.New("PendingWithdrawalExists()")
+	ErrTransferFailed                     = errors.New("TransferFailed()")
+	ErrTransferFromFailed                 = errors.New("TransferFromFailed()")
+	ErrUnorderedNodeIDs                   = errors.New("UnorderedNodeIds()")
+	ErrUnsupportedChainID                 = errors.New("UnsupportedChainId(uint256)")
+	ErrWithdrawalNotReady                 = errors.New("WithdrawalNotReady(uint32,uint32)")
+	ErrZeroAdmin                          = errors.New("ZeroAdmin()")
+	ErrZeroAmount                         = errors.New("ZeroAmount()")
+	ErrZeroAppChainID                     = errors.New("ZeroAppChainId()")
+	ErrZeroAppChainGateway                = errors.New("ZeroAppChainGateway()")
+	ErrZeroAvailableBalance               = errors.New("ZeroAvailableBalance()")
+	ErrZeroBalance                        = errors.New("ZeroBalance()")
+	ErrZeroCount                          = errors.New("ZeroCount()")
+	ErrZeroFeeDistributor                 = errors.New("ZeroFeeDistributor()")
+	ErrZeroFeeToken                       = errors.New("ZeroFeeToken()")
+	ErrZeroImplementation                 = errors.New("ZeroImplementation()")
+	ErrZeroMigrator                       = errors.New("ZeroMigrator()")
+	ErrZeroMinimumDeposit                 = errors.New("ZeroMinimumDeposit()")
+	ErrZeroNodeRegistry                   = errors.New("ZeroNodeRegistry()")
+	ErrZeroPayer                          = errors.New("ZeroPayer()")
+	ErrZeroPayerRegistry                  = errors.New("ZeroPayerRegistry()")
+	ErrZeroPayerReportManager             = errors.New("ZeroPayerReportManager()")
+	ErrZeroParameterRegistry              = errors.New("ZeroParameterRegistry()")
+	ErrZeroRecipient                      = errors.New("ZeroRecipient()")
+	ErrZeroSettlementChainGateway         = errors.New("ZeroSettlementChainGateway()")
+	ErrZeroSettler                        = errors.New("ZeroSettler()")
+	ErrZeroTotalAmount                    = errors.New("ZeroTotalAmount()")
+	ErrZeroUnderlying                     = errors.New("ZeroUnderlying()")
+	ErrZeroWithdrawalAmount               = errors.New("ZeroWithdrawalAmount()")
 
 	protocolErrorsDictionary = map[string]error{
 		"0x3c355a89": ErrAlreadyClaimed,
@@ -227,9 +206,9 @@ var (
 		"0xbd512241": ErrZeroWithdrawalAmount,
 	}
 
-	ErrCodeNotFound = fmt.Errorf("error message does not contain a valid error code")
-	ErrCodeNotInDic = fmt.Errorf("code not found in protocol errors dictionary")
-	ErrCompileRegex = fmt.Errorf("error compiling regex")
+	ErrCodeNotFound = errors.New("error message does not contain a valid error code")
+	ErrCodeNotInDic = errors.New("code not found in protocol errors dictionary")
+	ErrCompileRegex = errors.New("error compiling regex")
 )
 
 type ProtocolError interface {
@@ -262,9 +241,9 @@ func NewBlockchainError(originalErr error) *BlockchainError {
 }
 
 func (e BlockchainError) Error() string {
-	if e.protocolErr == nil || e.protocolErr == ErrCodeNotFound ||
-		e.protocolErr == ErrCodeNotInDic ||
-		e.protocolErr == ErrCompileRegex {
+	if e.protocolErr == nil || errors.Is(e.protocolErr, ErrCodeNotFound) ||
+		errors.Is(e.protocolErr, ErrCodeNotInDic) ||
+		errors.Is(e.protocolErr, ErrCompileRegex) {
 		return e.originalErr.Error()
 	}
 

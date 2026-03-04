@@ -10,7 +10,7 @@ The new node operator will provide the xmtpd dev team with their node's public k
 
 Prompt them to ensure that the public key and address are correct as they are immutable and can't be changed in the future.
 
-Only members of `@ephemerahq/backend` can currently register nodes.
+Only members of `@xmtp/backend` can currently register nodes.
 
 ```bash
 export XMTPD_SETTLEMENT_CHAIN_WSS_URL="https://xmtp-testnet.g.alchemy.com/v2/<apikey>"
@@ -42,4 +42,4 @@ Once you've confirmed that their node is registered, let the node operator know.
 You can provide them with the following links:
 
 - Take the next step in deploying your node to the XMTP testnet: [Step 3: Set up dependencies](https://github.com/xmtp/xmtpd-infrastructure/blob/main/helm/README.md#step-3-set-up-dependencies)
-- Optionally, you can use Kubernetes and Prometheus to set up observability: [Set up Prometheus service discovery for xmtpd in Kubernetes using Helm](/doc/k8s-prometheus-monitoring.md)
+- Optionally, you can use Kubernetes and Prometheus to set up observability: Set up Prometheus service discovery for xmtpd in Kubernetes using Helm

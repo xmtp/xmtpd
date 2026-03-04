@@ -1,7 +1,7 @@
 with-expecter: True
 mockname: "Mock{{.InterfaceName}}"
 outpkg: "{{.PackageName}}"
-dir: "pkg/mocks/{{.PackageName}}"
+dir: "pkg/testutils/mocks/{{.PackageName}}"
 filename: "mock_{{.InterfaceName}}.go"
 packages:
   github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api:

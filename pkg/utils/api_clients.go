@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api/payer_apiconnect"
@@ -25,7 +27,6 @@ import (
 // For metadata and gateway APIs, only the base client is provided, and the consumer has to specify the api options.
 
 const (
-	maxMessageSize  = 25 * 1024 * 1024
 	readIdleTimeout = 10 * time.Second
 	pingTimeout     = 30 * time.Second
 	clientTimeout   = 10 * time.Second
@@ -171,8 +172,8 @@ func NewGRPCConn(
 
 	dialOptions := append([]grpc.DialOption{
 		grpc.WithDefaultCallOptions(
-			grpc.MaxCallSendMsgSize(maxMessageSize),
-			grpc.MaxCallRecvMsgSize(maxMessageSize),
+			grpc.MaxCallSendMsgSize(constants.GRPCPayloadLimit),
+			grpc.MaxCallRecvMsgSize(constants.GRPCPayloadLimit),
 		),
 	}, extraDialOpts...)
 
@@ -338,8 +339,8 @@ func HTTPAddressToConnectProtocolTarget(httpAddress string) (target string, isTL
 func getBaseDialOptions(extraDialOpts ...connect.ClientOption) []connect.ClientOption {
 	// TODO: Extend with compression options?
 	return append([]connect.ClientOption{
-		connect.WithReadMaxBytes(maxMessageSize),
-		connect.WithSendMaxBytes(maxMessageSize),
+		connect.WithReadMaxBytes(constants.GRPCPayloadLimit),
+		connect.WithSendMaxBytes(constants.GRPCPayloadLimit),
 		connect.WithSendGzip(),
 	}, extraDialOpts...)
 }
@@ -349,11 +350,11 @@ func getBaseDialOptions(extraDialOpts ...connect.ClientOption) []connect.ClientO
 func buildTLSConfig() (*tls.Config, error) {
 	certPool, err := x509.SystemCertPool()
 	if err != nil {
-		return nil, fmt.Errorf("failed to load system CA certificates: %v", err)
+		return nil, fmt.Errorf("failed to load system CA certificates: %w", err)
 	}
 
 	if certPool == nil {
-		return nil, fmt.Errorf("no system CA certificates available")
+		return nil, errors.New("no system CA certificates available")
 	}
 
 	return &tls.Config{

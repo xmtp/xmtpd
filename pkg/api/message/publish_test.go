@@ -45,7 +45,7 @@ func TestPublishEnvelope(t *testing.T) {
 	require.NoError(
 		t,
 		proto.Unmarshal(
-			resp.Msg.OriginatorEnvelopes[0].GetUnsignedOriginatorEnvelope(),
+			resp.Msg.GetOriginatorEnvelopes()[0].GetUnsignedOriginatorEnvelope(),
 			unsignedEnv,
 		),
 	)
@@ -62,7 +62,7 @@ func TestPublishEnvelope(t *testing.T) {
 		proto.Unmarshal(payerEnv.GetUnsignedClientEnvelope(), clientEnv),
 	)
 
-	_, err = topic.ParseTopic(clientEnv.Aad.GetTargetTopic())
+	_, err = topic.ParseTopic(clientEnv.GetAad().GetTargetTopic())
 	require.NoError(t, err)
 
 	// Check that the envelope was published to the database after a delay
@@ -77,7 +77,7 @@ func TestPublishEnvelope(t *testing.T) {
 
 		originatorEnv := &envelopes.OriginatorEnvelope{}
 		require.NoError(t, proto.Unmarshal(envs[0].OriginatorEnvelope, originatorEnv))
-		return proto.Equal(originatorEnv, resp.Msg.OriginatorEnvelopes[0])
+		return proto.Equal(originatorEnv, resp.Msg.GetOriginatorEnvelopes()[0])
 	}, 500*time.Millisecond, 50*time.Millisecond)
 }
 
@@ -181,7 +181,7 @@ func TestKeyPackageValidationSuccess(t *testing.T) {
 			},
 		}),
 	)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.NotNil(t, resp.Msg)
 }
@@ -324,7 +324,7 @@ func TestPublishEnvelopeFees(t *testing.T) {
 	require.NotNil(t, resp)
 	require.NotNil(t, resp.Msg)
 
-	returnedEnv, err := envelopeUtils.NewOriginatorEnvelope(resp.Msg.OriginatorEnvelopes[0])
+	returnedEnv, err := envelopeUtils.NewOriginatorEnvelope(resp.Msg.GetOriginatorEnvelopes()[0])
 	require.NoError(t, err)
 
 	// BaseFee will always be > 0
@@ -337,7 +337,7 @@ func TestPublishEnvelopeFees(t *testing.T) {
 	envs, err := queries.New(suite.DB).
 		SelectGatewayEnvelopesUnfiltered(context.Background(), queries.SelectGatewayEnvelopesUnfilteredParams{})
 	require.NoError(t, err)
-	require.Equal(t, len(envs), 1)
+	require.Len(t, envs, 1)
 
 	originatorEnv, err := envelopeUtils.NewOriginatorEnvelopeFromBytes(envs[0].OriginatorEnvelope)
 	require.NoError(t, err)
@@ -386,7 +386,7 @@ func TestPublishEnvelopeFeesReservedTopic(t *testing.T) {
 	_, err = querier.InsertStagedOriginatorEnvelope(
 		context.Background(),
 		queries.InsertStagedOriginatorEnvelopeParams{
-			Topic:         clientEnv.Aad.TargetTopic,
+			Topic:         clientEnv.GetAad().GetTargetTopic(),
 			PayerEnvelope: payerEnvelopeBytes,
 		},
 	)
@@ -546,7 +546,7 @@ func TestPublishEnvelopeBatchPublish(t *testing.T) {
 	require.NotNil(t, resp)
 	require.NotNil(t, resp.Msg)
 
-	require.Len(t, resp.Msg.OriginatorEnvelopes, 3)
+	require.Len(t, resp.Msg.GetOriginatorEnvelopes(), 3)
 
 	require.Eventually(t, func() bool {
 		envs, err := queries.New(suite.DB).
@@ -598,5 +598,5 @@ func TestPublishEnvelopeBatchPublishNoPartialError(t *testing.T) {
 	envs, err := queries.New(suite.DB).
 		SelectGatewayEnvelopesUnfiltered(context.Background(), queries.SelectGatewayEnvelopesUnfilteredParams{})
 	require.NoError(t, err)
-	require.Len(t, envs, 0)
+	require.Empty(t, envs)
 }

@@ -21,7 +21,7 @@ func NewClientEnvelope(proto *envelopesProto.ClientEnvelope) (*ClientEnvelope, e
 		return nil, errors.New("client envelope proto is nil")
 	}
 
-	if proto.Aad == nil {
+	if proto.GetAad() == nil {
 		return nil, errors.New("aad is missing")
 	}
 
@@ -29,7 +29,7 @@ func NewClientEnvelope(proto *envelopesProto.ClientEnvelope) (*ClientEnvelope, e
 		return nil, errors.New("payload is missing")
 	}
 
-	targetTopic, err := topic.ParseTopic(proto.Aad.TargetTopic)
+	targetTopic, err := topic.ParseTopic(proto.GetAad().GetTargetTopic())
 	if err != nil {
 		return nil, err
 	}
@@ -58,11 +58,11 @@ func (c *ClientEnvelope) TargetTopic() topic.Topic {
 }
 
 func (c *ClientEnvelope) Payload() any {
-	return c.proto.Payload
+	return c.proto.GetPayload()
 }
 
 func (c *ClientEnvelope) Aad() *envelopesProto.AuthenticatedData {
-	return c.proto.Aad
+	return c.proto.GetAad()
 }
 
 func (c *ClientEnvelope) Proto() *envelopesProto.ClientEnvelope {
@@ -72,7 +72,7 @@ func (c *ClientEnvelope) Proto() *envelopesProto.ClientEnvelope {
 func (c *ClientEnvelope) TopicMatchesPayload() bool {
 	targetTopic := c.TargetTopic()
 	targetTopicKind := targetTopic.Kind()
-	payload := c.proto.Payload
+	payload := c.proto.GetPayload()
 
 	switch payload.(type) {
 	case *envelopesProto.ClientEnvelope_WelcomeMessage:

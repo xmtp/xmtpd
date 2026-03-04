@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/merkle"
 )
 
@@ -1384,9 +1385,9 @@ func TestHashRoot(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := merkle.HashRoot(tt.leafCount, tt.root)
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				if !bytes.Equal(result, tt.expected) {
 					t.Errorf(
 						"HashRoot of %d and %d = %d, expected %d",
@@ -1648,9 +1649,9 @@ func TestIntToBytes32(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := merkle.IntToBytes32(tt.input)
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				if !bytes.Equal(result, tt.expected) {
 					t.Errorf(
 						"IntToBytes32 of %d = %d, expected %d",

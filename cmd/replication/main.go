@@ -3,6 +3,7 @@ package main
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/db"
+	"github.com/xmtp/xmtpd/pkg/db/worker"
 	"github.com/xmtp/xmtpd/pkg/debug"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/registry"
@@ -33,10 +35,11 @@ var options config.ServerOptions
 func main() {
 	_, err := flags.Parse(&options)
 	if err != nil {
-		if err, ok := err.(*flags.Error); !ok || err.Type != flags.ErrHelp {
-			fatal("could not parse options: %s", err)
+		var flagsErr *flags.Error
+		if errors.As(err, &flagsErr) && flagsErr.Type == flags.ErrHelp {
+			return
 		}
-		return
+		fatal("could not parse options: %s", err)
 	}
 
 	if Version == "" {
@@ -57,7 +60,7 @@ func main() {
 	}
 
 	logger = logger.Named(utils.BaseLoggerName)
-	logger.Info(fmt.Sprintf("version: %s", Version))
+	logger.Info("version: " + Version)
 
 	version, err := semver.NewVersion(Version)
 	if err != nil {
@@ -163,6 +166,12 @@ func main() {
 			}
 
 			dbh = db.NewDBHandler(writeDB, dbopts...)
+
+			// Start a database worker in the background.
+			err = worker.NewWorker(logger, dbh).Start(ctx)
+			if err != nil {
+				logger.Fatal("could not start database background worker", zap.Error(err))
+			}
 		}
 
 		settlementChainClient, err := blockchain.NewRPCClient(

@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/abi/rateregistry"
 	"github.com/xmtp/xmtpd/pkg/currency"
-	feesMock "github.com/xmtp/xmtpd/pkg/mocks/fees"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	feesMock "github.com/xmtp/xmtpd/pkg/testutils/mocks/fees"
 )
 
 const testPageSize = 5

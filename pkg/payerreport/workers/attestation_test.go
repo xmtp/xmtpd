@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
-	payerreportMocks "github.com/xmtp/xmtpd/pkg/mocks/payerreport"
-	registrantMocks "github.com/xmtp/xmtpd/pkg/mocks/registrant"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	payerreportMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/payerreport"
+	registrantMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/registrant"
 )
 
 const originatorNodeID = 100
@@ -113,7 +113,7 @@ func TestFindReport(t *testing.T) {
 
 	reports, err = worker.findReportsNeedingAttestation()
 	require.NoError(t, err)
-	require.Len(t, reports, 0)
+	require.Empty(t, reports)
 }
 
 func TestDontAttestReportsIfSeqIDNotProcessed(t *testing.T) {
@@ -131,7 +131,7 @@ func TestDontAttestReportsIfSeqIDNotProcessed(t *testing.T) {
 
 	reports, err := worker.findReportsNeedingAttestation()
 	require.NoError(t, err)
-	require.Len(t, reports, 0)
+	require.Empty(t, reports)
 }
 
 // TestDontAttestReportsInNonPendingStates covers the following states:
@@ -238,7 +238,7 @@ func TestDontAttestReportsInNonPendingStates(t *testing.T) {
 			require.NoError(t, err)
 
 			// Every single case should not find any reports needing attestation.
-			require.Len(t, reports, 0)
+			require.Empty(t, reports)
 
 			got, err := store.FetchReport(t.Context(), stored.ID)
 			require.NoError(t, err)

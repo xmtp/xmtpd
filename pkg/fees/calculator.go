@@ -2,6 +2,7 @@ package fees
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -42,12 +43,12 @@ func (c *FeeCalculator) CalculateBaseFee(
 	// Calculate storage fee components separately to check for overflow
 	storageFeePerByte := rates.StorageFee * currency.PicoDollar(messageSize)
 	if storageFeePerByte/currency.PicoDollar(messageSize) != rates.StorageFee {
-		return 0, fmt.Errorf("storage fee calculation overflow")
+		return 0, errors.New("storage fee calculation overflow")
 	}
 
 	totalStorageFee := storageFeePerByte * currency.PicoDollar(storageDurationDays)
 	if totalStorageFee/currency.PicoDollar(storageDurationDays) != storageFeePerByte {
-		return 0, fmt.Errorf("storage fee calculation overflow")
+		return 0, errors.New("storage fee calculation overflow")
 	}
 
 	return rates.MessageFee + totalStorageFee, nil
@@ -89,7 +90,7 @@ func (c *FeeCalculator) CalculateCongestionFee(
 
 	result := rates.CongestionFee * currency.PicoDollar(congestionUnits)
 	if result/currency.PicoDollar(congestionUnits) != rates.CongestionFee {
-		return 0, fmt.Errorf("congestion fee calculation overflow")
+		return 0, errors.New("congestion fee calculation overflow")
 	}
 	return result, nil
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/mock"
 	c "github.com/xmtp/xmtpd/pkg/indexer/common"
-	indexerMocks "github.com/xmtp/xmtpd/pkg/mocks/common"
+	indexerMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/common"
 	errorMocks "github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 	"go.uber.org/zap"
 )

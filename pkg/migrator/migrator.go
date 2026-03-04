@@ -159,12 +159,12 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 
 	payerPrivateKey, err := utils.ParseEcdsaPrivateKey(cfg.options.PayerPrivateKey)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse payer private key: %v", err)
+		return nil, fmt.Errorf("unable to parse payer private key: %w", err)
 	}
 
 	nodeSigningKey, err := utils.ParseEcdsaPrivateKey(cfg.options.NodeSigningKey)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse node signing key: %v", err)
+		return nil, fmt.Errorf("unable to parse node signing key: %w", err)
 	}
 
 	logger := cfg.logger.Named(utils.MigratorLoggerName)
@@ -184,15 +184,45 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 
 	readDB := db.NewDBHandler(reader, db.WithReadReplica(reader))
 
+	logger.Info(
+		"running migration service with lower limits configured as",
+		zap.Int64(
+			string(config.MigrationSourceGroupMessages),
+			cfg.options.LowerLimits.Get(config.MigrationSourceGroupMessages),
+		),
+		zap.Int64(
+			string(config.MigrationSourceKeyPackages),
+			cfg.options.LowerLimits.Get(config.MigrationSourceKeyPackages),
+		),
+		zap.Int64(
+			string(config.MigrationSourceWelcomeMessages),
+			cfg.options.LowerLimits.Get(config.MigrationSourceWelcomeMessages),
+		),
+		zap.Int64(
+			string(config.MigrationSourceInboxLog),
+			cfg.options.LowerLimits.Get(config.MigrationSourceInboxLog),
+		),
+		zap.Int64(
+			string(config.MigrationSourceCommitMessages),
+			cfg.options.LowerLimits.Get(config.MigrationSourceCommitMessages),
+		),
+	)
+
 	readers := map[string]ISourceReader{
-		groupMessagesTableName: NewGroupMessageReader(readDB.DB(), cfg.options.StartDate.Unix()),
-		inboxLogTableName:      NewInboxLogReader(readDB.DB(), cfg.options.StartDate.UnixNano()),
-		keyPackagesTableName:   NewKeyPackageReader(readDB.DB()),
+		groupMessagesTableName: NewGroupMessageReader(
+			readDB.DB(),
+			cfg.options.LowerLimits.Get(config.MigrationSourceGroupMessages),
+		),
+		inboxLogTableName: NewInboxLogReader(readDB.DB()),
+		keyPackagesTableName: NewKeyPackageReader(
+			readDB.DB(),
+			cfg.options.LowerLimits.Get(config.MigrationSourceKeyPackages),
+		),
 		welcomeMessagesTableName: NewWelcomeMessageReader(
 			readDB.DB(),
-			cfg.options.StartDate.Unix(),
+			cfg.options.LowerLimits.Get(config.MigrationSourceWelcomeMessages),
 		),
-		commitMessagesTableName: NewCommitMessageReader(readDB.DB(), cfg.options.StartDate.Unix()),
+		commitMessagesTableName: NewCommitMessageReader(readDB.DB()),
 	}
 
 	transformer := NewTransformer(cfg.feeCalculator, payerPrivateKey, nodeSigningKey)
@@ -232,7 +262,7 @@ func (m *Migrator) Start() error {
 	defer m.mu.Unlock()
 
 	if m.running.Swap(true) {
-		return fmt.Errorf("migration service is already running")
+		return errors.New("migration service is already running")
 	}
 
 	if err := m.startKeyPackagesWorker(); err != nil {
@@ -265,7 +295,7 @@ func (m *Migrator) Stop() error {
 	defer m.mu.Unlock()
 
 	if !m.running.Swap(false) {
-		return fmt.Errorf("migration service is not running")
+		return errors.New("migration service is not running")
 	}
 
 	m.cancel()
@@ -315,7 +345,10 @@ func (m *Migrator) startWelcomeMessagesWorker() error {
 		m.pollInterval,
 	)
 
-	if err := welcomeMessagesWorker.StartReader(m.ctx, m.readers[welcomeMessagesTableName]); err != nil {
+	if err := welcomeMessagesWorker.StartReader(
+		m.ctx,
+		m.readers[welcomeMessagesTableName],
+	); err != nil {
 		return err
 	}
 
@@ -340,7 +373,10 @@ func (m *Migrator) startGroupMessagesWorker() error {
 		m.pollInterval,
 	)
 
-	if err := groupMessagesWorker.StartReader(m.ctx, m.readers[groupMessagesTableName]); err != nil {
+	if err := groupMessagesWorker.StartReader(
+		m.ctx,
+		m.readers[groupMessagesTableName],
+	); err != nil {
 		return err
 	}
 
@@ -365,7 +401,10 @@ func (m *Migrator) startCommitMessagesWorker() error {
 		m.pollInterval,
 	)
 
-	if err := commitMessagesWorker.StartReader(m.ctx, m.readers[commitMessagesTableName]); err != nil {
+	if err := commitMessagesWorker.StartReader(
+		m.ctx,
+		m.readers[commitMessagesTableName],
+	); err != nil {
 		return err
 	}
 

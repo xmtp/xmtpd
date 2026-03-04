@@ -15,6 +15,7 @@ type Rates struct {
 	StorageFee          currency.PicoDollar // The fee per byte-day of storage
 	CongestionFee       currency.PicoDollar // The fee per unit of congestion
 	TargetRatePerMinute uint64              // The target rate per minute for each node
+	StartTime           uint64              // Unix timestamp when these rates become active
 }
 
 // IRatesFetcher is responsible for loading the rates for a given message time.

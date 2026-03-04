@@ -80,7 +80,7 @@ curl http://localhost:8008
 
 The XMTP testnet environment lives in [XMTP Sepolia Chain](https://xmtp-testnet.explorer.alchemy.com/).
 
-The XMTP testnet nodes operated by Ephemera include:
+The XMTP testnet nodes operated by XMTP Labs include:
 
 | DNS name                           | Location   | Public key                                                           |
 | ---------------------------------- | ---------- | -------------------------------------------------------------------- |
@@ -96,28 +96,31 @@ All XMTP binaries (servers and CLI tools) use a unified configuration system for
 Contract configuration can be loaded in three ways (in priority order):
 
 1. **Named Environment** - Use a predefined environment configuration:
+
    ```sh
    # Command line
    xmtpd --contracts.environment=testnet
    xmtpd-cli --environment=testnet
-   
+
    # Environment variable
    export XMTPD_CONTRACTS_ENVIRONMENT=testnet
    ```
+
    Available environments: `testnet`, `mainnet`
 
 2. **Configuration File** - Specify a local file path or URL:
+
    ```sh
    # Local file
    xmtpd --contracts.config-file-path=/path/to/config.json
    xmtpd-cli --config-file=/path/to/config.json
-   
+
    # HTTP(S) URL
    xmtpd --contracts.config-file-path=https://example.com/config.json
-   
+
    # config:// scheme (shorthand for named environments)
    xmtpd-cli --config-file=config://testnet
-   
+
    # Environment variable
    export XMTPD_CONTRACTS_CONFIG_FILE_PATH=/path/to/config.json
    ```
@@ -134,13 +137,13 @@ Contract configuration can be loaded in three ways (in priority order):
 
 All CLI tools now support standardized `XMTPD_` prefixed environment variables for consistency with the server:
 
-| Configuration | CLI Flag | Environment Variable | Legacy Env Var (deprecated) |
-|--------------|----------|---------------------|---------------------------|
-| Log Level | `--log-level` | `XMTPD_LOG_LEVEL` | `LOG_LEVEL` |
-| Log Encoding | `--log-encoding` | `XMTPD_LOG_ENCODING` | `LOG_ENCODING` |
-| Private Key | `--private-key` | `XMTPD_SIGNER_PRIVATE_KEY` | `PRIVATE_KEY` |
-| Settlement RPC | `--settlement-rpc-url` | `XMTPD_SETTLEMENT_CHAIN_RPC_URL` | `SETTLEMENT_RPC_URL` |
-| App Chain RPC | `--app-rpc-url` | `XMTPD_APP_CHAIN_RPC_URL` | `APP_RPC_URL` |
+| Configuration  | CLI Flag               | Environment Variable             | Legacy Env Var (deprecated) |
+| -------------- | ---------------------- | -------------------------------- | --------------------------- |
+| Log Level      | `--log-level`          | `XMTPD_LOG_LEVEL`                | `LOG_LEVEL`                 |
+| Log Encoding   | `--log-encoding`       | `XMTPD_LOG_ENCODING`             | `LOG_ENCODING`              |
+| Private Key    | `--private-key`        | `XMTPD_SIGNER_PRIVATE_KEY`       | `PRIVATE_KEY`               |
+| Settlement RPC | `--settlement-rpc-url` | `XMTPD_SETTLEMENT_CHAIN_RPC_URL` | `SETTLEMENT_RPC_URL`        |
+| App Chain RPC  | `--app-rpc-url`        | `XMTPD_APP_CHAIN_RPC_URL`        | `APP_RPC_URL`               |
 
 **Backward Compatibility:** Legacy environment variables are still supported but will print deprecation warnings. Please migrate to the new standardized names.
 

@@ -30,8 +30,8 @@ func TestGetReaderNode(t *testing.T) {
 			},
 			wantErr: false,
 			checkResponse: func(t *testing.T, resp *payer_api.GetNodesResponse) {
-				require.NotEmpty(t, resp.Nodes)
-				require.Len(t, resp.Nodes, 4)
+				require.NotEmpty(t, resp.GetNodes())
+				require.Len(t, resp.GetNodes(), 4)
 			},
 		},
 		{
@@ -59,8 +59,8 @@ func TestGetReaderNode(t *testing.T) {
 			},
 			wantErr: false,
 			checkResponse: func(t *testing.T, resp *payer_api.GetNodesResponse) {
-				require.NotEmpty(t, resp.Nodes)
-				require.Len(t, resp.Nodes, 1)
+				require.NotEmpty(t, resp.GetNodes())
+				require.Len(t, resp.GetNodes(), 1)
 			},
 		},
 	}

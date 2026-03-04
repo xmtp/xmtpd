@@ -1,6 +1,7 @@
 package authn
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/xmtp/xmtpd/pkg/metrics"
@@ -20,7 +21,7 @@ type ClaimValidator struct {
 
 func NewClaimValidator(logger *zap.Logger, serverVersion *semver.Version) (*ClaimValidator, error) {
 	if serverVersion == nil {
-		return nil, fmt.Errorf("serverVersion is nil")
+		return nil, errors.New("serverVersion is nil")
 	}
 
 	// https://github.com/Masterminds/semver?tab=readme-ov-file#caret-range-comparisons-major

@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -90,7 +91,7 @@ func settlePauseGetHandler(target options.Target) error {
 		}
 		logger.Info("distribution manager pause", zap.Bool("paused", p))
 	default:
-		return fmt.Errorf(
+		return errors.New(
 			"target must be settlement-chain-gateway|payer-registry|distribution-manager",
 		)
 	}
@@ -146,7 +147,7 @@ func settlePauseUpdateHandler(target options.Target) error {
 		}
 		logger.Info("distribution manager pause set updated")
 	default:
-		return fmt.Errorf(
+		return errors.New(
 			"target must be settlement-chain-gateway|payer-registry|distribution-manager",
 		)
 	}

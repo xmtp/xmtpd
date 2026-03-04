@@ -145,15 +145,7 @@ func (s *subscribeWorker) start() {
 
 			s.logger.Debug("received new batch", utils.NumEnvelopesField(len(batch)))
 
-			envs := make([]*envelopes.OriginatorEnvelope, 0, len(batch))
-			for _, row := range batch {
-				env, err := envelopes.NewOriginatorEnvelopeFromBytes(row.OriginatorEnvelope)
-				if err != nil {
-					s.logger.Error("failed to unmarshal envelope", zap.Error(err))
-					continue
-				}
-				envs = append(envs, env)
-			}
+			envs := unmarshalEnvelopes(batch, s.logger)
 			s.dispatchToOriginators(envs)
 			s.dispatchToTopics(envs)
 			s.dispatchToEmpties()
@@ -246,7 +238,7 @@ func (s *subscribeWorker) dispatchToListeners(
 		select {
 		case <-l.ctx.Done():
 			if s.logger.Core().Enabled(zap.DebugLevel) {
-				s.logger.Debug("stream closed, removing listener", utils.BodyField(l.ch))
+				s.logger.Debug("stream closed, removing listener")
 			}
 
 			s.closeListener(l)

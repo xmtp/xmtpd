@@ -11,6 +11,7 @@ type APIOptions struct {
 	Enable                bool          `long:"enable"                   env:"XMTPD_API_ENABLE"                   description:"Enable the client API"`
 	SendKeepAliveInterval time.Duration `long:"send-keep-alive-interval" env:"XMTPD_API_SEND_KEEP_ALIVE_INTERVAL" description:"Send empty application level keepalive package interval" default:"30s"`
 	Port                  int           `long:"port"                     env:"XMTPD_API_PORT"                     description:"Port to listen on"                                       default:"5050" short:"p"`
+	OriginatorCacheTTL    time.Duration `long:"originator-cache-ttl"     env:"XMTPD_API_ORIGINATOR_CACHE_TTL"     description:"TTL for originator list cache"                           default:"5m"`
 }
 
 type ContractsOptions struct {
@@ -86,10 +87,12 @@ type PayerOptions struct {
 	PrivateKey string `long:"private-key" env:"XMTPD_PAYER_PRIVATE_KEY" description:"Private key used to sign blockchain transactions"`
 	Enable     bool   `long:"enable"      env:"XMTPD_PAYER_ENABLE"      description:"Enable the payer API"`
 
-	NodeSelectorStrategy       string        `long:"node-selector-strategy"        env:"XMTPD_PAYER_NODE_SELECTOR_STRATEGY"        description:"Node selection strategy"           default:"stable"`
+	NodeSelectorStrategy       string        `long:"node-selector-strategy"        env:"XMTPD_PAYER_NODE_SELECTOR_STRATEGY"        description:"Node selection strategy"                        default:"stable"`
 	NodeSelectorPreferredNodes Uint32Slice   `long:"node-selector-preferred-nodes" env:"XMTPD_PAYER_NODE_SELECTOR_PREFERRED_NODES" description:"Preferred node IDs"`
-	NodeSelectorCacheExpiry    time.Duration `long:"node-selector-cache-expiry"    env:"XMTPD_PAYER_NODE_SELECTOR_CACHE_EXPIRY"    description:"Cache expiry for closest strategy" default:"5m"`
-	NodeSelectorTimeout        time.Duration `long:"node-selector-connect-timeout" env:"XMTPD_PAYER_NODE_SELECTOR_CONNECT_TIMEOUT" description:"Connection timeout"                default:"2s"`
+	NodeSelectorCacheExpiry    time.Duration `long:"node-selector-cache-expiry"    env:"XMTPD_PAYER_NODE_SELECTOR_CACHE_EXPIRY"    description:"Cache expiry for closest strategy"              default:"5m"`
+	NodeSelectorTimeout        time.Duration `long:"node-selector-connect-timeout" env:"XMTPD_PAYER_NODE_SELECTOR_CONNECT_TIMEOUT" description:"Connection timeout"                             default:"2s"`
+	EnvelopePublishTimeout     time.Duration `long:"envelope-publish-timeout"      env:"XMTPD_PAYER_ENVELOPE_PUBLISH_TIMEOUT"      description:"Envelope publish timeout"                       default:"30s"`
+	EnvelopePublishRetries     uint          `long:"envelope-publish-retries"      env:"XMTPD_PAYER_ENVELOPE_PUBLISH_RETRIES"      description:"How many times to retry publishing an envelope" default:"5"`
 }
 
 type ReplicationOptions struct {

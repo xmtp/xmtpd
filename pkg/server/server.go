@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/trace/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
+	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/migrator"
@@ -348,6 +349,10 @@ func NewBaseServer(
 			),
 			sync.WithPayerReportDomainSeparator(domainSeparator),
 			sync.WithClientMetrics(clientMetrics),
+			sync.WithMigration(sync.MigrationConfig{
+				Enable:     cfg.Options.MigrationClient.Enable,
+				FromNodeID: cfg.Options.MigrationClient.FromNodeID,
+			}),
 		)
 		if err != nil {
 			cfg.Logger.Error("failed to initialize sync server", zap.Error(err))
@@ -489,6 +494,9 @@ func startAPIServer(
 			cfg.Options.API,
 			isMigrationEnabled,
 			10*time.Millisecond,
+			db.NewCachedOriginatorList(
+				cfg.DB.ReadQuery(), cfg.Options.API.OriginatorCacheTTL, cfg.Logger,
+			),
 		)
 		if err != nil {
 			return nil, err
@@ -496,11 +504,13 @@ func startAPIServer(
 
 		if replicationService == nil {
 			svc.logger.Error("replication service is nil")
-			return nil, fmt.Errorf("replication service is nil")
+			return nil, errors.New("replication service is nil")
 		}
 
 		replicationPath, replicationHandler := message_apiconnect.NewReplicationApiHandler(
 			replicationService,
+			connect.WithReadMaxBytes(constants.GRPCPayloadLimit),
+			connect.WithSendMaxBytes(constants.GRPCPayloadLimit),
 			connect.WithInterceptors(interceptors...),
 		)
 
@@ -522,11 +532,13 @@ func startAPIServer(
 
 		if metadataService == nil {
 			svc.logger.Error("metadata service is nil")
-			return nil, fmt.Errorf("metadata service is nil")
+			return nil, errors.New("metadata service is nil")
 		}
 
 		metadataPath, metadataHandler := metadata_apiconnect.NewMetadataApiHandler(
 			metadataService,
+			connect.WithReadMaxBytes(constants.GRPCPayloadLimit),
+			connect.WithSendMaxBytes(constants.GRPCPayloadLimit),
 			connect.WithInterceptors(interceptors...),
 		)
 

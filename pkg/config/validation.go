@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -64,6 +65,12 @@ func (v *OptionsValidator) ValidateServerOptions(options *ServerOptions) error {
 		}
 	}
 
+	if options.MigrationServer.Enable {
+		if err := v.validateMigratorOptions(&options.MigrationServer, customSet); err != nil {
+			return err
+		}
+	}
+
 	if len(missingSet) > 0 || len(customSet) > 0 {
 		var errs []string
 		if len(missingSet) > 0 {
@@ -74,7 +81,7 @@ func (v *OptionsValidator) ValidateServerOptions(options *ServerOptions) error {
 			}
 			errs = append(
 				errs,
-				fmt.Sprintf("Missing required arguments: %s", strings.Join(errorMessages, ", ")),
+				"Missing required arguments: "+strings.Join(errorMessages, ", "),
 			)
 		}
 		if len(customSet) > 0 {
@@ -113,7 +120,7 @@ func (v *OptionsValidator) ValidatePruneOptions(options PruneOptions) error {
 	}
 
 	if options.PruneConfig.MaxCycles < 1 {
-		return fmt.Errorf("max-cycles must be greater than 0")
+		return errors.New("max-cycles must be greater than 0")
 	}
 
 	return nil
@@ -381,7 +388,7 @@ func (v *OptionsValidator) validateField(value any, fieldName string, set map[st
 	switch v := value.(type) {
 	case string:
 		if v == "" {
-			set[fmt.Sprintf("--%s", fieldName)] = struct{}{}
+			set["--"+fieldName] = struct{}{}
 		}
 	case int:
 		if v <= 0 {
@@ -514,4 +521,52 @@ func (v *OptionsValidator) validatePayerOptions(
 	}
 
 	return nil
+}
+
+func (v *OptionsValidator) validateMigratorOptions(
+	options *MigrationServerOptions,
+	customSet map[string]struct{},
+) error {
+	if options.LowerLimits.Values == nil {
+		return nil
+	}
+
+	for source, limit := range options.LowerLimits.Values {
+		if _, ok := ValidMigrationSources[MigrationSource(source)]; !ok {
+			customSet[fmt.Sprintf(
+				"--migration-server.lower-limits contains invalid source %q (valid values: %s)",
+				source,
+				validSourcesList(),
+			)] = struct{}{}
+			continue
+		}
+
+		// Validate limit
+		if limit < 0 {
+			customSet[fmt.Sprintf(
+				"--migration-server.lower-limits[%s]=%d is invalid (must be >= 0)",
+				source,
+				limit,
+			)] = struct{}{}
+		}
+	}
+
+	return nil
+}
+
+var ValidMigrationSources = map[MigrationSource]struct{}{
+	MigrationSourceGroupMessages:   {},
+	MigrationSourceInboxLog:        {},
+	MigrationSourceKeyPackages:     {},
+	MigrationSourceWelcomeMessages: {},
+	MigrationSourceCommitMessages:  {},
+}
+
+func validSourcesList() string {
+	values := make([]string, 0, len(ValidMigrationSources))
+	for s := range ValidMigrationSources {
+		values = append(values, string(s))
+	}
+	sort.Strings(values)
+	return strings.Join(values, ", ")
 }

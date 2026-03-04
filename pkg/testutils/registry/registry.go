@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"testing"
 
-	registryMocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	r "github.com/xmtp/xmtpd/pkg/registry"
+	registryMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/registry"
 )
 
 func CreateNode(nodeID uint32, port int, privateKey *ecdsa.PrivateKey) r.Node {

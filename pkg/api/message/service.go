@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/utils/retryerrors"
@@ -39,7 +40,6 @@ import (
 
 const (
 	maxRequestedRows     int32         = 1000
-	minRowsPerOriginator int32         = 50
 	maxQueriesPerRequest int           = 10000
 	maxTopicLength       int           = 128
 	maxVectorClockLength int           = 100
@@ -62,6 +62,7 @@ type Service struct {
 	feeCalculator     fees.IFeeCalculator
 	options           config.APIOptions
 	migrationEnabled  bool
+	originatorList    db.OriginatorLister
 }
 
 var _ message_apiconnect.ReplicationApiHandler = (*Service)(nil)
@@ -78,9 +79,14 @@ func NewReplicationAPIService(
 	options config.APIOptions,
 	migrationEnabled bool,
 	sleepOnFailureTime time.Duration,
+	originatorList db.OriginatorLister,
 ) (*Service, error) {
 	if validationService == nil {
 		return nil, errors.New("validation service must not be nil")
+	}
+
+	if options.SendKeepAliveInterval <= 0 {
+		return nil, errors.New("send keep alive interval must be positive")
 	}
 
 	publishWorker, err := startPublishWorker(
@@ -114,6 +120,7 @@ func NewReplicationAPIService(
 		feeCalculator:     feeCalculator,
 		options:           options,
 		migrationEnabled:  migrationEnabled,
+		originatorList:    originatorList,
 	}, nil
 }
 
@@ -149,7 +156,6 @@ func (s *Service) SubscribeEnvelopes(
 			fmt.Errorf("could not send keepalive: %w", err),
 		)
 	}
-
 	query := req.Msg.GetQuery()
 
 	if err := s.validateQuery(query); err != nil {
@@ -224,7 +230,7 @@ func (s *Service) catchUpFromCursor(
 		return nil
 	}
 
-	cursor := query.LastSeen.GetNodeIdToSequenceId()
+	cursor := query.GetLastSeen().GetNodeIdToSequenceId()
 	// GRPC does not distinguish between empty map and nil
 	if cursor == nil {
 		cursor = make(map[uint32]uint64)
@@ -245,16 +251,7 @@ func (s *Service) catchUpFromCursor(
 			logger.Debug("fetched envelopes", utils.CountField(int64(len(rows))))
 		}
 
-		envs := make([]*envelopes.OriginatorEnvelope, 0, len(rows))
-		for _, r := range rows {
-			env, err := envelopes.NewOriginatorEnvelopeFromBytes(r.OriginatorEnvelope)
-			if err != nil {
-				// We expect to have already validated the envelope when it was inserted
-				s.logger.Error("could not unmarshal originator envelope", zap.Error(err))
-				continue
-			}
-			envs = append(envs, env)
-		}
+		envs := unmarshalEnvelopes(rows, s.logger)
 
 		err = s.sendEnvelopes(stream, query, envs)
 		if err != nil {
@@ -273,7 +270,6 @@ func (s *Service) catchUpFromCursor(
 	return nil
 }
 
-// TODO: Make this method context aware.
 func (s *Service) sendEnvelopes(
 	stream *connect.ServerStream[message_api.SubscribeEnvelopesResponse],
 	query *message_api.EnvelopesQuery,
@@ -287,31 +283,85 @@ func (s *Service) sendEnvelopes(
 		}
 	}
 
-	envsToSend := make([]*envelopesProto.OriginatorEnvelope, 0, len(envs))
-	for _, env := range envs {
-		if cursor[uint32(env.OriginatorNodeID())] >= env.OriginatorSequenceID() {
-			continue
+	var (
+		batch          = make([]*envelopesProto.OriginatorEnvelope, 0, len(envs))
+		batchWireBytes = 0
+	)
+
+	flush := func() error {
+		if len(batch) == 0 {
+			return nil
 		}
 
-		envsToSend = append(envsToSend, env.Proto())
-		cursor[uint32(env.OriginatorNodeID())] = env.OriginatorSequenceID()
-	}
+		if err := stream.Send(&message_api.SubscribeEnvelopesResponse{
+			Envelopes: batch,
+		}); err != nil {
+			return connect.NewError(
+				connect.CodeInternal,
+				fmt.Errorf("error sending envelopes: %w", err),
+			)
+		}
 
-	if len(envsToSend) == 0 {
+		metrics.EmitAPIOutgoingEnvelopes(stream.Conn().Spec().Procedure, len(batch))
+
+		batchWireBytes = 0
+		batch = batch[:0]
+
 		return nil
 	}
 
-	err := stream.Send(&message_api.SubscribeEnvelopesResponse{
-		Envelopes: envsToSend,
-	})
-	if err != nil {
-		return connect.NewError(
-			connect.CodeInternal,
-			fmt.Errorf("error sending envelopes: %w", err),
+	for _, env := range envs {
+		var (
+			origID = env.OriginatorNodeID()
+			seqID  = env.OriginatorSequenceID()
 		)
+
+		// Skip if we've already seen this envelope.
+		if cursor[origID] >= seqID {
+			continue
+		}
+
+		var (
+			envProto     = env.Proto()
+			envProtoSize = proto.Size(envProto)
+			envWireSize  = envProtoSize + envelopeOverhead(uint64(envProtoSize))
+		)
+
+		// If the batch is not empty and the total bytes exceeds the limit, flush current batch.
+		if len(batch) > 0 && batchWireBytes+envWireSize > constants.GRPCPayloadLimit {
+			if err := flush(); err != nil {
+				return err
+			}
+		}
+
+		batch = append(batch, envProto)
+		batchWireBytes += envWireSize
+		cursor[origID] = seqID
 	}
 
-	return nil
+	return flush()
+}
+
+// https://protobuf.dev/programming-guides/encoding/
+//
+// Protobuf encodes length-delimited fields as: <tag> <length (varint)> <payload bytes>.
+//
+// For SubscribeEnvelopesResponse.envelopes the tag is field 1, wire type 2 (bytes),
+//   - tag = (1<<3)|2 = 10 (0x0A), which is 1 byte on the wire.
+//
+// So each envelope contributes overhead of:
+//   - 1 byte (tag) + varint_size(envelope_len).
+//
+// The payload bytes are the serialized OriginatorEnvelope itself.
+func envelopeOverhead(envelopeLen uint64) int {
+	varintSize := 1
+	for envelopeLen >= 1<<7 {
+		varintSize++
+		envelopeLen >>= 7
+	}
+
+	// 1 byte tag + varint length size
+	return 1 + varintSize
 }
 
 func (s *Service) QueryEnvelopes(
@@ -376,11 +426,15 @@ func (s *Service) QueryEnvelopes(
 		err := proto.Unmarshal(row.OriginatorEnvelope, originatorEnv)
 		if err != nil {
 			// We expect to have already validated the envelope when it was inserted
-			logger.Error("could not unmarshal originator envelope", zap.Error(err))
+			logger.Error("could not unmarshal originator envelope", zap.Error(err),
+				utils.OriginatorIDField(uint32(row.OriginatorNodeID)),
+				utils.SequenceIDField(row.OriginatorSequenceID))
 			continue
 		}
 		response.Msg.Envelopes = append(response.Msg.Envelopes, originatorEnv)
 	}
+
+	metrics.EmitAPIOutgoingEnvelopes(req.Spec().Procedure, len(response.Msg.GetEnvelopes()))
 
 	return response, nil
 }
@@ -389,15 +443,13 @@ func (s *Service) validateQuery(
 	query *message_api.EnvelopesQuery,
 ) error {
 	if query == nil {
-		return fmt.Errorf("missing query")
+		return errors.New("missing query")
 	}
 
 	topics := query.GetTopics()
 	originators := query.GetOriginatorNodeIds()
 	if len(topics) != 0 && len(originators) != 0 {
-		return fmt.Errorf(
-			"cannot filter by both topic and originator in same subscription request",
-		)
+		return errors.New("cannot filter by both topic and originator in same subscription request")
 	}
 
 	numQueries := len(topics) + len(originators)
@@ -430,15 +482,9 @@ func (s *Service) fetchEnvelopesWithRetry(
 	query *message_api.EnvelopesQuery,
 	rowLimit int32,
 ) ([]queries.GatewayEnvelopesView, error) {
-	bo := backoff.NewExponentialBackOff()
-	bo.InitialInterval = 50 * time.Millisecond
-	bo.MaxInterval = 300 * time.Millisecond
-	bo.Multiplier = 2.0
-	bo.RandomizationFactor = 0.5
-	bo.MaxElapsedTime = 2 * time.Second
-
-	// Wrap the backoff with context
-	boCtx := backoff.WithContext(bo, ctx)
+	boCtx := backoff.WithContext(
+		utils.NewBackoff(50*time.Millisecond, 300*time.Millisecond, 2*time.Second), ctx,
+	)
 
 	var result []queries.GatewayEnvelopesView
 
@@ -479,7 +525,19 @@ func (s *Service) fetchEnvelopes(
 			CursorSequenceIds: nil,
 		}
 
-		db.SetVectorClockByTopics(&params, query.GetLastSeen().GetNodeIdToSequenceId())
+		vc := query.GetLastSeen().GetNodeIdToSequenceId()
+		if vc == nil {
+			vc = make(db.VectorClock)
+		}
+		allOriginators, err := s.originatorList.GetOriginatorNodeIDs(ctx)
+		if err != nil {
+			return nil, connect.NewError(
+				connect.CodeInternal,
+				fmt.Errorf("could not get originator list: %w", err),
+			)
+		}
+		db.FillMissingOriginators(vc, allOriginators)
+		db.SetVectorClockByTopics(&params, vc)
 
 		rows, err := s.store.ReadQuery().SelectGatewayEnvelopesByTopics(ctx, params)
 		if err != nil {
@@ -492,25 +550,46 @@ func (s *Service) fetchEnvelopes(
 		return db.TransformRowsByTopic(rows), nil
 	}
 
-	// TODO: Consider a limit on the number of originators that can be subscribed to.
-	if len(query.GetOriginatorNodeIds()) != 0 {
-		rowsPerOriginator := calculateEnvelopesPerOriginator(
-			len(query.GetOriginatorNodeIds()),
+	if len(query.GetOriginatorNodeIds()) == 1 {
+		var (
+			originatorNodeID = int32(query.GetOriginatorNodeIds()[0])
+			cursorSequenceID = int64(
+				query.GetLastSeen().GetNodeIdToSequenceId()[uint32(originatorNodeID)],
+			)
 		)
 
+		params := queries.SelectGatewayEnvelopesBySingleOriginatorParams{
+			OriginatorNodeID: originatorNodeID,
+			CursorSequenceID: cursorSequenceID,
+			RowLimit:         rowLimit,
+		}
+
+		rows, err := s.store.ReadQuery().SelectGatewayEnvelopesBySingleOriginator(ctx, params)
+		if err != nil {
+			return nil, connect.NewError(
+				connect.CodeInternal,
+				fmt.Errorf("could not select envelopes: %w", err),
+			)
+		}
+
+		return db.TransformRowsByOriginator(rows), nil
+	}
+
+	if len(query.GetOriginatorNodeIds()) > 1 {
 		params := queries.SelectGatewayEnvelopesByOriginatorsParams{
-			OriginatorNodeIds: make([]int32, 0, len(query.GetOriginatorNodeIds())),
-			RowsPerOriginator: rowsPerOriginator,
-			RowLimit:          rowLimit,
-			CursorNodeIds:     nil,
-			CursorSequenceIds: nil,
+			RowLimit: rowLimit,
 		}
 
+		originatorNodeIds := make([]int32, 0, len(query.GetOriginatorNodeIds()))
 		for _, o := range query.GetOriginatorNodeIds() {
-			params.OriginatorNodeIds = append(params.OriginatorNodeIds, int32(o))
+			originatorNodeIds = append(originatorNodeIds, int32(o))
 		}
 
-		db.SetVectorClockByOriginators(&params, query.GetLastSeen().GetNodeIdToSequenceId())
+		db.SetVectorClockByOriginators(
+			&params,
+			originatorNodeIds,
+			query.GetLastSeen().GetNodeIdToSequenceId(),
+		)
 
 		rows, err := s.store.ReadQuery().SelectGatewayEnvelopesByOriginators(ctx, params)
 		if err != nil {
@@ -529,17 +608,35 @@ func (s *Service) fetchEnvelopes(
 	return rows, nil
 }
 
-// calculateEnvelopesPerOriginator calculates the number of envelopes to fetch per originator.
-// It ensures that the number of envelopes fetched per originator is at least minRowsPerOriginator
-// and at most maxRequestedRows.
-func calculateEnvelopesPerOriginator(numOriginators int) int32 {
-	if numOriginators == 0 {
-		return 0
+// envelopeRow is implemented by any sqlc-generated row type that carries an
+// originator envelope blob alongside its originator metadata.
+type envelopeRow interface {
+	queries.GatewayEnvelopesView | queries.SelectGatewayEnvelopesBySingleOriginatorRow
+}
+
+// unmarshalEnvelopes converts raw DB rows into OriginatorEnvelope structs,
+// logging and skipping any rows that fail to unmarshal.
+func unmarshalEnvelopes[T envelopeRow](
+	rows []T,
+	logger *zap.Logger,
+) []*envelopes.OriginatorEnvelope {
+	envs := make([]*envelopes.OriginatorEnvelope, 0, len(rows))
+	for i := range rows {
+		// Both row types share the same memory layout; convert to access fields.
+		r := queries.GatewayEnvelopesView(rows[i])
+		env, err := envelopes.NewOriginatorEnvelopeFromBytes(r.OriginatorEnvelope)
+		if err != nil {
+			logger.Error(
+				"could not unmarshal originator envelope",
+				zap.Error(err),
+				utils.OriginatorIDField(uint32(r.OriginatorNodeID)),
+				utils.SequenceIDField(r.OriginatorSequenceID),
+			)
+			continue
+		}
+		envs = append(envs, env)
 	}
-
-	rowsPerOriginator := max(maxRequestedRows/int32(numOriginators), minRowsPerOriginator)
-
-	return rowsPerOriginator
+	return envs
 }
 
 type ValidatedBytesWithTopic struct {
@@ -568,7 +665,7 @@ func (s *Service) PublishPayerEnvelopes(
 	if s.migrationEnabled {
 		return nil, connect.NewError(
 			connect.CodeInternal,
-			fmt.Errorf("D14N API is read-only while migration is enabled"),
+			errors.New("D14N API is read-only while migration is enabled"),
 		)
 	}
 
@@ -577,7 +674,7 @@ func (s *Service) PublishPayerEnvelopes(
 	if len(payerEnvelopes) == 0 {
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
-			fmt.Errorf("missing payer envelope"),
+			errors.New("missing payer envelope"),
 		)
 	}
 
@@ -780,7 +877,7 @@ func (s *Service) GetInboxIds(
 
 	addresses := []string{}
 
-	for _, request := range req.Msg.Requests {
+	for _, request := range req.Msg.GetRequests() {
 		addresses = append(addresses, request.GetIdentifier())
 	}
 
@@ -806,7 +903,7 @@ func (s *Service) GetInboxIds(
 		response.Msg.Responses[index] = &resp
 	}
 
-	logger.Debug("got inbox ids", utils.NumResponsesField(len(response.Msg.Responses)))
+	logger.Debug("got inbox ids", utils.NumResponsesField(len(response.Msg.GetResponses())))
 
 	return response, nil
 }
@@ -829,7 +926,7 @@ func (s *Service) GetNewestEnvelope(
 	}
 
 	var (
-		topics       = req.Msg.Topics
+		topics       = req.Msg.GetTopics()
 		originalSort = make(map[string]int)
 	)
 
@@ -855,6 +952,7 @@ func (s *Service) GetNewestEnvelope(
 		Results: make([]*message_api.GetNewestEnvelopeResponse_Response, len(topics)),
 	})
 
+	sent := 0
 	for _, row := range rows {
 		idx, ok := originalSort[string(row.Topic)]
 		if !ok {
@@ -865,14 +963,19 @@ func (s *Service) GetNewestEnvelope(
 		err := proto.Unmarshal(row.OriginatorEnvelope, originatorEnv)
 		if err != nil {
 			// We expect to have already validated the envelope when it was inserted
-			logger.Error("could not unmarshal originator envelope", zap.Error(err))
+			logger.Error("could not unmarshal originator envelope", zap.Error(err),
+				utils.OriginatorIDField(uint32(row.OriginatorNodeID)),
+				utils.SequenceIDField(row.OriginatorSequenceID))
 			continue
 		}
 
 		response.Msg.Results[idx] = &message_api.GetNewestEnvelopeResponse_Response{
 			OriginatorEnvelope: originatorEnv,
 		}
+		sent++
 	}
+
+	metrics.EmitAPIOutgoingEnvelopes(req.Spec().Procedure, sent)
 
 	return response, nil
 }
@@ -948,7 +1051,7 @@ func (s *Service) validateKeyPackage(
 
 	validationResult, err := s.validationService.ValidateKeyPackages(
 		ctx,
-		[][]byte{payload.UploadKeyPackage.KeyPackage.KeyPackageTlsSerialized},
+		[][]byte{payload.UploadKeyPackage.GetKeyPackage().GetKeyPackageTlsSerialized()},
 	)
 	if err != nil {
 		return connect.NewError(
@@ -993,8 +1096,8 @@ func (s *Service) validateClientInfo(clientEnv *envelopes.ClientEnvelope) error 
 
 	if aad.GetDependsOn() != nil {
 		lastSeenCursor := s.cu.GetCursor()
-		for nodeID, seqID := range aad.GetDependsOn().NodeIdToSequenceId {
-			lastSeqID, exists := lastSeenCursor.NodeIdToSequenceId[nodeID]
+		for nodeID, seqID := range aad.GetDependsOn().GetNodeIdToSequenceId() {
+			lastSeqID, exists := lastSeenCursor.GetNodeIdToSequenceId()[nodeID]
 			if nodeID >= 100 {
 				// The failure scenarios of non-commits are different from the blockchain path
 				// and as such should be prevented
@@ -1046,7 +1149,7 @@ func (s *Service) waitForGatewayPublish(
 
 	startTime := time.Now()
 	defer func() {
-		metrics.EmitApiWaitForGatewayPublish(time.Since(startTime))
+		metrics.EmitAPIWaitForGatewayPublish(time.Since(startTime))
 	}()
 
 	timeout := time.After(30 * time.Second)

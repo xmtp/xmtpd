@@ -5,6 +5,7 @@ package redis
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -80,10 +81,10 @@ func NewRedisBackedNonceManager(
 	keyPrefix string,
 ) (*RedisBackedNonceManager, error) {
 	if client == nil {
-		return nil, fmt.Errorf("redis client cannot be nil")
+		return nil, errors.New("redis client cannot be nil")
 	}
 	if logger == nil {
-		return nil, fmt.Errorf("logger cannot be nil")
+		return nil, errors.New("logger cannot be nil")
 	}
 	if keyPrefix == "" {
 		keyPrefix = "xmtpd:nonces:"
@@ -144,7 +145,7 @@ func (r *RedisBackedNonceManager) Replenish(ctx context.Context, nonce big.Int) 
 
 	// Prepare the nonces to add
 	members := make([]redis.Z, BatchSize)
-	for i := int64(0); i < BatchSize; i++ {
+	for i := range int64(BatchSize) {
 		nonceVal := startNonce + i
 		members[i] = redis.Z{
 			Score:  float64(nonceVal),
@@ -201,17 +202,17 @@ func (r *RedisBackedNonceManager) cleanupAndReserveNonce(ctx context.Context) (i
 
 	resultArray, ok := result.([]any)
 	if !ok {
-		return 0, fmt.Errorf("invalid result format from cleanup and reserve script")
+		return 0, errors.New("invalid result format from cleanup and reserve script")
 	}
 
 	// Check if a nonce was reserved (first element)
 	if len(resultArray) == 0 || resultArray[0] == nil {
-		return 0, fmt.Errorf("no nonces available in Redis")
+		return 0, errors.New("no nonces available in Redis")
 	}
 
 	nonceStr, ok := resultArray[0].(string)
 	if !ok {
-		return 0, fmt.Errorf("invalid nonce format from Redis")
+		return 0, errors.New("invalid nonce format from Redis")
 	}
 
 	nonce, err := strconv.ParseInt(nonceStr, 10, 64)

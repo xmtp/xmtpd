@@ -13,12 +13,13 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	sqlnonce "github.com/xmtp/xmtpd/pkg/blockchain/noncemanager/sql"
 	"github.com/xmtp/xmtpd/pkg/blockchain/oracle"
+	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
-	"github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 	envelopesTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
+	mlsvalidateMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/mlsvalidate"
 	"github.com/xmtp/xmtpd/pkg/topic"
 	"google.golang.org/protobuf/proto"
 )
@@ -34,7 +35,7 @@ func startIndexing(
 	wsURL, rpcURL := anvil.StartAnvil(t, false)
 	cfg := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
-	validationService := mlsvalidate.NewMockMLSValidationService(t)
+	validationService := mlsvalidateMocks.NewMockMLSValidationService(t)
 
 	indx, err := indexer.NewIndexer(
 		indexer.WithDB(db),
@@ -111,7 +112,10 @@ func TestStoreMessages(t *testing.T) {
 		results, err := querier.SelectGatewayEnvelopesByTopics(
 			context.Background(),
 			queries.SelectGatewayEnvelopesByTopicsParams{
-				Topics: [][]byte{msgTopic},
+				Topics:            [][]byte{msgTopic},
+				CursorNodeIds:     []int32{constants.GroupMessageOriginatorID},
+				CursorSequenceIds: []int64{0},
+				RowLimit:          100,
 			},
 		)
 		require.NoError(t, err)

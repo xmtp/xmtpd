@@ -4,7 +4,6 @@ package apiutils
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"net"
 	"net/http"
 	"testing"
@@ -13,7 +12,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/xmtp/xmtpd/pkg/config"
-	"github.com/xmtp/xmtpd/pkg/db"
+	dbPkg "github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/interceptors/server"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -23,10 +22,8 @@ import (
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
 	"github.com/xmtp/xmtpd/pkg/api/payer"
 	"github.com/xmtp/xmtpd/pkg/authn"
-	"github.com/xmtp/xmtpd/pkg/mocks/blockchain"
+	blockchainMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/blockchain"
 
-	mlsvalidateMocks "github.com/xmtp/xmtpd/pkg/mocks/mlsvalidate"
-	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api/payer_apiconnect"
@@ -34,6 +31,8 @@ import (
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/testutils/fees"
+	mlsvalidateMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/mlsvalidate"
+	registryMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/registry"
 	networkTestUtils "github.com/xmtp/xmtpd/pkg/testutils/network"
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
@@ -53,7 +52,7 @@ func NewTestGRPCReplicationAPIClient(
 
 	client, err := utils.NewConnectGRPCReplicationAPIClient(
 		t.Context(),
-		fmt.Sprintf("http://localhost:%s", port),
+		"http://localhost:"+port,
 		extraDialOpts...,
 	)
 	if err != nil {
@@ -73,7 +72,7 @@ func NewTestGRPCGatewayAPIClient(
 
 	client, err := utils.NewConnectGatewayAPIClient(
 		t.Context(),
-		fmt.Sprintf("http://localhost:%s", port),
+		"http://localhost:"+port,
 		extraDialOpts...,
 	)
 	if err != nil {
@@ -97,7 +96,7 @@ func NewTestGRPCMetadataAPIClient(
 
 	client, err := utils.NewConnectMetadataAPIClient(
 		t.Context(),
-		fmt.Sprintf("http://localhost:%s", port),
+		"http://localhost:"+port,
 		options...,
 	)
 	if err != nil {
@@ -108,9 +107,9 @@ func NewTestGRPCMetadataAPIClient(
 }
 
 type APIServerMocks struct {
-	MockRegistry          *mocks.MockNodeRegistry
+	MockRegistry          *registryMocks.MockNodeRegistry
 	MockValidationService *mlsvalidateMocks.MockMLSValidationService
-	MockMessagePublisher  *blockchain.MockIBlockchainPublisher
+	MockMessagePublisher  *blockchainMocks.MockIBlockchainPublisher
 }
 
 type APIServerTestSuite struct {
@@ -135,8 +134,8 @@ func WithRegistryNodes(nodes []registry.Node) TestAPIOption {
 	}
 }
 
-func createMockRegistry(t *testing.T, nodes []registry.Node) *mocks.MockNodeRegistry {
-	reg := mocks.NewMockNodeRegistry(t)
+func createMockRegistry(t *testing.T, nodes []registry.Node) *registryMocks.MockNodeRegistry {
+	reg := registryMocks.NewMockNodeRegistry(t)
 
 	reg.EXPECT().GetNodes().Return(nodes, nil)
 
@@ -164,8 +163,8 @@ func NewTestAPIServer(
 		ctx, cancel           = context.WithCancel(context.Background())
 		log                   = testutils.NewLog(t)
 		sqlDB, _              = testutils.NewRawDB(t, ctx)
-		db                    = db.NewDBHandler(sqlDB)
-		mockMessagePublisher  = blockchain.NewMockIBlockchainPublisher(t)
+		db                    = dbPkg.NewDBHandler(sqlDB)
+		mockMessagePublisher  = blockchainMocks.NewMockIBlockchainPublisher(t)
 		mockValidationService = mlsvalidateMocks.NewMockMLSValidationService(t)
 	)
 
@@ -217,6 +216,7 @@ func NewTestAPIServer(
 			},
 			false,
 			10*time.Millisecond,
+			dbPkg.NewCachedOriginatorList(db.ReadQuery(), 100*time.Millisecond, log),
 		)
 		require.NoError(t, err)
 

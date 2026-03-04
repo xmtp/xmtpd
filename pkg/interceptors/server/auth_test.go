@@ -9,7 +9,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/constants"
-	"github.com/xmtp/xmtpd/pkg/mocks/authn"
+	authnMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/authn"
 	"go.uber.org/zap/zaptest"
 )
 
@@ -17,6 +17,7 @@ type mockConnectRequestAuthInterceptor struct {
 	connect.AnyRequest
 	header http.Header
 	peer   connect.Peer
+	spec   connect.Spec
 }
 
 func (m *mockConnectRequestAuthInterceptor) Header() http.Header {
@@ -27,10 +28,15 @@ func (m *mockConnectRequestAuthInterceptor) Peer() connect.Peer {
 	return m.peer
 }
 
+func (m *mockConnectRequestAuthInterceptor) Spec() connect.Spec {
+	return m.spec
+}
+
 type mockStreamingConnAuthInterceptor struct {
 	connect.StreamingHandlerConn
 	header http.Header
 	peer   connect.Peer
+	spec   connect.Spec
 }
 
 func (m *mockStreamingConnAuthInterceptor) RequestHeader() http.Header {
@@ -41,8 +47,12 @@ func (m *mockStreamingConnAuthInterceptor) Peer() connect.Peer {
 	return m.peer
 }
 
+func (m *mockStreamingConnAuthInterceptor) Spec() connect.Spec {
+	return m.spec
+}
+
 func TestUnaryInterceptor(t *testing.T) {
-	mockVerifier := authn.NewMockJWTVerifier(t)
+	mockVerifier := authnMocks.NewMockJWTVerifier(t)
 	logger := zaptest.NewLogger(t)
 	interceptor := NewServerAuthInterceptor(mockVerifier, logger)
 
@@ -61,6 +71,9 @@ func TestUnaryInterceptor(t *testing.T) {
 				return &mockConnectRequestAuthInterceptor{
 					header: header,
 					peer:   connect.Peer{Addr: "127.0.0.1:1234"},
+					spec: connect.Spec{
+						Procedure: "dummy-procedure",
+					},
 				}
 			},
 			setupVerifier: func() {
@@ -75,6 +88,9 @@ func TestUnaryInterceptor(t *testing.T) {
 				return &mockConnectRequestAuthInterceptor{
 					header: http.Header{},
 					peer:   connect.Peer{Addr: "127.0.0.1:1234"},
+					spec: connect.Spec{
+						Procedure: "dummy-procedure",
+					},
 				}
 			},
 			setupVerifier:    func() {},
@@ -89,6 +105,9 @@ func TestUnaryInterceptor(t *testing.T) {
 				return &mockConnectRequestAuthInterceptor{
 					header: header,
 					peer:   connect.Peer{Addr: "127.0.0.1:1234"},
+					spec: connect.Spec{
+						Procedure: "dummy-procedure",
+					},
 				}
 			},
 			setupVerifier: func() {
@@ -131,7 +150,7 @@ func TestUnaryInterceptor(t *testing.T) {
 }
 
 func TestStreamInterceptor(t *testing.T) {
-	mockVerifier := authn.NewMockJWTVerifier(t)
+	mockVerifier := authnMocks.NewMockJWTVerifier(t)
 	logger := zaptest.NewLogger(t)
 	interceptor := NewServerAuthInterceptor(mockVerifier, logger)
 
@@ -150,6 +169,9 @@ func TestStreamInterceptor(t *testing.T) {
 				return &mockStreamingConnAuthInterceptor{
 					header: header,
 					peer:   connect.Peer{Addr: "127.0.0.1:1234"},
+					spec: connect.Spec{
+						Procedure: "dummy-procedure",
+					},
 				}
 			},
 			setupVerifier: func() {
@@ -164,6 +186,9 @@ func TestStreamInterceptor(t *testing.T) {
 				return &mockStreamingConnAuthInterceptor{
 					header: http.Header{},
 					peer:   connect.Peer{Addr: "127.0.0.1:1234"},
+					spec: connect.Spec{
+						Procedure: "dummy-procedure",
+					},
 				}
 			},
 			setupVerifier:    func() {},
@@ -178,6 +203,9 @@ func TestStreamInterceptor(t *testing.T) {
 				return &mockStreamingConnAuthInterceptor{
 					header: header,
 					peer:   connect.Peer{Addr: "127.0.0.1:1234"},
+					spec: connect.Spec{
+						Procedure: "dummy-procedure",
+					},
 				}
 			},
 			setupVerifier: func() {

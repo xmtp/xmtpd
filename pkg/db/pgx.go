@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"regexp"
+	"strconv"
 	"sync"
 	"time"
 
@@ -21,7 +22,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
-	"github.com/xmtp/xmtpd/pkg/migrations"
+	"github.com/xmtp/xmtpd/pkg/db/migrations"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 )
 
@@ -57,8 +58,9 @@ func parsePgxPoolConfig(dsn string, statementTimeout time.Duration) (*pgxpool.Co
 		return nil, err
 	}
 
-	config.ConnConfig.RuntimeParams["statement_timeout"] = fmt.Sprint(
+	config.ConnConfig.RuntimeParams["statement_timeout"] = strconv.FormatInt(
 		statementTimeout.Milliseconds(),
+		10,
 	)
 
 	return config, nil

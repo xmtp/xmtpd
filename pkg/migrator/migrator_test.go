@@ -33,10 +33,9 @@ const (
 	commitMessageLastID int64 = 7
 
 	// Identity updates go to blockchain, not database.
-	inboxLogAmount       int64 = 0
 	inboxLogLastID       int64 = 19
-	welcomeMessageAmount int64 = 19
-	welcomeMessageLastID int64 = 19
+	welcomeMessageAmount int64 = 18
+	welcomeMessageLastID int64 = 150000017
 	keyPackageAmount     int64 = 19
 	keyPackageLastID     int64 = 19
 )
@@ -75,7 +74,6 @@ func newMigratorTest(t *testing.T) *migratorTest {
 			WaitForDB:              5 * time.Second,
 			BatchSize:              1000,
 			PollInterval:           500 * time.Millisecond,
-			StartDate:              startDate,
 		}),
 		migrator.WithContractsOptions(chainConfig),
 		migrator.WithFeeCalculator(feeCalculator),
@@ -404,7 +402,8 @@ func verifyGroupMessagesIntegrity(t *testing.T, ctx context.Context, sourceDB, d
 func verifyWelcomeMessagesIntegrity(t *testing.T, ctx context.Context, sourceDB, destDB *sql.DB) {
 	sourceRows, err := sourceDB.QueryContext(ctx, `
 		SELECT id, installation_key, data 
-		FROM welcome_messages 
+		FROM welcome_messages
+		WHERE id > 150000000
 		ORDER BY id
 	`)
 	require.NoError(t, err)

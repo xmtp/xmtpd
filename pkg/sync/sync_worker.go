@@ -3,7 +3,6 @@ package sync
 import (
 	"context"
 	"fmt"
-	"slices"
 	"sync"
 	"time"
 
@@ -77,6 +76,13 @@ func (s *syncWorker) start() error {
 	nodes, err := s.nodeRegistry.GetNodes()
 	if err != nil {
 		return err
+	}
+
+	if s.migration.Enable {
+		s.logger.Info(
+			"Migration client is enabled. Will migrate from migration originator",
+			utils.OriginatorIDField(s.migration.FromNodeID),
+		)
 	}
 
 	for _, node := range nodes {
@@ -343,8 +349,10 @@ func (s *syncWorker) setupStream(
 	var (
 		client            = message_api.NewReplicationApiClient(conn)
 		vc                = db.ToVectorClock(result)
-		nodeID            = node.NodeID
-		originatorNodeIDs = []uint32{nodeID}
+		localNodeID       = s.registrant.NodeID()
+		syncNodeID        = node.NodeID
+		migratorNodeID    = s.migration.FromNodeID
+		originatorNodeIDs = []uint32{syncNodeID}
 	)
 
 	if s.logger.Core().Enabled(zap.DebugLevel) {
@@ -355,12 +363,15 @@ func (s *syncWorker) setupStream(
 		)
 	}
 
-	if s.migration.Enable && nodeID == s.migration.FromNodeID {
-		originatorNodeIDs = []uint32{
-			nodeID,
-			migrator.GroupMessageOriginatorID,
-			migrator.WelcomeMessageOriginatorID,
-			migrator.KeyPackagesOriginatorID,
+	if s.migration.Enable && syncNodeID == migratorNodeID && migratorNodeID != localNodeID {
+		originatorNodeIDs = append(originatorNodeIDs, migrator.MigratorOriginatorIDs()...)
+
+		if s.logger.Core().Enabled(zap.DebugLevel) {
+			s.logger.Debug(
+				"requesting additional migrated payloads from originator node",
+				utils.OriginatorIDField(syncNodeID),
+				zap.Any("originators", originatorNodeIDs),
+			)
 		}
 	}
 
@@ -389,18 +400,19 @@ func (s *syncWorker) setupStream(
 		)
 	}
 
-	lastSequenceID := uint64(0)
+	lastSequenceIDs := make(map[uint32]uint64)
 	for _, row := range result {
-		if slices.Contains(originatorNodeIDs, uint32(row.OriginatorNodeID)) {
-			lastSequenceID = uint64(row.OriginatorSequenceID)
-		}
+		lastSequenceIDs[uint32(row.OriginatorNodeID)] = uint64(row.OriginatorSequenceID)
 	}
+
+	permittedOriginators := utils.SliceToSet(originatorNodeIDs)
 
 	return newOriginatorStream(
 		s.ctx,
 		s.logger,
 		&node,
-		lastSequenceID,
+		lastSequenceIDs,
+		permittedOriginators,
 		stream,
 		writeQueue,
 	), nil

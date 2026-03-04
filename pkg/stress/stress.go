@@ -4,6 +4,7 @@ package stress
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -49,7 +50,7 @@ func StressIdentityUpdates(
 
 	startingNonce, err := getCurrentNonce(ctx, privateKey, rpc)
 	if err != nil {
-		return fmt.Errorf("failed to get starting nonce: %s", err)
+		return fmt.Errorf("failed to get starting nonce: %w", err)
 	}
 
 	var nonceCounter atomic.Uint64
@@ -57,7 +58,7 @@ func StressIdentityUpdates(
 
 	totalTime := time.Now()
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
@@ -95,7 +96,12 @@ func StressIdentityUpdates(
 			if err != nil {
 				logger.Error("error", zap.Int("idx", idx), zap.Error(err))
 			} else {
-				logger.Info("completed transaction", zap.Int("idx", idx), zap.Uint64("nonce", nonce), zap.Duration("duration", duration))
+				logger.Info(
+					"completed transaction",
+					zap.Int("idx", idx),
+					zap.Uint64("nonce", nonce),
+					zap.Duration("duration", duration),
+				)
 			}
 		}(i)
 	}
@@ -132,7 +138,7 @@ func StressIdentityUpdates(
 func getCurrentNonce(ctx context.Context, privateKey, wsURL string) (uint64, error) {
 	client, err := ethclient.Dial(wsURL)
 	if err != nil {
-		return 0, fmt.Errorf("failed to connect to Ethereum node: %s", err)
+		return 0, fmt.Errorf("failed to connect to Ethereum node: %w", err)
 	}
 	defer client.Close()
 
@@ -143,7 +149,7 @@ func getCurrentNonce(ctx context.Context, privateKey, wsURL string) (uint64, err
 
 	nonce, err := client.NonceAt(ctx, address, nil)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get nonce for address %s: %s", address, err)
+		return 0, fmt.Errorf("failed to get nonce for address %s: %w", address, err)
 	}
 
 	return nonce, nil
@@ -158,7 +164,7 @@ func getAddressFromPrivateKey(privateKeyHex string) (common.Address, error) {
 	publicKey := privateKey.Public()
 	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
 	if !ok {
-		return common.Address{}, fmt.Errorf("error casting public key to ECDSA")
+		return common.Address{}, errors.New("error casting public key to ECDSA")
 	}
 
 	address := crypto.PubkeyToAddress(*publicKeyECDSA)

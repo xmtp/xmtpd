@@ -20,7 +20,7 @@ func NewOriginatorEnvelope(proto *envelopesProto.OriginatorEnvelope) (*Originato
 		return nil, errors.New("originator envelope proto is nil")
 	}
 
-	unsigned, err := NewUnsignedOriginatorEnvelopeFromBytes(proto.UnsignedOriginatorEnvelope)
+	unsigned, err := NewUnsignedOriginatorEnvelopeFromBytes(proto.GetUnsignedOriginatorEnvelope())
 	if err != nil {
 		return nil, err
 	}

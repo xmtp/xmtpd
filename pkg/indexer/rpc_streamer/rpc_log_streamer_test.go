@@ -9,8 +9,8 @@ import (
 	"github.com/ethereum/go-ethereum"
 
 	rpcstreamer "github.com/xmtp/xmtpd/pkg/indexer/rpc_streamer"
-	mocks "github.com/xmtp/xmtpd/pkg/mocks/blockchain"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	blockchainMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/blockchain"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -40,7 +40,7 @@ func TestRpcLogStreamer(t *testing.T) {
 		Number: big.NewInt(11),
 	})
 
-	mockClient := mocks.NewMockChainClient(t)
+	mockClient := blockchainMocks.NewMockChainClient(t)
 
 	// Mock HeaderByNumber call for fromBlockNumber+1 (block 2) - for reorg detection.
 	mockClient.On("HeaderByNumber", mock.Anything, big.NewInt(int64(backfillFromBlock+1))).
@@ -81,7 +81,7 @@ func TestRpcLogStreamer(t *testing.T) {
 
 	response, err := streamer.GetNextPage(context.Background(), cfg, backfillFromBlock, nil)
 	require.NoError(t, err)
-	require.EqualValues(t, mockBlock11.NumberU64(), *response.NextBlockNumber)
-	require.EqualValues(t, 1, len(response.Logs))
-	require.EqualValues(t, response.Logs[0].Address, address)
+	require.Equal(t, mockBlock11.NumberU64(), *response.NextBlockNumber)
+	require.Len(t, response.Logs, 1)
+	require.Equal(t, response.Logs[0].Address, address)
 }

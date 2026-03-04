@@ -5,6 +5,8 @@ import (
 	"errors"
 	"math"
 
+	"github.com/xmtp/xmtpd/pkg/metrics"
+
 	"github.com/xmtp/xmtpd/pkg/db"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -120,6 +122,12 @@ func (s *GroupMessageStorer) StoreLog(
 		s.logger.Error(ErrInsertEnvelopeFromSmartContract, zap.Error(err))
 		return re.NewRecoverableError(ErrInsertEnvelopeFromSmartContract, err)
 	}
+
+	metrics.EmitSyncLastSeenOriginatorSequenceID(
+		constants.GroupMessageOriginatorID,
+		msgSent.SequenceId,
+	)
+	metrics.EmitSyncOriginatorReceivedMessagesCount(constants.GroupMessageOriginatorID, 1)
 
 	return nil
 }

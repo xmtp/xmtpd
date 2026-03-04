@@ -117,7 +117,7 @@ func (p *publishWorker) start() {
 					time.Sleep(p.sleepOnFailureTime)
 				}
 				p.lastProcessed.Store(stagedEnv.ID)
-				metrics.EmitApiStagedEnvelopeProcessingDelay(time.Since(stagedEnv.OriginatorTime))
+				metrics.EmitAPIStagedEnvelopeProcessingDelay(time.Since(stagedEnv.OriginatorTime))
 			}
 		}
 	}
@@ -243,6 +243,7 @@ func (p *publishWorker) publishStagedEnvelope(stagedEnv queries.StagedOriginator
 				MinutesSinceEpoch: utils.MinutesSinceEpoch(stagedEnv.OriginatorTime),
 				SpendPicodollars:  int64(baseFee) + int64(congestionFee),
 			},
+			true,
 		)
 	}
 

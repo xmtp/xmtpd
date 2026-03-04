@@ -1,17 +1,17 @@
 package workers
 
 import (
-	"fmt"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
-	blockchainMocks "github.com/xmtp/xmtpd/pkg/mocks/blockchain"
-	registrantMocks "github.com/xmtp/xmtpd/pkg/mocks/registrant"
-	mocks "github.com/xmtp/xmtpd/pkg/mocks/registry"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/testutils"
+	blockchainMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/blockchain"
+	registrantMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/registrant"
+	registryMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/registry"
 )
 
 func testSubmitterWorker(
@@ -23,7 +23,7 @@ func testSubmitterWorker(
 		db, _          = testutils.NewDB(t, ctx)
 		store          = payerreport.NewStore(log, db)
 		mockRegistrant = registrantMocks.NewMockIRegistrant(t)
-		registry       = mocks.NewMockNodeRegistry(t)
+		registry       = registryMocks.NewMockNodeRegistry(t)
 		reportsManager = blockchainMocks.NewMockPayerReportsManager(t)
 		myNodeID       = uint32(1)
 	)
@@ -328,16 +328,13 @@ func TestSubmitterStatesAndTransitions(t *testing.T) {
 
 				var chainError error
 
-				switch tc.rejectedOnChainWithError {
-				case blockchain.ErrInvalidStartSequenceID:
-					chainError = fmt.Errorf("execution reverted: 0x84e23433")
-
-				case blockchain.ErrInvalidSequenceIDs:
-					chainError = fmt.Errorf("execution reverted: 0xa7ee0517")
-
-				case blockchain.ErrPayerReportAlreadySubmitted:
-					chainError = fmt.Errorf("execution reverted: 0x93105c68")
-
+				switch {
+				case errors.Is(tc.rejectedOnChainWithError, blockchain.ErrInvalidStartSequenceID):
+					chainError = errors.New("execution reverted: 0x84e23433")
+				case errors.Is(tc.rejectedOnChainWithError, blockchain.ErrInvalidSequenceIDs):
+					chainError = errors.New("execution reverted: 0xa7ee0517")
+				case errors.Is(tc.rejectedOnChainWithError, blockchain.ErrPayerReportAlreadySubmitted):
+					chainError = errors.New("execution reverted: 0x93105c68")
 				default:
 					t.Fatalf("unknown rejected on chain error: %v", tc.rejectedOnChainWithError)
 				}

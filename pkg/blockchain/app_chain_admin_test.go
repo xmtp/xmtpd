@@ -304,7 +304,7 @@ func TestPayloadSizeParams_ReadDefault_WriteThenRead(t *testing.T) {
 
 				rawV1, err := paramAdmin.GetParameterUint64(ctx, tc.key)
 				require.NoError(t, err)
-				require.EqualValues(t, v1, rawV1)
+				require.Equal(t, v1, rawV1)
 			})
 
 			t.Run(tc.name+"/write_idempotent", func(t *testing.T) {

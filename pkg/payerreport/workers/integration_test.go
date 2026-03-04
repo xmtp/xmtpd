@@ -123,7 +123,7 @@ func setupBlockchain(
 
 	fromRegistry, err := registry.GetNodes()
 	require.NoError(t, err)
-	require.Equal(t, len(fromRegistry), len(nodes))
+	require.Len(t, nodes, len(fromRegistry))
 
 	reportsManager, err := blockchain.NewReportsManager(
 		log, client, signer, contractsOptions.SettlementChain,
@@ -383,7 +383,7 @@ func (s *multiNodeTestScaffold) getMessagesFromTopic(
 	)
 	require.NoError(t, err)
 
-	return response.Msg.Envelopes
+	return response.Msg.GetEnvelopes()
 }
 
 func TestValidSignature(t *testing.T) {

@@ -45,7 +45,11 @@ func IndexLogs(
 				contract.Logger().
 					Debug("received event UpdateProgress", utils.BlockNumberField(event.BlockNumber))
 
-				if err := contract.UpdateLatestBlock(ctx, event.BlockNumber, event.BlockHash.Bytes()); err != nil {
+				if err := contract.UpdateLatestBlock(
+					ctx,
+					event.BlockNumber,
+					event.BlockHash.Bytes(),
+				); err != nil {
 					contract.Logger().Error("error updating block tracker", zap.Error(err))
 				}
 
@@ -83,7 +87,11 @@ func IndexLogs(
 			}
 
 			contract.Logger().Debug("stored log", utils.BlockNumberField(event.BlockNumber))
-			if trackerErr := contract.UpdateLatestBlock(ctx, event.BlockNumber, event.BlockHash.Bytes()); trackerErr != nil {
+			if trackerErr := contract.UpdateLatestBlock(
+				ctx,
+				event.BlockNumber,
+				event.BlockHash.Bytes(),
+			); trackerErr != nil {
 				contract.Logger().Error("error updating block tracker", zap.Error(trackerErr))
 			}
 

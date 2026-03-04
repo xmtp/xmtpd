@@ -588,7 +588,7 @@ func TestConcurrentOperations(t *testing.T) {
 		}
 
 		// Collect results
-		for range len(operations) {
+		for range operations {
 			err := <-errChan
 			require.NoError(t, err)
 		}

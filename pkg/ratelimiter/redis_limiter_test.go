@@ -2,7 +2,7 @@ package ratelimiter_test
 
 import (
 	"context"
-	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -328,7 +328,7 @@ func TestRedisLimiter_TTL(t *testing.T) {
 
 			// Check TTL on each individual limit key
 			for i, wantLimitTTL := range tt.wantLimitTTLs {
-				limitKey := keyPrefix + ":test-subject:" + fmt.Sprintf("%d", i+1)
+				limitKey := keyPrefix + ":test-subject:" + strconv.Itoa(i+1)
 				limitTTL, err := client.PTTL(context.Background(), limitKey).Result()
 				require.NoError(t, err)
 				require.Greater(

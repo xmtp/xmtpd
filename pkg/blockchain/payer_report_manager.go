@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -135,7 +136,7 @@ func (r *ReportsManager) SubmitPayerReport(
 		return 0, eventErr
 	}
 	if !foundEvent {
-		return 0, NewBlockchainError(fmt.Errorf("no PayerReportSubmitted event found"))
+		return 0, NewBlockchainError(errors.New("no PayerReportSubmitted event found"))
 	}
 	return reportIndex, nil
 }

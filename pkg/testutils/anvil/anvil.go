@@ -4,7 +4,6 @@ package anvil
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -112,8 +111,8 @@ func StartAnvil(t *testing.T, showLogs bool) (wsURL string, rpcURL string) {
 	mappedPort, err := anvilContainer.MappedPort(ctx, "8545/tcp")
 	require.NoError(t, err)
 
-	wsURL = fmt.Sprintf("ws://localhost:%s", mappedPort.Port())
-	rpcURL = fmt.Sprintf("http://localhost:%s", mappedPort.Port())
+	wsURL = "ws://localhost:" + mappedPort.Port()
+	rpcURL = "http://localhost:" + mappedPort.Port()
 	waitForAnvil(t, wsURL)
 
 	return wsURL, rpcURL

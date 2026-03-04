@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"sync"
 	"testing"
 	"time"
 
@@ -200,26 +201,6 @@ func validateUpdates(
 	require.Len(t, seen, len(expected), "did not receive all expected updates")
 }
 
-func TestSubscribeEnvelopesAll(t *testing.T) {
-	client, db, _ := setupTest(t)
-
-	insertInitialRows(t, db)
-
-	ctx := t.Context()
-	stream, err := client.SubscribeEnvelopes(
-		ctx,
-		connect.NewRequest(&message_api.SubscribeEnvelopesRequest{
-			Query: &message_api.EnvelopesQuery{
-				LastSeen: nil,
-			},
-		}),
-	)
-	require.NoError(t, err)
-
-	insertAdditionalRows(t, db)
-	validateUpdates(t, stream, []int{})
-}
-
 func TestSubscribeEnvelopesByTopic(t *testing.T) {
 	client, store, _ := setupTest(t)
 	insertInitialRows(t, store)
@@ -342,41 +323,48 @@ func TestSubscribeEnvelopesFromEmptyCursor(t *testing.T) {
 }
 
 func TestSubscribeEnvelopesInvalidRequest(t *testing.T) {
-	client, _, _ := setupTest(t)
-
-	// Note that streams don't return an error on establishing the connection.
-	stream, err := client.SubscribeEnvelopes(
-		context.Background(),
-		connect.NewRequest(&message_api.SubscribeEnvelopesRequest{
-			Query: &message_api.EnvelopesQuery{
-				Topics:            []db.Topic{topicA},
-				OriginatorNodeIds: []uint32{1},
-				LastSeen:          nil,
+	var (
+		client, _, _ = setupTest(t)
+		ctx          = t.Context()
+		tests        = []struct {
+			name  string
+			query *message_api.EnvelopesQuery
+		}{
+			{
+				name: "no filter",
+				// Neither topics nor originators set.
+				query: &message_api.EnvelopesQuery{
+					LastSeen: nil,
+				},
 			},
-		}),
+			{
+				name: "incompatible filters",
+				// Both topics and originators set.
+				query: &message_api.EnvelopesQuery{
+					Topics:            []db.Topic{topicA},
+					OriginatorNodeIds: []uint32{1},
+					LastSeen:          nil,
+				},
+			},
+		}
 	)
-	require.NoError(t, err)
 
-	// Consume keepalive messages until stream closes.
-	receivedMessages := 0
-	for stream.Receive() {
-		msg := stream.Msg()
-		require.NotNil(t, msg, "keepalive message should not be nil")
-		receivedMessages++
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stream, err := client.SubscribeEnvelopes(
+				ctx,
+				connect.NewRequest(&message_api.SubscribeEnvelopesRequest{
+					Query: test.query,
+				}),
+			)
+			require.NoError(t, err)
+
+			_ = stream.Receive()
+
+			streamErr := stream.Err()
+			require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(streamErr))
+		})
 	}
-
-	// Verify we received exactly one keepalive message.
-	require.Equal(t, 1, receivedMessages, "should receive exactly one keepalive message")
-
-	// Verify the stream closed with InvalidArgument error.
-	err = stream.Err()
-	require.Error(t, err)
-	require.Equal(
-		t,
-		connect.CodeInvalidArgument,
-		connect.CodeOf(err),
-		"stream should close with InvalidArgument error",
-	)
 }
 
 func generateEnvelopes(
@@ -662,4 +650,99 @@ func TestSubscribeCatchUpSkewedOriginators(t *testing.T) {
 		max(1000/len(originatorIDs), 50),
 		len(originatorIDs),
 	)
+}
+
+func TestSubscribeAll(t *testing.T) {
+	var (
+		nodes       = generateNodes(t, 2)
+		nodeIDs     = nodeIDs(nodes)
+		server      = testUtilsApi.NewTestAPIServer(t, testUtilsApi.WithRegistryNodes(nodes))
+		ctx, cancel = context.WithCancel(t.Context())
+		payerID     = testutils.CreatePayer(t, server.DB)
+		subTopic    = topic.NewTopic(
+			topic.TopicKindGroupMessagesV1,
+			fmt.Appendf(nil, "generic-topic-%v", rand.Int()),
+		)
+
+		minEnvelopes = 10
+		maxEnvelopes = 20
+
+		// How many envelopes get inserted initially
+		initialBatch = minEnvelopes * len(nodeIDs)
+
+		// After the initial batch, remaining envelopes get inserted at this rate.
+		// Somewhat cherry picked value in order to coincide with the subscribe worker polling interval,
+		// as we would like to have proper streaming and not just picking up another single batch.
+		insertDelay     = 100 * time.Millisecond
+		sourceEnvelopes = generateEnvelopes(
+			t,
+			nodeIDs,
+			minEnvelopes,
+			maxEnvelopes,
+			payerID,
+			subTopic,
+		)
+	)
+	defer cancel()
+
+	// Flatten envelope list + initialize cursor.
+	var (
+		envelopeList []queries.InsertGatewayEnvelopeParams
+		startCursor  = make(map[uint32]uint64)
+		total        int
+	)
+	for id, envs := range sourceEnvelopes {
+		envelopeList = append(envelopeList, envs...)
+
+		startCursor[uint32(id)] = 0
+		total += len(envs)
+	}
+	t.Logf("generated total %v envelopes from %v nodes", total, len(nodeIDs))
+
+	// Have some envelopes inserted before we start streaming.
+	t.Logf("inserting first batch of envelopes - [0, %v] out of %v", initialBatch, total)
+	testutils.InsertGatewayEnvelopes(t, server.DB, envelopeList[:initialBatch])
+
+	// Start a subscriber stream.
+	req := &message_api.SubscribeAllEnvelopesRequest{
+		LastSeen: &envelopes.Cursor{
+			NodeIdToSequenceId: startCursor,
+		},
+	}
+	stream, err := server.ClientReplication.SubscribeAllEnvelopes(ctx, connect.NewRequest(req))
+	require.NoError(t, err)
+
+	var (
+		received = 0
+		streamWG sync.WaitGroup
+	)
+
+	streamWG.Go(func() {
+		for received < total {
+			ok := stream.Receive()
+			if !ok {
+				break
+			}
+
+			n := len(stream.Msg().GetEnvelopes())
+			t.Logf("stream produced %v envelopes", n)
+
+			received += n
+		}
+
+		cancel()
+	})
+
+	// Wait a bit - then start inserting envelopes. Make sure these are streamed too.
+	time.Sleep(insertDelay)
+	t.Logf("inserting remaining envelopes - [%v, %v]", initialBatch, total)
+
+	for _, env := range envelopeList[initialBatch:] {
+		testutils.InsertGatewayEnvelopes(t, server.DB, []queries.InsertGatewayEnvelopeParams{env})
+		time.Sleep(insertDelay)
+	}
+
+	streamWG.Wait()
+
+	require.Equal(t, total, received)
 }

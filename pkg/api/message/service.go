@@ -148,6 +148,51 @@ func (s *Service) SubscribeEnvelopes(
 		)
 	}
 
+	// Validate query and ensure either topics or originators are specified.
+	err := s.validateQuery(req.Msg.GetQuery(), false)
+	if err != nil {
+		return connect.NewError(
+			connect.CodeInvalidArgument,
+			fmt.Errorf("invalid subscription request: %w", err),
+		)
+	}
+
+	return s.doSubscribe(ctx, req.Msg.GetQuery(), stream, logger)
+}
+
+func (s *Service) SubscribeAllEnvelopes(
+	ctx context.Context,
+	req *connect.Request[message_api.SubscribeAllEnvelopesRequest],
+	stream *connect.ServerStream[message_api.SubscribeEnvelopesResponse],
+) error {
+	if req.Msg == nil {
+		return connect.NewError(
+			connect.CodeInvalidArgument,
+			errors.New(requestMissingMessageError),
+		)
+	}
+
+	logger := s.logger.With(utils.MethodField(req.Spec().Procedure))
+
+	if s.logger.Core().Enabled(zap.DebugLevel) {
+		logger.Debug("received request",
+			utils.BodyField(req),
+		)
+	}
+
+	query := &message_api.EnvelopesQuery{
+		LastSeen: req.Msg.GetLastSeen(),
+	}
+
+	return s.doSubscribe(ctx, query, stream, logger)
+}
+
+func (s *Service) doSubscribe(
+	ctx context.Context,
+	query *message_api.EnvelopesQuery,
+	stream *connect.ServerStream[message_api.SubscribeEnvelopesResponse],
+	logger *zap.Logger,
+) error {
 	// Send a keepalive immediately, so wasm based clients maintain the connection open.
 	err := stream.Send(&message_api.SubscribeEnvelopesResponse{})
 	if err != nil {
@@ -156,16 +201,8 @@ func (s *Service) SubscribeEnvelopes(
 			fmt.Errorf("could not send keepalive: %w", err),
 		)
 	}
-	query := req.Msg.GetQuery()
 
-	if err := s.validateQuery(query); err != nil {
-		return connect.NewError(
-			connect.CodeInvalidArgument,
-			fmt.Errorf("invalid subscription request: %w", err),
-		)
-	}
-
-	envelopesCh := s.subscribeWorker.listen(ctx, query)
+	ch := s.subscribeWorker.listen(ctx, query)
 
 	err = s.catchUpFromCursor(ctx, stream, query, logger)
 	if err != nil {
@@ -189,7 +226,7 @@ func (s *Service) SubscribeEnvelopes(
 				)
 			}
 
-		case envs, open := <-envelopesCh:
+		case envs, open := <-ch:
 			ticker.Reset(s.options.SendKeepAliveInterval)
 
 			if !open {
@@ -381,7 +418,9 @@ func (s *Service) QueryEnvelopes(
 		logger.Debug("received request", utils.BodyField(req))
 	}
 
-	if err := s.validateQuery(req.Msg.GetQuery()); err != nil {
+	// TODO: Check how query envelopes works, should it be allowed to accept empty filters?
+	err := s.validateQuery(req.Msg.GetQuery(), true)
+	if err != nil {
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
 			fmt.Errorf("invalid query: %w", err),
@@ -441,6 +480,7 @@ func (s *Service) QueryEnvelopes(
 
 func (s *Service) validateQuery(
 	query *message_api.EnvelopesQuery,
+	allowEmpty bool,
 ) error {
 	if query == nil {
 		return errors.New("missing query")
@@ -458,6 +498,9 @@ func (s *Service) validateQuery(
 			"too many subscriptions: %d, consider subscribing to fewer topics or subscribing without a filter",
 			numQueries,
 		)
+	}
+	if !allowEmpty && numQueries == 0 {
+		return errors.New("query must contain either topics or originators")
 	}
 
 	for _, topic := range topics {

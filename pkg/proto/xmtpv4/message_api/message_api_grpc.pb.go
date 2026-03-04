@@ -22,6 +22,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	ReplicationApi_SubscribeEnvelopes_FullMethodName    = "/xmtp.xmtpv4.message_api.ReplicationApi/SubscribeEnvelopes"
+	ReplicationApi_SubscribeAllEnvelopes_FullMethodName = "/xmtp.xmtpv4.message_api.ReplicationApi/SubscribeAllEnvelopes"
 	ReplicationApi_SubscribeTopics_FullMethodName       = "/xmtp.xmtpv4.message_api.ReplicationApi/SubscribeTopics"
 	ReplicationApi_QueryEnvelopes_FullMethodName        = "/xmtp.xmtpv4.message_api.ReplicationApi/QueryEnvelopes"
 	ReplicationApi_PublishPayerEnvelopes_FullMethodName = "/xmtp.xmtpv4.message_api.ReplicationApi/PublishPayerEnvelopes"
@@ -35,6 +36,7 @@ const (
 type ReplicationApiClient interface {
 	// This will be renamed to SubscribeOriginators
 	SubscribeEnvelopes(ctx context.Context, in *SubscribeEnvelopesRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SubscribeEnvelopesResponse], error)
+	SubscribeAllEnvelopes(ctx context.Context, in *SubscribeAllEnvelopesRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SubscribeEnvelopesResponse], error)
 	SubscribeTopics(ctx context.Context, in *SubscribeTopicsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SubscribeTopicsResponse], error)
 	QueryEnvelopes(ctx context.Context, in *QueryEnvelopesRequest, opts ...grpc.CallOption) (*QueryEnvelopesResponse, error)
 	PublishPayerEnvelopes(ctx context.Context, in *PublishPayerEnvelopesRequest, opts ...grpc.CallOption) (*PublishPayerEnvelopesResponse, error)
@@ -70,9 +72,28 @@ func (c *replicationApiClient) SubscribeEnvelopes(ctx context.Context, in *Subsc
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type ReplicationApi_SubscribeEnvelopesClient = grpc.ServerStreamingClient[SubscribeEnvelopesResponse]
 
+func (c *replicationApiClient) SubscribeAllEnvelopes(ctx context.Context, in *SubscribeAllEnvelopesRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SubscribeEnvelopesResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &ReplicationApi_ServiceDesc.Streams[1], ReplicationApi_SubscribeAllEnvelopes_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[SubscribeAllEnvelopesRequest, SubscribeEnvelopesResponse]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ReplicationApi_SubscribeAllEnvelopesClient = grpc.ServerStreamingClient[SubscribeEnvelopesResponse]
+
 func (c *replicationApiClient) SubscribeTopics(ctx context.Context, in *SubscribeTopicsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SubscribeTopicsResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &ReplicationApi_ServiceDesc.Streams[1], ReplicationApi_SubscribeTopics_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &ReplicationApi_ServiceDesc.Streams[2], ReplicationApi_SubscribeTopics_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -135,6 +156,7 @@ func (c *replicationApiClient) GetNewestEnvelope(ctx context.Context, in *GetNew
 type ReplicationApiServer interface {
 	// This will be renamed to SubscribeOriginators
 	SubscribeEnvelopes(*SubscribeEnvelopesRequest, grpc.ServerStreamingServer[SubscribeEnvelopesResponse]) error
+	SubscribeAllEnvelopes(*SubscribeAllEnvelopesRequest, grpc.ServerStreamingServer[SubscribeEnvelopesResponse]) error
 	SubscribeTopics(*SubscribeTopicsRequest, grpc.ServerStreamingServer[SubscribeTopicsResponse]) error
 	QueryEnvelopes(context.Context, *QueryEnvelopesRequest) (*QueryEnvelopesResponse, error)
 	PublishPayerEnvelopes(context.Context, *PublishPayerEnvelopesRequest) (*PublishPayerEnvelopesResponse, error)
@@ -152,6 +174,9 @@ type UnimplementedReplicationApiServer struct{}
 
 func (UnimplementedReplicationApiServer) SubscribeEnvelopes(*SubscribeEnvelopesRequest, grpc.ServerStreamingServer[SubscribeEnvelopesResponse]) error {
 	return status.Errorf(codes.Unimplemented, "method SubscribeEnvelopes not implemented")
+}
+func (UnimplementedReplicationApiServer) SubscribeAllEnvelopes(*SubscribeAllEnvelopesRequest, grpc.ServerStreamingServer[SubscribeEnvelopesResponse]) error {
+	return status.Errorf(codes.Unimplemented, "method SubscribeAllEnvelopes not implemented")
 }
 func (UnimplementedReplicationApiServer) SubscribeTopics(*SubscribeTopicsRequest, grpc.ServerStreamingServer[SubscribeTopicsResponse]) error {
 	return status.Errorf(codes.Unimplemented, "method SubscribeTopics not implemented")
@@ -198,6 +223,17 @@ func _ReplicationApi_SubscribeEnvelopes_Handler(srv interface{}, stream grpc.Ser
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type ReplicationApi_SubscribeEnvelopesServer = grpc.ServerStreamingServer[SubscribeEnvelopesResponse]
+
+func _ReplicationApi_SubscribeAllEnvelopes_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(SubscribeAllEnvelopesRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ReplicationApiServer).SubscribeAllEnvelopes(m, &grpc.GenericServerStream[SubscribeAllEnvelopesRequest, SubscribeEnvelopesResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ReplicationApi_SubscribeAllEnvelopesServer = grpc.ServerStreamingServer[SubscribeEnvelopesResponse]
 
 func _ReplicationApi_SubscribeTopics_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(SubscribeTopicsRequest)
@@ -310,6 +346,11 @@ var ReplicationApi_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "SubscribeEnvelopes",
 			Handler:       _ReplicationApi_SubscribeEnvelopes_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "SubscribeAllEnvelopes",
+			Handler:       _ReplicationApi_SubscribeAllEnvelopes_Handler,
 			ServerStreams: true,
 		},
 		{

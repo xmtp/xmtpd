@@ -176,6 +176,29 @@ func TestGRPCMetricsInterceptorStreamError(t *testing.T) {
 	require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
 }
 
+func TestGRPCMetricsInterceptorStreamMultipleSends(t *testing.T) {
+	interceptor := NewGRPCMetricsInterceptor()
+
+	next := func(_ context.Context, conn connect.StreamingHandlerConn) error {
+		_ = conn.Send(nil)
+		_ = conn.Send(nil)
+		_ = conn.Send(nil)
+		return nil
+	}
+
+	ctx := context.Background()
+	conn := &mockStreamingConnGRPCMetrics{
+		procedure:  "/test.TestService/TestStream",
+		streamType: connect.StreamTypeServer,
+	}
+
+	wrappedStream := interceptor.WrapStreamingHandler(next)
+	err := wrappedStream(ctx, conn)
+
+	require.NoError(t, err)
+	require.Equal(t, 3, conn.sent, "expected 3 sends")
+}
+
 func TestGRPCMetricsInterceptorWrapStreamingClientNoop(t *testing.T) {
 	interceptor := NewGRPCMetricsInterceptor()
 

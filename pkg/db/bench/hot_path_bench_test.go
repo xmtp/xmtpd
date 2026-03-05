@@ -44,7 +44,7 @@ func seedHotPath(ctx context.Context, benchDB *sql.DB) {
 	}
 
 	// Pre-create gateway partitions so write benchmarks never hit partition-creation overhead.
-	for seqID := int64(0); seqID < 10*db.GatewayEnvelopeBandWidth; seqID += db.GatewayEnvelopeBandWidth {
+	for seqID := int64(0); seqID < 50*db.GatewayEnvelopeBandWidth; seqID += db.GatewayEnvelopeBandWidth {
 		_ = q.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
 			OriginatorNodeID:     hotPathOriginatorID,
 			OriginatorSequenceID: seqID,
@@ -73,7 +73,7 @@ func seedHotPath(ctx context.Context, benchDB *sql.DB) {
 
 	log.Printf(
 		"seeded hot path: %d payers, %d gateway partitions, %d staged rows",
-		hotPathPayerCount, 10, hotPathStagedSeedRows,
+		hotPathPayerCount, 50, hotPathStagedSeedRows,
 	)
 }
 

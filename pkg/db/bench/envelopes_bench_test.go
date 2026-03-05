@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/db/types"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	"github.com/xmtp/xmtpd/pkg/utils"
 )
@@ -69,9 +70,11 @@ func seedEnvelopes(ctx context.Context, tier *envelopeTier) {
 	}
 
 	// Seed envelopes distributed across originators and topics
-	batchSize := 10_000
+	const seedBatchSize = 500
+	const logEvery = 10_000
 	blob := testutils.RandomBytes(blobSize) // reuse same blob for speed
 	seqIDs := make([]int64, numOriginators)
+	batch := types.NewGatewayEnvelopeBatch()
 
 	for i := range tier.count {
 		origIdx := i % numOriginators
@@ -79,28 +82,48 @@ func seedEnvelopes(ctx context.Context, tier *envelopeTier) {
 		seqIDs[origIdx]++
 		topicIdx := i % numTopics
 
-		_, err := db.InsertGatewayEnvelopeWithChecksStandalone(
-			ctx,
-			q,
-			queries.InsertGatewayEnvelopeParams{
-				OriginatorNodeID:     origID,
-				OriginatorSequenceID: seqIDs[origIdx],
-				Topic:                tier.topics[topicIdx],
-				Expiry:               time.Now().Add(24 * time.Hour).Unix(),
-				OriginatorEnvelope:   blob,
-			},
-		)
-		if err != nil {
-			log.Fatalf("seed envelope %d: %v", i, err)
+		now := time.Now()
+		batch.Add(types.GatewayEnvelopeRow{
+			OriginatorNodeID:     origID,
+			OriginatorSequenceID: seqIDs[origIdx],
+			Topic:                tier.topics[topicIdx],
+			GatewayTime:          now,
+			Expiry:               now.Add(24 * time.Hour).Unix(),
+			OriginatorEnvelope:   blob,
+		})
+
+		if batch.Len() == seedBatchSize {
+			_, err := db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
+				ctx,
+				tier.db,
+				batch,
+			)
+			if err != nil {
+				log.Fatalf("seed envelope batch at %d: %v", i, err)
+			}
+			batch.Reset()
 		}
 
-		if (i+1)%batchSize == 0 {
+		if (i+1)%logEvery == 0 {
 			log.Printf(
 				"seeded %d/%d envelopes for tier %s",
 				i+1, tier.count, tier.name,
 			)
 		}
 	}
+
+	// Flush remaining envelopes
+	if batch.Len() > 0 {
+		_, err := db.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(
+			ctx,
+			tier.db,
+			batch,
+		)
+		if err != nil {
+			log.Fatalf("seed envelope final batch: %v", err)
+		}
+	}
+
 	log.Printf("seeded envelopes: %d rows for tier %s", tier.count, tier.name)
 }
 

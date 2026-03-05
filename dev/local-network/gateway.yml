@@ -1,0 +1,30 @@
+x-xmtpd-gateway-image: &x-xmtpd-gateway-image ghcr.io/xmtp/xmtpd-gateway:main
+x-redis-image: &x-redis-image redis:7-alpine
+
+services:
+  redis:
+    image: *x-redis-image
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    ports:
+      - 6379:6379
+
+  gateway:
+    platform: linux/amd64
+    image: *x-xmtpd-gateway-image
+    pull_policy: if_not_present
+    env_file:
+      - ./gateway.env
+    volumes:
+      - ./environments/anvil.json:/cfg/anvil.json
+    environment:
+      - "XMTPD_CONTRACTS_CONFIG_FILE_PATH=/cfg/anvil.json"
+      - "XMTPD_API_PORT=5052"
+    depends_on:
+      redis:
+        condition: service_healthy
+    network_mode: host

@@ -331,7 +331,12 @@ func (s *EnvelopeSink) getPayerID(env *envUtils.OriginatorEnvelope) (int32, erro
 		return id, nil
 	}
 
-	id, err := s.db.WriteQuery().FindOrCreatePayer(s.ctx, hex)
+	id, err := db.FindOrCreatePayerWithRetry(
+		s.ctx,
+		s.db.WriteQuery(),
+		payerAddress.Hex(),
+		db.DefaultFindOrCreatePayerMaxRetries,
+	)
 	if err != nil {
 		return 0, err
 	}

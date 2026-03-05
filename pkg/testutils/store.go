@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xmtp/xmtpd/pkg/db"
+	xmtpdb "github.com/xmtp/xmtpd/pkg/db"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
@@ -71,11 +71,11 @@ func NewRawDB(t *testing.T, ctx context.Context) (*sql.DB, string) {
 	return dbInstance, dsn
 }
 
-func NewDB(t *testing.T, ctx context.Context) (*db.Handler, string) {
+func NewDB(t *testing.T, ctx context.Context) (*xmtpdb.Handler, string) {
 	t.Helper()
 
 	dbh, dsn := NewRawDB(t, ctx)
-	return db.NewDBHandler(dbh), dsn
+	return xmtpdb.NewDBHandler(dbh), dsn
 }
 
 func NewDBs(t *testing.T, ctx context.Context, count int) []*sql.DB {
@@ -99,7 +99,7 @@ func InsertGatewayEnvelopes(
 	ctx := t.Context()
 	q := queries.New(dbInstance)
 	for _, row := range rows {
-		inserted, err := db.InsertGatewayEnvelopeWithChecksStandalone(ctx, q, row)
+		inserted, err := xmtpdb.InsertGatewayEnvelopeWithChecksStandalone(ctx, q, row)
 		require.NoError(t, err)
 		require.Equal(t, int64(1), inserted.InsertedMetaRows)
 
@@ -121,7 +121,12 @@ func CreatePayer(t *testing.T, db *sql.DB, address ...string) int32 {
 		payerAddress = RandomString(42)
 	}
 
-	id, err := q.FindOrCreatePayer(context.Background(), payerAddress)
+	id, err := xmtpdb.FindOrCreatePayerWithRetry(
+		context.Background(),
+		q,
+		payerAddress,
+		xmtpdb.DefaultFindOrCreatePayerMaxRetries,
+	)
 	require.NoError(t, err)
 
 	return id

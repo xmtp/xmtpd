@@ -10,8 +10,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/tracelog"
 	"github.com/xmtp/xmtpd/pkg/metrics"
+	"github.com/xmtp/xmtpd/pkg/tracing"
 
 	"github.com/exaring/otelpgx"
 	"github.com/prometheus/client_golang/prometheus"
@@ -40,6 +42,81 @@ var (
 )
 
 var allowedNamespaceRe = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+
+// apmQueryTracer implements pgx.QueryTracer to create Datadog APM spans for queries.
+// This enables query-level visibility in flame graphs.
+type apmQueryTracer struct {
+	serviceName string
+	role        string // "reader" or "writer" - critical for debugging replica issues
+}
+
+// TraceQueryStart creates a span when a query begins.
+// Uses StartSpanFromContext to make DB queries children of the active span.
+func (t *apmQueryTracer) TraceQueryStart(
+	ctx context.Context,
+	conn *pgx.Conn,
+	data pgx.TraceQueryStartData,
+) context.Context {
+	// Use StartSpanFromContext so queries appear as children in flame graphs
+	span, ctx := tracing.StartSpanFromContext(ctx, tracing.SpanDBQuery)
+	tracing.SpanTag(span, tracing.TagDBSystem, "postgresql")
+	tracing.SpanTag(span, tracing.TagDBService, t.serviceName)
+	tracing.SpanTag(span, tracing.TagDBRole, t.role)
+	tracing.SpanTag(span, tracing.TagDBStatement, data.SQL)
+	tracing.SpanType(span, "sql")
+	tracing.SpanResource(span, data.SQL)
+
+	// Store span in context for TraceQueryEnd
+	return context.WithValue(ctx, apmSpanKey{}, span)
+}
+
+// TraceQueryEnd finishes the span when query completes.
+func (t *apmQueryTracer) TraceQueryEnd(
+	ctx context.Context,
+	conn *pgx.Conn,
+	data pgx.TraceQueryEndData,
+) {
+	span, ok := ctx.Value(apmSpanKey{}).(tracing.Span)
+	if !ok || span == nil {
+		return
+	}
+
+	if data.Err != nil {
+		span.Finish(tracing.WithError(data.Err))
+	} else {
+		tracing.SpanTag(span, tracing.TagDBRowsAffected, data.CommandTag.RowsAffected())
+		span.Finish()
+	}
+}
+
+type apmSpanKey struct{}
+
+// compositeTracer combines multiple pgx tracers (logging + APM).
+type compositeTracer struct {
+	logTracer *tracelog.TraceLog
+	apmTracer *apmQueryTracer
+}
+
+func (c *compositeTracer) TraceQueryStart(
+	ctx context.Context,
+	conn *pgx.Conn,
+	data pgx.TraceQueryStartData,
+) context.Context {
+	// Call both tracers
+	ctx = c.logTracer.TraceQueryStart(ctx, conn, data)
+	ctx = c.apmTracer.TraceQueryStart(ctx, conn, data)
+	return ctx
+}
+
+func (c *compositeTracer) TraceQueryEnd(
+	ctx context.Context,
+	conn *pgx.Conn,
+	data pgx.TraceQueryEndData,
+) {
+	// Call both tracers
+	c.logTracer.TraceQueryEnd(ctx, conn, data)
+	c.apmTracer.TraceQueryEnd(ctx, conn, data)
+}
 
 func waitUntilDBReady(ctx context.Context, db *pgxpool.Pool, waitTime time.Duration) error {
 	pingCtx, cancel := context.WithTimeout(ctx, waitTime)
@@ -150,6 +227,7 @@ type dbConnConfig struct {
 	prometheusRegistry *prometheus.Registry
 	createNamespace    bool
 	runMigrations      bool
+	role               string // "reader" or "writer" for APM tagging
 }
 
 type dbOptionFunc func(*dbConnConfig)
@@ -185,6 +263,14 @@ func prometheusRegistry(p *prometheus.Registry) dbOptionFunc {
 	}
 }
 
+// dbRole sets the role tag for APM spans (reader or writer).
+// This is critical for debugging read-replica issues.
+func dbRole(role string) dbOptionFunc {
+	return func(cfg *dbConnConfig) {
+		cfg.role = role
+	}
+}
+
 func connectToDB(
 	ctx context.Context,
 	logger *zap.Logger,
@@ -213,10 +299,36 @@ func connectToDB(
 		poolcfg.ConnConfig.Database = namespace
 	}
 
-	// enable SQL tracing
-	poolcfg.ConnConfig.Tracer = &tracelog.TraceLog{
+	// Determine service name for APM spans
+	serviceName := "xmtpd-db"
+	if namespace != "" {
+		serviceName = "xmtpd-db-" + namespace
+	}
+
+	// Default role to "writer" if not specified
+	role := cfg.role
+	if role == "" {
+		role = tracing.DBRoleWriter
+	}
+
+	// Set up SQL tracing. When APM is enabled, use a composite tracer
+	// (Prometheus metrics logging + Datadog APM spans). Otherwise, keep
+	// only the existing Prometheus metrics logger to avoid per-query overhead.
+	logTracer := &tracelog.TraceLog{
 		Logger:   metrics.PromLogger{},
 		LogLevel: tracelog.LogLevelTrace,
+	}
+
+	if tracing.IsEnabled() {
+		poolcfg.ConnConfig.Tracer = &compositeTracer{
+			logTracer: logTracer,
+			apmTracer: &apmQueryTracer{
+				serviceName: serviceName,
+				role:        role, // reader or writer - critical for replica debugging
+			},
+		}
+	} else {
+		poolcfg.ConnConfig.Tracer = logTracer
 	}
 
 	db, pool, err := newPGXDB(ctx, poolcfg, cfg.pingTimeout)
@@ -248,6 +360,7 @@ func connectToDB(
 }
 
 // NewNamespacedDB creates a new database with the given namespace if it doesn't exist and returns the full DSN for the new database.
+// This is typically used for the writer connection (creates schema, runs migrations).
 func NewNamespacedDB(
 	ctx context.Context,
 	logger *zap.Logger,
@@ -267,6 +380,32 @@ func NewNamespacedDB(
 		prometheusRegistry(prom),
 		doCreateNamespace(true),
 		runMigrations(true),
+		dbRole(tracing.DBRoleWriter),
+	)
+}
+
+// NewNamespacedReaderDB is like NewNamespacedDB but tags the connection as a
+// read replica for APM. The "reader" role helps debug read-replica lag issues.
+func NewNamespacedReaderDB(
+	ctx context.Context,
+	logger *zap.Logger,
+	dsn string,
+	namespace string,
+	waitForDB time.Duration,
+	statementTimeout time.Duration,
+	prom *prometheus.Registry,
+) (*sql.DB, error) {
+	return connectToDB(
+		ctx,
+		logger,
+		dsn,
+		namespace,
+		dbPingTimeout(waitForDB),
+		dbStatementTimeout(statementTimeout),
+		prometheusRegistry(prom),
+		doCreateNamespace(false),
+		runMigrations(false),
+		dbRole(tracing.DBRoleReader),
 	)
 }
 
@@ -285,6 +424,7 @@ func ConnectToDB(ctx context.Context,
 		dbPingTimeout(waitForDB),
 		dbStatementTimeout(statementTimeout),
 		prometheusRegistry(prom),
+		dbRole(tracing.DBRoleWriter),
 		// Not creating namespace.
 		// Not running migrations.
 	)

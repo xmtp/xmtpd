@@ -297,6 +297,13 @@ type NodeRegistration struct {
 func (s *syncWorker) connectToNode(
 	node registry.Node,
 ) (*grpc.ClientConn, error) {
+	// Create span for connection attempt
+	span := tracing.StartSpan(tracing.SpanSyncConnectToNode)
+	defer span.Finish()
+
+	tracing.SpanTag(span, tracing.TagTargetNode, node.NodeID)
+	tracing.SpanTag(span, tracing.TagTargetAddress, node.HTTPAddress)
+
 	s.logger.Info("attempting to connect to node",
 		utils.OriginatorIDField(node.NodeID),
 		utils.NodeHTTPAddressField(node.HTTPAddress),
@@ -330,6 +337,7 @@ func (s *syncWorker) connectToNode(
 		return nil, fmt.Errorf("failed to connect to node at %s: %w", node.HTTPAddress, err)
 	}
 
+	tracing.SpanTag(span, tracing.TagConnectionSuccess, true)
 	s.logger.Debug("successfully opened a connection to node",
 		utils.OriginatorIDField(node.NodeID),
 		utils.NodeHTTPAddressField(node.HTTPAddress),
@@ -343,7 +351,19 @@ func (s *syncWorker) setupStream(
 	node registry.Node,
 	conn *grpc.ClientConn,
 	writeQueue chan *envUtils.OriginatorEnvelope,
-) (*originatorStream, error) {
+) (_ *originatorStream, retErr error) {
+	// Create span for stream setup
+	span, ctx := tracing.StartSpanFromContext(ctx, tracing.SpanSyncSetupStream)
+	defer func() {
+		if retErr != nil {
+			span.Finish(tracing.WithError(retErr))
+		} else {
+			span.Finish()
+		}
+	}()
+
+	tracing.SpanTag(span, tracing.TagTargetNode, node.NodeID)
+
 	result, err := s.store.ReadQuery().SelectVectorClock(ctx)
 	if err != nil {
 		return nil, err
@@ -369,6 +389,8 @@ func (s *syncWorker) setupStream(
 	if s.migration.Enable && syncNodeID == migratorNodeID && migratorNodeID != localNodeID {
 		originatorNodeIDs = append(originatorNodeIDs, migrator.MigratorOriginatorIDs()...)
 
+		tracing.SpanTag(span, tracing.TagMigrationMode, true)
+
 		if s.logger.Core().Enabled(zap.DebugLevel) {
 			s.logger.Debug(
 				"requesting additional migrated payloads from originator node",
@@ -378,8 +400,11 @@ func (s *syncWorker) setupStream(
 		}
 	}
 
+	tracing.SpanTag(span, "num_originator_ids", len(originatorNodeIDs))
+
+	subscribeSpan, subscribeCtx := tracing.StartSpanFromContext(ctx, tracing.SpanSyncSubscribe)
 	stream, err := client.SubscribeEnvelopes(
-		ctx,
+		subscribeCtx,
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
 				OriginatorNodeIds: originatorNodeIDs,
@@ -390,6 +415,7 @@ func (s *syncWorker) setupStream(
 		},
 	)
 	if err != nil {
+		subscribeSpan.Finish(tracing.WithError(err))
 		s.logger.Error(
 			"failed to batch subscribe to node",
 			utils.OriginatorIDField(node.NodeID),
@@ -402,6 +428,7 @@ func (s *syncWorker) setupStream(
 			err,
 		)
 	}
+	subscribeSpan.Finish()
 
 	lastSequenceIDs := make(map[uint32]uint64)
 	for _, row := range result {

@@ -2,11 +2,11 @@ package server
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"connectrpc.com/connect"
 	"github.com/xmtp/xmtpd/pkg/metrics"
+	grpcUtils "github.com/xmtp/xmtpd/pkg/utils/grpc"
 )
 
 // codeOK represents a successful RPC, matching gRPC's OK status (code 0).
@@ -29,9 +29,9 @@ func NewGRPCMetricsInterceptor() *GRPCMetricsInterceptor {
 func (i *GRPCMetricsInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
 		var (
-			service, method = parseProcedure(req.Spec().Procedure)
-			grpcType        = req.Spec().StreamType.String()
-			start           = time.Now()
+			_, service, method = grpcUtils.ParseProcedure(req.Spec().Procedure)
+			grpcType           = req.Spec().StreamType.String()
+			start              = time.Now()
 		)
 
 		// Record that the RPC has started.
@@ -74,9 +74,9 @@ func (i *GRPCMetricsInterceptor) WrapStreamingHandler(
 ) connect.StreamingHandlerFunc {
 	return func(ctx context.Context, conn connect.StreamingHandlerConn) error {
 		var (
-			service, method = parseProcedure(conn.Spec().Procedure)
-			grpcType        = conn.Spec().StreamType.String()
-			start           = time.Now()
+			_, service, method = grpcUtils.ParseProcedure(conn.Spec().Procedure)
+			grpcType           = conn.Spec().StreamType.String()
+			start              = time.Now()
 		)
 
 		// Record that the RPC has started.
@@ -135,22 +135,4 @@ func (c *metricsStreamingHandlerConn) Send(msg any) error {
 		c.lastSent = now
 	}
 	return err
-}
-
-// parseProcedure extracts service and method from a ConnectRPC procedure path.
-// The procedure path format is: /package.service/method
-// Example: /xmtp.xmtpv4.message_api.ReplicationApi/QueryEnvelopes
-// Returns service="xmtp.xmtpv4.message_api.ReplicationApi", method="QueryEnvelopes"
-func parseProcedure(procedure string) (string, string) {
-	// Trim leading slash without allocating.
-	if len(procedure) > 0 && procedure[0] == '/' {
-		procedure = procedure[1:]
-	}
-
-	// Find last slash and return the service and method.
-	if i := strings.LastIndexByte(procedure, '/'); i != -1 {
-		return procedure[:i], procedure[i+1:]
-	}
-
-	return "unknown", procedure
 }

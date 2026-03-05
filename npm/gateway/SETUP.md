@@ -1,20 +1,22 @@
 # Gateway Setup Guide
 
-Set up and run the XMTP gateway in your Node.js agent. One `npm install`, a few environment variables, and you're live.
+Set up and run the XMTP gateway in your Node.js agent.
 
-## Prerequisites
+## Using the npm package
+
+### Prerequisites
 
 - **Node.js 22+**
 - **Redis** — used for nonce management
 - **An RPC provider** — [Alchemy](https://www.alchemy.com/) (free tier works) or similar
 
-## 1. Install
+### 1. Install
 
 ```bash
 npm install @xmtp/gateway
 ```
 
-## 2. Start Redis
+### 2. Start Redis
 
 ```bash
 # Docker
@@ -26,7 +28,7 @@ brew install redis && brew services start redis
 
 Verify: `redis-cli ping` should return `PONG`.
 
-## 3. Create a payer wallet
+### 3. Create a payer wallet
 
 The payer wallet signs transactions to publish messages on the XMTP network. Any standard Ethereum wallet works (secp256k1 key).
 
@@ -45,11 +47,11 @@ node -e "
 
 Save both the private key and address.
 
-## 4. Fund the payer wallet
+### 4. Fund the payer wallet
 
 Your payer wallet needs funds allocated through the XMTP Funding Portal before the gateway can process messages.
 
-### Testnet
+#### Testnet
 
 1. Go to [testnet.fund.xmtp.org](https://testnet.fund.xmtp.org/)
 2. Connect your wallet or enter the payer address
@@ -69,13 +71,13 @@ docker run --rm ghcr.io/xmtp/xmtpd-cli:main \
 
 You can also get testnet USDC from the [Circle faucet](https://faucet.circle.com/) (10 USDC/hour).
 
-### Mainnet
+#### Mainnet
 
 Acquire USDC on Base, then allocate through [fund.xmtp.org](https://fund.xmtp.org/).
 
 See the [official funding docs](https://docs.xmtp.org/fund-agents-apps/fund-your-app) for details.
 
-## 5. Get RPC endpoints
+### 5. Get RPC endpoints
 
 Sign up at [Alchemy](https://www.alchemy.com/) and create apps for these two networks:
 
@@ -96,7 +98,7 @@ https://base-sepolia.g.alchemy.com/v2/YOUR_KEY
 wss://base-sepolia.g.alchemy.com/v2/YOUR_KEY
 ```
 
-## 6. Run the gateway
+### 6. Run the gateway
 
 ```typescript
 import { startGateway } from "@xmtp/gateway";
@@ -114,7 +116,7 @@ const gateway = await startGateway({
 console.log(`Gateway running at ${gateway.url}`);
 ```
 
-## 7. Connect your agent
+### 7. Connect your agent
 
 Pass the gateway URL to the agent SDK:
 
@@ -134,13 +136,60 @@ process.env.XMTP_GATEWAY_HOST = gateway.url;
 const agent = await Agent.createFromEnv();
 ```
 
-## 8. Stop the gateway
+### 8. Stop the gateway
 
 ```typescript
 await gateway.stop();
 ```
 
 This sends SIGTERM to the subprocess and waits up to 5 seconds for graceful shutdown.
+
+---
+
+## Developing locally (from source)
+
+If you're working on the gateway itself from the xmtpd repo.
+
+### Prerequisites
+
+- **Go 1.25+** — [install](https://go.dev/dl/)
+- **Node.js 22+**
+- **Docker** — for Redis
+
+### Quick start
+
+```bash
+# 1. Set up everything (Redis, npm deps, build binary)
+npm/gateway/dev/up
+
+# 2. Configure your environment
+cp npm/gateway/dev/.env.example npm/gateway/dev/.env
+# Edit dev/.env with your payer key and RPC URLs
+
+# 3. Run the gateway
+npm/gateway/dev/run
+
+# 4. Run tests
+npm/gateway/dev/test
+
+# 5. Stop Redis when done
+npm/gateway/dev/down
+```
+
+### Dev scripts
+
+| Script | What it does |
+|--------|-------------|
+| `dev/up` | Starts Redis, installs deps, builds TypeScript + Go binary |
+| `dev/run` | Loads `dev/.env` and starts the gateway |
+| `dev/test` | Runs the test suite (vitest) |
+| `dev/down` | Stops the Redis container |
+
+### Environment config
+
+Copy `dev/.env.example` to `dev/.env` and fill in your values. See steps 3-5 above for how to create a payer wallet, fund it, and get RPC endpoints.
+
+---
 
 ## Troubleshooting
 
@@ -157,5 +206,6 @@ This sends SIGTERM to the subprocess and waits up to 5 seconds for graceful shut
 - Check that RPC endpoints are reachable
 
 **Binary not found**
-- Reinstall: `npm install @xmtp/gateway`
+- From npm: reinstall with `npm install @xmtp/gateway`
+- From source: run `npm/gateway/dev/up` or `npm/build.sh`
 - Or set `XMTP_GATEWAY_BINARY_PATH` to a custom binary path

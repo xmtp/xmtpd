@@ -63,7 +63,12 @@ func SeedEnvelopes(
 	payerIDs := make([]int32, cfg.NumPayers)
 	for i := range cfg.NumPayers {
 		addr := utils.HexEncode(randomBytes(20))
-		id, err := q.FindOrCreatePayer(ctx, addr)
+		id, err := db.FindOrCreatePayerWithRetry(
+			ctx,
+			q,
+			addr,
+			db.DefaultFindOrCreatePayerMaxRetries,
+		)
 		if err != nil {
 			return SeedResult{}, fmt.Errorf("create payer %d: %w", i, err)
 		}

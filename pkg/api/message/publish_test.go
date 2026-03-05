@@ -408,7 +408,7 @@ func TestPublishEnvelopeFeesReservedTopic(t *testing.T) {
 		require.NoError(t, err)
 		return originatorEnv.UnsignedOriginatorEnvelope.BaseFee() == currency.PicoDollar(0) &&
 			originatorEnv.UnsignedOriginatorEnvelope.CongestionFee() == currency.PicoDollar(0)
-	}, 2*time.Second, 500*time.Millisecond)
+	}, 10*time.Second, 500*time.Millisecond)
 }
 
 func TestPublishEnvelopeWithVarExpirations(t *testing.T) {

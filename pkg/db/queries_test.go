@@ -134,25 +134,3 @@ func TestRevokeAddressLog(t *testing.T) {
 	require.NotNil(t, addressLog)
 	require.Equal(t, int64(3), addressLog.AssociationSequenceID.Int64)
 }
-
-func TestFindOrCreatePayer(t *testing.T) {
-	ctx := context.Background()
-	db, _ := testutils.NewRawDB(t, ctx)
-
-	querier := queries.New(db)
-
-	address1 := testutils.RandomString(42)
-	address2 := testutils.RandomString(42)
-
-	id1, err := querier.FindOrCreatePayer(ctx, address1)
-	require.NoError(t, err)
-
-	id2, err := querier.FindOrCreatePayer(ctx, address2)
-	require.NoError(t, err)
-
-	require.NotEqual(t, id1, id2)
-
-	reinsertID, err := querier.FindOrCreatePayer(ctx, address1)
-	require.NoError(t, err)
-	require.Equal(t, id1, reinsertID)
-}

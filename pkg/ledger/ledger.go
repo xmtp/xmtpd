@@ -150,7 +150,12 @@ func (l *Ledger) FindOrCreatePayer(
 	ctx context.Context,
 	payerAddress common.Address,
 ) (int32, error) {
-	return l.db.WriteQuery().FindOrCreatePayer(ctx, payerAddress.Hex())
+	return db.FindOrCreatePayerWithRetry(
+		ctx,
+		l.db.WriteQuery(),
+		payerAddress.Hex(),
+		db.DefaultFindOrCreatePayerMaxRetries,
+	)
 }
 
 func validateAmount(amount currency.PicoDollar) error {

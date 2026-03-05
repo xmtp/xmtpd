@@ -2,10 +2,10 @@ package server
 
 import (
 	"context"
-	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/xmtp/xmtpd/pkg/tracing"
+	grpcUtils "github.com/xmtp/xmtpd/pkg/utils/grpc"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/ext"
 )
 
@@ -60,8 +60,7 @@ func startRPCSpan(
 	procedure string,
 	rpcType string,
 ) (tracing.Span, context.Context) {
-	method := extractMethodName(procedure)
-	service := extractServiceName(procedure)
+	_, service, method := grpcUtils.ParseProcedure(procedure)
 
 	// Clean span name for better readability in flamegraphs
 	// e.g., "xmtpd.api.PublishPayerEnvelopes" instead of "grpc.unary /xmtp..."
@@ -93,32 +92,4 @@ func tagRPCResult(span tracing.Span, err error) {
 	} else {
 		tracing.SpanTag(span, "rpc.status", "OK")
 	}
-}
-
-// extractMethodName gets the RPC method from the procedure path.
-// "/xmtp.xmtpv4.ReplicationApi/PublishPayerEnvelopes" -> "PublishPayerEnvelopes"
-func extractMethodName(procedure string) string {
-	parts := strings.Split(procedure, "/")
-	if len(parts) >= 3 {
-		return parts[2]
-	}
-	if len(parts) >= 2 {
-		return parts[1]
-	}
-	return procedure
-}
-
-// extractServiceName gets the service from the procedure path.
-// "/xmtp.xmtpv4.ReplicationApi/PublishPayerEnvelopes" -> "ReplicationApi"
-func extractServiceName(procedure string) string {
-	parts := strings.Split(procedure, "/")
-	if len(parts) >= 2 {
-		// parts[1] is like "xmtp.xmtpv4.ReplicationApi"
-		serviceParts := strings.Split(parts[1], ".")
-		if len(serviceParts) > 0 && serviceParts[len(serviceParts)-1] != "" {
-			return serviceParts[len(serviceParts)-1]
-		}
-		return parts[1]
-	}
-	return "unknown"
 }

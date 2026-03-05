@@ -7,6 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
+	grpcUtils "github.com/xmtp/xmtpd/pkg/utils/grpc"
 )
 
 type mockConnectRequestGRPCMetrics struct {
@@ -48,46 +49,53 @@ func (m *mockStreamingConnGRPCMetrics) Send(_ any) error {
 
 func TestParseProcedure(t *testing.T) {
 	tests := []struct {
-		name            string
-		procedure       string
-		expectedService string
-		expectedMethod  string
+		name                    string
+		procedure               string
+		expectedFullServiceName string
+		expectedService         string
+		expectedMethod          string
 	}{
 		{
-			name:            "standard procedure path",
-			procedure:       "/xmtp.xmtpv4.message_api.ReplicationApi/QueryEnvelopes",
-			expectedService: "xmtp.xmtpv4.message_api.ReplicationApi",
-			expectedMethod:  "QueryEnvelopes",
+			name:                    "standard procedure path",
+			procedure:               "/xmtp.xmtpv4.message_api.ReplicationApi/QueryEnvelopes",
+			expectedFullServiceName: "xmtp.xmtpv4.message_api.ReplicationApi",
+			expectedService:         "ReplicationApi",
+			expectedMethod:          "QueryEnvelopes",
 		},
 		{
-			name:            "simple service",
-			procedure:       "/test.TestService/TestMethod",
-			expectedService: "test.TestService",
-			expectedMethod:  "TestMethod",
+			name:                    "simple service",
+			procedure:               "/test.TestService/TestMethod",
+			expectedFullServiceName: "test.TestService",
+			expectedService:         "TestService",
+			expectedMethod:          "TestMethod",
 		},
 		{
-			name:            "no leading slash",
-			procedure:       "test.TestService/TestMethod",
-			expectedService: "test.TestService",
-			expectedMethod:  "TestMethod",
+			name:                    "no leading slash",
+			procedure:               "test.TestService/TestMethod",
+			expectedFullServiceName: "test.TestService",
+			expectedService:         "TestService",
+			expectedMethod:          "TestMethod",
 		},
 		{
-			name:            "no slash in procedure",
-			procedure:       "JustAMethod",
-			expectedService: "unknown",
-			expectedMethod:  "JustAMethod",
+			name:                    "no slash in procedure",
+			procedure:               "JustAMethod",
+			expectedFullServiceName: "unknown",
+			expectedService:         "unknown",
+			expectedMethod:          "JustAMethod",
 		},
 		{
-			name:            "empty string",
-			procedure:       "",
-			expectedService: "unknown",
-			expectedMethod:  "",
+			name:                    "empty string",
+			procedure:               "",
+			expectedFullServiceName: "unknown",
+			expectedService:         "unknown",
+			expectedMethod:          "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, method := parseProcedure(tt.procedure)
+			fullServiceName, service, method := grpcUtils.ParseProcedure(tt.procedure)
+			require.Equal(t, tt.expectedFullServiceName, fullServiceName)
 			require.Equal(t, tt.expectedService, service)
 			require.Equal(t, tt.expectedMethod, method)
 		})

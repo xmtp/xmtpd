@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Stopping gateway dev environment..."
+
+if docker ps --format '{{.Names}}' | grep -q '^xmtp-gateway-redis$'; then
+  docker rm -f xmtp-gateway-redis > /dev/null
+  echo "Redis stopped"
+else
+  echo "Redis not running"
+fi
+
+echo "Done"

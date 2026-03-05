@@ -78,12 +78,13 @@ func (q *Queries) InsertGatewayEnvelope(ctx context.Context, arg InsertGatewayEn
 	return i, err
 }
 
-const insertGatewayEnvelopeBatchAndIncrementUnsettledUsage = `-- name: InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage :one
+const insertGatewayEnvelopeBatchV2 = `-- name: InsertGatewayEnvelopeBatchV2 :one
 SELECT
     inserted_meta_rows::bigint,
     inserted_blob_rows::bigint,
-    affected_usage_rows::bigint
-FROM insert_gateway_envelope_batch(
+    affected_usage_rows::bigint,
+    affected_congestion_rows::bigint
+FROM insert_gateway_envelope_batch_v2(
     $1::int[],
     $2::bigint[],
     $3::bytea[],
@@ -91,11 +92,13 @@ FROM insert_gateway_envelope_batch(
     $5::timestamp[],
     $6::bigint[],
     $7::bytea[],
-    $8::bigint[]
+    $8::bigint[],
+    $9::boolean[],
+    $10::boolean[]
 )
 `
 
-type InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageParams struct {
+type InsertGatewayEnvelopeBatchV2Params struct {
 	OriginatorNodeIds     []int32
 	OriginatorSequenceIds []int64
 	Topics                [][]byte
@@ -104,16 +107,19 @@ type InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageParams struct {
 	Expiries              []int64
 	OriginatorEnvelopes   [][]byte
 	SpendPicodollars      []int64
+	CountUsage            []bool
+	CountCongestion       []bool
 }
 
-type InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageRow struct {
-	InsertedMetaRows  int64
-	InsertedBlobRows  int64
-	AffectedUsageRows int64
+type InsertGatewayEnvelopeBatchV2Row struct {
+	InsertedMetaRows       int64
+	InsertedBlobRows       int64
+	AffectedUsageRows      int64
+	AffectedCongestionRows int64
 }
 
-func (q *Queries) InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(ctx context.Context, arg InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageParams) (InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageRow, error) {
-	row := q.db.QueryRowContext(ctx, insertGatewayEnvelopeBatchAndIncrementUnsettledUsage,
+func (q *Queries) InsertGatewayEnvelopeBatchV2(ctx context.Context, arg InsertGatewayEnvelopeBatchV2Params) (InsertGatewayEnvelopeBatchV2Row, error) {
+	row := q.db.QueryRowContext(ctx, insertGatewayEnvelopeBatchV2,
 		pq.Array(arg.OriginatorNodeIds),
 		pq.Array(arg.OriginatorSequenceIds),
 		pq.Array(arg.Topics),
@@ -122,9 +128,16 @@ func (q *Queries) InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage(ctx conte
 		pq.Array(arg.Expiries),
 		pq.Array(arg.OriginatorEnvelopes),
 		pq.Array(arg.SpendPicodollars),
+		pq.Array(arg.CountUsage),
+		pq.Array(arg.CountCongestion),
 	)
-	var i InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageRow
-	err := row.Scan(&i.InsertedMetaRows, &i.InsertedBlobRows, &i.AffectedUsageRows)
+	var i InsertGatewayEnvelopeBatchV2Row
+	err := row.Scan(
+		&i.InsertedMetaRows,
+		&i.InsertedBlobRows,
+		&i.AffectedUsageRows,
+		&i.AffectedCongestionRows,
+	)
 	return i, err
 }
 

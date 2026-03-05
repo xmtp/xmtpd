@@ -7,15 +7,16 @@ package queries
 
 import (
 	"context"
+
+	"github.com/lib/pq"
 )
 
-const deleteStagedOriginatorEnvelope = `-- name: DeleteStagedOriginatorEnvelope :execrows
-DELETE FROM staged_originator_envelopes
-WHERE id = $1
+const bulkDeleteStagedOriginatorEnvelopes = `-- name: BulkDeleteStagedOriginatorEnvelopes :execrows
+DELETE FROM staged_originator_envelopes WHERE id = ANY($1::BIGINT[])
 `
 
-func (q *Queries) DeleteStagedOriginatorEnvelope(ctx context.Context, id int64) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteStagedOriginatorEnvelope, id)
+func (q *Queries) BulkDeleteStagedOriginatorEnvelopes(ctx context.Context, ids []int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, bulkDeleteStagedOriginatorEnvelopes, pq.Array(ids))
 	if err != nil {
 		return 0, err
 	}
@@ -57,6 +58,42 @@ func (q *Queries) InsertStagedOriginatorEnvelope(ctx context.Context, arg Insert
 		&i.PayerEnvelope,
 	)
 	return i, err
+}
+
+const selectAndLockStagedEnvelopes = `-- name: SelectAndLockStagedEnvelopes :many
+SELECT id, originator_time, topic, payer_envelope
+FROM staged_originator_envelopes
+ORDER BY id ASC
+LIMIT $1
+FOR UPDATE
+`
+
+func (q *Queries) SelectAndLockStagedEnvelopes(ctx context.Context, numRows int32) ([]StagedOriginatorEnvelope, error) {
+	rows, err := q.db.QueryContext(ctx, selectAndLockStagedEnvelopes, numRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StagedOriginatorEnvelope
+	for rows.Next() {
+		var i StagedOriginatorEnvelope
+		if err := rows.Scan(
+			&i.ID,
+			&i.OriginatorTime,
+			&i.Topic,
+			&i.PayerEnvelope,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const selectOriginatorNodeIDs = `-- name: SelectOriginatorNodeIDs :many

@@ -2,8 +2,9 @@ package message
 
 import (
 	"context"
+	"database/sql"
 	"encoding/hex"
-	"errors"
+	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -13,32 +14,32 @@ import (
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
+	"github.com/xmtp/xmtpd/pkg/db/types"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/fees"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/topic"
 	"github.com/xmtp/xmtpd/pkg/utils"
+	"github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 	"go.uber.org/zap"
 )
 
-var errPublishFailed = errors.New("publish staged envelope failed")
+const (
+	numRowsPerBatch    = int32(100)
+	maxDeadlockRetries = 3
+	tickerInterval     = time.Second
+)
 
 type publishWorker struct {
 	ctx                context.Context
 	logger             *zap.Logger
-	listener           <-chan []queries.StagedOriginatorEnvelope
-	notifier           chan<- bool
+	notifier           chan bool
 	registrant         *registrant.Registrant
 	store              *db.Handler
-	subscription       db.DBSubscription[queries.StagedOriginatorEnvelope, int64]
 	lastProcessed      atomic.Int64
 	feeCalculator      fees.IFeeCalculator
 	sleepOnFailureTime time.Duration
-	// traceContextStore enables async trace context propagation from staging
-	// requests to worker processing, allowing end-to-end distributed tracing.
-	// When tracing is disabled, all operations on this store and the spans it
-	// produces are zero-cost no-ops (see tracing.noopSpan).
-	traceContextStore *tracing.TraceContextStore
+	traceContextStore  *tracing.TraceContextStore
 }
 
 func startPublishWorker(
@@ -52,43 +53,11 @@ func startPublishWorker(
 	logger = logger.Named(utils.PublishWorkerName)
 	logger.Info("starting")
 
-	query := func(ctx context.Context, lastSeenID int64, numRows int32) ([]queries.StagedOriginatorEnvelope, int64, error) {
-		results, err := store.WriteQuery().SelectStagedOriginatorEnvelopes(
-			ctx,
-			queries.SelectStagedOriginatorEnvelopesParams{
-				LastSeenID: lastSeenID,
-				NumRows:    numRows,
-			},
-		)
-		if err != nil {
-			return nil, 0, err
-		}
-		if len(results) > 0 {
-			lastSeenID = results[len(results)-1].ID
-		}
-		return results, lastSeenID, nil
-	}
-
 	notifier := make(chan bool, 1)
-	subscription := db.NewDBSubscription(
-		ctx,
-		logger,
-		query,
-		0, // lastSeenID
-		db.PollingOptions{Interval: time.Second, Notifier: notifier, NumRows: 100},
-	)
-
-	listener, err := subscription.Start()
-	if err != nil {
-		return nil, err
-	}
-
 	worker := &publishWorker{
 		ctx:                ctx,
 		logger:             logger,
 		notifier:           notifier,
-		subscription:       *subscription,
-		listener:           listener,
 		registrant:         reg,
 		store:              store,
 		feeCalculator:      feeCalculator,
@@ -96,8 +65,6 @@ func startPublishWorker(
 		traceContextStore:  tracing.NewTraceContextStore(),
 	}
 	go worker.start()
-
-	logger.Debug("started")
 
 	return worker, nil
 }
@@ -116,241 +83,339 @@ func (p *publishWorker) storeTraceContext(stagedID int64, span tracing.Span) {
 	p.traceContextStore.Store(stagedID, span)
 }
 
+// startEnvelopeSpans creates per-envelope trace spans linked to their API request contexts.
+// Retrieve deletes each entry from the store, preventing memory leaks.
+func (p *publishWorker) startEnvelopeSpans(
+	staged []queries.StagedOriginatorEnvelope,
+	originatorID int32,
+) []tracing.Span {
+	spans := make([]tracing.Span, len(staged))
+	for i, stagedEnv := range staged {
+		parentCtx := p.traceContextStore.Retrieve(stagedEnv.ID)
+		if parentCtx != nil {
+			spans[i] = tracing.StartSpanWithParent(
+				tracing.SpanPublishWorkerProcess,
+				parentCtx,
+			)
+			tracing.SpanTag(spans[i], tracing.TagTraceLinked, true)
+		} else {
+			spans[i], _ = tracing.StartSpanFromContext(
+				p.ctx,
+				tracing.SpanPublishWorkerProcess,
+			)
+			tracing.SpanTag(spans[i], tracing.TagTraceLinked, false)
+		}
+		tracing.SpanTag(spans[i], tracing.TagStagedID, stagedEnv.ID)
+		tracing.SpanTag(spans[i], tracing.TagOriginatorNode, originatorID)
+		tracing.SpanTag(spans[i], tracing.TagTopic, hex.EncodeToString(stagedEnv.Topic))
+	}
+	return spans
+}
+
 func (p *publishWorker) start() {
+	p.logger.Info("started")
+	defer p.logger.Info("stopped")
+
+	timer := time.NewTimer(tickerInterval)
+	defer timer.Stop()
+
 	for {
 		select {
 		case <-p.ctx.Done():
 			return
-		case batch, ok := <-p.listener:
-			if !ok {
-				p.logger.Error("listener is closed")
-				return
-			}
+		case <-p.notifier:
+		case <-timer.C:
+		}
+		p.pollAndPublish()
+		timer.Reset(tickerInterval)
+	}
+}
 
-			for _, stagedEnv := range batch {
-				p.logger.Info("publishing envelope", utils.SequenceIDField(stagedEnv.ID))
-				for !p.publishStagedEnvelope(stagedEnv) {
-					// Infinite retry on failure to publish; we cannot
-					// continue to the next envelope until this one is processed
-					time.Sleep(p.sleepOnFailureTime)
-				}
-				p.lastProcessed.Store(stagedEnv.ID)
-				metrics.EmitAPIStagedEnvelopeProcessingDelay(time.Since(stagedEnv.OriginatorTime))
-			}
+// pollAndPublish processes batches in a loop until no more rows are available.
+func (p *publishWorker) pollAndPublish() {
+	for {
+		count, err := p.processBatchWithRetry()
+		if err != nil {
+			p.logger.Error("failed to process batch", zap.Error(err))
+			time.Sleep(p.sleepOnFailureTime)
+			return
+		}
+		if count < numRowsPerBatch {
+			return
 		}
 	}
 }
 
-func (p *publishWorker) publishStagedEnvelope(
-	stagedEnv queries.StagedOriginatorEnvelope,
-) (success bool) {
-	// All tracing calls below are safe when tracing is disabled — the tracing
-	// package returns singleton no-op spans with zero-cost Finish/SetTag methods.
-
-	// Retrieve parent span context from async trace propagation.
-	// This links the worker processing to the original staging request.
-	parentCtx := p.traceContextStore.Retrieve(stagedEnv.ID)
-
-	// Create APM span, linked to parent if available
-	var span tracing.Span
-	var ctx context.Context
-	if parentCtx != nil {
-		// Linked to original staging request - full distributed trace!
-		span = tracing.StartSpanWithParent(tracing.SpanPublishWorkerProcess, parentCtx)
-		ctx = tracing.ContextWithSpan(p.ctx, span)
-		tracing.SpanTag(span, tracing.TagTraceLinked, true)
-	} else {
-		// No parent context - timer fallback or context expired
-		span, ctx = tracing.StartSpanFromContext(p.ctx, tracing.SpanPublishWorkerProcess)
-		tracing.SpanTag(span, tracing.TagTraceLinked, false)
+// processBatchWithRetry retries the batch on transient database errors such as deadlocks.
+func (p *publishWorker) processBatchWithRetry() (int32, error) {
+	for attempt := range maxDeadlockRetries {
+		count, err := p.processBatch()
+		if err != nil && retryerrors.IsRetryableSQLError(err) && attempt < maxDeadlockRetries-1 {
+			p.logger.Warn("retrying batch after transient error",
+				zap.Int("attempt", attempt+1),
+				zap.Error(err),
+			)
+			continue
+		}
+		return count, err
 	}
-	defer func() {
-		if !success {
-			span.Finish(tracing.WithError(errPublishFailed))
+	// unreachable
+	return 0, nil
+}
+
+type batchResult struct {
+	count           int32
+	originatorTimes []time.Time
+}
+
+// processBatch runs the entire publish pipeline inside a single transaction:
+// lock rows, compute fees, insert gateway envelopes, delete staged.
+func (p *publishWorker) processBatch() (int32, error) {
+	originatorID := int32(p.registrant.NodeID())
+
+	var spans []tracing.Span
+
+	result, err := db.RunInTxWithResult(
+		p.ctx, p.store.DB(), &sql.TxOptions{},
+		func(ctx context.Context, txQueries *queries.Queries) (batchResult, error) {
+			staged, err := txQueries.SelectAndLockStagedEnvelopes(
+				ctx, numRowsPerBatch,
+			)
+			if err != nil {
+				return batchResult{}, fmt.Errorf("select and lock staged envelopes: %w", err)
+			}
+			if len(staged) == 0 {
+				return batchResult{}, nil
+			}
+
+			spans = p.startEnvelopeSpans(staged, originatorID)
+
+			p.logger.Debug(
+				"processing batch", zap.Int("batch_size", len(staged)),
+			)
+
+			prepared, err := p.prepareEnvelopes(staged, txQueries)
+			if err != nil {
+				return batchResult{}, err
+			}
+
+			return p.persistBatch(ctx, txQueries, prepared)
+		},
+	)
+
+	// Finish per-envelope spans outside the transaction so we capture
+	// errors from the tx body, commit failures, and rollbacks.
+	for _, span := range spans {
+		if err != nil {
+			span.Finish(tracing.WithError(err))
 		} else {
 			span.Finish()
 		}
-	}()
+	}
 
-	originatorID := int32(p.registrant.NodeID())
+	if err != nil {
+		return 0, err
+	}
 
-	// Add searchable tags for debugging (same info as our PERF_TRACE logs)
-	tracing.SpanTag(span, tracing.TagStagedID, stagedEnv.ID)
-	tracing.SpanTag(span, tracing.TagOriginatorNode, originatorID)
-	tracing.SpanTag(span, tracing.TagTopic, hex.EncodeToString(stagedEnv.Topic))
+	// Emit metrics after the transaction commits successfully.
+	for _, t := range result.originatorTimes {
+		metrics.EmitAPIStagedEnvelopeProcessingDelay(time.Since(t))
+	}
 
-	logger := p.logger.With(
-		utils.SequenceIDField(stagedEnv.ID),
-		utils.OriginatorIDField(uint32(originatorID)),
+	// Update lastProcessed from the DB to cover both our inserts and other workers'
+	latestSeq, err := p.store.WriteQuery().GetLatestSequenceId(
+		p.ctx, originatorID,
 	)
-	logger = tracing.Link(span, logger)
+	if err == nil && latestSeq > 0 {
+		p.lastProcessed.Store(latestSeq)
+	}
 
+	if result.count > 0 {
+		p.logger.Info("batch published", zap.Int32("batch_size", result.count))
+	}
+
+	return result.count, nil
+}
+
+type preparedEnvelope struct {
+	staged          queries.StagedOriginatorEnvelope
+	originatorBytes []byte
+	payerAddress    string
+	isReserved      bool
+	baseFee         currency.PicoDollar
+	congestionFee   currency.PicoDollar
+	expiry          int64
+}
+
+// prepareEnvelopes signs and validates each staged envelope, computing fees along the way.
+func (p *publishWorker) prepareEnvelopes(
+	batch []queries.StagedOriginatorEnvelope,
+	txQueries *queries.Queries,
+) ([]preparedEnvelope, error) {
+	originatorID := uint32(p.registrant.NodeID())
+	prepared := make([]preparedEnvelope, 0, len(batch))
+	batchCalc := p.feeCalculator.NewBatchFeeCalculator(
+		p.ctx, txQueries, originatorID,
+	)
+
+	for _, stagedEnv := range batch {
+		prep, err := p.prepareSingleEnvelope(stagedEnv, batchCalc)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"prepare envelope %d: %w", stagedEnv.ID, err,
+			)
+		}
+		prepared = append(prepared, *prep)
+	}
+
+	return prepared, nil
+}
+
+// prepareSingleEnvelope parses, computes fees, signs, and validates a single staged envelope.
+func (p *publishWorker) prepareSingleEnvelope(
+	stagedEnv queries.StagedOriginatorEnvelope,
+	batchCalc *fees.BatchFeeCalculator,
+) (*preparedEnvelope, error) {
 	env, err := envelopes.NewPayerEnvelopeFromBytes(stagedEnv.PayerEnvelope)
 	if err != nil {
-		logger.Warn("failed to unmarshall originator envelope", zap.Error(err))
-		return false
+		return nil, err
 	}
 
 	parsedTopic, err := topic.ParseTopic(stagedEnv.Topic)
 	if err != nil {
-		return false
+		return nil, err
 	}
 
-	var (
-		baseFee         currency.PicoDollar
-		congestionFee   currency.PicoDollar
-		isReservedTopic = parsedTopic.IsReserved()
-		retentionDays   = env.RetentionDays()
-	)
+	isReserved := parsedTopic.IsReserved()
+	retentionDays := env.RetentionDays()
+	var baseFee, congestionFee currency.PicoDollar
 
-	if !isReservedTopic {
-		feeSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanPublishWorkerCalculateFees)
-		baseFee, congestionFee, err = p.calculateFees(&stagedEnv, retentionDays)
+	if !isReserved {
+		baseFee, err = p.feeCalculator.CalculateBaseFee(
+			stagedEnv.OriginatorTime,
+			int64(len(stagedEnv.PayerEnvelope)),
+			retentionDays,
+		)
 		if err != nil {
-			feeSpan.Finish(tracing.WithError(err))
-			logger.Error("failed to calculate fees", zap.Error(err))
-			return false
+			return nil, err
 		}
-		tracing.SpanTag(feeSpan, "base_fee", int64(baseFee))
-		tracing.SpanTag(feeSpan, "congestion_fee", int64(congestionFee))
-		feeSpan.Finish()
+
+		congestionFee, err = batchCalc.CalculateCongestionFee(stagedEnv.OriginatorTime)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	signSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanPublishWorkerSignEnvelope)
 	originatorEnv, err := p.registrant.SignStagedEnvelope(
-		stagedEnv,
-		baseFee,
-		congestionFee,
-		retentionDays,
+		stagedEnv, baseFee, congestionFee, retentionDays,
 	)
 	if err != nil {
-		signSpan.Finish(tracing.WithError(err))
-		logger.Error(
-			"failed to sign staged envelope",
-			zap.Error(err),
-		)
-		return false
+		return nil, err
 	}
-	signSpan.Finish()
 
 	validatedEnvelope, err := envelopes.NewOriginatorEnvelope(originatorEnv)
 	if err != nil {
-		logger.Error("failed to validate originator envelope", zap.Error(err))
-		return false
+		return nil, err
 	}
 
 	originatorBytes, err := validatedEnvelope.Bytes()
 	if err != nil {
-		logger.Error("failed to marshal originator envelope", zap.Error(err))
-		return false
+		return nil, err
 	}
 
 	payerAddress, err := validatedEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.RecoverSigner()
 	if err != nil {
-		logger.Error("failed to recover payer address", zap.Error(err))
-		return false
+		return nil, err
 	}
 
-	payerID, err := p.store.WriteQuery().FindOrCreatePayer(ctx, payerAddress.Hex())
+	return &preparedEnvelope{
+		staged:          stagedEnv,
+		originatorBytes: originatorBytes,
+		payerAddress:    payerAddress.Hex(),
+		isReserved:      isReserved,
+		baseFee:         baseFee,
+		congestionFee:   congestionFee,
+		expiry: int64(
+			validatedEnvelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime(),
+		),
+	}, nil
+}
+
+// persistBatch performs all DB operations within the transaction:
+// payer resolution, batch insert, and staged deletion.
+func (p *publishWorker) persistBatch(
+	ctx context.Context,
+	txQueries *queries.Queries,
+	prepared []preparedEnvelope,
+) (batchResult, error) {
+	originatorID := int32(p.registrant.NodeID())
+
+	// Bulk find/create payers (deduplicated)
+	uniqueAddresses := deduplicatePayerAddresses(prepared)
+	payerRows, err := txQueries.BulkFindOrCreatePayers(ctx, uniqueAddresses)
 	if err != nil {
-		logger.Error("failed to find or create payer", zap.Error(err))
-		return false
+		return batchResult{}, fmt.Errorf("bulk find/create payers: %w", err)
+	}
+	payerMap := make(map[string]int32, len(payerRows))
+	for _, row := range payerRows {
+		payerMap[row.Address] = row.ID
 	}
 
-	// On unique constraint conflicts, no error is thrown, but numRows is 0
-	var inserted int64
+	// Build batch and collect staged IDs for deletion
+	batchInput := types.NewGatewayEnvelopeBatch()
+	stagedIDs := make([]int64, 0, len(prepared))
+	originatorTimes := make([]time.Time, 0, len(prepared))
+	for _, prep := range prepared {
+		batchInput.Add(types.GatewayEnvelopeRow{
+			OriginatorNodeID:     originatorID,
+			OriginatorSequenceID: prep.staged.ID,
+			Topic:                prep.staged.Topic,
+			PayerID:              payerMap[prep.payerAddress],
+			GatewayTime:          prep.staged.OriginatorTime,
+			Expiry:               prep.expiry,
+			OriginatorEnvelope:   prep.originatorBytes,
+			SpendPicodollars:     int64(prep.baseFee) + int64(prep.congestionFee),
+			CountUsage:           !prep.isReserved,
+			CountCongestion:      !prep.isReserved,
+		})
+		stagedIDs = append(stagedIDs, prep.staged.ID)
+		originatorTimes = append(originatorTimes, prep.staged.OriginatorTime)
+	}
 
 	insertSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanPublishWorkerInsertGateway)
-	tracing.SpanTag(insertSpan, "is_reserved_topic", isReservedTopic)
-
-	if isReservedTopic {
-
-		// Reserved topics are not charged fees, so we only need to insert the envelope into the database.
-		rows, err := db.InsertGatewayEnvelopeWithChecksStandalone(
-			ctx,
-			p.store.WriteQuery(),
-			queries.InsertGatewayEnvelopeParams{
-				OriginatorNodeID:     originatorID,
-				OriginatorSequenceID: stagedEnv.ID,
-				Topic:                stagedEnv.Topic,
-				OriginatorEnvelope:   originatorBytes,
-				PayerID:              db.NullInt32(payerID),
-				Expiry: int64(
-					validatedEnvelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime(),
-				),
-			})
-		if err != nil {
-			insertSpan.Finish(tracing.WithError(err))
-			logger.Error("failed to insert gateway envelope with reserved topic", zap.Error(err))
-			return false
-		}
-
-		if rows.InsertedMetaRows > 0 {
-			inserted = rows.InsertedMetaRows
-		}
-
-	} else {
-		inserted, err = db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
-			ctx,
-			p.store.DB(),
-			queries.InsertGatewayEnvelopeParams{
-				OriginatorNodeID:     originatorID,
-				OriginatorSequenceID: stagedEnv.ID,
-				Topic:                stagedEnv.Topic,
-				OriginatorEnvelope:   originatorBytes,
-				PayerID:              db.NullInt32(payerID),
-				GatewayTime:          stagedEnv.OriginatorTime,
-				Expiry: int64(
-					validatedEnvelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime(),
-				),
-			},
-			queries.IncrementUnsettledUsageParams{
-				PayerID:           payerID,
-				OriginatorID:      originatorID,
-				MinutesSinceEpoch: utils.MinutesSinceEpoch(stagedEnv.OriginatorTime),
-				SpendPicodollars:  int64(baseFee) + int64(congestionFee),
-			},
-			true,
-		)
-	}
-
-	if ctx.Err() != nil {
-		insertSpan.Finish()
-		return false
-	} else if err != nil {
+	inserted, err := db.InsertGatewayEnvelopeBatchV2Transactional(
+		ctx, txQueries, p.logger, batchInput,
+	)
+	if err != nil {
 		insertSpan.Finish(tracing.WithError(err))
-		logger.Error("failed to insert gateway envelope", zap.Error(err))
-		return false
-	} else if inserted == 0 {
-		// Envelope was already inserted by another worker
-		tracing.SpanTag(insertSpan, "already_inserted", true)
-		logger.Debug("envelope already inserted")
+		return batchResult{}, fmt.Errorf("batch insert gateway envelopes: %w", err)
 	}
 	tracing.SpanTag(insertSpan, "inserted_rows", inserted)
 	insertSpan.Finish()
 
-	// Try to delete the row regardless of if the gateway envelope was inserted elsewhere
 	deleteSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanPublishWorkerDeleteStaged)
-	deleted, err := p.store.WriteQuery().DeleteStagedOriginatorEnvelope(ctx, stagedEnv.ID)
-	if ctx.Err() != nil {
-		deleteSpan.Finish()
-		return true
-	} else if err != nil {
+	_, err = txQueries.BulkDeleteStagedOriginatorEnvelopes(ctx, stagedIDs)
+	if err != nil {
 		deleteSpan.Finish(tracing.WithError(err))
-		logger.Error("failed to delete staged envelope", zap.Error(err))
-		// Envelope is already inserted, so it is safe to continue
-		return true
-	} else if deleted == 0 {
-		// Envelope was already deleted by another worker
-		tracing.SpanTag(deleteSpan, "already_deleted", true)
-		logger.Debug("envelope already deleted")
+		return batchResult{}, fmt.Errorf("bulk delete staged envelopes: %w", err)
 	}
-	tracing.SpanTag(deleteSpan, "deleted_rows", deleted)
 	deleteSpan.Finish()
 
-	return true
+	if inserted > 0 {
+		p.logger.Info("batch inserted",
+			zap.Int("batch_size", len(prepared)),
+			zap.Int64("inserted", inserted),
+		)
+	}
+
+	return batchResult{
+		count:           int32(len(prepared)),
+		originatorTimes: originatorTimes,
+	}, nil
 }
 
+// calculateFees computes the base and congestion fees for a staged envelope.
+// Used by the API handler to estimate fees before the publish worker processes the batch.
 func (p *publishWorker) calculateFees(
 	stagedEnv *queries.StagedOriginatorEnvelope,
 	retentionDays uint32,
@@ -364,11 +429,9 @@ func (p *publishWorker) calculateFees(
 		return 0, 0, err
 	}
 
-	// TODO:nm: Set this to the actual congestion fee
-	// For now we are setting congestion to 0
 	congestionFee, err := p.feeCalculator.CalculateCongestionFee(
 		p.ctx,
-		p.store.Query(),
+		p.store.WriteQuery(),
 		stagedEnv.OriginatorTime,
 		p.registrant.NodeID(),
 	)
@@ -377,4 +440,16 @@ func (p *publishWorker) calculateFees(
 	}
 
 	return baseFee, congestionFee, nil
+}
+
+func deduplicatePayerAddresses(prepared []preparedEnvelope) []string {
+	seen := make(map[string]struct{}, len(prepared))
+	result := make([]string, 0, len(prepared))
+	for _, p := range prepared {
+		if _, ok := seen[p.payerAddress]; !ok {
+			seen[p.payerAddress] = struct{}{}
+			result = append(result, p.payerAddress)
+		}
+	}
+	return result
 }

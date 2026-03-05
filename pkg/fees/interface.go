@@ -36,4 +36,9 @@ type IFeeCalculator interface {
 		messageTime time.Time,
 		originatorID uint32,
 	) (currency.PicoDollar, error)
+	NewBatchFeeCalculator(
+		ctx context.Context,
+		querier *queries.Queries,
+		originatorID uint32,
+	) *BatchFeeCalculator
 }

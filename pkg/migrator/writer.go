@@ -45,7 +45,7 @@ func (w *Worker) insertOriginatorEnvelopeDatabaseBatch(
 				return re.NewRecoverableError("set local work mem failed", err)
 			}
 
-			_, err = db.InsertGatewayEnvelopeBatchTransactional(ctx, querier, batch)
+			_, err = db.InsertGatewayEnvelopeBatchV2Transactional(ctx, querier, logger, batch)
 			if err != nil {
 				logger.Error("insert originator envelope batch failed", zap.Error(err))
 				return re.NewRecoverableError("insert originator envelope batch failed", err)

@@ -162,10 +162,11 @@ func TestClaimsValidator(t *testing.T) {
 			true,
 		},
 		{
-			"future-minor-rejects-us",
+			// A server on a newer minor accepts older peers; minor bumps are backward-compatible.
+			"future-minor-accepts-us",
 			currentVersion,
 			currentVersion.IncMinor(),
-			true,
+			false,
 		},
 		{
 			"future-patch-accepts-us",

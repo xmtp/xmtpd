@@ -13,11 +13,17 @@ type GatewayEnvelopeRow struct {
 	OriginatorNodeID     int32
 	OriginatorSequenceID int64
 	Topic                []byte
-	PayerID              int32
-	GatewayTime          time.Time
-	Expiry               int64
-	OriginatorEnvelope   []byte
-	SpendPicodollars     int64
+	// Payer IDs considerations:
+	//   - if not 0, they must exist.
+	//   - if 0, they are treated as null, as it's nullable in gateway_envelopes_meta.
+	//   - if 0, no unsettled usage is incremented.
+	PayerID            int32
+	GatewayTime        time.Time
+	Expiry             int64
+	OriginatorEnvelope []byte
+	SpendPicodollars   int64
+	CountUsage         bool // track unsettled usage for this envelope
+	CountCongestion    bool // track originator congestion for this envelope
 }
 
 type GatewayEnvelopeBatch struct {
@@ -55,12 +61,12 @@ func (b *GatewayEnvelopeBatch) Reset() {
 	b.Envelopes = make([]GatewayEnvelopeRow, 0)
 }
 
-func (b *GatewayEnvelopeBatch) ToParams() queries.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageParams {
+func (b *GatewayEnvelopeBatch) ToParamsV2() queries.InsertGatewayEnvelopeBatchV2Params {
 	n := b.Len()
 
 	b.ensureOrdered()
 
-	params := queries.InsertGatewayEnvelopeBatchAndIncrementUnsettledUsageParams{
+	params := queries.InsertGatewayEnvelopeBatchV2Params{
 		OriginatorNodeIds:     make([]int32, n),
 		OriginatorSequenceIds: make([]int64, n),
 		Topics:                make([][]byte, n),
@@ -69,6 +75,8 @@ func (b *GatewayEnvelopeBatch) ToParams() queries.InsertGatewayEnvelopeBatchAndI
 		Expiries:              make([]int64, n),
 		OriginatorEnvelopes:   make([][]byte, n),
 		SpendPicodollars:      make([]int64, n),
+		CountUsage:            make([]bool, n),
+		CountCongestion:       make([]bool, n),
 	}
 
 	for i, row := range b.Envelopes {
@@ -80,6 +88,8 @@ func (b *GatewayEnvelopeBatch) ToParams() queries.InsertGatewayEnvelopeBatchAndI
 		params.Expiries[i] = row.Expiry
 		params.OriginatorEnvelopes[i] = row.OriginatorEnvelope
 		params.SpendPicodollars[i] = row.SpendPicodollars
+		params.CountUsage[i] = row.CountUsage
+		params.CountCongestion[i] = row.CountCongestion
 	}
 
 	return params

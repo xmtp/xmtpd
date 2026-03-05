@@ -12,6 +12,25 @@ WITH ins AS (
 SELECT id
 FROM u
 LIMIT 1;
+
+-- name: BulkFindOrCreatePayers :many
+WITH input AS (
+    SELECT address FROM unnest(@addresses::TEXT[]) AS t(address)
+),
+ins AS (
+    INSERT INTO payers(address)
+    SELECT address FROM input
+    ON CONFLICT (address) DO NOTHING
+    RETURNING id, address
+)
+SELECT address, id
+FROM ins
+UNION ALL
+SELECT i.address, p.id
+FROM input i
+JOIN payers p ON p.address = i.address
+WHERE i.address NOT IN (SELECT address FROM ins);
+
 -- name: GetPayerByAddress :one
 SELECT id
 FROM payers

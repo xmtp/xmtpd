@@ -254,12 +254,13 @@ CROSS JOIN LATERAL (
 ) AS bl
 ORDER BY bl.originator_node_id, bl.originator_sequence_id;
 
--- name: InsertGatewayEnvelopeBatchAndIncrementUnsettledUsage :one
+-- name: InsertGatewayEnvelopeBatchV2 :one
 SELECT
     inserted_meta_rows::bigint,
     inserted_blob_rows::bigint,
-    affected_usage_rows::bigint
-FROM insert_gateway_envelope_batch(
+    affected_usage_rows::bigint,
+    affected_congestion_rows::bigint
+FROM insert_gateway_envelope_batch_v2(
     @originator_node_ids::int[],
     @originator_sequence_ids::bigint[],
     @topics::bytea[],
@@ -267,5 +268,7 @@ FROM insert_gateway_envelope_batch(
     @gateway_times::timestamp[],
     @expiries::bigint[],
     @originator_envelopes::bytea[],
-    @spend_picodollars::bigint[]
+    @spend_picodollars::bigint[],
+    @count_usage::boolean[],
+    @count_congestion::boolean[]
 );

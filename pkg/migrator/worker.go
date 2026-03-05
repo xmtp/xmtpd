@@ -478,6 +478,8 @@ func (w *Worker) StartDatabaseWriter(ctx context.Context) error {
 						SpendPicodollars: int64(
 							envelope.UnsignedOriginatorEnvelope.Proto().GetBaseFeePicodollars(),
 						),
+						CountUsage:      false,
+						CountCongestion: false,
 					})
 
 					// this metric might be slightly ahead of the batch flush and might be slightly incorrect if flushing fails

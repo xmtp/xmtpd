@@ -14,7 +14,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
-const currentMigration int64 = 19
+const currentMigration int64 = 20
 
 var (
 	originatorIDs = []int32{100, 200, 300}
@@ -194,6 +194,10 @@ func TestMigrations(t *testing.T) {
 
 	t.Run("00019_v3b_indexes", func(t *testing.T) {
 		checkV3bIndexes(t, database)
+	})
+
+	t.Run("00020_insert-gateway-envelopes-batch-v2", func(t *testing.T) {
+		checkInsertBatchV2(t, database)
 	})
 
 	t.Run("data_verification", func(t *testing.T) {
@@ -381,6 +385,10 @@ func checkLatestEnvelopesV2(t *testing.T, database *sql.DB) {
 
 func checkV3bIndexes(t *testing.T, database *sql.DB) {
 	indexExists(t, database, "gem_topic_orig_seq_idx")
+}
+
+func checkInsertBatchV2(t *testing.T, database *sql.DB) {
+	functionExists(t, database, "insert_gateway_envelope_batch_v2")
 }
 
 // --- Data verification after populateDatabase ---

@@ -60,10 +60,8 @@ func (c *FeeCalculator) CalculateCongestionFee(
 	messageTime time.Time,
 	originatorID uint32,
 ) (currency.PicoDollar, error) {
-	last5MinutesCongestion, err := db.Get5MinutesOfCongestion(
-		ctx,
-		querier,
-		int32(originatorID),
+	snapshot, err := db.Get5MinutesOfCongestion(
+		ctx, querier, int32(originatorID),
 		int32(utils.MinutesSinceEpoch(messageTime)),
 	)
 	if err != nil {
@@ -75,15 +73,13 @@ func (c *FeeCalculator) CalculateCongestionFee(
 		return 0, err
 	}
 
-	congestionUnits := CalculateCongestion(last5MinutesCongestion, int32(rates.TargetRatePerMinute))
-
+	congestionUnits := CalculateCongestion(snapshot, int32(rates.TargetRatePerMinute))
 	if congestionUnits < 0 || congestionUnits > 100 {
 		return 0, fmt.Errorf(
 			"congestionUnits must be between 0 and 100, got %d",
 			congestionUnits,
 		)
 	}
-
 	if congestionUnits == 0 {
 		return 0, nil
 	}

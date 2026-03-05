@@ -1,4 +1,4 @@
-name: Publish Gateway npm Packages
+name: Publish Gateway npm Package
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
         type: boolean
         default: false
       npm_tag:
-        description: "npm dist-tag override (auto = latest for main, dev for feature branches)"
+        description: "npm dist-tag override (auto = latest for main, poc for feature branches)"
         type: choice
         options:
           - auto
@@ -38,7 +38,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: gateway-binaries
-          path: npm/gateway-*/bin/xmtp-gateway
+          path: npm/gateway/bin/
           retention-days: 1
 
   build-typescript:
@@ -88,7 +88,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: gateway-binaries
-          path: npm/
+          path: npm/gateway/bin/
 
       - name: Download compiled TypeScript
         uses: actions/download-artifact@v4
@@ -97,7 +97,7 @@ jobs:
           path: npm/gateway/dist/
 
       - name: Make binaries executable
-        run: chmod +x npm/gateway-*/bin/xmtp-gateway
+        run: chmod +x npm/gateway/bin/xmtp-gateway-*
 
       - name: Determine version and tag
         id: version
@@ -127,39 +127,10 @@ jobs:
           echo "npm_tag=${NPM_TAG}" >> $GITHUB_OUTPUT
           echo "Publishing ${VERSION} with tag ${NPM_TAG}"
 
-      - name: Sync versions across packages
+      - name: Set version
         run: |
           chmod +x npm/sync-versions.sh
           npm/sync-versions.sh "${{ steps.version.outputs.version }}"
-
-      # Platform packages first, then main package
-      - name: Publish @xmtp/gateway-darwin-arm64
-        if: ${{ !inputs.dry_run }}
-        run: npm publish --access public --provenance --tag ${{ steps.version.outputs.npm_tag }}
-        working-directory: npm/gateway-darwin-arm64
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @xmtp/gateway-darwin-x64
-        if: ${{ !inputs.dry_run }}
-        run: npm publish --access public --provenance --tag ${{ steps.version.outputs.npm_tag }}
-        working-directory: npm/gateway-darwin-x64
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @xmtp/gateway-linux-arm64
-        if: ${{ !inputs.dry_run }}
-        run: npm publish --access public --provenance --tag ${{ steps.version.outputs.npm_tag }}
-        working-directory: npm/gateway-linux-arm64
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @xmtp/gateway-linux-x64
-        if: ${{ !inputs.dry_run }}
-        run: npm publish --access public --provenance --tag ${{ steps.version.outputs.npm_tag }}
-        working-directory: npm/gateway-linux-x64
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @xmtp/gateway
         if: ${{ !inputs.dry_run }}

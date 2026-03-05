@@ -5,7 +5,7 @@ import path from "node:path";
 
 const binaryPath = path.resolve(
   __dirname,
-  `../../gateway-${process.platform}-${process.arch}/bin/xmtp-gateway`,
+  `../bin/xmtp-gateway-${process.platform}-${process.arch}`,
 );
 
 describe("startGateway", () => {

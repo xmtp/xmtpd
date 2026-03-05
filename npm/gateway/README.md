@@ -8,7 +8,7 @@ Run the XMTP gateway as a sidecar process in your Node.js agent.
 npm install @xmtp/gateway
 ```
 
-The correct binary for your platform (macOS/Linux, x64/arm64) is installed automatically.
+All platform binaries (macOS/Linux, x64/arm64) are included. The correct one is selected at runtime.
 
 ## Prerequisites
 
@@ -125,9 +125,7 @@ export XMTP_GATEWAY_BINARY_PATH=/path/to/xmtp-gateway
 
 ## Supported platforms
 
-| OS | Architecture | Package |
-|----|-------------|---------|
-| macOS | arm64 (Apple Silicon) | `@xmtp/gateway-darwin-arm64` |
-| macOS | x64 (Intel) | `@xmtp/gateway-darwin-x64` |
-| Linux | arm64 | `@xmtp/gateway-linux-arm64` |
-| Linux | x64 | `@xmtp/gateway-linux-x64` |
+- macOS arm64 (Apple Silicon)
+- macOS x64 (Intel)
+- Linux arm64
+- Linux x64

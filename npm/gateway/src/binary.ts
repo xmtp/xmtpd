@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import os from "node:os";
+import path from "node:path";
 
 const PLATFORM_MAP: Record<string, string> = {
   darwin: "darwin",
@@ -33,17 +34,20 @@ export function resolveBinary(): string {
     );
   }
 
-  const packageName = `@xmtp/gateway-${platform}-${arch}`;
+  const binaryPath = path.join(
+    __dirname,
+    "..",
+    "bin",
+    `xmtp-gateway-${platform}-${arch}`,
+  );
 
-  try {
-    return require.resolve(`${packageName}/bin/xmtp-gateway`);
-  } catch {
+  if (!existsSync(binaryPath)) {
     throw new Error(
-      `Cannot find XMTP gateway binary for ${process.platform}-${os.arch()}.\n` +
-        `Expected package: ${packageName}\n\n` +
-        `Make sure optional dependencies are installed:\n` +
-        `  npm install (without --no-optional)\n\n` +
-        `Or set XMTP_GATEWAY_BINARY_PATH to a custom binary path.`,
+      `Cannot find XMTP gateway binary at ${binaryPath}.\n` +
+        `Run npm/build.sh to build the binaries, ` +
+        `or set XMTP_GATEWAY_BINARY_PATH to a custom binary path.`,
     );
   }
+
+  return binaryPath;
 }

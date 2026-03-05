@@ -4,7 +4,7 @@ import path from "node:path";
 
 const localBinaryPath = path.resolve(
   __dirname,
-  `../../gateway-${process.platform}-${process.arch}/bin/xmtp-gateway`,
+  `../bin/xmtp-gateway-${process.platform}-${process.arch}`,
 );
 
 describe("resolveBinary", () => {
@@ -28,23 +28,9 @@ describe("resolveBinary", () => {
     expect(() => resolveBinary()).toThrow("non-existent file");
   });
 
-  it("should throw helpful error when platform package is missing", () => {
+  it("should resolve binary from bin/ directory", () => {
     delete process.env.XMTP_GATEWAY_BINARY_PATH;
-    // Without the env override, resolution depends on whether the platform
-    // package is installed. In local dev it usually is, so we just verify
-    // the result is reasonable either way.
-    const result = (() => {
-      try {
-        return { path: resolveBinary() };
-      } catch (err: any) {
-        return { error: err.message as string };
-      }
-    })();
-
-    if ("path" in result) {
-      expect(result.path).toContain("xmtp-gateway");
-    } else {
-      expect(result.error).toContain("Cannot find XMTP gateway binary");
-    }
+    const resolved = resolveBinary();
+    expect(resolved).toContain("xmtp-gateway");
   });
 });

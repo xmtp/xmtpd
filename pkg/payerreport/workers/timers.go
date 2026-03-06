@@ -12,6 +12,17 @@ var (
 	repeatIntervalMinutes uint32 = 60
 )
 
+// SetWorkerTimingConfig overrides the default repeat interval and distribution spread.
+// Must be called before starting any workers.
+func SetWorkerTimingConfig(repeatMinutes, spreadMinutes uint32) {
+	if repeatMinutes > 0 {
+		repeatIntervalMinutes = repeatMinutes
+	}
+	if spreadMinutes > 0 {
+		distributionSpreadMinutes = spreadMinutes
+	}
+}
+
 // Distributes the minute of the hour on which each node will run operations.
 // This is to avoid having many nodes do identical work at the same time, and potentially leading to
 // duplicate reports or submissions.

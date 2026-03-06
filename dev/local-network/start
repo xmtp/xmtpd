@@ -1,0 +1,17 @@
+#!/bin/bash
+set -eo pipefail
+
+cd "$(dirname "$0")"
+
+docker compose \
+  -f ./main.yml \
+  -f ./node-1.yml \
+  -f ./node-2.yml \
+  -f ./gateway.yml \
+  --env-file ./main.env \
+  -p "xmtp-network" \
+  up -d \
+  --remove-orphans \
+  --wait
+
+echo "✅ XMTP Network started"

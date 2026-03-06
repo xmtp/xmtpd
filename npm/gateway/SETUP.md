@@ -146,6 +146,21 @@ This sends SIGTERM to the subprocess and waits up to 5 seconds for graceful shut
 
 ---
 
+## Deploy to Render
+
+The xmtpd repo includes a `render.yaml` blueprint at the root that sets up everything — a Node.js worker and a managed Redis (Key Value) instance.
+
+1. Import the xmtpd repo on [Render](https://render.com/) — it auto-detects the blueprint
+2. Fill in the required env vars when prompted:
+   - `PAYER_PRIVATE_KEY` — your funded payer wallet key
+   - `APP_CHAIN_RPC_URL` / `APP_CHAIN_WSS_URL` — XMTP chain endpoints
+   - `SETTLEMENT_CHAIN_RPC_URL` / `SETTLEMENT_CHAIN_WSS_URL` — Base chain endpoints
+3. Redis is provisioned automatically and wired via `REDIS_URL`
+
+The gateway runs as a worker service using the bundled `start.js` entry point (reads config from env vars, starts the gateway, handles graceful shutdown).
+
+---
+
 ## Developing locally (from source)
 
 If you're working on the gateway itself from the xmtpd repo.

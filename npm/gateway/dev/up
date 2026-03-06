@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+GATEWAY_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+XMTPD_DIR="$(cd "${GATEWAY_DIR}/../.." && pwd)"
+
+echo "Setting up XMTP gateway dev environment..."
+
+# 1. Start Redis
+if docker ps --format '{{.Names}}' | grep -q '^xmtp-gateway-redis$'; then
+  echo "Redis already running"
+else
+  echo "Starting Redis..."
+  docker run -d --name xmtp-gateway-redis -p 6379:6379 redis:7-alpine > /dev/null
+  echo "Redis started on port 6379"
+fi
+
+# 2. Install npm dependencies
+echo "Installing dependencies..."
+cd "${GATEWAY_DIR}"
+npm install --silent
+
+# 3. Build TypeScript
+echo "Building TypeScript..."
+npm run build
+
+# 4. Build Go binary (only for current platform)
+BINARY="${GATEWAY_DIR}/bin/xmtp-gateway-$(go env GOOS)-$(node -p "process.arch")"
+if [[ -f "${BINARY}" ]]; then
+  echo "Gateway binary already exists: ${BINARY}"
+else
+  echo "Building gateway binary..."
+  CGO_ENABLED=0 go build -C "${XMTPD_DIR}" -ldflags="-s -w" -o "${BINARY}" ./cmd/gateway
+  echo "Built: $(ls -lh "${BINARY}" | awk '{print $5}')"
+fi
+
+echo ""
+echo "Dev environment ready!"
+echo ""
+echo "Next steps:"
+echo "  1. Copy dev/.env.example to dev/.env and fill in your values"
+echo "  2. Run: npm/gateway/dev/run"

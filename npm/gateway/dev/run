@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+GATEWAY_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Load env vars
+if [[ -f "${SCRIPT_DIR}/.env" ]]; then
+  set -a
+  source "${SCRIPT_DIR}/.env"
+  set +a
+else
+  echo "ERROR: dev/.env not found"
+  echo "Copy dev/.env.example to dev/.env and fill in your values"
+  exit 1
+fi
+
+cd "${GATEWAY_DIR}"
+
+exec npx tsx -e "
+import { startGateway } from './src/index.js';
+
+const gateway = await startGateway({
+  payerPrivateKey: process.env.PAYER_PRIVATE_KEY,
+  redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
+  appChainRpcUrl: process.env.APP_CHAIN_RPC_URL,
+  appChainWssUrl: process.env.APP_CHAIN_WSS_URL,
+  settlementChainRpcUrl: process.env.SETTLEMENT_CHAIN_RPC_URL,
+  settlementChainWssUrl: process.env.SETTLEMENT_CHAIN_WSS_URL,
+  contractsEnvironment: process.env.CONTRACTS_ENVIRONMENT || 'testnet',
+  logLevel: process.env.LOG_LEVEL || 'info',
+});
+
+console.log('Gateway running at', gateway.url);
+
+process.on('SIGINT', async () => {
+  console.log('Shutting down...');
+  await gateway.stop();
+  process.exit(0);
+});
+"

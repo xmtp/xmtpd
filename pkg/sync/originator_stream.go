@@ -59,8 +59,8 @@ func (s *originatorStream) listen() error {
 		errChan  = make(chan error, 1)
 	)
 
-	// Reader routine, responsible for reading from a blocking GRPC channel
-	// TODO: Use tracing.GoWrap and waitgroup.
+	// Sync service reader routine, responsible for reading from a blocking GRPC channel.
+	// TODO(borja): Use tracing.GoWrap and waitgroup.
 	go func() {
 		for {
 			envs, err := s.stream.Recv()
@@ -72,7 +72,7 @@ func (s *originatorStream) listen() error {
 		}
 	}()
 
-	// main routine, responsible for processing and validating messages
+	// Sync service main routine, responsible for processing and validating messages.
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -85,7 +85,9 @@ func (s *originatorStream) listen() error {
 				return backoff.Permanent(errors.New("recvChan is closed"))
 			}
 
-			if envs == nil || len(envs.GetEnvelopes()) == 0 {
+			envelopes := envs.GetEnvelopes()
+
+			if len(envelopes) == 0 {
 				continue
 			}
 
@@ -96,12 +98,15 @@ func (s *originatorStream) listen() error {
 
 			s.logger.Debug(
 				"received envelopes",
-				utils.NumEnvelopesField(len(envs.GetEnvelopes())),
+				utils.NumEnvelopesField(len(envelopes)),
 			)
 
-			validCount := 0
-			invalidCount := 0
-			for _, env := range envs.GetEnvelopes() {
+			var (
+				validCount   = 0
+				invalidCount = 0
+			)
+
+			for _, env := range envelopes {
 				// Any message that fails validation here will be dropped permanently
 				parsedEnv, err := s.validateEnvelope(batchCtx, env)
 				if err != nil {

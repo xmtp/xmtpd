@@ -80,7 +80,7 @@ func (s *syncWorker) start() error {
 
 	if s.migration.Enable {
 		s.logger.Info(
-			"Migration client is enabled. Will migrate from migration originator",
+			"migration client is enabled, will migrate from migration originator",
 			utils.OriginatorIDField(s.migration.FromNodeID),
 		)
 	}
@@ -148,6 +148,7 @@ func (s *syncWorker) subscribeToNode(nodeID uint32) {
 	// blocking, preventing HTTP/2 flow control back-pressure on the sender.
 	writeQueue := make(chan *envUtils.OriginatorEnvelope, 1000)
 
+	// Sync service writer routine, responsible for storing envelopes in the database.
 	tracing.GoPanicWrap(
 		s.ctx,
 		&s.wg,

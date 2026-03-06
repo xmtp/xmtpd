@@ -95,7 +95,7 @@ func (s *EnvelopeSink) Start() {
 						s.logger.Error("error storing envelope", zap.Error(err))
 
 						if !retryerrors.IsRetryableSQLError(err) {
-							s.logger.Error("Unexpected runtime error. Retry might be indefinite.")
+							s.logger.Error("unexpected runtime error, retry might be indefinite")
 						}
 
 						return err
@@ -160,6 +160,8 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 		s.logger.Error("failed to marshal originator envelope", zap.Error(err))
 		return err
 	}
+
+	// TODO(borja): Maybe use one single db tx to avoid multiple roundtrips.
 
 	// The payer address has already been validated, so any errors here should be transient
 	payerID, err := s.getPayerID(env)

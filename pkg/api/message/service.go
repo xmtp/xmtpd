@@ -711,70 +711,40 @@ func (s *Service) PublishPayerEnvelopes(
 	var results []*envelopesProto.OriginatorEnvelope
 	var latestStaged *queries.StagedOriginatorEnvelope
 
-	// Span for the staging transaction
-	txSpan, txCtx := tracing.StartSpanFromContext(ctx, tracing.SpanNodeStageTransaction)
-
 	// Track staged IDs for async trace propagation
 	var stagedIDs []int64
 
-	stageStart := time.Now()
-	defer func() { metrics.EmitAPIStageEnvelope(time.Since(stageStart)) }()
-	err = db.RunInTx(
-		txCtx,
-		s.store.DB(),
-		nil,
-		func(ctx context.Context, querier *queries.Queries) error {
-			for _, envelope := range processedEnvelopes {
-				stagedEnvelope, err := querier.
-					InsertStagedOriginatorEnvelope(
-						ctx,
-						queries.InsertStagedOriginatorEnvelopeParams{
-							Topic:         envelope.TopicBytes,
-							PayerEnvelope: envelope.EnvelopeBytes,
-						},
-					)
-				if err != nil {
-					return fmt.Errorf("could not insert staged envelope: %w", err)
-				}
-
-				// Track for trace context propagation
-				stagedIDs = append(stagedIDs, stagedEnvelope.ID)
-
-				baseFee, congestionFee, err := s.publishWorker.calculateFees(
-					&stagedEnvelope,
-					envelope.RetentionDays,
-				)
-				if err != nil {
-					return fmt.Errorf("could not calculate fees: %w", err)
-				}
-
-				originatorEnvelope, err := s.registrant.SignStagedEnvelope(
-					stagedEnvelope,
-					baseFee,
-					congestionFee,
-					envelope.RetentionDays,
-				)
-				if err != nil {
-					return fmt.Errorf("could not sign envelope: %w", err)
-				}
-
-				results = append(results, originatorEnvelope)
-				latestStaged = &stagedEnvelope
-			}
-			return nil
-		},
-	)
+	stagedEnvelopes, err := s.criticalPathDBInsert(ctx, processedEnvelopes)
 	if err != nil {
-		txSpan.Finish(tracing.WithError(err))
-		return nil, connect.NewError(
-			connect.CodeInternal,
-			err,
+		return nil, fmt.Errorf("could not insert staged envelopes: %w", err)
+	}
+
+	for idx, stagedEnvelope := range stagedEnvelopes {
+		envelope := processedEnvelopes[idx]
+		// Track for trace context propagation
+		stagedIDs = append(stagedIDs, stagedEnvelope.ID)
+
+		baseFee, congestionFee, err := s.publishWorker.calculateFees(
+			&stagedEnvelope,
+			envelope.RetentionDays,
 		)
+		if err != nil {
+			return nil, fmt.Errorf("could not calculate fees: %w", err)
+		}
+
+		originatorEnvelope, err := s.registrant.SignStagedEnvelope(
+			stagedEnvelope,
+			baseFee,
+			congestionFee,
+			envelope.RetentionDays,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("could not sign envelope: %w", err)
+		}
+
+		results = append(results, originatorEnvelope)
+		latestStaged = &stagedEnvelope
 	}
-	if latestStaged != nil {
-		tracing.SpanTag(txSpan, tracing.TagStagedID, latestStaged.ID)
-	}
-	txSpan.Finish()
 
 	// Store trace context for async propagation to publish_worker
 	// This enables end-to-end distributed tracing across the async boundary
@@ -798,6 +768,50 @@ func (s *Service) PublishPayerEnvelopes(
 	return connect.NewResponse(&message_api.PublishPayerEnvelopesResponse{
 		OriginatorEnvelopes: results,
 	}), nil
+}
+
+func (s *Service) criticalPathDBInsert(
+	ctx context.Context,
+	processedEnvelopes []ValidatedBytesWithTopic,
+) ([]queries.StagedOriginatorEnvelope, error) {
+	topics := make([][]byte, 0, len(processedEnvelopes))
+	payerBytes := make([][]byte, 0, len(processedEnvelopes))
+	stagedEnvelopes := make([]queries.StagedOriginatorEnvelope, 0, len(processedEnvelopes))
+	for _, envelope := range processedEnvelopes {
+		topics = append(topics, envelope.TopicBytes)
+		payerBytes = append(payerBytes, envelope.EnvelopeBytes)
+	}
+
+	stageStart := time.Now()
+	defer func() { metrics.EmitAPIStageEnvelope(time.Since(stageStart)) }()
+
+	insertedStaged, err := s.store.WriteQuery().InsertStagedOriginatorEnvelopeBatch(
+		ctx,
+		queries.InsertStagedOriginatorEnvelopeBatchParams{
+			Topics:         topics,
+			PayerEnvelopes: payerBytes,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("could not batch insert staged envelopes: %w", err)
+	}
+
+	if len(insertedStaged) != len(processedEnvelopes) {
+		// internal error possibly
+		return nil, fmt.Errorf(
+			"expected %d staged envelopes, got %d",
+			len(processedEnvelopes),
+			len(insertedStaged),
+		)
+	}
+
+	for _, stagedEnvelopeData := range insertedStaged {
+		stagedEnvelopes = append(
+			stagedEnvelopes,
+			queries.StagedOriginatorEnvelope(stagedEnvelopeData),
+		)
+	}
+	return stagedEnvelopes, nil
 }
 
 func (s *Service) preprocessPayerEnvelopes(

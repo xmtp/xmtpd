@@ -32,6 +32,8 @@ type workerConfig struct {
 	generateOthersPeriod    time.Duration
 	expirySelfPeriod        time.Duration
 	expiryOthersPeriod      time.Duration
+	repeatIntervalMinutes   uint32
+	spreadMinutes           uint32
 }
 
 // WorkerConfigBuilder provides a builder pattern for creating WorkerConfig instances.
@@ -49,6 +51,8 @@ type WorkerConfigBuilder struct {
 	generateOthersPeriod    time.Duration
 	expirySelfPeriod        time.Duration
 	expiryOthersPeriod      time.Duration
+	repeatIntervalMinutes   uint32
+	spreadMinutes           uint32
 }
 
 // NewWorkerConfigBuilder creates a new WorkerConfigBuilder instance.
@@ -132,6 +136,20 @@ func (b *WorkerConfigBuilder) WithExpiryOthersPeriod(
 	return b
 }
 
+func (b *WorkerConfigBuilder) WithRepeatIntervalMinutes(
+	minutes uint32,
+) *WorkerConfigBuilder {
+	b.repeatIntervalMinutes = minutes
+	return b
+}
+
+func (b *WorkerConfigBuilder) WithSpreadMinutes(
+	minutes uint32,
+) *WorkerConfigBuilder {
+	b.spreadMinutes = minutes
+	return b
+}
+
 // Build creates a WorkerConfig instance after validating that all required fields are set.
 // Returns an error if any required field is nil or invalid.
 func (b *WorkerConfigBuilder) Build() (*workerConfig, error) {
@@ -195,6 +213,8 @@ func (b *WorkerConfigBuilder) Build() (*workerConfig, error) {
 		generateOthersPeriod:    b.generateOthersPeriod,
 		expirySelfPeriod:        b.expirySelfPeriod,
 		expiryOthersPeriod:      b.expiryOthersPeriod,
+		repeatIntervalMinutes:   b.repeatIntervalMinutes,
+		spreadMinutes:           b.spreadMinutes,
 	}, nil
 }
 
@@ -212,6 +232,8 @@ func (w *WorkerWrapper) Stop() {
 // The configuration should be created using NewWorkerConfigBuilder().Build().
 // Returns a WorkerWrapper that can be used to stop all workers.
 func RunWorkers(cfg workerConfig) *WorkerWrapper {
+	SetWorkerTimingConfig(cfg.repeatIntervalMinutes, cfg.spreadMinutes)
+
 	attestationWorker := NewAttestationWorker(
 		cfg.ctx,
 		cfg.logger,

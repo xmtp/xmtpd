@@ -717,6 +717,8 @@ func (s *Service) PublishPayerEnvelopes(
 	// Track staged IDs for async trace propagation
 	var stagedIDs []int64
 
+	stageStart := time.Now()
+	defer func() { metrics.EmitAPIStageEnvelope(time.Since(stageStart)) }()
 	err = db.RunInTx(
 		txCtx,
 		s.store.DB(),

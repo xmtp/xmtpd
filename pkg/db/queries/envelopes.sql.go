@@ -7,6 +7,7 @@ package queries
 
 import (
 	"context"
+	"time"
 
 	"github.com/lib/pq"
 )
@@ -58,6 +59,58 @@ func (q *Queries) InsertStagedOriginatorEnvelope(ctx context.Context, arg Insert
 		&i.PayerEnvelope,
 	)
 	return i, err
+}
+
+const insertStagedOriginatorEnvelopeBatch = `-- name: InsertStagedOriginatorEnvelopeBatch :many
+SELECT
+    s.id::bigint             AS id,
+    s.originator_time::timestamp AS originator_time,
+    s.topic::bytea           AS topic,
+    s.payer_envelope::bytea  AS payer_envelope
+FROM insert_staged_originator_envelope_batch_v2(
+             $1::bytea[],
+             $2::bytea[]
+     ) AS s(id, originator_time, topic, payer_envelope)
+`
+
+type InsertStagedOriginatorEnvelopeBatchParams struct {
+	Topics         [][]byte
+	PayerEnvelopes [][]byte
+}
+
+type InsertStagedOriginatorEnvelopeBatchRow struct {
+	ID             int64
+	OriginatorTime time.Time
+	Topic          []byte
+	PayerEnvelope  []byte
+}
+
+func (q *Queries) InsertStagedOriginatorEnvelopeBatch(ctx context.Context, arg InsertStagedOriginatorEnvelopeBatchParams) ([]InsertStagedOriginatorEnvelopeBatchRow, error) {
+	rows, err := q.db.QueryContext(ctx, insertStagedOriginatorEnvelopeBatch, pq.Array(arg.Topics), pq.Array(arg.PayerEnvelopes))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []InsertStagedOriginatorEnvelopeBatchRow
+	for rows.Next() {
+		var i InsertStagedOriginatorEnvelopeBatchRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OriginatorTime,
+			&i.Topic,
+			&i.PayerEnvelope,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const selectAndLockStagedEnvelopes = `-- name: SelectAndLockStagedEnvelopes :many

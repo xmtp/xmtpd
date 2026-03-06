@@ -2,6 +2,17 @@
 SELECT *
 FROM insert_staged_originator_envelope(@topic, @payer_envelope);
 
+-- name: InsertStagedOriginatorEnvelopeBatch :many
+SELECT
+    s.id::bigint             AS id,
+    s.originator_time::timestamp AS originator_time,
+    s.topic::bytea           AS topic,
+    s.payer_envelope::bytea  AS payer_envelope
+FROM insert_staged_originator_envelope_batch_v2(
+             sqlc.arg(topics)::bytea[],
+             sqlc.arg(payer_envelopes)::bytea[]
+     ) AS s(id, originator_time, topic, payer_envelope);
+
 -- name: SelectStagedOriginatorEnvelopes :many
 SELECT *
 FROM staged_originator_envelopes

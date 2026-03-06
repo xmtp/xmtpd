@@ -89,6 +89,17 @@ func EmitNewFailedGRPCRequest(code connect.Code) {
 		Inc()
 }
 
+var apiStageEnvelopeDuration = prometheus.NewHistogram(
+	prometheus.HistogramOpts{
+		Name: "xmtp_api_stage_envelope_seconds",
+		Help: "Duration of the staging transaction: advisory lock wait + insert",
+	},
+)
+
+func EmitAPIStageEnvelope(duration time.Duration) {
+	apiStageEnvelopeDuration.Observe(duration.Seconds())
+}
+
 var apiWaitForGatewayPublish = prometheus.NewHistogram(
 	prometheus.HistogramOpts{
 		Name: "xmtp_api_wait_for_gateway_publish_seconds",

@@ -711,9 +711,6 @@ func (s *Service) PublishPayerEnvelopes(
 	var results []*envelopesProto.OriginatorEnvelope
 	var latestStaged *queries.StagedOriginatorEnvelope
 
-	// Track staged IDs for async trace propagation
-	var stagedIDs []int64
-
 	stagedEnvelopes, err := s.criticalPathDBInsert(ctx, processedEnvelopes)
 	if err != nil {
 		return nil, fmt.Errorf("could not insert staged envelopes: %w", err)
@@ -721,8 +718,6 @@ func (s *Service) PublishPayerEnvelopes(
 
 	for idx, stagedEnvelope := range stagedEnvelopes {
 		envelope := processedEnvelopes[idx]
-		// Track for trace context propagation
-		stagedIDs = append(stagedIDs, stagedEnvelope.ID)
 
 		baseFee, congestionFee, err := s.publishWorker.calculateFees(
 			&stagedEnvelope,
@@ -743,13 +738,10 @@ func (s *Service) PublishPayerEnvelopes(
 		}
 
 		results = append(results, originatorEnvelope)
-		latestStaged = &stagedEnvelope
-	}
 
-	// Store trace context for async propagation to publish_worker
-	// This enables end-to-end distributed tracing across the async boundary
-	for _, stagedID := range stagedIDs {
-		s.publishWorker.storeTraceContext(stagedID, span)
+		s.publishWorker.storeTraceContext(stagedEnvelope.ID, span)
+
+		latestStaged = &stagedEnvelope
 	}
 
 	// Notify publish worker - this triggers the async processing

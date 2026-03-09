@@ -667,9 +667,6 @@ func TestSubscribeAll(t *testing.T) {
 		minEnvelopes = 10
 		maxEnvelopes = 20
 
-		// How many envelopes get inserted initially
-		initialBatch = minEnvelopes * len(nodeIDs)
-
 		// After the initial batch, remaining envelopes get inserted at this rate.
 		// Somewhat cherry picked value in order to coincide with the subscribe worker polling interval,
 		// as we would like to have proper streaming and not just picking up another single batch.
@@ -698,10 +695,6 @@ func TestSubscribeAll(t *testing.T) {
 		total += len(envs)
 	}
 	t.Logf("generated total %v envelopes from %v nodes", total, len(nodeIDs))
-
-	// Have some envelopes inserted before we start streaming.
-	t.Logf("inserting first batch of envelopes - [0, %v] out of %v", initialBatch, total)
-	testutils.InsertGatewayEnvelopes(t, server.DB, envelopeList[:initialBatch])
 
 	// Start a subscriber stream.
 	req := &message_api.SubscribeAllEnvelopesRequest{
@@ -735,9 +728,8 @@ func TestSubscribeAll(t *testing.T) {
 
 	// Wait a bit - then start inserting envelopes. Make sure these are streamed too.
 	time.Sleep(insertDelay)
-	t.Logf("inserting remaining envelopes - [%v, %v]", initialBatch, total)
 
-	for _, env := range envelopeList[initialBatch:] {
+	for _, env := range envelopeList {
 		testutils.InsertGatewayEnvelopes(t, server.DB, []queries.InsertGatewayEnvelopeParams{env})
 		time.Sleep(insertDelay)
 	}

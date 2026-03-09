@@ -702,6 +702,8 @@ type ValidatedBytesWithTopic struct {
 	TopicBytes    []byte
 	RetentionDays uint32
 	PayerAddress  common.Address
+	BaseFee       currency.PicoDollar
+	CongestionFee currency.PicoDollar
 }
 
 func (s *Service) PublishPayerEnvelopes(
@@ -771,18 +773,10 @@ func (s *Service) PublishPayerEnvelopes(
 	for idx, stagedEnvelope := range stagedEnvelopes {
 		envelope := processedEnvelopes[idx]
 
-		baseFee, congestionFee, err := s.publishWorker.calculateFees(
-			&stagedEnvelope,
-			envelope.RetentionDays,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("could not calculate fees: %w", err)
-		}
-
 		originatorEnvelope, err := s.registrant.SignStagedEnvelope(
 			stagedEnvelope,
-			baseFee,
-			congestionFee,
+			envelope.BaseFee,
+			envelope.CongestionFee,
 			envelope.RetentionDays,
 		)
 		if err != nil {
@@ -865,6 +859,13 @@ func (s *Service) preprocessPayerEnvelopes(
 	var processedEnvelopes []ValidatedBytesWithTopic
 	var errs []string
 
+	now := time.Now()
+	batchCalc := s.feeCalculator.NewBatchFeeCalculator(
+		ctx,
+		s.store.ReadQuery(),
+		s.registrant.NodeID(),
+	)
+
 	for i, envelope := range payerEnvelopes {
 		payerEnvelope, payerAddr, err := s.validatePayerEnvelope(envelope)
 		if err != nil {
@@ -923,17 +924,44 @@ func (s *Service) preprocessPayerEnvelopes(
 			}
 		}
 
+		envelopeBytes := bytes
+		retentionDays := payerEnvelope.Proto().GetMessageRetentionDays()
+
+		baseFee, err := s.feeCalculator.CalculateBaseFee(
+			now,
+			int64(len(envelopeBytes)),
+			retentionDays,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("could not calculate base fee for envelope %d: %w", i, err)
+		}
+
+		congestionFee, err := batchCalc.CalculateCongestionFee(now)
+		if err != nil {
+			return nil, fmt.Errorf("could not calculate congestion fee for envelope %d: %w", i, err)
+		}
+
 		processedEnvelopes = append(processedEnvelopes, ValidatedBytesWithTopic{
-			EnvelopeBytes: bytes,
+			EnvelopeBytes: envelopeBytes,
 			TopicBytes:    targetTopic.Bytes(),
-			RetentionDays: payerEnvelope.Proto().GetMessageRetentionDays(),
+			RetentionDays: retentionDays,
 			PayerAddress:  payerAddr,
+			BaseFee:       baseFee,
+			CongestionFee: congestionFee,
 		})
 	}
 
 	if len(errs) > 0 {
 		return nil, errors.New(strings.Join(errs, "\n"))
 	}
+
+	// Validate all envelopes share the same payer
+	for i := 1; i < len(processedEnvelopes); i++ {
+		if processedEnvelopes[i].PayerAddress != processedEnvelopes[0].PayerAddress {
+			return nil, errors.New("all envelopes in a request must be from the same payer")
+		}
+	}
+
 	return processedEnvelopes, nil
 }
 
@@ -1244,9 +1272,8 @@ func (s *Service) validateClientInfo(clientEnv *envelopes.ClientEnvelope) error 
 	return nil
 }
 
-// checkPayerBalance estimates fees for all envelopes and rejects the request
-// if the payer's available balance (ledger balance minus unsettled usage) is
-// insufficient. All envelopes must share the same payer address.
+// checkPayerBalance rejects the request if the payer's available balance
+// (ledger balance minus unsettled usage) is less than the pre-computed fees.
 func (s *Service) checkPayerBalance(
 	ctx context.Context,
 	processedEnvelopes []ValidatedBytesWithTopic,
@@ -1255,100 +1282,65 @@ func (s *Service) checkPayerBalance(
 		return nil
 	}
 
-	// Validate all envelopes share the same payer
+	// We already validate that all envelopes in a batch come from the same
+	// address
 	payerAddress := processedEnvelopes[0].PayerAddress
-	for i := 1; i < len(processedEnvelopes); i++ {
-		if processedEnvelopes[i].PayerAddress != payerAddress {
-			return connect.NewError(
-				connect.CodeInvalidArgument,
-				errors.New("all envelopes in a request must be from the same payer"),
-			)
-		}
-	}
 
-	// Resolve payer ID
-	payerID, err := s.ledger.FindOrCreatePayer(ctx, payerAddress)
+	availableBalance, err := s.getAvailableBalance(ctx, payerAddress)
 	if err != nil {
-		return connect.NewError(
-			connect.CodeInternal,
-			fmt.Errorf("could not resolve payer: %w", err),
-		)
+		return connect.NewError(connect.CodeInternal, err)
 	}
 
-	// Query settled balance
-	balance, err := s.ledger.GetBalance(ctx, payerID)
-	if err != nil {
-		return connect.NewError(
-			connect.CodeInternal,
-			fmt.Errorf("could not get payer balance: %w", err),
-		)
-	}
-
-	// Query unsettled usage (zeros for minute bounds means no filtering)
-	unsettled, err := s.store.ReadQuery().GetPayerUnsettledUsage(
-		ctx,
-		queries.GetPayerUnsettledUsageParams{PayerID: payerID},
-	)
-	if err != nil {
-		return connect.NewError(
-			connect.CodeInternal,
-			fmt.Errorf("could not get unsettled usage: %w", err),
-		)
-	}
-
-	availableBalance := balance - currency.PicoDollar(unsettled.TotalSpendPicodollars)
-
-	// Estimate total fees using batch calculator for congestion awareness
-	now := time.Now()
-	batchCalc := s.feeCalculator.NewBatchFeeCalculator(
-		ctx,
-		s.store.ReadQuery(),
-		s.registrant.NodeID(),
-	)
-
-	var totalEstimatedFees currency.PicoDollar
+	var totalFees currency.PicoDollar
 	for _, env := range processedEnvelopes {
-		baseFee, err := s.feeCalculator.CalculateBaseFee(
-			now,
-			int64(len(env.EnvelopeBytes)),
-			env.RetentionDays,
-		)
-		if err != nil {
-			return connect.NewError(
-				connect.CodeInternal,
-				fmt.Errorf("could not estimate base fee: %w", err),
-			)
-		}
-
-		congestionFee, err := batchCalc.CalculateCongestionFee(now)
-		if err != nil {
-			return connect.NewError(
-				connect.CodeInternal,
-				fmt.Errorf("could not estimate congestion fee: %w", err),
-			)
-		}
-
-		totalEstimatedFees += baseFee + congestionFee
+		totalFees += env.BaseFee + env.CongestionFee
 	}
 
-	if totalEstimatedFees > availableBalance {
+	if totalFees > availableBalance {
 		s.logger.Warn(
 			"rejected publish due to insufficient payer balance",
 			zap.String("payer_address", payerAddress.Hex()),
 			zap.Int64("available_balance", int64(availableBalance)),
-			zap.Int64("estimated_fees", int64(totalEstimatedFees)),
+			zap.Int64("estimated_fees", int64(totalFees)),
 		)
 		return connect.NewError(
 			connect.CodeFailedPrecondition,
 			fmt.Errorf(
 				"insufficient payer balance: available %d picodollars, estimated fees %d picodollars",
 				availableBalance,
-				totalEstimatedFees,
+				totalFees,
 			),
 		)
 	}
 
 	return nil
+}
+
+// getAvailableBalance returns the payer's settled ledger balance minus their
+// unsettled usage.
+func (s *Service) getAvailableBalance(
+	ctx context.Context,
+	payerAddress common.Address,
+) (currency.PicoDollar, error) {
+	payerID, err := s.ledger.FindOrCreatePayer(ctx, payerAddress)
+	if err != nil {
+		return 0, fmt.Errorf("could not resolve payer: %w", err)
+	}
+
+	balance, err := s.ledger.GetBalance(ctx, payerID)
+	if err != nil {
+		return 0, fmt.Errorf("could not get payer balance: %w", err)
+	}
+
+	unsettled, err := s.store.ReadQuery().GetPayerUnsettledUsage(
+		ctx,
+		queries.GetPayerUnsettledUsageParams{PayerID: payerID},
+	)
+	if err != nil {
+		return 0, fmt.Errorf("could not get unsettled usage: %w", err)
+	}
+
+	return balance - currency.PicoDollar(unsettled.TotalSpendPicodollars), nil
 }
 
 func (s *Service) waitForGatewayPublish(

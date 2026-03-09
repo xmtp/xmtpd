@@ -478,7 +478,7 @@ func (w *Worker) StartDatabaseWriter(ctx context.Context) error {
 						SpendPicodollars: int64(
 							envelope.UnsignedOriginatorEnvelope.Proto().GetBaseFeePicodollars(),
 						),
-						CountUsage:      false,
+						CountUsage:      true,
 						CountCongestion: false,
 					})
 

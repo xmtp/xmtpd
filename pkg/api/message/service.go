@@ -15,6 +15,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/constants"
+	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/deserializer"
@@ -753,6 +754,12 @@ func (s *Service) PublishPayerEnvelopes(
 		)
 	}
 
+	if s.options.RequirePayerPositiveBalance {
+		if err := s.checkPayerBalance(ctx, processedEnvelopes); err != nil {
+			return nil, err
+		}
+	}
+
 	var results []*envelopesProto.OriginatorEnvelope
 	var latestStaged *queries.StagedOriginatorEnvelope
 
@@ -1233,6 +1240,113 @@ func (s *Service) validateClientInfo(clientEnv *envelopes.ClientEnvelope) error 
 	}
 	// TODO(rich): Check that the blockchain sequence ID is equal to the latest on the group
 	// TODO(rich): Perform any payload-specific validation (e.g. identity updates)
+
+	return nil
+}
+
+// checkPayerBalance estimates fees for all envelopes and rejects the request
+// if the payer's available balance (ledger balance minus unsettled usage) is
+// insufficient. All envelopes must share the same payer address.
+func (s *Service) checkPayerBalance(
+	ctx context.Context,
+	processedEnvelopes []ValidatedBytesWithTopic,
+) error {
+	if len(processedEnvelopes) == 0 {
+		return nil
+	}
+
+	// Validate all envelopes share the same payer
+	payerAddress := processedEnvelopes[0].PayerAddress
+	for i := 1; i < len(processedEnvelopes); i++ {
+		if processedEnvelopes[i].PayerAddress != payerAddress {
+			return connect.NewError(
+				connect.CodeInvalidArgument,
+				errors.New("all envelopes in a request must be from the same payer"),
+			)
+		}
+	}
+
+	// Resolve payer ID
+	payerID, err := s.ledger.FindOrCreatePayer(ctx, payerAddress)
+	if err != nil {
+		return connect.NewError(
+			connect.CodeInternal,
+			fmt.Errorf("could not resolve payer: %w", err),
+		)
+	}
+
+	// Query settled balance
+	balance, err := s.ledger.GetBalance(ctx, payerID)
+	if err != nil {
+		return connect.NewError(
+			connect.CodeInternal,
+			fmt.Errorf("could not get payer balance: %w", err),
+		)
+	}
+
+	// Query unsettled usage (zeros for minute bounds means no filtering)
+	unsettled, err := s.store.ReadQuery().GetPayerUnsettledUsage(
+		ctx,
+		queries.GetPayerUnsettledUsageParams{PayerID: payerID},
+	)
+	if err != nil {
+		return connect.NewError(
+			connect.CodeInternal,
+			fmt.Errorf("could not get unsettled usage: %w", err),
+		)
+	}
+
+	availableBalance := balance - currency.PicoDollar(unsettled.TotalSpendPicodollars)
+
+	// Estimate total fees using batch calculator for congestion awareness
+	now := time.Now()
+	batchCalc := s.feeCalculator.NewBatchFeeCalculator(
+		ctx,
+		s.store.ReadQuery(),
+		s.registrant.NodeID(),
+	)
+
+	var totalEstimatedFees currency.PicoDollar
+	for _, env := range processedEnvelopes {
+		baseFee, err := s.feeCalculator.CalculateBaseFee(
+			now,
+			int64(len(env.EnvelopeBytes)),
+			env.RetentionDays,
+		)
+		if err != nil {
+			return connect.NewError(
+				connect.CodeInternal,
+				fmt.Errorf("could not estimate base fee: %w", err),
+			)
+		}
+
+		congestionFee, err := batchCalc.CalculateCongestionFee(now)
+		if err != nil {
+			return connect.NewError(
+				connect.CodeInternal,
+				fmt.Errorf("could not estimate congestion fee: %w", err),
+			)
+		}
+
+		totalEstimatedFees += baseFee + congestionFee
+	}
+
+	if totalEstimatedFees > availableBalance {
+		s.logger.Warn(
+			"rejected publish due to insufficient payer balance",
+			zap.String("payer_address", payerAddress.Hex()),
+			zap.Int64("available_balance", int64(availableBalance)),
+			zap.Int64("estimated_fees", int64(totalEstimatedFees)),
+		)
+		return connect.NewError(
+			connect.CodeFailedPrecondition,
+			fmt.Errorf(
+				"insufficient payer balance: available %d picodollars, estimated fees %d picodollars",
+				availableBalance,
+				totalEstimatedFees,
+			),
+		)
+	}
 
 	return nil
 }

@@ -10,13 +10,16 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/currency"
+	dbPkg "github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	envelopeUtils "github.com/xmtp/xmtpd/pkg/envelopes"
+	"github.com/xmtp/xmtpd/pkg/ledger"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	apiv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	message_apiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
+	"github.com/xmtp/xmtpd/pkg/testutils"
 	apiTestUtils "github.com/xmtp/xmtpd/pkg/testutils/api"
 	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
 	"github.com/xmtp/xmtpd/pkg/topic"
@@ -599,4 +602,89 @@ func TestPublishEnvelopeBatchPublishNoPartialError(t *testing.T) {
 		SelectGatewayEnvelopesUnfiltered(context.Background(), queries.SelectGatewayEnvelopesUnfilteredParams{})
 	require.NoError(t, err)
 	require.Empty(t, envs)
+}
+
+func TestPublishEnvelopeNoBalanceCheckByDefault(t *testing.T) {
+	// Default config has RequirePayerPositiveBalance=false
+	suite := apiTestUtils.NewTestAPIServer(t)
+
+	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(
+		t,
+		envelopeTestUtils.DefaultClientEnvelopeNodeID,
+	)
+
+	// Payer has no balance, but enforcement is off — should succeed
+	resp, err := suite.ClientReplication.PublishPayerEnvelopes(
+		context.Background(),
+		connect.NewRequest(&message_api.PublishPayerEnvelopesRequest{
+			PayerEnvelopes: []*envelopes.PayerEnvelope{payerEnvelope},
+		}),
+	)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+}
+
+func TestPublishEnvelopeInsufficientBalance(t *testing.T) {
+	suite := apiTestUtils.NewTestAPIServer(
+		t,
+		apiTestUtils.WithRequirePayerPositiveBalance(true),
+	)
+
+	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(
+		t,
+		envelopeTestUtils.DefaultClientEnvelopeNodeID,
+	)
+
+	// Payer has no balance and enforcement is on — should fail
+	_, err := suite.ClientReplication.PublishPayerEnvelopes(
+		context.Background(),
+		connect.NewRequest(&message_api.PublishPayerEnvelopesRequest{
+			PayerEnvelopes: []*envelopes.PayerEnvelope{payerEnvelope},
+		}),
+	)
+	require.Error(t, err)
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+}
+
+func TestPublishEnvelopeSufficientBalance(t *testing.T) {
+	suite := apiTestUtils.NewTestAPIServer(
+		t,
+		apiTestUtils.WithRequirePayerPositiveBalance(true),
+	)
+
+	payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(
+		t,
+		envelopeTestUtils.DefaultClientEnvelopeNodeID,
+	)
+
+	// Recover the payer address so we can deposit funds
+	payerEnv, err := envelopeUtils.NewPayerEnvelope(payerEnvelope)
+	require.NoError(t, err)
+	payerAddr, err := payerEnv.RecoverSigner()
+	require.NoError(t, err)
+
+	// Deposit enough funds for the payer
+	payerLedger := ledger.NewLedger(testutils.NewLog(t), dbPkg.NewDBHandler(suite.DB))
+	payerID, err := payerLedger.FindOrCreatePayer(context.Background(), *payerAddr)
+	require.NoError(t, err)
+
+	eventID := ledger.EventID{}
+	copy(eventID[:], []byte("test-deposit-event-id-00001"))
+	err = payerLedger.Deposit(
+		context.Background(),
+		payerID,
+		currency.PicoDollar(1_000_000_000_000), // 1 dollar
+		eventID,
+	)
+	require.NoError(t, err)
+
+	// Should succeed — payer has enough balance
+	resp, err := suite.ClientReplication.PublishPayerEnvelopes(
+		context.Background(),
+		connect.NewRequest(&message_api.PublishPayerEnvelopesRequest{
+			PayerEnvelopes: []*envelopes.PayerEnvelope{payerEnvelope},
+		}),
+	)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 }

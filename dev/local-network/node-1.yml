@@ -8,7 +8,7 @@ services:
     image: *x-xmtpd-cli-image
     pull_policy: if_not_present
     volumes:
-      - ./environments/anvil.json:/cfg/anvil.json
+      - ../../pkg/config/environments/anvil.json:/cfg/anvil.json
     command:
       [
         "--config-file=/cfg/anvil.json",
@@ -31,7 +31,7 @@ services:
     image: *x-xmtpd-cli-image
     pull_policy: if_not_present
     volumes:
-      - ./environments/anvil.json:/cfg/anvil.json
+      - ../../pkg/config/environments/anvil.json:/cfg/anvil.json
     command:
       [
         "--config-file=/cfg/anvil.json",
@@ -70,7 +70,7 @@ services:
       - ./node-1.env
       - ./main.env
     volumes:
-      - ./environments/anvil.json:/cfg/anvil.json
+      - ../../pkg/config/environments/anvil.json:/cfg/anvil.json
     environment:
       - "XMTPD_CONTRACTS_CONFIG_FILE_PATH=/cfg/anvil.json"
       - "XMTPD_API_PORT=5050"

@@ -352,7 +352,6 @@ func (s *syncWorker) setupStream(
 	conn *grpc.ClientConn,
 	writeQueue chan *envUtils.OriginatorEnvelope,
 ) (_ *originatorStream, retErr error) {
-	// Create span for stream setup
 	span, ctx := tracing.StartSpanFromContext(ctx, tracing.SpanSyncSetupStream)
 	defer func() {
 		if retErr != nil {
@@ -371,20 +370,12 @@ func (s *syncWorker) setupStream(
 
 	var (
 		client            = message_api.NewReplicationApiClient(conn)
-		vc                = db.ToVectorClock(result)
+		rawVectorClock    = db.ToVectorClock(result)
 		localNodeID       = s.registrant.NodeID()
 		syncNodeID        = node.NodeID
 		migratorNodeID    = s.migration.FromNodeID
 		originatorNodeIDs = []uint32{syncNodeID}
 	)
-
-	if s.logger.Core().Enabled(zap.DebugLevel) {
-		s.logger.Debug(
-			"vector clock for sync subscription",
-			utils.OriginatorIDField(node.NodeID),
-			utils.BodyField(vc),
-		)
-	}
 
 	if s.migration.Enable && syncNodeID == migratorNodeID && migratorNodeID != localNodeID {
 		originatorNodeIDs = append(originatorNodeIDs, migrator.MigratorOriginatorIDs()...)
@@ -400,6 +391,16 @@ func (s *syncWorker) setupStream(
 		}
 	}
 
+	filteredVectorClock := db.FilterVectorClock(rawVectorClock, originatorNodeIDs)
+
+	if s.logger.Core().Enabled(zap.DebugLevel) {
+		s.logger.Debug(
+			"vector clock for sync subscription",
+			utils.OriginatorIDField(node.NodeID),
+			utils.BodyField(filteredVectorClock),
+		)
+	}
+
 	tracing.SpanTag(span, "num_originator_ids", len(originatorNodeIDs))
 
 	subscribeSpan, subscribeCtx := tracing.StartSpanFromContext(ctx, tracing.SpanSyncSubscribe)
@@ -409,7 +410,7 @@ func (s *syncWorker) setupStream(
 			Query: &message_api.EnvelopesQuery{
 				OriginatorNodeIds: originatorNodeIDs,
 				LastSeen: &envelopes.Cursor{
-					NodeIdToSequenceId: vc,
+					NodeIdToSequenceId: filteredVectorClock,
 				},
 			},
 		},

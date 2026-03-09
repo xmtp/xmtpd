@@ -83,6 +83,17 @@ func ToVectorClock(rows []queries.GatewayEnvelopesLatest) VectorClock {
 	return vc
 }
 
+// FilterVectorClock filters the vector clock to only include the given originator node IDs.
+func FilterVectorClock(vc VectorClock, originatorNodeIDs []uint32) VectorClock {
+	filteredVC := make(VectorClock)
+	for _, nodeID := range originatorNodeIDs {
+		if _, ok := vc[nodeID]; ok {
+			filteredVC[nodeID] = vc[nodeID]
+		}
+	}
+	return filteredVC
+}
+
 func TransformRowsByTopic(
 	rows []queries.SelectGatewayEnvelopesByTopicsRow,
 ) []queries.GatewayEnvelopesView {

@@ -11,6 +11,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/cenkalti/backoff/v4"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/constants"
@@ -19,6 +20,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/deserializer"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/fees"
+	"github.com/xmtp/xmtpd/pkg/ledger"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
@@ -59,6 +61,7 @@ type Service struct {
 	options           config.APIOptions
 	migrationEnabled  bool
 	originatorList    db.OriginatorLister
+	ledger            ledger.ILedger
 }
 
 var _ message_apiconnect.ReplicationApiHandler = (*Service)(nil)
@@ -76,6 +79,7 @@ func NewReplicationAPIService(
 	migrationEnabled bool,
 	sleepOnFailureTime time.Duration,
 	originatorList db.OriginatorLister,
+	ledger ledger.ILedger,
 ) (*Service, error) {
 	if validationService == nil {
 		return nil, errors.New("validation service must not be nil")
@@ -117,6 +121,7 @@ func NewReplicationAPIService(
 		options:           options,
 		migrationEnabled:  migrationEnabled,
 		originatorList:    originatorList,
+		ledger:            ledger,
 	}, nil
 }
 
@@ -695,6 +700,7 @@ type ValidatedBytesWithTopic struct {
 	EnvelopeBytes []byte
 	TopicBytes    []byte
 	RetentionDays uint32
+	PayerAddress  common.Address
 }
 
 func (s *Service) PublishPayerEnvelopes(
@@ -853,7 +859,7 @@ func (s *Service) preprocessPayerEnvelopes(
 	var errs []string
 
 	for i, envelope := range payerEnvelopes {
-		payerEnvelope, err := s.validatePayerEnvelope(envelope)
+		payerEnvelope, payerAddr, err := s.validatePayerEnvelope(envelope)
 		if err != nil {
 			errs = append(errs, fmt.Sprintf("could not validate envelope. index %d: %v", i, err))
 			continue
@@ -914,6 +920,7 @@ func (s *Service) preprocessPayerEnvelopes(
 			EnvelopeBytes: bytes,
 			TopicBytes:    targetTopic.Bytes(),
 			RetentionDays: payerEnvelope.Proto().GetMessageRetentionDays(),
+			PayerAddress:  payerAddr,
 		})
 	}
 
@@ -1076,39 +1083,40 @@ func (s *Service) GetNewestEnvelope(
 
 func (s *Service) validatePayerEnvelope(
 	rawEnv *envelopesProto.PayerEnvelope,
-) (*envelopes.PayerEnvelope, error) {
+) (*envelopes.PayerEnvelope, common.Address, error) {
 	payerEnv, err := envelopes.NewPayerEnvelope(rawEnv)
 	if err != nil {
-		return nil, connect.NewError(
+		return nil, common.Address{}, connect.NewError(
 			connect.CodeInvalidArgument,
 			fmt.Errorf("could not unmarshal payer envelope: %w", err),
 		)
 	}
 
 	if payerEnv.TargetOriginator != s.registrant.NodeID() {
-		return nil, connect.NewError(
+		return nil, common.Address{}, connect.NewError(
 			connect.CodeInvalidArgument,
 			errors.New("invalid target originator"),
 		)
 	}
 
-	if _, err = payerEnv.RecoverSigner(); err != nil {
-		return nil, connect.NewError(
+	signerAddr, err := payerEnv.RecoverSigner()
+	if err != nil {
+		return nil, common.Address{}, connect.NewError(
 			connect.CodeInvalidArgument,
 			fmt.Errorf("could not recover signer: %w", err),
 		)
 	}
 
 	if err = s.validateClientInfo(&payerEnv.ClientEnvelope); err != nil {
-		return nil, err
+		return nil, common.Address{}, err
 	}
 
 	err = s.validateExpiry(payerEnv)
 	if err != nil {
-		return nil, err
+		return nil, common.Address{}, err
 	}
 
-	return payerEnv, nil
+	return payerEnv, *signerAddr, nil
 }
 
 func (s *Service) validateExpiry(payerEnv *envelopes.PayerEnvelope) error {

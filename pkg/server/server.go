@@ -20,6 +20,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/fees"
+	ledgerPkg "github.com/xmtp/xmtpd/pkg/ledger"
 	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/payerreport"
 	"github.com/xmtp/xmtpd/pkg/payerreport/workers"
@@ -509,6 +510,7 @@ func startAPIServer(
 			db.NewCachedOriginatorList(
 				cfg.DB.ReadQuery(), cfg.Options.API.OriginatorCacheTTL, cfg.Logger,
 			),
+			ledgerPkg.NewLedger(cfg.Logger, cfg.DB),
 		)
 		if err != nil {
 			return nil, err

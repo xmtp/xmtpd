@@ -16,7 +16,7 @@ import (
 	"github.com/bojand/ghz/printer"
 	"github.com/bojand/ghz/runner"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/jhump/protoreflect/desc"
+	"github.com/jhump/protoreflect/desc" //nolint:staticcheck
 	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	apiv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"

@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS insert_staged_originator_envelope_batch_v2;

@@ -11,6 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	dm "github.com/xmtp/xmtpd/pkg/abi/distributionmanager"
+	ft "github.com/xmtp/xmtpd/pkg/abi/feetoken"
+	mft "github.com/xmtp/xmtpd/pkg/abi/mockunderlyingfeetoken"
 	"github.com/xmtp/xmtpd/pkg/abi/payerregistry"
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
@@ -22,13 +24,15 @@ import (
 
 // chainClients holds lazily initialized blockchain clients for direct contract calls.
 type chainClients struct {
-	ethClient           *ethclient.Client
-	adminSigner         blockchain.TransactionSigner
-	contractsOpts       *config.ContractsOptions
-	settlementAdmin     blockchain.ISettlementChainAdmin
-	ratesAdmin          blockchain.IRatesAdmin
-	payerRegistry       *payerregistry.PayerRegistry
-	distributionManager *dm.DistributionManager
+	ethClient              *ethclient.Client
+	adminSigner            blockchain.TransactionSigner
+	contractsOpts          *config.ContractsOptions
+	settlementAdmin        blockchain.ISettlementChainAdmin
+	ratesAdmin             blockchain.IRatesAdmin
+	payerRegistry          *payerregistry.PayerRegistry
+	distributionManager    *dm.DistributionManager
+	feeToken               *ft.FeeToken
+	mockUnderlyingFeeToken *mft.MockUnderlyingFeeToken
 }
 
 // initChainClients lazily initializes the blockchain clients.
@@ -118,14 +122,34 @@ func (e *Environment) doInitChainClients(ctx context.Context) error {
 		return fmt.Errorf("failed to create distribution manager binding: %w", err)
 	}
 
+	feeToken, err := ft.NewFeeToken(
+		common.HexToAddress(contractsOpts.SettlementChain.FeeToken),
+		client,
+	)
+	if err != nil {
+		client.Close()
+		return fmt.Errorf("failed to create fee token binding: %w", err)
+	}
+
+	mockUnderlying, err := mft.NewMockUnderlyingFeeToken(
+		common.HexToAddress(contractsOpts.SettlementChain.UnderlyingFeeToken),
+		client,
+	)
+	if err != nil {
+		client.Close()
+		return fmt.Errorf("failed to create mock underlying fee token binding: %w", err)
+	}
+
 	e.contracts = &chainClients{
-		ethClient:           client,
-		adminSigner:         signer,
-		contractsOpts:       contractsOpts,
-		settlementAdmin:     settlementAdmin,
-		ratesAdmin:          ratesAdmin,
-		payerRegistry:       pr,
-		distributionManager: distMgr,
+		ethClient:              client,
+		adminSigner:            signer,
+		contractsOpts:          contractsOpts,
+		settlementAdmin:        settlementAdmin,
+		ratesAdmin:             ratesAdmin,
+		payerRegistry:          pr,
+		distributionManager:    distMgr,
+		feeToken:               feeToken,
+		mockUnderlyingFeeToken: mockUnderlying,
 	}
 
 	return nil
@@ -347,6 +371,138 @@ func (e *Environment) DepositPayer(
 	}
 
 	return nil
+}
+
+// MintFeeToken mints mock underlying tokens to the admin, wraps them into fee
+// tokens (xUSD), and returns the amount minted. This is only available on anvil.
+func (e *Environment) MintFeeToken(ctx context.Context, amount *big.Int) error {
+	if err := e.initChainClients(ctx); err != nil {
+		return err
+	}
+
+	admin := e.contracts.adminSigner.FromAddress()
+	prAddr := common.HexToAddress(e.contracts.contractsOpts.SettlementChain.PayerRegistryAddress)
+	feeTokenAddr := common.HexToAddress(e.contracts.contractsOpts.SettlementChain.FeeToken)
+
+	// 1. Mint mock underlying to admin
+	err := blockchain.ExecuteTransaction(
+		ctx,
+		e.contracts.adminSigner,
+		e.Logger.Named("mint-underlying"),
+		e.contracts.ethClient,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return e.contracts.mockUnderlyingFeeToken.Mint(opts, admin, amount)
+		},
+		func(log *types.Log) (any, error) {
+			return e.contracts.mockUnderlyingFeeToken.ParseTransfer(*log)
+		},
+		func(event any) {},
+	)
+	if err != nil {
+		return fmt.Errorf("mint underlying failed: %w", err)
+	}
+
+	// 2. Approve FeeToken to spend underlying
+	err = blockchain.ExecuteTransaction(
+		ctx,
+		e.contracts.adminSigner,
+		e.Logger.Named("approve-fee-token"),
+		e.contracts.ethClient,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return e.contracts.mockUnderlyingFeeToken.Approve(opts, feeTokenAddr, amount)
+		},
+		func(log *types.Log) (any, error) {
+			return e.contracts.mockUnderlyingFeeToken.ParseApproval(*log)
+		},
+		func(event any) {},
+	)
+	if err != nil {
+		return fmt.Errorf("approve fee token failed: %w", err)
+	}
+
+	// 3. Wrap underlying into fee token (xUSD)
+	err = blockchain.ExecuteTransaction(
+		ctx,
+		e.contracts.adminSigner,
+		e.Logger.Named("wrap-fee-token"),
+		e.contracts.ethClient,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return e.contracts.feeToken.Deposit(opts, amount)
+		},
+		func(log *types.Log) (any, error) {
+			return e.contracts.feeToken.ParseTransfer(*log)
+		},
+		func(event any) {},
+	)
+	if err != nil {
+		return fmt.Errorf("wrap fee token failed: %w", err)
+	}
+
+	// 4. Approve PayerRegistry to spend fee token
+	err = blockchain.ExecuteTransaction(
+		ctx,
+		e.contracts.adminSigner,
+		e.Logger.Named("approve-payer-registry"),
+		e.contracts.ethClient,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return e.contracts.feeToken.Approve(opts, prAddr, amount)
+		},
+		func(log *types.Log) (any, error) {
+			return e.contracts.feeToken.ParseApproval(*log)
+		},
+		func(event any) {},
+	)
+	if err != nil {
+		return fmt.Errorf("approve payer registry failed: %w", err)
+	}
+
+	e.Logger.Info("fee tokens minted and approved",
+		zap.String("amount", amount.String()),
+		zap.String("admin", admin.Hex()))
+
+	return nil
+}
+
+// FundPayer mints fee tokens and deposits them into the PayerRegistry for the
+// given payer address. Handles the full flow: mint underlying → wrap → approve → deposit.
+func (e *Environment) FundPayer(
+	ctx context.Context,
+	payer common.Address,
+	amount *big.Int,
+) error {
+	if err := e.MintFeeToken(ctx, amount); err != nil {
+		return fmt.Errorf("failed to mint fee tokens: %w", err)
+	}
+	if err := e.DepositPayer(ctx, payer, amount); err != nil {
+		return fmt.Errorf("failed to deposit for payer: %w", err)
+	}
+	return nil
+}
+
+// GetPayerBalance returns the payer's balance in the PayerRegistry.
+func (e *Environment) GetPayerBalance(
+	ctx context.Context,
+	payer common.Address,
+) (*big.Int, error) {
+	if err := e.initChainClients(ctx); err != nil {
+		return nil, err
+	}
+	return e.contracts.payerRegistry.GetBalance(
+		&bind.CallOpts{Context: ctx}, payer,
+	)
+}
+
+// GetFeeTokenBalance returns the fee token (xUSD) balance for the given address.
+func (e *Environment) GetFeeTokenBalance(
+	ctx context.Context,
+	addr common.Address,
+) (*big.Int, error) {
+	if err := e.initChainClients(ctx); err != nil {
+		return nil, err
+	}
+	return e.contracts.feeToken.BalanceOf(
+		&bind.CallOpts{Context: ctx}, addr,
+	)
 }
 
 // RequestPayerWithdrawal requests a withdrawal from the PayerRegistry.

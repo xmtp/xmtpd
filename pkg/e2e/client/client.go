@@ -44,6 +44,9 @@ type Client interface {
 
 	// NodeID returns the on-chain nodeID of the node this client publishes to.
 	NodeID() uint32
+
+	// PayerKey returns the private key hex string used for signing payer envelopes.
+	PayerKey() string
 }
 
 // Options configures a new client instance.
@@ -80,13 +83,19 @@ func (c *client) NodeID() uint32 {
 	return c.opts.OriginatorID
 }
 
+// PayerKey returns the private key hex string used for signing payer envelopes.
+func (c *client) PayerKey() string {
+	return c.opts.PayerKey
+}
+
 // PublishEnvelopes publishes the specified number of group message envelopes
 // to the target node via gRPC. This uses the stress.EnvelopesGenerator
 // which creates properly signed payer envelopes with random data.
 func (c *client) PublishEnvelopes(ctx context.Context, count uint) error {
 	c.logger.Info("publishing envelopes",
 		zap.Uint("count", count),
-		zap.String("node", c.opts.NodeAddr),
+		zap.Uint32("node_id", c.opts.OriginatorID),
+		zap.String("node_addr", c.opts.NodeAddr),
 	)
 
 	gen, err := stress.NewEnvelopesGenerator(

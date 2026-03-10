@@ -5,10 +5,12 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/e2e/client"
 	"github.com/xmtp/xmtpd/pkg/e2e/observe"
 	"github.com/xmtp/xmtpd/pkg/e2e/types"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -46,6 +48,27 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	require.NoError(env.AddGateway(ctx))
 
 	require.NoError(env.NewClient(100))
+
+	// Fund the payer before generating traffic so that settlement can
+	// distribute actual tokens to node operators.
+	payerKey := env.Client(100).PayerKey()
+	payerPrivKey, err := utils.ParseEcdsaPrivateKey(payerKey)
+	require.NoError(err, "failed to parse payer key")
+	payerAddr := crypto.PubkeyToAddress(payerPrivKey.PublicKey)
+
+	// Deposit a generous amount — 10^18 picodollars (~$1M).
+	depositAmount := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
+	env.Logger.Info("funding payer",
+		zap.String("payer", payerAddr.Hex()),
+		zap.String("amount", depositAmount.String()))
+	require.NoError(env.FundPayer(ctx, payerAddr, depositAmount))
+
+	// Verify the deposit landed
+	payerBalance, err := env.GetPayerBalance(ctx, payerAddr)
+	require.NoError(err, "failed to get payer balance")
+	env.Logger.Info("payer balance after deposit",
+		zap.String("balance", payerBalance.String()))
+	require.Positive(payerBalance.Sign(), "payer should have a positive balance")
 
 	const trafficDuration = 75 * time.Minute
 	const generatorTimeout = 65 * time.Minute
@@ -146,20 +169,18 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 			"node %d should have no rejected payer reports", n.ID())
 	}
 
-	// Phase 6: Move excess funds from PayerRegistry to DistributionManager (if any).
-	env.Logger.Info("phase 6: checking excess in payer registry")
+	// Phase 6: Transfer excess funds from PayerRegistry to DistributionManager.
+	// After settlement, the PayerRegistry holds tokens that are no longer owed to
+	// payers (their balances were deducted). This creates "excess" that must be
+	// transferred to the DistributionManager before nodes can withdraw.
+	env.Logger.Info("phase 6: transferring excess to fee distributor")
 	excess, err := env.GetPayerRegistryExcess(ctx)
 	require.NoError(err, "failed to get payer registry excess")
 	env.Logger.Info("payer registry excess", zap.String("excess", excess.String()))
 
-	if excess.Sign() > 0 {
-		env.Logger.Info("sending excess to fee distributor", zap.String("amount", excess.String()))
-		require.NoError(env.SendExcessToFeeDistributor(ctx))
-	} else {
-		env.Logger.Info(
-			"no excess in payer registry, skipping send-excess (fees distributed during settlement)",
-		)
-	}
+	require.Positive(excess.Sign(),
+		"payer registry should have excess after settlement (did the payer have tokens deposited?)")
+	require.NoError(env.SendExcessToFeeDistributor(ctx))
 
 	// Phase 7: Each node claims and withdraws their owed fees.
 	env.Logger.Info("phase 7: claiming and withdrawing owed fees for each node")
@@ -199,7 +220,7 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 		zap.Int("count", len(originatorNodeIDs)),
 		zap.Any("originator_node_ids", originatorNodeIDs))
 
-	anyClaimed := false
+	anyWithdrawn := false
 
 	for _, n := range allNodes {
 		nodeID := n.ID()
@@ -226,29 +247,42 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 			zap.Uint32("node_id", nodeID),
 			zap.String("owed", owedAfter.String()))
 
-		// Withdraw if there are owed fees (must be signed by node owner).
-		// Withdraw may fail with NoExcess if the DistributionManager doesn't have
-		// enough balance yet (fees may not have been transferred from PayerRegistry).
+		// Withdraw owed fees (must be signed by node owner).
 		if owedAfter.Sign() > 0 {
 			err = env.WithdrawFromDistributionManager(ctx, ownerKey, nodeID)
-			if err != nil {
-				env.Logger.Warn("withdraw failed (may need excess transfer first)",
-					zap.Uint32("node_id", nodeID),
-					zap.Error(err))
-				anyClaimed = true
-			} else {
-				env.Logger.Info("node claimed and withdrew fees",
-					zap.Uint32("node_id", nodeID),
-					zap.String("amount", owedAfter.String()))
-				anyClaimed = true
-			}
+			require.NoError(err, "withdraw failed for node %d", nodeID)
+
+			env.Logger.Info("node claimed and withdrew fees",
+				zap.Uint32("node_id", nodeID),
+				zap.String("amount", owedAfter.String()))
+			anyWithdrawn = true
 		} else {
 			env.Logger.Info("node has no owed fees to withdraw",
 				zap.Uint32("node_id", nodeID))
 		}
 	}
 
-	require.True(anyClaimed, "at least one node should have claimed fees")
+	require.True(anyWithdrawn, "at least one node should have withdrawn fees")
+
+	// Phase 8: Verify that fee tokens arrived in node operator wallets.
+	env.Logger.Info("phase 8: verifying fee token balances in node operator wallets")
+
+	for _, n := range allNodes {
+		ownerKey := n.SignerKey()
+		ownerPrivKey, keyErr := utils.ParseEcdsaPrivateKey(ownerKey)
+		require.NoError(keyErr, "failed to parse owner key for node %d", n.ID())
+		ownerAddr := crypto.PubkeyToAddress(ownerPrivKey.PublicKey)
+
+		balance, balErr := env.GetFeeTokenBalance(ctx, ownerAddr)
+		require.NoError(balErr, "failed to get fee token balance for node %d", n.ID())
+		env.Logger.Info("node operator fee token balance",
+			zap.Uint32("node_id", n.ID()),
+			zap.String("address", ownerAddr.Hex()),
+			zap.String("balance", balance.String()))
+
+		require.Positive(balance.Sign(),
+			"node %d operator should have received fee tokens", n.ID())
+	}
 
 	// Log final status
 	finalCounts, err := node100.GetPayerReportStatusCounts(ctx)

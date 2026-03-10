@@ -405,21 +405,48 @@ func (e *Environment) Gateways() []*GatewayHandle {
 
 // --- Client management ---
 
+// ClientOption configures optional parameters for NewClient.
+type ClientOption func(*clientConfig)
+
+type clientConfig struct {
+	payerKey string
+}
+
+// WithPayerKey overrides the default payer private key for this client.
+// The key is a 0x-prefixed hex-encoded ECDSA private key.
+// By default, clients use keys.ClientKey() (anvil account 1).
+func WithPayerKey(key string) ClientOption {
+	return func(c *clientConfig) {
+		c.payerKey = key
+	}
+}
+
 // NewClient creates a traffic generation client bound to the node with the given
 // nodeID. The client is registered in the environment and accessible via Client(nodeID).
 // Only one client per nodeID is allowed; creating a second client for the same
 // nodeID replaces the previous one (stopping its traffic first).
 //
+// Use WithPayerKey to specify a custom payer identity for this client.
+// By default, all clients share keys.ClientKey() (anvil account 1).
+//
 // Example:
 //
-//	env.NewClient(100)
+//	env.NewClient(100)                                      // default payer
+//	env.NewClient(200, types.WithPayerKey(customKey))       // custom payer
 //	env.Client(100).PublishEnvelopes(ctx, 10)
-func (e *Environment) NewClient(nodeID uint32) error {
+func (e *Environment) NewClient(nodeID uint32, opts ...ClientOption) error {
 	n := e.Node(nodeID) // panics if node doesn't exist
+
+	cfg := &clientConfig{
+		payerKey: keys.ClientKey(),
+	}
+	for _, o := range opts {
+		o(cfg)
+	}
 
 	c := client.New(e.Logger.Named(fmt.Sprintf("client-%d", nodeID)), client.Options{
 		NodeAddr:     n.Address(),
-		PayerKey:     keys.ClientKey(),
+		PayerKey:     cfg.payerKey,
 		OriginatorID: nodeID,
 	})
 

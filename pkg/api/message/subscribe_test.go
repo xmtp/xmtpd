@@ -381,7 +381,11 @@ func generateEnvelopes(
 
 	for _, id := range nodeIDs {
 
-		n := low + rand.Intn(high-low)
+		n := low
+		// Add variance if requested.
+		if high > low {
+			n += rand.Intn(high - low)
+		}
 
 		envs := make([]queries.InsertGatewayEnvelopeParams, n)
 		for i := range n {
@@ -408,6 +412,17 @@ func generateEnvelopes(
 		}
 
 		out[int32(id)] = envs
+	}
+
+	return out
+}
+
+func flattenEnvelopeMap(
+	m map[int32][]queries.InsertGatewayEnvelopeParams,
+) []queries.InsertGatewayEnvelopeParams {
+	var out []queries.InsertGatewayEnvelopeParams
+	for _, list := range m {
+		out = append(out, list...)
 	}
 
 	return out
@@ -667,41 +682,24 @@ func TestSubscribeAll(t *testing.T) {
 		minEnvelopes = 10
 		maxEnvelopes = 20
 
-		// After the initial batch, remaining envelopes get inserted at this rate.
-		// Somewhat cherry picked value in order to coincide with the subscribe worker polling interval,
-		// as we would like to have proper streaming and not just picking up another single batch.
-		insertDelay     = 100 * time.Millisecond
-		sourceEnvelopes = generateEnvelopes(
-			t,
-			nodeIDs,
-			minEnvelopes,
-			maxEnvelopes,
-			payerID,
-			subTopic,
-		)
+		insertDelay  = 100 * time.Millisecond
+		envelopeList = flattenEnvelopeMap(
+			generateEnvelopes(
+				t,
+				nodeIDs,
+				minEnvelopes,
+				maxEnvelopes,
+				payerID,
+				subTopic,
+			))
+		total = len(envelopeList)
 	)
 	defer cancel()
 
-	// Flatten envelope list + initialize cursor.
-	var (
-		envelopeList []queries.InsertGatewayEnvelopeParams
-		startCursor  = make(map[uint32]uint64)
-		total        int
-	)
-	for id, envs := range sourceEnvelopes {
-		envelopeList = append(envelopeList, envs...)
-
-		startCursor[uint32(id)] = 0
-		total += len(envs)
-	}
 	t.Logf("generated total %v envelopes from %v nodes", total, len(nodeIDs))
 
 	// Start a subscriber stream.
-	req := &message_api.SubscribeAllEnvelopesRequest{
-		LastSeen: &envelopes.Cursor{
-			NodeIdToSequenceId: startCursor,
-		},
-	}
+	req := &message_api.SubscribeAllEnvelopesRequest{}
 	stream, err := server.ClientReplication.SubscribeAllEnvelopes(ctx, connect.NewRequest(req))
 	require.NoError(t, err)
 
@@ -726,7 +724,7 @@ func TestSubscribeAll(t *testing.T) {
 		cancel()
 	})
 
-	// Wait a bit - then start inserting envelopes. Make sure these are streamed too.
+	// Wait a bit - then start inserting envelopes. Make sure these are streamed.
 	time.Sleep(insertDelay)
 
 	for _, env := range envelopeList {
@@ -737,4 +735,88 @@ func TestSubscribeAll(t *testing.T) {
 	streamWG.Wait()
 
 	require.Equal(t, total, received)
+}
+
+func TestSubscribeAll_StreamsOnlyNewMessages(t *testing.T) {
+	var (
+		nodes       = generateNodes(t, 2)
+		nodeIDs     = nodeIDs(nodes)
+		server      = testUtilsApi.NewTestAPIServer(t, testUtilsApi.WithRegistryNodes(nodes))
+		ctx, cancel = context.WithCancel(t.Context())
+		payerID     = testutils.CreatePayer(t, server.DB)
+		subTopic    = topic.NewTopic(
+			topic.TopicKindGroupMessagesV1,
+			fmt.Appendf(nil, "generic-topic-%v", rand.Int()),
+		)
+
+		insertDelay = 100 * time.Millisecond
+	)
+
+	// Envelope data.
+	var (
+		initialBatchSize = 5
+		streamSize       = 5
+		totalMessages    = initialBatchSize + streamSize
+
+		sourceEnvelopes = flattenEnvelopeMap(
+			generateEnvelopes(
+				t,
+				nodeIDs,
+				totalMessages,
+				totalMessages, // Let's get exactly N messages.
+				payerID,
+				subTopic,
+			))
+
+		initialBatch = sourceEnvelopes[:initialBatchSize]
+		streamBatch  = sourceEnvelopes[initialBatchSize:]
+	)
+	defer cancel()
+
+	// Pre-seed envelopes in the DB.
+	// These should NOT get picked up by the stream.
+	for _, env := range initialBatch {
+		testutils.InsertGatewayEnvelopes(t, server.DB, []queries.InsertGatewayEnvelopeParams{env})
+	}
+
+	// Add a delay so the subscribe worker picks pre-seeded envelopes as known before the streaming started.
+	time.Sleep(insertDelay)
+
+	// Start a subscriber stream.
+	req := &message_api.SubscribeAllEnvelopesRequest{}
+	stream, err := server.ClientReplication.SubscribeAllEnvelopes(ctx, connect.NewRequest(req))
+	require.NoError(t, err)
+
+	var (
+		received = 0
+		streamWG sync.WaitGroup
+	)
+
+	streamWG.Go(func() {
+		for received < streamSize {
+			ok := stream.Receive()
+			if !ok {
+				break
+			}
+
+			n := len(stream.Msg().GetEnvelopes())
+			t.Logf("stream produced %v envelopes", n)
+
+			received += n
+		}
+
+		cancel()
+	})
+
+	// Wait a bit - then start inserting envelopes. These should in fact be streamed.
+	time.Sleep(insertDelay)
+
+	for _, env := range streamBatch {
+		testutils.InsertGatewayEnvelopes(t, server.DB, []queries.InsertGatewayEnvelopeParams{env})
+		time.Sleep(insertDelay)
+	}
+
+	streamWG.Wait()
+
+	require.Equal(t, streamSize, received)
 }

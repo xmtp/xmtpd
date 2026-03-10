@@ -101,6 +101,12 @@ func (g *Gateway) Container() testcontainers.Container {
 	return g.container
 }
 
+// SignerKey returns the private key hex string used by this gateway for signing
+// and payer operations.
+func (g *Gateway) SignerKey() string {
+	return g.opts.SignerKey
+}
+
 func buildEnvVars(opts Options) map[string]string {
 	env := map[string]string{
 		// Core services

@@ -332,6 +332,19 @@ func (e *Environment) GetDistributionManagerOwedFees(
 	return e.contracts.settlementAdmin.GetDistributionManagerOwedFees(ctx, nodeID)
 }
 
+// --- Balance operations ---
+
+// GetGasBalance returns the native ETH balance for the given address.
+func (e *Environment) GetGasBalance(
+	ctx context.Context,
+	addr common.Address,
+) (*big.Int, error) {
+	if err := e.initChainClients(ctx); err != nil {
+		return nil, err
+	}
+	return e.contracts.ethClient.BalanceAt(ctx, addr, nil)
+}
+
 // --- Payer operations ---
 
 // DepositPayer deposits funds into the PayerRegistry for a given payer address.

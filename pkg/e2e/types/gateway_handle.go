@@ -2,8 +2,12 @@ package types
 
 import (
 	"context"
+	"math/big"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/e2e/gateway"
+	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
 // GatewayHandle provides a fluent API for interacting with an xmtpd gateway.
@@ -42,9 +46,20 @@ func (h *GatewayHandle) Alias() string {
 	return h.gateway.Alias()
 }
 
-// Address returns the host-accessible address for this gateway.
-func (h *GatewayHandle) Address() string {
+// Endpoint returns the internal network address for this gateway (e.g. "http://gateway-0:5050").
+func (h *GatewayHandle) Endpoint() string {
 	return h.gateway.InternalAddr()
+}
+
+// Address returns the Ethereum address derived from this gateway's signer key.
+// This is the gateway's payer address on-chain — the address that gets charged
+// in the PayerRegistry when the gateway wraps client messages into payer envelopes.
+func (h *GatewayHandle) Address() common.Address {
+	privKey, err := utils.ParseEcdsaPrivateKey(h.gateway.SignerKey())
+	if err != nil {
+		panic("failed to parse gateway signer key: " + err.Error())
+	}
+	return crypto.PubkeyToAddress(privKey.PublicKey)
 }
 
 // --- Lifecycle ---
@@ -85,4 +100,44 @@ func (h *GatewayHandle) AddTimeout(ctx context.Context, timeoutMs int) error {
 // network conditions.
 func (h *GatewayHandle) RemoveAllToxics(ctx context.Context) error {
 	return h.env.Chaos.RemoveAllToxics(ctx, h.gateway.Alias())
+}
+
+// --- Balance queries ---
+
+// GetPayerBalance returns this gateway's balance in the PayerRegistry.
+func (h *GatewayHandle) GetPayerBalance(ctx context.Context) (*big.Int, error) {
+	return h.env.GetPayerBalance(ctx, h.Address())
+}
+
+// GetFeeTokenBalance returns the fee token (xUSD) balance for this gateway's address.
+func (h *GatewayHandle) GetFeeTokenBalance(ctx context.Context) (*big.Int, error) {
+	return h.env.GetFeeTokenBalance(ctx, h.Address())
+}
+
+// GetGasBalance returns the native ETH balance for this gateway's address.
+func (h *GatewayHandle) GetGasBalance(ctx context.Context) (*big.Int, error) {
+	return h.env.GetGasBalance(ctx, h.Address())
+}
+
+// --- Payer operations ---
+
+// Deposit mints fee tokens and deposits them into the PayerRegistry for this
+// gateway's payer address. Handles the full flow: mint → wrap → approve → deposit.
+func (h *GatewayHandle) Deposit(ctx context.Context, amount *big.Int) error {
+	return h.env.FundPayer(ctx, h.Address(), amount)
+}
+
+// RequestWithdrawal requests a withdrawal from the PayerRegistry for this gateway.
+func (h *GatewayHandle) RequestWithdrawal(ctx context.Context, amount *big.Int) error {
+	return h.env.RequestPayerWithdrawal(ctx, h.gateway.SignerKey(), amount)
+}
+
+// CancelWithdrawal cancels a pending withdrawal from the PayerRegistry for this gateway.
+func (h *GatewayHandle) CancelWithdrawal(ctx context.Context) error {
+	return h.env.CancelPayerWithdrawal(ctx, h.gateway.SignerKey())
+}
+
+// FinalizeWithdrawal finalizes a pending withdrawal, transferring funds to the recipient.
+func (h *GatewayHandle) FinalizeWithdrawal(ctx context.Context, recipient common.Address) error {
+	return h.env.FinalizePayerWithdrawal(ctx, h.gateway.SignerKey(), recipient)
 }

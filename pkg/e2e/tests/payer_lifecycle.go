@@ -5,12 +5,10 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/e2e/client"
 	"github.com/xmtp/xmtpd/pkg/e2e/observe"
 	"github.com/xmtp/xmtpd/pkg/e2e/types"
-	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -49,22 +47,29 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 
 	require.NoError(env.NewClient(100))
 
+	// Record initial fee token balances for all nodes before any traffic.
+	allNodes := env.Nodes()
+	initialBalances := make(map[uint32]*big.Int, len(allNodes))
+	for _, n := range allNodes {
+		bal, balErr := n.GetFeeTokenBalance(ctx)
+		require.NoError(balErr, "failed to get initial fee token balance for node %d", n.ID())
+		initialBalances[n.ID()] = bal
+		env.Logger.Info("initial fee token balance",
+			zap.Uint32("node_id", n.ID()),
+			zap.String("balance", bal.String()))
+	}
+
 	// Fund the payer before generating traffic so that settlement can
 	// distribute actual tokens to node operators.
-	payerKey := env.Client(100).PayerKey()
-	payerPrivKey, err := utils.ParseEcdsaPrivateKey(payerKey)
-	require.NoError(err, "failed to parse payer key")
-	payerAddr := crypto.PubkeyToAddress(payerPrivKey.PublicKey)
-
-	// Deposit a generous amount — 10^18 picodollars (~$1M).
+	payer := env.Client(100)
 	depositAmount := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
 	env.Logger.Info("funding payer",
-		zap.String("payer", payerAddr.Hex()),
+		zap.String("payer", payer.Address().Hex()),
 		zap.String("amount", depositAmount.String()))
-	require.NoError(env.FundPayer(ctx, payerAddr, depositAmount))
+	require.NoError(payer.Deposit(ctx, depositAmount))
 
 	// Verify the deposit landed
-	payerBalance, err := env.GetPayerBalance(ctx, payerAddr)
+	payerBalance, err := payer.GetPayerBalance(ctx)
 	require.NoError(err, "failed to get payer balance")
 	env.Logger.Info("payer balance after deposit",
 		zap.String("balance", payerBalance.String()))
@@ -147,7 +152,6 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	// Every node should have the same settled reports.
 	env.Logger.Info("phase 5: verifying payer reports across all nodes")
 
-	allNodes := env.Nodes()
 	for _, n := range allNodes {
 		counts, err := n.GetPayerReportStatusCounts(ctx)
 		require.NoError(err, "failed to get payer report counts from node %d", n.ID())
@@ -265,24 +269,36 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	require.True(anyWithdrawn, "at least one node should have withdrawn fees")
 
 	// Phase 8: Verify that fee tokens arrived in node operator wallets.
+	// The sum of all earned fees across nodes must equal the excess that was
+	// transferred from the PayerRegistry to the DistributionManager.
 	env.Logger.Info("phase 8: verifying fee token balances in node operator wallets")
 
+	totalEarned := new(big.Int)
 	for _, n := range allNodes {
-		ownerKey := n.SignerKey()
-		ownerPrivKey, keyErr := utils.ParseEcdsaPrivateKey(ownerKey)
-		require.NoError(keyErr, "failed to parse owner key for node %d", n.ID())
-		ownerAddr := crypto.PubkeyToAddress(ownerPrivKey.PublicKey)
-
-		balance, balErr := env.GetFeeTokenBalance(ctx, ownerAddr)
+		finalBalance, balErr := n.GetFeeTokenBalance(ctx)
 		require.NoError(balErr, "failed to get fee token balance for node %d", n.ID())
+
+		initial := initialBalances[n.ID()]
+		earned := new(big.Int).Sub(finalBalance, initial)
+		totalEarned.Add(totalEarned, earned)
+
 		env.Logger.Info("node operator fee token balance",
 			zap.Uint32("node_id", n.ID()),
-			zap.String("address", ownerAddr.Hex()),
-			zap.String("balance", balance.String()))
+			zap.String("address", n.Address().Hex()),
+			zap.String("initial", initial.String()),
+			zap.String("final", finalBalance.String()),
+			zap.String("earned", earned.String()))
 
-		require.Positive(balance.Sign(),
-			"node %d operator should have received fee tokens", n.ID())
+		require.Positive(earned.Sign(),
+			"node %d operator should have earned fee tokens (initial=%s, final=%s)",
+			n.ID(), initial.String(), finalBalance.String())
 	}
+
+	env.Logger.Info("total fees distributed",
+		zap.String("total_earned", totalEarned.String()),
+		zap.String("excess", excess.String()))
+	require.Equal(excess.String(), totalEarned.String(),
+		"total earned fees across all nodes should equal the excess transferred")
 
 	// Log final status
 	finalCounts, err := node100.GetPayerReportStatusCounts(ctx)

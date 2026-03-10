@@ -96,7 +96,7 @@ type Environment struct {
 	gatewaysMu  sync.Mutex
 
 	// Client tracking
-	clients   map[uint32]client.Client
+	clients   map[uint32]*ClientHandle
 	clientsMu sync.Mutex
 }
 
@@ -445,34 +445,37 @@ func (e *Environment) NewClient(nodeID uint32, opts ...ClientOption) error {
 	}
 
 	c := client.New(e.Logger.Named(fmt.Sprintf("client-%d", nodeID)), client.Options{
-		NodeAddr:     n.Address(),
+		NodeAddr:     n.Endpoint(),
 		PayerKey:     cfg.payerKey,
 		OriginatorID: nodeID,
 	})
 
+	handle := newClientHandle(c, e)
+
 	e.clientsMu.Lock()
 	defer e.clientsMu.Unlock()
 	if e.clients == nil {
-		e.clients = make(map[uint32]client.Client)
+		e.clients = make(map[uint32]*ClientHandle)
 	}
 	// Stop existing client if any
 	if existing, ok := e.clients[nodeID]; ok {
 		existing.Stop()
 	}
-	e.clients[nodeID] = c
+	e.clients[nodeID] = handle
 
 	return nil
 }
 
-// Client returns the traffic client bound to the node with the given nodeID.
+// Client returns the ClientHandle bound to the node with the given nodeID.
 // Panics if no client for that nodeID has been created via NewClient.
 //
 // Example:
 //
 //	env.Client(100).PublishEnvelopes(ctx, 10)
-//	env.Client(100).GenerateTraffic(ctx, client.TrafficOptions{BatchSize: 5, Duration: 60*time.Second})
+//	env.Client(100).Deposit(ctx, amount)
+//	env.Client(100).GetPayerBalance(ctx)
 //	env.Client(100).Stop()
-func (e *Environment) Client(nodeID uint32) client.Client {
+func (e *Environment) Client(nodeID uint32) *ClientHandle {
 	e.clientsMu.Lock()
 	defer e.clientsMu.Unlock()
 	c, ok := e.clients[nodeID]
@@ -482,11 +485,11 @@ func (e *Environment) Client(nodeID uint32) client.Client {
 	return c
 }
 
-// Clients returns all registered clients.
-func (e *Environment) Clients() []client.Client {
+// Clients returns all registered client handles.
+func (e *Environment) Clients() []*ClientHandle {
 	e.clientsMu.Lock()
 	defer e.clientsMu.Unlock()
-	result := make([]client.Client, 0, len(e.clients))
+	result := make([]*ClientHandle, 0, len(e.clients))
 	for _, c := range e.clients {
 		result = append(result, c)
 	}

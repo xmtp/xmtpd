@@ -2,9 +2,13 @@ package types
 
 import (
 	"context"
+	"math/big"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/e2e/node"
 	"github.com/xmtp/xmtpd/pkg/e2e/observe"
+	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
 // NodeHandle provides a fluent API for interacting with an xmtpd node.
@@ -42,10 +46,20 @@ func (h *NodeHandle) Alias() string {
 	return h.node.Alias()
 }
 
-// Address returns the host-accessible gRPC address (e.g. "http://localhost:XXXXX").
+// Endpoint returns the host-accessible gRPC address (e.g. "http://localhost:XXXXX").
 // Use this to create clients that publish to this node.
-func (h *NodeHandle) Address() string {
+func (h *NodeHandle) Endpoint() string {
 	return h.node.ExternalAddr()
+}
+
+// Address returns the Ethereum address derived from this node's signer key.
+// This is the node owner's address used for on-chain operations and fee distribution.
+func (h *NodeHandle) Address() common.Address {
+	privKey, err := utils.ParseEcdsaPrivateKey(h.node.SignerKey())
+	if err != nil {
+		panic("failed to parse node signer key: " + err.Error())
+	}
+	return crypto.PubkeyToAddress(privKey.PublicKey)
 }
 
 // SignerKey returns the private key hex string used by this node for signing.
@@ -124,6 +138,18 @@ func (h *NodeHandle) AddTimeout(ctx context.Context, timeoutMs int) error {
 // network conditions.
 func (h *NodeHandle) RemoveAllToxics(ctx context.Context) error {
 	return h.env.Chaos.RemoveAllToxics(ctx, h.node.Alias())
+}
+
+// --- Balance queries ---
+
+// GetFeeTokenBalance returns the fee token (xUSD) balance for this node's owner address.
+func (h *NodeHandle) GetFeeTokenBalance(ctx context.Context) (*big.Int, error) {
+	return h.env.GetFeeTokenBalance(ctx, h.Address())
+}
+
+// GetGasBalance returns the native ETH balance for this node's owner address.
+func (h *NodeHandle) GetGasBalance(ctx context.Context) (*big.Int, error) {
+	return h.env.GetGasBalance(ctx, h.Address())
 }
 
 // --- Observer (database queries) ---

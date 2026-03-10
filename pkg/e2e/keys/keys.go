@@ -15,6 +15,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -66,10 +67,9 @@ type Manager struct {
 	logger *zap.Logger
 	rpcURL string
 
-	mu           sync.Mutex
-	nextNode     int
-	nextGateway  int
-	generatedIdx int
+	mu          sync.Mutex
+	nextNode    int
+	nextGateway int
 }
 
 // NewManager creates a key manager that uses the given RPC URL to fund
@@ -134,7 +134,12 @@ func (m *Manager) generateAndFundKey(ctx context.Context, role string) (string, 
 		return "", fmt.Errorf("failed to generate %s key: %w", role, err)
 	}
 
-	keyHex := "0x" + fmt.Sprintf("%064x", privateKey.D)
+	privateKeyBytes, err := privateKey.Bytes()
+	if err != nil {
+		return "", fmt.Errorf("failed to get private key bytes: %w", err)
+	}
+
+	keyHex := "0x" + hex.EncodeToString(privateKeyBytes)
 	address := crypto.PubkeyToAddress(privateKey.PublicKey)
 
 	m.logger.Info("generated new key (pool exhausted)",
@@ -214,5 +219,9 @@ func (m *Manager) fundAddress(ctx context.Context, toAddress string) error {
 
 // PrivateKeyToHex converts an ECDSA private key to a 0x-prefixed hex string.
 func PrivateKeyToHex(key *ecdsa.PrivateKey) string {
-	return "0x" + fmt.Sprintf("%064x", key.D)
+	privateKeyBytes, err := key.Bytes()
+	if err != nil {
+		return ""
+	}
+	return "0x" + hex.EncodeToString(privateKeyBytes)
 }

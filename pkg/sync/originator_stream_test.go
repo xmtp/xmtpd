@@ -124,6 +124,26 @@ func getAllMessagesForOriginator(
 	return db.TransformRowsByOriginator(envs)
 }
 
+// tryGetAllMessagesForOriginator is safe to call from goroutines (e.g., inside require.Never /
+// require.Eventually condition functions). It uses context.Background() so it is unaffected by
+// test-context cancellation, and returns nil on any error rather than calling t.Fatal.
+func tryGetAllMessagesForOriginator(
+	storer *EnvelopeSink,
+	nodeID uint32,
+) []queries.GatewayEnvelopesView {
+	envs, err := storer.db.ReadQuery().SelectGatewayEnvelopesByOriginators(
+		context.Background(),
+		queries.SelectGatewayEnvelopesByOriginatorsParams{
+			CursorNodeIds:     []int32{int32(nodeID)},
+			CursorSequenceIds: []int64{0},
+		},
+	)
+	if err != nil {
+		return nil
+	}
+	return db.TransformRowsByOriginator(envs)
+}
+
 func TestSyncWorkerSuccess(t *testing.T) {
 	nodeID := uint32(200)
 	sequenceID := uint64(1)
@@ -184,7 +204,7 @@ func TestSyncWorkerIgnoresInvalidEnvelopes(t *testing.T) {
 
 	// Assert that no envelope is stored within a generous window.
 	require.Never(t, func() bool {
-		envs := getAllMessagesForOriginator(t, dbStorerInstance, nodeID)
+		envs := tryGetAllMessagesForOriginator(dbStorerInstance, nodeID)
 		return len(envs) > 0
 	}, 200*time.Millisecond, 20*time.Millisecond)
 }
@@ -289,7 +309,7 @@ func TestSyncWorkerRejectsEnvelopeFromUnpermittedOriginator(t *testing.T) {
 
 	// Assert that no envelope is stored within a generous window.
 	require.Never(t, func() bool {
-		envs := getAllMessagesForOriginator(t, dbStorerInstance, badOriginatorID)
+		envs := tryGetAllMessagesForOriginator(dbStorerInstance, badOriginatorID)
 		return len(envs) > 0
 	}, 200*time.Millisecond, 20*time.Millisecond)
 }

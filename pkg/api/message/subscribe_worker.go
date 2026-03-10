@@ -49,7 +49,7 @@ type subscribeWorker struct {
 	subscriptions *subscriptionHandler
 
 	// Assumption: listeners cannot be in multiple slices
-	emptyListeners      listenerSet
+	globalListeners     listenerSet
 	originatorListeners listenersMap[uint32]
 	topicListeners      listenersMap[string]
 }
@@ -95,7 +95,7 @@ func startSubscribeWorker(
 	worker := &subscribeWorker{
 		ctx:                 ctx,
 		logger:              logger,
-		emptyListeners:      listenerSet{},
+		globalListeners:     listenerSet{},
 		store:               store,
 		registry:            registry,
 		subscriptions:       newSubscriptionHandler(logger, store, vc),
@@ -159,7 +159,7 @@ func (s *subscribeWorker) start() {
 
 			s.dispatchToOriginators(envs)
 			s.dispatchToTopics(envs)
-			s.dispatchToEmpties()
+			s.dispatchToGlobals(envs)
 
 			span.Finish()
 		}
@@ -230,9 +230,8 @@ func (s *subscribeWorker) dispatchToTopics(envs []*envelopes.OriginatorEnvelope)
 	}
 }
 
-func (s *subscribeWorker) dispatchToEmpties() {
-	// only keep this to possibly close listeners
-	s.dispatchToListeners(&s.emptyListeners, []*envelopes.OriginatorEnvelope{})
+func (s *subscribeWorker) dispatchToGlobals(envs []*envelopes.OriginatorEnvelope) {
+	s.dispatchToListeners(&s.globalListeners, envs)
 }
 
 func (s *subscribeWorker) dispatchToListeners(
@@ -296,8 +295,8 @@ func (s *subscribeWorker) closeListener(l *listener) {
 	close(l.ch)
 
 	go func() {
-		if l.isEmpty {
-			s.emptyListeners.Delete(l)
+		if l.isGlobal {
+			s.globalListeners.Delete(l)
 		} else if len(l.topics) > 0 {
 			s.topicListeners.removeListener(l.topics, l)
 		} else if len(l.originators) > 0 {
@@ -313,8 +312,8 @@ func (s *subscribeWorker) listen(
 	ch := make(chan []*envelopes.OriginatorEnvelope, subscriptionBufferSize)
 	l := newListener(ctx, s.logger, query, ch)
 
-	if l.isEmpty {
-		s.emptyListeners.Store(l, struct{}{})
+	if l.isGlobal {
+		s.globalListeners.Store(l, struct{}{})
 	} else if len(l.topics) > 0 {
 		s.topicListeners.addListener(l.topics, l)
 	} else if len(l.originators) > 0 {

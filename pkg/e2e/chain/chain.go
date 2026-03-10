@@ -1,3 +1,4 @@
+// Package chain provides a wrapper around the Anvil blockchain used for on-chain operations.
 package chain
 
 import (
@@ -12,7 +13,9 @@ import (
 	"go.uber.org/zap"
 )
 
-const anvilImage = "ghcr.io/xmtp/contracts:latest"
+type ChainOptions struct {
+	Image string
+}
 
 type Chain struct {
 	logger    *zap.Logger
@@ -21,20 +24,27 @@ type Chain struct {
 	rpcURL    string
 	network   string
 	alias     string
+	opts      ChainOptions
 }
 
-func New(ctx context.Context, logger *zap.Logger, networkName string) (*Chain, error) {
+func New(
+	ctx context.Context,
+	logger *zap.Logger,
+	networkName string,
+	opts ChainOptions,
+) (*Chain, error) {
 	c := &Chain{
 		logger:  logger,
 		network: networkName,
 		alias:   "anvil",
+		opts:    opts,
 	}
 
 	createCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
 	req := testcontainers.ContainerRequest{
-		Image:        anvilImage,
+		Image:        opts.Image,
 		ExposedPorts: []string{"8545/tcp"},
 		Networks:     []string{networkName},
 		NetworkAliases: map[string][]string{

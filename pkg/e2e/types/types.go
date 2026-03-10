@@ -35,6 +35,7 @@ const (
 
 // Config holds the configuration for an E2E test run.
 type Config struct {
+	ChainImage   string
 	XmtpdImage   string
 	GatewayImage string
 	TestFilter   []string

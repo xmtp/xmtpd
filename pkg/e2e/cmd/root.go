@@ -1,3 +1,4 @@
+// Package cmd provides the CLI for the E2E test framework.
 package cmd
 
 import (
@@ -56,8 +57,9 @@ func init() {
 	rf.StringSlice("test", nil, "run only specified test(s) by name")
 	rf.String("xmtpd-image", "ghcr.io/xmtp/xmtpd:latest", "docker image for xmtpd nodes")
 	rf.String("gateway-image", "ghcr.io/xmtp/xmtpd-gateway:latest", "docker image for gateways")
+	rf.String("chain-image", "ghcr.io/xmtp/contracts:latest", "docker image for chain")
 
-	for _, name := range []string{"test", "xmtpd-image", "gateway-image"} {
+	for _, name := range []string{"test", "xmtpd-image", "gateway-image", "chain-image"} {
 		_ = viper.BindPFlag(name, rf.Lookup(name))
 	}
 
@@ -81,9 +83,11 @@ func runE2E(cmd *cobra.Command, _ []string) error {
 		GatewayImage: viper.GetString("gateway-image"),
 		TestFilter:   viper.GetStringSlice("test"),
 		OutputFormat: viper.GetString("output-format"),
+		ChainImage:   viper.GetString("chain-image"),
 	}
 
 	r := runner.New(logger, cfg)
+
 	return r.Run(cmd.Context())
 }
 
@@ -93,14 +97,18 @@ func listTests(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
-	r := runner.New(logger, runner.Config{})
-	tests := r.Tests()
-	format := viper.GetString("output-format")
+	var (
+		r      = runner.New(logger, runner.Config{})
+		tests  = r.Tests()
+		format = viper.GetString("output-format")
+	)
 
 	if format == "json" {
 		return listTestsJSON(tests)
 	}
+
 	listTestsTable(tests)
+
 	return nil
 }
 
@@ -130,6 +138,7 @@ func listTestsTable(tests []runner.TestInfo) {
 	header := fmt.Sprintf("%-*s  %s", nameWidth, "NAME", "DESCRIPTION")
 	fmt.Println(header)
 	fmt.Println(strings.Repeat("-", len(header)+10))
+
 	for _, t := range tests {
 		fmt.Printf("%-*s  %s\n", nameWidth, t.Name, t.Description)
 	}

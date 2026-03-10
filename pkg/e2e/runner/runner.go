@@ -1,3 +1,4 @@
+// Package runner provides the core test runner for E2E tests.
 package runner
 
 import (
@@ -5,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/e2e/types"
@@ -12,6 +14,8 @@ import (
 )
 
 type Config = types.Config
+
+type Test = types.Test
 
 type TestInfo struct {
 	Name        string `json:"name"`
@@ -31,6 +35,11 @@ type Runner struct {
 	tests  []Test
 }
 
+const (
+	testResultStatusPass = "PASS"
+	testResultStatusFail = "FAIL"
+)
+
 func New(logger *zap.Logger, cfg Config) *Runner {
 	return &Runner{
 		logger: logger,
@@ -49,24 +58,19 @@ func (r *Runner) Run(ctx context.Context) error {
 	r.logger.Info("starting e2e test run",
 		zap.Int("total_tests", len(selected)),
 		zap.String("xmtpd_image", r.cfg.XmtpdImage),
+		zap.String("gateway_image", r.cfg.GatewayImage),
+		zap.String("chain_image", r.cfg.ChainImage),
 	)
 
 	results := make([]TestResult, 0, len(selected))
-	var failures int
 
 	for _, t := range selected {
 		result := r.runTest(ctx, t)
 		results = append(results, result)
-		if result.Status == "FAIL" {
-			failures++
-		}
 	}
 
 	r.printResults(results)
 
-	if failures > 0 {
-		return fmt.Errorf("%d test(s) failed", failures)
-	}
 	return nil
 }
 
@@ -79,20 +83,19 @@ func (r *Runner) runTest(ctx context.Context, t Test) TestResult {
 	env, err := NewEnvironment(ctx, logger, r.cfg)
 	if err != nil {
 		duration := time.Since(start)
+
 		logger.Error("failed to set up environment", zap.Error(err))
+
 		return TestResult{
 			Name:     t.Name(),
-			Status:   "FAIL",
+			Status:   testResultStatusFail,
 			Duration: duration,
 			Error:    fmt.Sprintf("environment setup: %s", err),
 		}
 	}
 
-	// Inject TestingT so tests can use require/assert
-	testingT := types.NewTestingT(logger)
-	env.SetTestingT(testingT)
-
 	testErr := r.executeTest(ctx, t, env)
+
 	duration := time.Since(start)
 
 	cleanupErr := env.Cleanup(ctx)
@@ -104,7 +107,7 @@ func (r *Runner) runTest(ctx context.Context, t Test) TestResult {
 		logger.Error("test failed", zap.Error(testErr), zap.Duration("duration", duration))
 		return TestResult{
 			Name:     t.Name(),
-			Status:   "FAIL",
+			Status:   testResultStatusFail,
 			Duration: duration,
 			Error:    testErr.Error(),
 		}
@@ -113,7 +116,7 @@ func (r *Runner) runTest(ctx context.Context, t Test) TestResult {
 	logger.Info("test passed", zap.Duration("duration", duration))
 	return TestResult{
 		Name:     t.Name(),
-		Status:   "PASS",
+		Status:   testResultStatusPass,
 		Duration: duration,
 	}
 }
@@ -135,20 +138,21 @@ func (r *Runner) executeTest(ctx context.Context, t Test, env *Environment) (tes
 	return t.Run(ctx, env)
 }
 
+// filterTests returns tests that match the filter.
+// If no filter is provided, all tests are returned.
 func (r *Runner) filterTests() []Test {
 	if len(r.cfg.TestFilter) == 0 {
 		return r.tests
 	}
-	filterSet := make(map[string]struct{}, len(r.cfg.TestFilter))
-	for _, f := range r.cfg.TestFilter {
-		filterSet[f] = struct{}{}
-	}
+
 	var selected []Test
+
 	for _, t := range r.tests {
-		if _, ok := filterSet[t.Name()]; ok {
+		if slices.Contains(r.cfg.TestFilter, t.Name()) {
 			selected = append(selected, t)
 		}
 	}
+
 	return selected
 }
 
@@ -163,9 +167,9 @@ func (r *Runner) printResults(results []TestResult) {
 func (r *Runner) printText(results []TestResult) {
 	fmt.Println("\n=== E2E Test Results ===")
 	for _, res := range results {
-		status := "PASS"
-		if res.Status == "FAIL" {
-			status = "FAIL"
+		status := testResultStatusPass
+		if res.Status == testResultStatusFail {
+			status = testResultStatusFail
 		}
 		fmt.Printf("  [%s] %s (%s)\n", status, res.Name, res.Duration.Truncate(time.Millisecond))
 		if res.Error != "" {

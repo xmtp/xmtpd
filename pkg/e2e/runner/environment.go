@@ -18,6 +18,8 @@ import (
 
 type Environment = types.Environment
 
+// NewEnvironment creates a new environment for the test run.
+// Each test run gets a new environment, completely isolated from other test runs.
 func NewEnvironment(
 	ctx context.Context,
 	logger *zap.Logger,
@@ -45,7 +47,9 @@ func NewEnvironment(
 		return nil, fmt.Errorf("failed to start chaos controller: %w", err)
 	}
 
-	env.Chain, err = chain.New(ctx, logger.Named("chain"), env.Network)
+	env.Chain, err = chain.New(ctx, logger.Named("chain"), env.Network, chain.ChainOptions{
+		Image: cfg.ChainImage,
+	})
 	if err != nil {
 		_ = env.Cleanup(ctx)
 		return nil, fmt.Errorf("failed to start chain: %w", err)
@@ -60,6 +64,8 @@ func NewEnvironment(
 		_ = env.Cleanup(ctx)
 		return nil, fmt.Errorf("failed to start redis: %w", err)
 	}
+
+	env.SetTestingT(types.NewTestingT(logger))
 
 	return env, nil
 }
@@ -90,6 +96,7 @@ func startRedis(ctx context.Context, networkName string) (testcontainers.Contain
 
 func cleanupEnvironment(ctx context.Context, e *types.Environment) error {
 	var firstErr error
+
 	capture := func(err error) {
 		if err != nil && firstErr == nil {
 			firstErr = err

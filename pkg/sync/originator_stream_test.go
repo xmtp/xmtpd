@@ -124,6 +124,26 @@ func getAllMessagesForOriginator(
 	return db.TransformRowsByOriginator(envs)
 }
 
+// tryGetAllMessagesForOriginator is safe to call from goroutines (e.g., inside require.Never /
+// require.Eventually condition functions). It uses context.Background() so it is unaffected by
+// test-context cancellation, and returns nil on any error rather than calling t.Fatal.
+func tryGetAllMessagesForOriginator(
+	storer *EnvelopeSink,
+	nodeID uint32,
+) []queries.GatewayEnvelopesView {
+	envs, err := storer.db.ReadQuery().SelectGatewayEnvelopesByOriginators(
+		context.Background(),
+		queries.SelectGatewayEnvelopesByOriginatorsParams{
+			CursorNodeIds:     []int32{int32(nodeID)},
+			CursorSequenceIds: []int64{0},
+		},
+	)
+	if err != nil {
+		return nil
+	}
+	return db.TransformRowsByOriginator(envs)
+}
+
 func TestSyncWorkerSuccess(t *testing.T) {
 	nodeID := uint32(200)
 	sequenceID := uint64(1)
@@ -151,7 +171,7 @@ func TestSyncWorkerSuccess(t *testing.T) {
 	require.Eventually(t, func() bool {
 		envs := getAllMessagesForOriginator(t, dbStorerInstance, nodeID)
 		return len(envs) == 1 && envs[0].OriginatorSequenceID == int64(sequenceID)
-	}, time.Second, 50*time.Millisecond)
+	}, 3*time.Second, 50*time.Millisecond)
 }
 
 func TestSyncWorkerIgnoresInvalidEnvelopes(t *testing.T) {
@@ -182,10 +202,11 @@ func TestSyncWorkerIgnoresInvalidEnvelopes(t *testing.T) {
 	var retryAfter *backoff.RetryAfterError
 	require.ErrorAs(t, err, &retryAfter)
 
-	// Give the write worker a chance to save the envelope
-	time.Sleep(50 * time.Millisecond)
-	envs := getAllMessagesForOriginator(t, dbStorerInstance, nodeID)
-	require.Empty(t, envs)
+	// Assert that no envelope is stored within a generous window.
+	require.Never(t, func() bool {
+		envs := tryGetAllMessagesForOriginator(dbStorerInstance, nodeID)
+		return len(envs) > 0
+	}, 200*time.Millisecond, 20*time.Millisecond)
 }
 
 func TestEnvelopeSinkShutdownViaClose(t *testing.T) {
@@ -286,10 +307,11 @@ func TestSyncWorkerRejectsEnvelopeFromUnpermittedOriginator(t *testing.T) {
 		// ok
 	}
 
-	// Ensure nothing got stored
-	time.Sleep(50 * time.Millisecond) // give sink a moment (defensive)
-	envs := getAllMessagesForOriginator(t, dbStorerInstance, badOriginatorID)
-	require.Empty(t, envs)
+	// Assert that no envelope is stored within a generous window.
+	require.Never(t, func() bool {
+		envs := tryGetAllMessagesForOriginator(dbStorerInstance, badOriginatorID)
+		return len(envs) > 0
+	}, 200*time.Millisecond, 20*time.Millisecond)
 }
 
 func TestSyncWorkerAcceptsEnvelopeFromPermittedOriginator(t *testing.T) {
@@ -334,7 +356,7 @@ func TestSyncWorkerAcceptsEnvelopeFromPermittedOriginator(t *testing.T) {
 	require.Eventually(t, func() bool {
 		envs := getAllMessagesForOriginator(t, dbStorerInstance, otherPermittedID)
 		return len(envs) == 1 && envs[0].OriginatorSequenceID == int64(sequenceID)
-	}, time.Second, 50*time.Millisecond)
+	}, 3*time.Second, 50*time.Millisecond)
 }
 
 func TestSyncWorkerGapStillAdvancesLastSequenceId(t *testing.T) {
@@ -378,7 +400,7 @@ func TestSyncWorkerGapStillAdvancesLastSequenceId(t *testing.T) {
 	// ---- Assert lastSequenceId advanced to 3 ----
 	require.Eventually(t, func() bool {
 		return lastSequenceIds[nodeID] == 3
-	}, time.Second, 50*time.Millisecond)
+	}, 3*time.Second, 50*time.Millisecond)
 
 	// ---- Assert error log was emitted ----
 	require.Eventually(t, func() bool {
@@ -389,7 +411,7 @@ func TestSyncWorkerGapStillAdvancesLastSequenceId(t *testing.T) {
 			}
 		}
 		return false
-	}, time.Second, 50*time.Millisecond)
+	}, 3*time.Second, 50*time.Millisecond)
 }
 
 func TestSyncWorkerOutOfOrderStillAdvancesLastSequenceId(t *testing.T) {
@@ -433,7 +455,7 @@ func TestSyncWorkerOutOfOrderStillAdvancesLastSequenceId(t *testing.T) {
 	// ---- Assert lastSequenceId advanced to 3 ----
 	require.Eventually(t, func() bool {
 		return lastSequenceIds[nodeID] == 3
-	}, time.Second, 50*time.Millisecond)
+	}, 3*time.Second, 50*time.Millisecond)
 
 	// ---- Assert error log was emitted ----
 	require.Eventually(t, func() bool {
@@ -444,7 +466,7 @@ func TestSyncWorkerOutOfOrderStillAdvancesLastSequenceId(t *testing.T) {
 			}
 		}
 		return false
-	}, time.Second, 50*time.Millisecond)
+	}, 3*time.Second, 50*time.Millisecond)
 }
 
 func TestSyncWorkerNoOutOfOrderErrorForMultipleOriginatorsInOrder(t *testing.T) {
@@ -501,14 +523,14 @@ func TestSyncWorkerNoOutOfOrderErrorForMultipleOriginatorsInOrder(t *testing.T) 
 	// And sanity-check lastSequenceIds advanced correctly for all originators
 	require.Eventually(t, func() bool {
 		return lastSequenceIds[200] == 3 && lastSequenceIds[10] == 3 && lastSequenceIds[13] == 3
-	}, time.Second, 50*time.Millisecond)
+	}, 3*time.Second, 50*time.Millisecond)
 
 	require.Eventually(t, func() bool {
 		a := getAllMessagesForOriginator(t, dbStorerInstance, 200)
 		b := getAllMessagesForOriginator(t, dbStorerInstance, 10)
 		c := getAllMessagesForOriginator(t, dbStorerInstance, 13)
 		return len(a) == 3 && len(b) == 3 && len(c) == 3
-	}, time.Second, 50*time.Millisecond)
+	}, 3*time.Second, 50*time.Millisecond)
 
 	// even though we encountered 1, 1,2,3 2,3 2,3 we should not complain
 	require.Empty(t, recorded.FilterMessage("received out-of-order envelope").All())

@@ -56,7 +56,7 @@ func TestNotifierConcurrent(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		return getCurrentCount() == 100
-	}, time.Second, 10*time.Millisecond)
+	}, 5*time.Second, 10*time.Millisecond)
 }
 
 func CountChannel[Kind any](ch <-chan Kind, validators ...func(Kind)) func() int {

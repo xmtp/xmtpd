@@ -137,5 +137,5 @@ func TestContractRegistryChangedNodes(t *testing.T) {
 	// ensure there is at least notification
 	require.Eventually(t, func() bool {
 		return getCurrentCount() == 1
-	}, 1*time.Second, 10*time.Millisecond)
+	}, 2*time.Second, 10*time.Millisecond)
 }

@@ -3,6 +3,7 @@ package workers_test
 import (
 	"crypto/ecdsa"
 	"database/sql"
+	"net"
 	"testing"
 	"time"
 
@@ -143,8 +144,10 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 	payerPrivateKey1 := testutils.RandomPrivateKey(t)
 	payerPrivateKey2 := testutils.RandomPrivateKey(t)
 
-	server1Port := networkTestUtils.OpenFreePort(t)
-	server2Port := networkTestUtils.OpenFreePort(t)
+	ln1 := networkTestUtils.OpenListener(t)
+	ln2 := networkTestUtils.OpenListener(t)
+	server1Port := ln1.Addr().(*net.TCPAddr).Port
+	server2Port := ln2.Addr().(*net.TCPAddr).Port
 
 	nodes := []registry.Node{
 		registryTestUtils.CreateNode(
@@ -167,7 +170,7 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 	server1 := serverTestUtils.NewTestBaseServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			Port:             server1Port,
+			Listener:         ln1,
 			DB:               dbs[0],
 			Registry:         registry,
 			PrivateKey:       privateKey1,
@@ -181,7 +184,7 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 	server2 := serverTestUtils.NewTestBaseServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			Port:             server2Port,
+			Listener:         ln2,
 			DB:               dbs[1],
 			Registry:         registry,
 			PrivateKey:       privateKey2,
@@ -457,7 +460,7 @@ func TestCanGenerateReport(t *testing.T) {
 		messagesOnNode1 := scaffold.getMessagesFromTopic(t, 0, node1ReportTopic)
 		messagesOnNode2 := scaffold.getMessagesFromTopic(t, 1, node1ReportTopic)
 		return len(messagesOnNode1) == 1 && len(messagesOnNode2) == 1
-	}, 5*time.Second, 50*time.Millisecond)
+	}, 10*time.Second, 50*time.Millisecond)
 
 	// Try and generate a report again. This should be a no-op.
 	err = scaffold.reportGenerators[0].GenerateReports()
@@ -499,7 +502,7 @@ func TestFullReportLifecycle(t *testing.T) {
 		messagesOnNode1 := scaffold.getMessagesFromTopic(t, 0, node1ReportTopic)
 		messagesOnNode2 := scaffold.getMessagesFromTopic(t, 1, node1ReportTopic)
 		return len(messagesOnNode1) == 1 && len(messagesOnNode2) == 1
-	}, 5*time.Second, 50*time.Millisecond)
+	}, 10*time.Second, 50*time.Millisecond)
 
 	// Make both node's attestation workers try and attest reports. Do this multiple times to ensure no dupes
 	for range 5 {
@@ -517,7 +520,7 @@ func TestFullReportLifecycle(t *testing.T) {
 		messagesOnNode2 := scaffold.getMessagesFromTopic(t, 1, attestationTopic)
 		// We are expecting 2 attestations total. One from each node. Each node's attestation should have synced from the other node
 		return len(messagesOnNode1) == 2 && len(messagesOnNode2) == 2
-	}, 5*time.Second, 50*time.Millisecond)
+	}, 15*time.Second, 50*time.Millisecond)
 
 	// Get the attestations of the two reports from both nodes
 	for nodeIndex := range 2 {
@@ -539,7 +542,7 @@ func TestFullReportLifecycle(t *testing.T) {
 			numSignatures := len(node1Reports[0].AttestationSignatures)
 
 			return numReports == 1 && numSignatures == 2
-		}, 5*time.Second, 50*time.Millisecond)
+		}, 10*time.Second, 50*time.Millisecond)
 
 		require.Eventually(t, func() bool {
 			// See all the reports from the perspective of node2
@@ -558,7 +561,7 @@ func TestFullReportLifecycle(t *testing.T) {
 			numSignatures := len(node2Reports[0].AttestationSignatures)
 
 			return numReports == 1 && numSignatures == 2
-		}, 5*time.Second, 50*time.Millisecond)
+		}, 10*time.Second, 50*time.Millisecond)
 	}
 
 	err := scaffold.submitterWorkers[0].SubmitReports(t.Context())

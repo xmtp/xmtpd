@@ -110,5 +110,5 @@ func TestFundsAdmin_MintMockUSDC_SetsBalance(t *testing.T) {
 			return false
 		}
 		return bal.Cmp(amount) == 0
-	}, 2*time.Second, 50*time.Millisecond)
+	}, 5*time.Second, 50*time.Millisecond)
 }

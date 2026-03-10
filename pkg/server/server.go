@@ -57,6 +57,7 @@ type BaseServerConfig struct {
 	ServerVersion *semver.Version
 	FeeCalculator fees.IFeeCalculator
 	PromReg       *prometheus.Registry
+	Listener      net.Listener
 }
 
 func (cfg BaseServerConfig) Valid() error {
@@ -138,6 +139,12 @@ func WithFeeCalculator(feeCalculator fees.IFeeCalculator) BaseServerOption {
 func WithPromReg(promReg *prometheus.Registry) BaseServerOption {
 	return func(cfg *BaseServerConfig) {
 		cfg.PromReg = promReg
+	}
+}
+
+func WithListener(ln net.Listener) BaseServerOption {
+	return func(cfg *BaseServerConfig) {
+		cfg.Listener = ln
 	}
 }
 
@@ -468,9 +475,14 @@ func startAPIServer(
 		authInterceptor = server.NewServerAuthInterceptor(jwtVerifier, cfg.Logger)
 	}
 
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Options.API.Port))
-	if err != nil {
-		return fmt.Errorf("failed to listen on port %d: %w", cfg.Options.API.Port, err)
+	var listener net.Listener
+	if cfg.Listener != nil {
+		listener = cfg.Listener
+	} else {
+		listener, err = net.Listen("tcp", fmt.Sprintf(":%d", cfg.Options.API.Port))
+		if err != nil {
+			return fmt.Errorf("failed to listen on port %d: %w", cfg.Options.API.Port, err)
+		}
 	}
 
 	registrationFunc := func(mux *http.ServeMux, interceptors ...connect.Interceptor) (servicePaths []string, err error) {

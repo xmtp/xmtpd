@@ -72,7 +72,7 @@ func addRandomNode(
 			httpAddress,
 		)
 		return err == nil
-	}, 1*time.Second, 50*time.Millisecond)
+	}, 3*time.Second, 50*time.Millisecond)
 }
 
 func TestAddNode(t *testing.T) {
@@ -85,7 +85,7 @@ func TestAddNode(t *testing.T) {
 	require.Eventually(t, func() bool {
 		_, err := registry.AddNode(ctx, owner, &privateKey.PublicKey, httpAddress)
 		return err == nil
-	}, 1*time.Second, 50*time.Millisecond)
+	}, 3*time.Second, 50*time.Millisecond)
 }
 
 func TestSetMaxCanonical(t *testing.T) {

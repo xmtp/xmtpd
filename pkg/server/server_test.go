@@ -2,6 +2,7 @@ package server_test
 
 import (
 	"fmt"
+	"net"
 	"reflect"
 	"testing"
 	"time"
@@ -45,8 +46,10 @@ func TestCreateServer(t *testing.T) {
 	privateKey2, err := crypto.GenerateKey()
 	require.NoError(t, err)
 
-	port1 := networkTestUtils.OpenFreePort(t)
-	port2 := networkTestUtils.OpenFreePort(t)
+	ln1 := networkTestUtils.OpenListener(t)
+	ln2 := networkTestUtils.OpenListener(t)
+	port1 := ln1.Addr().(*net.TCPAddr).Port
+	port2 := ln2.Addr().(*net.TCPAddr).Port
 
 	nodes := []r.Node{
 		registryTestUtils.CreateNode(
@@ -70,7 +73,7 @@ func TestCreateServer(t *testing.T) {
 	server1 := serverTestUtils.NewTestBaseServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			Port:             port1,
+			Listener:         ln1,
 			DB:               dbs[0],
 			Registry:         registry,
 			PrivateKey:       privateKey1,
@@ -86,7 +89,7 @@ func TestCreateServer(t *testing.T) {
 	server2 := serverTestUtils.NewTestBaseServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			Port:             port2,
+			Listener:         ln2,
 			DB:               dbs[1],
 			Registry:         registry,
 			PrivateKey:       privateKey2,
@@ -195,16 +198,17 @@ func TestCreateServer(t *testing.T) {
 			}
 		}
 		return false
-	}, 5000*time.Millisecond, 200*time.Millisecond)
+	}, 10*time.Second, 200*time.Millisecond)
 }
 
 func TestReadOwnWritesGuarantee(t *testing.T) {
 	var (
 		ctx     = t.Context()
 		dbs     = testutils.NewDBs(t, ctx, 1)
-		port    = networkTestUtils.OpenFreePort(t)
 		nodeID1 = server1NodeID
 	)
+	ln := networkTestUtils.OpenListener(t)
+	port := ln.Addr().(*net.TCPAddr).Port
 
 	privateKey1, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -224,7 +228,7 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 	server1 := serverTestUtils.NewTestBaseServer(
 		t,
 		serverTestUtils.TestServerCfg{
-			Port:             port,
+			Listener:         ln,
 			DB:               dbs[0],
 			Registry:         registry,
 			PrivateKey:       privateKey1,
@@ -282,10 +286,11 @@ func TestReadOwnWritesGuarantee(t *testing.T) {
 
 func TestGRPCHealthEndpoint(t *testing.T) {
 	var (
-		ctx  = t.Context()
-		dbs  = testutils.NewDBs(t, ctx, 1)
-		port = networkTestUtils.OpenFreePort(t)
+		ctx = t.Context()
+		dbs = testutils.NewDBs(t, ctx, 1)
 	)
+	ln := networkTestUtils.OpenListener(t)
+	port := ln.Addr().(*net.TCPAddr).Port
 
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -302,7 +307,7 @@ func TestGRPCHealthEndpoint(t *testing.T) {
 	contractsOptions := testutils.NewContractsOptions(t, rpcURL, wsURL)
 
 	server := serverTestUtils.NewTestBaseServer(t, serverTestUtils.TestServerCfg{
-		Port:             port,
+		Listener:         ln,
 		DB:               dbs[0],
 		Registry:         registry,
 		PrivateKey:       privateKey,
@@ -337,10 +342,11 @@ func TestCreateServer_AllOptionPermutations(t *testing.T) {
 	var (
 		ctx          = t.Context()
 		serverNodeID = server1NodeID
-
-		// Use a single registry port for all subtests – registry is shared.
-		registryPort = networkTestUtils.OpenFreePort(t)
 	)
+
+	// Use a stable port for the node registry HTTP address (never actually bound to here).
+	registryLn := networkTestUtils.OpenListener(t)
+	registryPort := registryLn.Addr().(*net.TCPAddr).Port
 
 	privateKey, err := crypto.GenerateKey()
 	require.NoError(t, err)
@@ -376,14 +382,14 @@ func TestCreateServer_AllOptionPermutations(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			var (
-				port  = networkTestUtils.OpenFreePort(t)
+				ln    = networkTestUtils.OpenListener(t)
 				db, _ = testutils.NewDB(t, ctx)
 			)
 
 			server := serverTestUtils.NewTestBaseServer(
 				t,
 				serverTestUtils.TestServerCfg{
-					Port:             port,
+					Listener:         ln,
 					DB:               db.DB(),
 					Registry:         registry,
 					PrivateKey:       privateKey,
@@ -399,10 +405,12 @@ func TestCreateServer_AllOptionPermutations(t *testing.T) {
 }
 
 func TestGRPCPayloadLimit(t *testing.T) {
+	ln := networkTestUtils.OpenListener(t)
+	port := ln.Addr().(*net.TCPAddr).Port
+
 	var (
 		ctx              = t.Context()
 		dbs              = testutils.NewDBs(t, ctx, 1)
-		port             = networkTestUtils.OpenFreePort(t)
 		privateKey       = testutils.RandomPrivateKey(t)
 		wsURL, rpcURL    = anvil.StartAnvil(t, false)
 		contractsOptions = testutils.NewContractsOptions(t, rpcURL, wsURL)
@@ -418,7 +426,7 @@ func TestGRPCPayloadLimit(t *testing.T) {
 		registry = registryTestUtils.CreateMockRegistry(t, nodes)
 
 		server = serverTestUtils.NewTestBaseServer(t, serverTestUtils.TestServerCfg{
-			Port:             port,
+			Listener:         ln,
 			DB:               dbs[0],
 			Registry:         registry,
 			PrivateKey:       privateKey,

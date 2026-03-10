@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"database/sql"
 	"encoding/hex"
+	"net"
 	"testing"
 	"time"
 
@@ -31,6 +32,7 @@ type TestServerCfg struct {
 	ContractsOptions *config.ContractsOptions
 	DB               *sql.DB
 	Port             int
+	Listener         net.Listener
 	PrivateKey       *ecdsa.PrivateKey
 	Registry         r.NodeRegistry
 	Services         EnabledServices
@@ -42,7 +44,7 @@ func NewTestBaseServer(
 ) *s.BaseServer {
 	log := testutils.NewLog(t)
 
-	server, err := s.NewBaseServer(
+	opts := []s.BaseServerOption{
 		s.WithContext(t.Context()),
 		s.WithLogger(log),
 		s.WithDB(db.NewDBHandler(cfg.DB)),
@@ -78,7 +80,14 @@ func NewTestBaseServer(
 			Indexer: config.IndexerOptions{
 				Enable: cfg.Services.Indexer,
 			},
-		}))
+		}),
+	}
+
+	if cfg.Listener != nil {
+		opts = append(opts, s.WithListener(cfg.Listener))
+	}
+
+	server, err := s.NewBaseServer(opts...)
 	require.NoError(t, err)
 
 	return server

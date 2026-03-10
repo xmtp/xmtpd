@@ -176,11 +176,7 @@ func (s *Service) SubscribeAllEnvelopes(
 		)
 	}
 
-	query := &message_api.EnvelopesQuery{
-		LastSeen: req.Msg.GetLastSeen(),
-	}
-
-	return s.doSubscribe(ctx, query, stream, logger)
+	return s.doSubscribe(ctx, &message_api.EnvelopesQuery{}, stream, logger)
 }
 
 func (s *Service) doSubscribe(

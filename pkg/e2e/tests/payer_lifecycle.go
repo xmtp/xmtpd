@@ -14,7 +14,7 @@ import (
 )
 
 // PayerLifecycleTest generates traffic and verifies the full payer report lifecycle:
-// creation -> attestation -> submission -> settlement -> excess transfer -> claim -> withdraw.
+// creation -> attestation -> submission -> settlement -> excess transfer -> claim -> withdraw -> payer withdrawal.
 //
 // Worker scheduling:
 //
@@ -80,11 +80,13 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	const generatorTimeout = 65 * time.Minute
 	const postGeneratorTimeout = 15 * time.Minute
 
-	// Start background traffic for the duration of the test
-	env.Client(100).GenerateTraffic(ctx, client.TrafficOptions{
+	// Start background traffic for the duration of the test.
+	// Capture the TrafficGenerator to check for errors after stopping.
+	traffic := payer.GenerateTraffic(ctx, client.TrafficOptions{
 		BatchSize: 10,
 		Duration:  trafficDuration,
 	})
+	defer payer.Stop()
 
 	node100 := env.Node(100)
 
@@ -146,8 +148,9 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 		"at least 1 payer report settled",
 	))
 
-	// Stop traffic before verification
-	env.Client(100).Stop()
+	// Stop traffic before verification and check for generation errors.
+	payer.Stop()
+	require.NoError(traffic.Err(), "background traffic generation failed")
 
 	// Phase 5: Verify payer report consistency across all nodes.
 	// Every node should have the same settled reports.
@@ -173,6 +176,18 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 		require.Equal(int64(0), counts.SubmissionRejected,
 			"node %d should have no rejected payer reports", n.ID())
 	}
+
+	// Phase 5b: Verify payer balance decreased after settlement.
+	// Settlement deducts from the payer's PayerRegistry balance, so it must be
+	// strictly less than the original deposit.
+	payerBalanceAfter, err := payer.GetPayerBalance(ctx)
+	require.NoError(err, "failed to get payer balance after settlement")
+	env.Logger.Info("payer balance after settlement",
+		zap.String("before", depositAmount.String()),
+		zap.String("after", payerBalanceAfter.String()))
+	require.True(payerBalanceAfter.Cmp(depositAmount) < 0,
+		"payer balance should have decreased after settlement (before=%s, after=%s)",
+		depositAmount.String(), payerBalanceAfter.String())
 
 	// Phase 6: Transfer excess funds from PayerRegistry to DistributionManager.
 	// After settlement, the PayerRegistry holds tokens that are no longer owed to
@@ -302,6 +317,21 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 		zap.String("excess", excess.String()))
 	require.Equal(excess.String(), totalEarned.String(),
 		"total earned fees across all nodes should equal the excess transferred")
+
+	// Phase 9: Payer requests withdrawal of remaining balance.
+	// After settlement, the payer should still have leftover funds in the
+	// PayerRegistry. Verify the withdrawal request flow works.
+	remainingBalance, err := payer.GetPayerBalance(ctx)
+	require.NoError(err, "failed to get remaining payer balance")
+	env.Logger.Info("payer remaining balance before withdrawal",
+		zap.String("balance", remainingBalance.String()))
+
+	if remainingBalance.Sign() > 0 {
+		require.NoError(payer.RequestWithdrawal(ctx, remainingBalance),
+			"payer withdrawal request should succeed")
+		env.Logger.Info("payer withdrawal requested",
+			zap.String("amount", remainingBalance.String()))
+	}
 
 	// Log final status
 	finalCounts, err := node100.GetPayerReportStatusCounts(ctx)

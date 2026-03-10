@@ -63,7 +63,7 @@ func New(ctx context.Context, logger *zap.Logger, opts Options) (*Gateway, error
 		testcontainers.GenericContainerRequest{
 			ContainerRequest: req,
 			Started:          true,
-			Logger:           log.Default(),
+			Logger:           log.New(io.Discard, "", 0),
 		},
 	)
 	if err != nil {

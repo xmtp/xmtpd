@@ -648,7 +648,7 @@ func (e *Environment) runCLI(ctx context.Context, cmd []string) error {
 		testcontainers.GenericContainerRequest{
 			ContainerRequest: req,
 			Started:          true,
-			Logger:           log.Default(),
+			Logger:           log.New(io.Discard, "", 0),
 		},
 	)
 	if err != nil {

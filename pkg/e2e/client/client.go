@@ -92,12 +92,6 @@ func (c *client) PayerKey() string {
 // to the target node via gRPC. This uses the stress.EnvelopesGenerator
 // which creates properly signed payer envelopes with random data.
 func (c *client) PublishEnvelopes(ctx context.Context, count uint) error {
-	c.logger.Info("publishing envelopes",
-		zap.Uint("count", count),
-		zap.Uint32("node_id", c.opts.OriginatorID),
-		zap.String("node_addr", c.opts.NodeAddr),
-	)
-
 	gen, err := stress.NewEnvelopesGenerator(
 		c.opts.NodeAddr,
 		c.opts.PayerKey,
@@ -115,10 +109,6 @@ func (c *client) PublishEnvelopes(ctx context.Context, count uint) error {
 	if err != nil {
 		return fmt.Errorf("failed to publish envelopes: %w", err)
 	}
-
-	c.logger.Info("envelopes published",
-		zap.Uint("count", count),
-	)
 
 	return nil
 }
@@ -151,9 +141,16 @@ func (c *client) GenerateTraffic(
 		defer gen.wg.Done()
 		defer cancel()
 
+		startTime := time.Now()
+
+		ticker := time.NewTicker(1 * time.Minute)
+		defer ticker.Stop()
+
 		c.logger.Info("background traffic generation started",
 			zap.Uint("batch_size", opts.BatchSize),
 			zap.Duration("duration", opts.Duration),
+			zap.Uint32("node_id", c.opts.OriginatorID),
+			zap.String("node_addr", c.opts.NodeAddr),
 		)
 
 		for {
@@ -161,6 +158,15 @@ func (c *client) GenerateTraffic(
 			case <-genCtx.Done():
 				c.logger.Info("background traffic generation stopped")
 				return
+
+			case <-ticker.C:
+				remaining := opts.Duration - time.Since(startTime)
+				c.logger.Info("background traffic generation ongoing",
+					zap.Duration("remaining", remaining.Truncate(time.Second)),
+					zap.Uint32("node_id", c.opts.OriginatorID),
+					zap.String("node_addr", c.opts.NodeAddr),
+				)
+
 			default:
 				if err := c.PublishEnvelopes(genCtx, opts.BatchSize); err != nil {
 					// context cancellation is expected when Stop is called

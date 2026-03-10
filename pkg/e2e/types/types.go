@@ -3,6 +3,7 @@ package types
 
 import (
 	"context"
+	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/ethereum/go-ethereum/crypto"
+	_ "github.com/lib/pq"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"github.com/xmtp/xmtpd/pkg/e2e/chain"
@@ -76,6 +78,11 @@ type Environment struct {
 
 	Redis       testcontainers.Container
 	cleanupFunc func(ctx context.Context) error
+
+	// contracts holds lazily initialized blockchain clients for direct contract calls.
+	contracts        *chainClients
+	contractsOnce    sync.Once
+	contractsInitErr error
 
 	// t is the TestingT adapter set by the runner before each test.
 	t *TestingT
@@ -243,13 +250,18 @@ func (e *Environment) AddNode(ctx context.Context, opts ...NodeOption) error {
 	}
 
 	nodeOpts := node.Options{
-		Image:        nodeImage,
-		Network:      e.Network,
-		Alias:        alias,
-		WsURL:        e.Chain.InternalWsURL(),
-		RPCURL:       e.Chain.InternalRPCURL(),
-		SignerKey:    signerKey,
-		EnvVars:      cfg.envVars,
+		Image:     nodeImage,
+		Network:   e.Network,
+		Alias:     alias,
+		WsURL:     e.Chain.InternalWsURL(),
+		RPCURL:    e.Chain.InternalRPCURL(),
+		SignerKey: signerKey,
+		EnvVars:   cfg.envVars,
+	}
+
+	// Reset the node's database to ensure clean state (host Postgres persists across runs)
+	if err := e.resetNodeDB(alias); err != nil {
+		e.Logger.Warn("failed to reset node database", zap.String("alias", alias), zap.Error(err))
 	}
 
 	n, err := node.New(ctx, e.Logger.Named(alias), nodeOpts)
@@ -329,6 +341,15 @@ func (e *Environment) AddGateway(ctx context.Context, opts ...GatewayOption) err
 	gwKey, err := e.Keys.NextGatewayKey(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to allocate gateway key: %w", err)
+	}
+
+	// Reset the gateway's database to ensure clean state
+	if err := e.resetNodeDB(alias); err != nil {
+		e.Logger.Warn(
+			"failed to reset gateway database",
+			zap.String("alias", alias),
+			zap.Error(err),
+		)
 	}
 
 	gw, err := gateway.New(ctx, e.Logger.Named(alias), gateway.Options{
@@ -544,6 +565,33 @@ func (e *Environment) RemoveNodeFromCanonicalNetwork(ctx context.Context, nodeID
 		return fmt.Errorf("remove node %d from canonical network failed: %w", nodeID, err)
 	}
 	e.Logger.Info("node removed from canonical network", zap.Uint32("node_id", nodeID))
+	return nil
+}
+
+// resetNodeDB drops and recreates the per-node database to ensure a clean state.
+// This is necessary because the host Postgres persists across test runs, while the
+// anvil chain is fresh each time. Stale DB state (e.g. settled payer reports) would
+// cause on-chain queries to fail.
+func (e *Environment) resetNodeDB(alias string) error {
+	dbName := "e2e_" + strings.ReplaceAll(alias, "-", "_")
+	adminConnStr := "postgres://postgres:xmtp@localhost:8765/postgres?sslmode=disable"
+
+	db, err := sql.Open("postgres", adminConnStr)
+	if err != nil {
+		return fmt.Errorf("failed to connect to postgres for DB reset: %w", err)
+	}
+	defer func() {
+		_ = db.Close()
+	}()
+
+	// Terminate active connections and drop the database
+	_, _ = db.Exec(fmt.Sprintf(
+		"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '%s'",
+		dbName,
+	))
+	_, _ = db.Exec("DROP DATABASE IF EXISTS " + dbName)
+
+	e.Logger.Info("reset node database", zap.String("db_name", dbName))
 	return nil
 }
 

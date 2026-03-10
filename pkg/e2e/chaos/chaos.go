@@ -168,7 +168,7 @@ func (c *Controller) RegisterTarget(ctx context.Context, name, upstream string, 
 func (c *Controller) ProxyAddress(name string) string {
 	proxy, ok := c.proxies[name]
 	if !ok {
-		panic(fmt.Sprintf("no proxy registered for %s", name))
+		panic("no proxy registered for " + name)
 	}
 	return fmt.Sprintf("http://toxiproxy:%d", proxy.ListenPort)
 }

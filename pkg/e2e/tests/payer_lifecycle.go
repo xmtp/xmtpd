@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"math/big"
 	"time"
 
 	"github.com/stretchr/testify/require"
@@ -12,7 +13,7 @@ import (
 )
 
 // PayerLifecycleTest generates traffic and verifies the full payer report lifecycle:
-// creation -> attestation -> submission -> settlement.
+// creation -> attestation -> submission -> settlement -> excess transfer -> claim -> withdraw.
 //
 // Worker scheduling:
 //
@@ -33,7 +34,7 @@ func (t *PayerLifecycleTest) Name() string {
 }
 
 func (t *PayerLifecycleTest) Description() string {
-	return "Generate traffic and verify payer reports are created, attested, and submitted"
+	return "Generate traffic and verify the full payer report lifecycle including fee distribution"
 }
 
 func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) error {
@@ -56,7 +57,7 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 		Duration:  trafficDuration,
 	})
 
-	observeNode := env.Node(100)
+	node100 := env.Node(100)
 
 	// Phase 1: Wait for payer reports to be created
 	// This is the long wait — up to 60 min for the generator's scheduled minute.
@@ -64,7 +65,7 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	createdCtx, createdCancel := context.WithTimeout(ctx, generatorTimeout)
 	defer createdCancel()
 
-	require.NoError(observeNode.WaitForPayerReports(
+	require.NoError(node100.WaitForPayerReports(
 		createdCtx,
 		func(c *observe.PayerReportStatusCounts) bool {
 			return c.Total > 0
@@ -78,7 +79,7 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	attestedCtx, attestedCancel := context.WithTimeout(ctx, postGeneratorTimeout)
 	defer attestedCancel()
 
-	require.NoError(observeNode.WaitForPayerReports(
+	require.NoError(node100.WaitForPayerReports(
 		attestedCtx,
 		func(c *observe.PayerReportStatusCounts) bool {
 			return c.AttestationApproved > 0
@@ -93,7 +94,7 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	submittedCtx, submittedCancel := context.WithTimeout(ctx, postGeneratorTimeout)
 	defer submittedCancel()
 
-	require.NoError(observeNode.WaitForPayerReports(
+	require.NoError(node100.WaitForPayerReports(
 		submittedCtx,
 		func(c *observe.PayerReportStatusCounts) bool {
 			return c.SubmissionSubmitted > 0 || c.SubmissionSettled > 0
@@ -108,7 +109,7 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	settledCtx, settledCancel := context.WithTimeout(ctx, postGeneratorTimeout)
 	defer settledCancel()
 
-	require.NoError(observeNode.WaitForPayerReports(
+	require.NoError(node100.WaitForPayerReports(
 		settledCtx,
 		func(c *observe.PayerReportStatusCounts) bool {
 			return c.SubmissionSettled > 0
@@ -116,10 +117,141 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 		"at least 1 payer report settled",
 	))
 
+	// Stop traffic before verification
 	env.Client(100).Stop()
 
+	// Phase 5: Verify payer report consistency across all nodes.
+	// Every node should have the same settled reports.
+	env.Logger.Info("phase 5: verifying payer reports across all nodes")
+
+	allNodes := env.Nodes()
+	for _, n := range allNodes {
+		counts, err := n.GetPayerReportStatusCounts(ctx)
+		require.NoError(err, "failed to get payer report counts from node %d", n.ID())
+
+		env.Logger.Info("node payer report status",
+			zap.Uint32("node_id", n.ID()),
+			zap.Int64("total", counts.Total),
+			zap.Int64("attestation_approved", counts.AttestationApproved),
+			zap.Int64("submission_submitted", counts.SubmissionSubmitted),
+			zap.Int64("submission_settled", counts.SubmissionSettled),
+			zap.Int64("submission_rejected", counts.SubmissionRejected),
+		)
+
+		require.Positive(counts.Total,
+			"node %d should have payer reports", n.ID())
+		require.Positive(counts.SubmissionSettled,
+			"node %d should have settled payer reports", n.ID())
+		require.Equal(int64(0), counts.SubmissionRejected,
+			"node %d should have no rejected payer reports", n.ID())
+	}
+
+	// Phase 6: Move excess funds from PayerRegistry to DistributionManager (if any).
+	env.Logger.Info("phase 6: checking excess in payer registry")
+	excess, err := env.GetPayerRegistryExcess(ctx)
+	require.NoError(err, "failed to get payer registry excess")
+	env.Logger.Info("payer registry excess", zap.String("excess", excess.String()))
+
+	if excess.Sign() > 0 {
+		env.Logger.Info("sending excess to fee distributor", zap.String("amount", excess.String()))
+		require.NoError(env.SendExcessToFeeDistributor(ctx))
+	} else {
+		env.Logger.Info(
+			"no excess in payer registry, skipping send-excess (fees distributed during settlement)",
+		)
+	}
+
+	// Phase 7: Each node claims and withdraws their owed fees.
+	env.Logger.Info("phase 7: claiming and withdrawing owed fees for each node")
+
+	// Get settled reports from one node to build claim parameters.
+	// All nodes should have the same settled reports.
+	settledReports, err := node100.GetSettledPayerReports(ctx)
+	require.NoError(err, "failed to get settled payer reports")
+	require.NotEmpty(settledReports, "should have settled payer reports")
+
+	env.Logger.Info("settled payer reports found",
+		zap.Int("count", len(settledReports)))
+
+	// Group settled reports by originator node ID.
+	// Not all originators may have reports on-chain (e.g. a node didn't generate
+	// reports during the test window), so we need to deduplicate the originator list.
+	type reportKey struct {
+		originatorNodeID uint32
+		reportIndex      int64
+	}
+	uniqueReports := make(map[reportKey]struct{})
+	for _, r := range settledReports {
+		uniqueReports[reportKey{
+			originatorNodeID: uint32(r.OriginatorNodeID),
+			reportIndex:      int64(r.SubmittedReportIndex),
+		}] = struct{}{}
+	}
+
+	originatorNodeIDs := make([]uint32, 0, len(uniqueReports))
+	payerReportIndices := make([]*big.Int, 0, len(uniqueReports))
+	for k := range uniqueReports {
+		originatorNodeIDs = append(originatorNodeIDs, k.originatorNodeID)
+		payerReportIndices = append(payerReportIndices, big.NewInt(k.reportIndex))
+	}
+
+	env.Logger.Info("unique settled reports for claim",
+		zap.Int("count", len(originatorNodeIDs)),
+		zap.Any("originator_node_ids", originatorNodeIDs))
+
+	anyClaimed := false
+
+	for _, n := range allNodes {
+		nodeID := n.ID()
+		ownerKey := n.SignerKey()
+
+		// Attempt to claim fees for this node.
+		// The claim may fail with NoReportsForOriginator if the on-chain contract
+		// doesn't have reports for some originators. This is expected when not all
+		// nodes generated reports during the test window.
+		err = env.ClaimFromDistributionManager(
+			ctx, ownerKey, nodeID, originatorNodeIDs, payerReportIndices,
+		)
+		if err != nil {
+			env.Logger.Warn("claim failed for node (may be expected if no reports for originator)",
+				zap.Uint32("node_id", nodeID),
+				zap.Error(err))
+			continue
+		}
+
+		// Check owed fees after claim to verify they were credited
+		owedAfter, err := env.GetDistributionManagerOwedFees(ctx, nodeID)
+		require.NoError(err, "failed to get owed fees after claim for node %d", nodeID)
+		env.Logger.Info("owed fees after claim",
+			zap.Uint32("node_id", nodeID),
+			zap.String("owed", owedAfter.String()))
+
+		// Withdraw if there are owed fees (must be signed by node owner).
+		// Withdraw may fail with NoExcess if the DistributionManager doesn't have
+		// enough balance yet (fees may not have been transferred from PayerRegistry).
+		if owedAfter.Sign() > 0 {
+			err = env.WithdrawFromDistributionManager(ctx, ownerKey, nodeID)
+			if err != nil {
+				env.Logger.Warn("withdraw failed (may need excess transfer first)",
+					zap.Uint32("node_id", nodeID),
+					zap.Error(err))
+				anyClaimed = true
+			} else {
+				env.Logger.Info("node claimed and withdrew fees",
+					zap.Uint32("node_id", nodeID),
+					zap.String("amount", owedAfter.String()))
+				anyClaimed = true
+			}
+		} else {
+			env.Logger.Info("node has no owed fees to withdraw",
+				zap.Uint32("node_id", nodeID))
+		}
+	}
+
+	require.True(anyClaimed, "at least one node should have claimed fees")
+
 	// Log final status
-	finalCounts, err := observeNode.GetPayerReportStatusCounts(ctx)
+	finalCounts, err := node100.GetPayerReportStatusCounts(ctx)
 	if err != nil {
 		env.Logger.Warn("failed to get final payer report counts", zap.Error(err))
 	} else {

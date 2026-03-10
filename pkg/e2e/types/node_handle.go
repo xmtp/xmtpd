@@ -53,6 +53,12 @@ func (h *NodeHandle) Address() string {
 	return h.node.ExternalAddr()
 }
 
+// SignerKey returns the private key hex string used by this node for signing.
+// This is also the key associated with the node's owner address on-chain.
+func (h *NodeHandle) SignerKey() string {
+	return h.node.SignerKey()
+}
+
 // DBConnectionString returns the Postgres connection string for this node's database.
 func (h *NodeHandle) DBConnectionString() string {
 	return h.node.DBConnectionString()
@@ -163,6 +169,14 @@ func (h *NodeHandle) GetPayerReportStatusCounts(
 // from this node's database.
 func (h *NodeHandle) GetUnsettledUsage(ctx context.Context) ([]observe.PayerUsageStats, error) {
 	return h.observer.GetUnsettledUsage(ctx, h.node.DBConnectionString())
+}
+
+// GetSettledPayerReports returns settled payer reports with their originator node ID
+// and submitted report index, needed for claiming from the DistributionManager.
+func (h *NodeHandle) GetSettledPayerReports(
+	ctx context.Context,
+) ([]observe.SettledPayerReport, error) {
+	return h.observer.GetSettledPayerReports(ctx, h.node.DBConnectionString())
 }
 
 // GetNodeInfo returns the node_id stored in this node's database.

@@ -159,10 +159,10 @@ func (m *Manager) fundAddress(ctx context.Context, toAddress string) error {
 	fromAddress := crypto.PubkeyToAddress(adminKey.PublicKey).Hex()
 
 	// 1000 ETH in wei = 0x3635C9ADC5DEA00000
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"jsonrpc": "2.0",
 		"method":  "eth_sendTransaction",
-		"params": []interface{}{
+		"params": []any{
 			map[string]string{
 				"from":  fromAddress,
 				"to":    toAddress,

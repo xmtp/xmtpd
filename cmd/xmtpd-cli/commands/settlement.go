@@ -4,8 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
+	"strconv"
+	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"github.com/xmtp/xmtpd/cmd/xmtpd-cli/options"
 	"go.uber.org/zap"
 )
@@ -24,6 +30,9 @@ func settlementChainCmd() *cobra.Command {
 		settleWithdrawLockCmd(),
 		settlePRMFeeRateCmd(),
 		settleRateMigratorCmd(),
+		settleSendExcessCmd(),
+		settleDMClaimCmd(),
+		settleDMWithdrawCmd(),
 	)
 	return cmd
 }
@@ -574,4 +583,206 @@ func settleRateMigratorUpdateHandler() error {
 	}
 	logger.Info("rate registry migrator updated")
 	return nil
+}
+
+// --- PayerRegistry: send excess to fee distributor ---
+
+func settleSendExcessCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:          "send-excess",
+		Short:        "Send excess funds from PayerRegistry to the fee distributor",
+		SilenceUsage: true,
+		RunE: func(*cobra.Command, []string) error {
+			return settleSendExcessHandler()
+		},
+	}
+}
+
+func settleSendExcessHandler() error {
+	logger, err := cliLogger()
+	if err != nil {
+		return fmt.Errorf("could not build logger: %w", err)
+	}
+	ctx := context.Background()
+	_, admin, err := setupSettlementChainAdmin(ctx, logger)
+	if err != nil {
+		return err
+	}
+	if err := admin.SendExcessToFeeDistributor(ctx); err != nil {
+		logger.Error("send excess failed", zap.Error(err))
+		return err
+	}
+	logger.Info("excess sent to fee distributor")
+	return nil
+}
+
+// --- DistributionManager: claim ---
+
+func settleDMClaimCmd() *cobra.Command {
+	var (
+		nodeID                uint32
+		originatorNodeIDsStr  string
+		payerReportIndicesStr string
+	)
+
+	cmd := &cobra.Command{
+		Use:          "dm-claim",
+		Short:        "Claim earned fees from DistributionManager for a node",
+		SilenceUsage: true,
+		RunE: func(*cobra.Command, []string) error {
+			originatorNodeIDs, err := parseUint32CSV(originatorNodeIDsStr)
+			if err != nil {
+				return fmt.Errorf("invalid --originator-node-ids: %w", err)
+			}
+			payerReportIndices, err := parseBigIntCSV(payerReportIndicesStr)
+			if err != nil {
+				return fmt.Errorf("invalid --payer-report-indices: %w", err)
+			}
+			return settleDMClaimHandler(nodeID, originatorNodeIDs, payerReportIndices)
+		},
+	}
+
+	cmd.Flags().Uint32Var(&nodeID, "node-id", 0, "node ID to claim for")
+	cmd.Flags().
+		StringVar(&originatorNodeIDsStr, "originator-node-ids", "", "comma-separated originator node IDs")
+	cmd.Flags().
+		StringVar(&payerReportIndicesStr, "payer-report-indices", "", "comma-separated payer report indices")
+	_ = cmd.MarkFlagRequired("node-id")
+	_ = cmd.MarkFlagRequired("originator-node-ids")
+	_ = cmd.MarkFlagRequired("payer-report-indices")
+
+	return cmd
+}
+
+func settleDMClaimHandler(
+	nodeID uint32,
+	originatorNodeIDs []uint32,
+	payerReportIndices []*big.Int,
+) error {
+	logger, err := cliLogger()
+	if err != nil {
+		return fmt.Errorf("could not build logger: %w", err)
+	}
+	ctx := context.Background()
+	_, admin, err := setupSettlementChainAdmin(ctx, logger)
+	if err != nil {
+		return err
+	}
+	if err := admin.ClaimFromDistributionManager(
+		ctx,
+		nodeID,
+		originatorNodeIDs,
+		payerReportIndices,
+	); err != nil {
+		logger.Error("dm claim failed", zap.Error(err))
+		return err
+	}
+	logger.Info("claimed from distribution manager", zap.Uint32("node_id", nodeID))
+	return nil
+}
+
+// --- DistributionManager: withdraw ---
+
+func settleDMWithdrawCmd() *cobra.Command {
+	var (
+		nodeID       uint32
+		recipientHex string
+	)
+
+	cmd := &cobra.Command{
+		Use:          "dm-withdraw",
+		Short:        "Withdraw claimed fees from DistributionManager for a node",
+		SilenceUsage: true,
+		RunE: func(*cobra.Command, []string) error {
+			var recipient common.Address
+			if recipientHex != "" {
+				if !common.IsHexAddress(recipientHex) {
+					return errors.New("--recipient must be a valid hex address")
+				}
+				recipient = common.HexToAddress(recipientHex)
+			} else {
+				// Default to signer address
+				addr, signerErr := signerAddress()
+				if signerErr != nil {
+					return fmt.Errorf("could not derive signer address: %w", signerErr)
+				}
+				recipient = addr
+			}
+			return settleDMWithdrawHandler(nodeID, recipient)
+		},
+	}
+
+	cmd.Flags().Uint32Var(&nodeID, "node-id", 0, "node ID to withdraw for")
+	cmd.Flags().StringVar(&recipientHex, "recipient", "", "recipient address (defaults to signer)")
+	_ = cmd.MarkFlagRequired("node-id")
+
+	return cmd
+}
+
+func settleDMWithdrawHandler(nodeID uint32, recipient common.Address) error {
+	logger, err := cliLogger()
+	if err != nil {
+		return fmt.Errorf("could not build logger: %w", err)
+	}
+	ctx := context.Background()
+	_, admin, err := setupSettlementChainAdmin(ctx, logger)
+	if err != nil {
+		return err
+	}
+	if err := admin.WithdrawFromDistributionManager(ctx, nodeID, recipient); err != nil {
+		logger.Error("dm withdraw failed", zap.Error(err))
+		return err
+	}
+	logger.Info("withdrawn from distribution manager",
+		zap.Uint32("node_id", nodeID),
+		zap.String("recipient", recipient.Hex()))
+	return nil
+}
+
+// --- helpers ---
+
+func parseUint32CSV(s string) ([]uint32, error) {
+	parts := strings.Split(s, ",")
+	result := make([]uint32, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		v, err := strconv.ParseUint(p, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("invalid uint32 %q: %w", p, err)
+		}
+		result = append(result, uint32(v))
+	}
+	return result, nil
+}
+
+func parseBigIntCSV(s string) ([]*big.Int, error) {
+	parts := strings.Split(s, ",")
+	result := make([]*big.Int, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		v, ok := new(big.Int).SetString(p, 10)
+		if !ok {
+			return nil, fmt.Errorf("invalid big.Int %q", p)
+		}
+		result = append(result, v)
+	}
+	return result, nil
+}
+
+func signerAddress() (common.Address, error) {
+	key := viper.GetString("private-key")
+	if key == "" {
+		return common.Address{}, errors.New("no private key configured")
+	}
+	privKey, err := crypto.HexToECDSA(strings.TrimPrefix(key, "0x"))
+	if err != nil {
+		return common.Address{}, fmt.Errorf("failed to parse private key: %w", err)
+	}
+	return crypto.PubkeyToAddress(privKey.PublicKey), nil
 }

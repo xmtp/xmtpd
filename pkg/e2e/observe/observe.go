@@ -242,6 +242,52 @@ func (o *Observer) GetPayerReportStatusCounts(
 	return counts, nil
 }
 
+// SettledPayerReport holds the key fields from a settled payer report needed
+// for claiming from the DistributionManager.
+type SettledPayerReport struct {
+	OriginatorNodeID     int32
+	SubmittedReportIndex int32
+}
+
+// GetSettledPayerReports returns all payer reports with submission_status = 2 (settled)
+// that have a non-null submitted_report_index.
+func (o *Observer) GetSettledPayerReports(
+	ctx context.Context,
+	connStr string,
+) ([]SettledPayerReport, error) {
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to db: %w", err)
+	}
+	defer func() {
+		_ = db.Close()
+	}()
+
+	rows, err := db.QueryContext(ctx, `
+		SELECT originator_node_id, submitted_report_index
+		FROM payer_reports
+		WHERE submission_status = 2 AND submitted_report_index IS NOT NULL
+		ORDER BY originator_node_id, submitted_report_index
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query settled payer reports: %w", err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	var reports []SettledPayerReport
+	for rows.Next() {
+		var r SettledPayerReport
+		if err := rows.Scan(&r.OriginatorNodeID, &r.SubmittedReportIndex); err != nil {
+			return nil, fmt.Errorf("failed to scan settled payer report: %w", err)
+		}
+		reports = append(reports, r)
+	}
+
+	return reports, rows.Err()
+}
+
 func (o *Observer) WaitForPayerReports(
 	ctx context.Context,
 	connStr string,

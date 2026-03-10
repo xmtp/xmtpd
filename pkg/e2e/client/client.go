@@ -18,7 +18,6 @@ import (
 	"go.uber.org/zap"
 )
 
-
 // TrafficOptions configures background traffic generation.
 type TrafficOptions struct {
 	// BatchSize is the number of envelopes to publish per batch.

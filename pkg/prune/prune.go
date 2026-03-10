@@ -107,6 +107,7 @@ func (e *Executor) Run() error {
 				"originator is not prunable. No reports exist. Skipping...",
 				utils.OriginatorIDField(uint32(t.OriginatorNodeID)),
 			)
+			continue
 		}
 
 		e.logger.Debug(

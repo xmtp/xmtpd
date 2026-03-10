@@ -4,28 +4,37 @@
     // Sets the run context to one level up instead of the .devcontainer folder.
     "context": "..",
     // Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
-    "dockerfile": "../dev/docker/devcontainer.Dockerfile"
+    "dockerfile": "../dev/docker/devcontainer.Dockerfile",
   },
-  "remoteEnv": { "LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}", "HOST_DOCKER_DEV_FOLDER": "${localWorkspaceFolder}/dev/docker" },
+  "remoteEnv": {
+    "LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}",
+    "HOST_DOCKER_DEV_FOLDER": "${localWorkspaceFolder}/dev/docker",
+  },
   "customizations": {
     "vscode": {
       "settings": {
         "go.gopath": "/go",
-        "go.useLanguageServer": true
+        "go.useLanguageServer": true,
       },
       "extensions": [
         "mtxr.sqltools",
         "golang.go",
         "emeraldwalk.runonsave",
-        "ms-azuretools.vscode-docker"
-      ]
-    }
+        "ms-azuretools.vscode-docker",
+      ],
+    },
   },
   "postCreateCommand": "go mod tidy",
   "forwardPorts": [],
-  "runArgs": ["--network=host"],
   "remoteUser": "vscode",
   "features": {
-    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
-  }
+    "ghcr.io/devcontainers-extra/features/graphite-cli:1": {},
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "username": "vscode",
+      "installZsh": true,
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "moby": false,
+    },
+  },
 }

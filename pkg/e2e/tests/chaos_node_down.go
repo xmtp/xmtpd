@@ -53,10 +53,18 @@ func (t *ChaosNodeDownTest) Run(ctx context.Context, env *types.Environment) err
 
 	env.Client(100).Stop()
 
-	// Verify node-300 caught up
+	// Verify healthy nodes received envelopes first to establish a baseline
 	checkCtx, cancel := context.WithTimeout(ctx, 120*time.Second)
 	defer cancel()
-	require.NoError(env.Node(300).WaitForEnvelopes(checkCtx, 1))
+	require.NoError(env.Node(100).WaitForEnvelopes(checkCtx, 1))
+
+	// Get envelope count from a healthy node as the catch-up target
+	expectedCount, err := env.Node(100).GetEnvelopeCount(ctx)
+	require.NoError(err, "failed to get envelope count from node 100")
+	require.Positive(expectedCount, "node 100 should have envelopes after traffic")
+
+	// Verify node-300 caught up to the same count as healthy nodes
+	require.NoError(env.Node(300).WaitForEnvelopes(checkCtx, expectedCount))
 
 	env.Logger.Info("chaos node down test completed")
 	return nil

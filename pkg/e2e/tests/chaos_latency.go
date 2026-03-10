@@ -56,6 +56,24 @@ func (t *ChaosLatencyTest) Run(ctx context.Context, env *types.Environment) erro
 
 	env.Client(100).Stop()
 
+	// Verify all nodes replicated envelopes despite the latency injection
+	checkCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+	for _, n := range env.Nodes() {
+		require.NoError(n.WaitForEnvelopes(checkCtx, 1),
+			"node %d should have replicated envelopes", n.ID())
+	}
+
+	// Verify all nodes converged to the same envelope count
+	expectedCount, err := env.Node(100).GetEnvelopeCount(ctx)
+	require.NoError(err, "failed to get envelope count from node 100")
+	for _, n := range env.Nodes() {
+		count, err := n.GetEnvelopeCount(ctx)
+		require.NoError(err, "failed to get envelope count from node %d", n.ID())
+		require.Equal(expectedCount, count,
+			"node %d envelope count should match node 100", n.ID())
+	}
+
 	env.Logger.Info("chaos latency test completed")
 	return nil
 }

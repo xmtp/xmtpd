@@ -39,7 +39,7 @@ func (t *SmokeTest) Run(ctx context.Context, env *types.Environment) error {
 	checkCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 	for _, n := range env.Nodes() {
-		require.NoError(n.WaitForEnvelopes(checkCtx, 1))
+		require.NoError(n.WaitForEnvelopes(checkCtx, 10))
 	}
 
 	env.Logger.Info("smoke test completed successfully")

@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/e2e/types"
@@ -49,6 +50,14 @@ func (t *GatewayScaleTest) Run(ctx context.Context, env *types.Environment) erro
 
 	// Generate traffic again after scale-down
 	require.NoError(env.Client(100).PublishEnvelopes(ctx, 10))
+
+	// Verify all 30 envelopes replicated to every node
+	checkCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+	for _, n := range env.Nodes() {
+		require.NoError(n.WaitForEnvelopes(checkCtx, 30),
+			"node %d should have all 30 envelopes", n.ID())
+	}
 
 	env.Logger.Info("gateway scale test completed")
 	return nil

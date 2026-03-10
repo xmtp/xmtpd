@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/e2e/client"
 	"github.com/xmtp/xmtpd/pkg/e2e/observe"
@@ -273,6 +274,7 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	// transferred from the PayerRegistry to the DistributionManager.
 	env.Logger.Info("phase 8: verifying fee token balances in node operator wallets")
 
+	assert := assert.New(env.T())
 	totalEarned := new(big.Int)
 	for _, n := range allNodes {
 		finalBalance, balErr := n.GetFeeTokenBalance(ctx)
@@ -289,7 +291,8 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 			zap.String("final", finalBalance.String()),
 			zap.String("earned", earned.String()))
 
-		require.Positive(earned.Sign(),
+		// Non-fatal: not all nodes may have been originators during the test window
+		assert.Positive(earned.Sign(),
 			"node %d operator should have earned fee tokens (initial=%s, final=%s)",
 			n.ID(), initial.String(), finalBalance.String())
 	}

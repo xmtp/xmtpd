@@ -354,20 +354,26 @@ func (e *Environment) AddGateway(ctx context.Context, opts ...GatewayOption) err
 	}
 
 	gw, err := gateway.New(ctx, e.Logger.Named(alias), gateway.Options{
-		Image:        gwImage,
-		Network:      e.Network,
-		Alias:        alias,
-		WsURL:        e.Chain.InternalWsURL(),
-		RPCURL:       e.Chain.InternalRPCURL(),
-		SignerKey:    gwKey,
-		ChaosControl: e.Chaos,
-		EnvVars:      cfg.envVars,
+		Image:     gwImage,
+		Network:   e.Network,
+		Alias:     alias,
+		WsURL:     e.Chain.InternalWsURL(),
+		RPCURL:    e.Chain.InternalRPCURL(),
+		SignerKey: gwKey,
+		EnvVars:   cfg.envVars,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to start gateway %s: %w", alias, err)
 	}
 
-	handle := newGatewayHandle(gw, idx, e.Chaos)
+	if e.Chaos != nil {
+		if proxyErr := e.Chaos.RegisterTarget(ctx, alias, alias, 5050); proxyErr != nil {
+			e.Logger.Warn("failed to register gateway with chaos controller",
+				zap.String("alias", alias), zap.Error(proxyErr))
+		}
+	}
+
+	handle := newGatewayHandle(gw, idx, e)
 
 	e.gatewaysMu.Lock()
 	e.gateways = append(e.gateways, handle)

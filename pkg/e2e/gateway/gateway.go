@@ -1,3 +1,4 @@
+// Package gateway provides a wrapper around the Gateway service used for E2E tests.
 package gateway
 
 import (
@@ -12,19 +13,17 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"github.com/xmtp/xmtpd/pkg/e2e/chaos"
 	"go.uber.org/zap"
 )
 
 type Options struct {
-	Image        string
-	Network      string
-	Alias        string
-	WsURL        string
-	RPCURL       string
-	SignerKey    string
-	EnvVars      map[string]string
-	ChaosControl *chaos.Controller
+	Image     string
+	Network   string
+	Alias     string
+	WsURL     string
+	RPCURL    string
+	SignerKey string
+	EnvVars   map[string]string
 }
 
 type Gateway struct {
@@ -76,17 +75,6 @@ func New(ctx context.Context, logger *zap.Logger, opts Options) (*Gateway, error
 			}
 		}
 		return nil, fmt.Errorf("failed to start gateway container: %w", err)
-	}
-
-	if opts.ChaosControl != nil {
-		if proxyErr := opts.ChaosControl.RegisterTarget(
-			ctx,
-			opts.Alias,
-			opts.Alias,
-			5050,
-		); proxyErr != nil {
-			logger.Warn("failed to register gateway with chaos controller", zap.Error(proxyErr))
-		}
 	}
 
 	logger.Info("gateway started", zap.String("alias", opts.Alias))

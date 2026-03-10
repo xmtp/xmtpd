@@ -1,3 +1,4 @@
+// Package observe provides a wrapper around the Observer service used for E2E tests.
 package observe
 
 import (

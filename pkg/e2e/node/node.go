@@ -1,3 +1,4 @@
+// Package node provides a wrapper around the Node service used for E2E tests.
 package node
 
 import (

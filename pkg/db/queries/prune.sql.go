@@ -31,3 +31,40 @@ func (q *Queries) CountExpiredEnvelopes(ctx context.Context) (int64, error) {
 	err := row.Scan(&expired_count)
 	return expired_count, err
 }
+
+const getPrunableCeiling = `-- name: GetPrunableCeiling :many
+SELECT originator_node_id,
+       COALESCE(MAX(end_sequence_id), 0)::bigint AS max_end_sequence_id
+FROM payer_reports
+WHERE submission_status = 1 -- SUBMITTED
+   OR submission_status = 2 -- SETTLED
+GROUP BY originator_node_id
+`
+
+type GetPrunableCeilingRow struct {
+	OriginatorNodeID int32
+	MaxEndSequenceID int64
+}
+
+func (q *Queries) GetPrunableCeiling(ctx context.Context) ([]GetPrunableCeilingRow, error) {
+	rows, err := q.db.QueryContext(ctx, getPrunableCeiling)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPrunableCeilingRow
+	for rows.Next() {
+		var i GetPrunableCeilingRow
+		if err := rows.Scan(&i.OriginatorNodeID, &i.MaxEndSequenceID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

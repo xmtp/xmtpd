@@ -596,3 +596,43 @@ func TestExecutor_DryRun_NoMigratedPrune(t *testing.T) {
 		"All migrated envelopes should still be present in dry run mode",
 	)
 }
+
+func TestExecutor_PrunesExpiredMetaAndBlobs(t *testing.T) {
+	ctx := context.Background()
+	dbs := testutils.NewDBs(t, ctx, 1)
+	db := dbs[0]
+	q := queries.New(db)
+
+	setupTestData(
+		t,
+		ctx,
+		db,
+		DefaultOriginatorID,
+		DefaultExpiredCnt,
+		0,
+		DefaultSubmittedCnt,
+	)
+
+	exec := makeTestExecutor(t, ctx, db, &config.PruneConfig{
+		DryRun:    false,
+		MaxCycles: 5,
+	})
+
+	err := exec.Run()
+	require.NoError(t, err)
+
+	cnt, err := q.CountExpiredEnvelopes(ctx)
+	require.NoError(t, err)
+	assert.EqualValues(t, 0, cnt, "All expired envelopes should be deleted")
+
+	var total int64
+	row := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_meta`)
+	err = row.Scan(&total)
+	require.NoError(t, err)
+	assert.EqualValues(t, 0, total, "Only non-expired envelopes should remain")
+
+	row = db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelope_blobs`)
+	err = row.Scan(&total)
+	require.NoError(t, err)
+	assert.EqualValues(t, 0, total, "Only non-expired envelopes should remain")
+}

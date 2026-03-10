@@ -80,7 +80,17 @@ func (e *Executor) Run() error {
 		return err
 	}
 
-	deletableTables := make(map[string]struct{})
+	ceilings, err := querier.GetPrunableCeiling(e.ctx)
+	if err != nil {
+		e.logger.Error("error getting ceilings", zap.Error(err))
+		return err
+	}
+	deletableCeilings := make(map[int32]int64)
+	for _, ceiling := range ceilings {
+		deletableCeilings[ceiling.OriginatorNodeID] = ceiling.MaxEndSequenceID
+	}
+
+	deletableTables := make(map[string]int64)
 	for _, t := range latestEnvelopes {
 		if t.OriginatorNodeID == 0 || t.OriginatorNodeID == 1 {
 			e.logger.Debug(
@@ -89,11 +99,21 @@ func (e *Executor) Run() error {
 			)
 			continue
 		}
+
+		ceilingForThisOriginator := deletableCeilings[t.OriginatorNodeID]
+
+		if ceilingForThisOriginator == 0 {
+			e.logger.Debug(
+				"originator is not prunable. No reports exist. Skipping...",
+				utils.OriginatorIDField(uint32(t.OriginatorNodeID)),
+			)
+		}
+
 		e.logger.Debug(
 			"Attempting to prune envelopes for originator",
 			utils.OriginatorIDField(uint32(t.OriginatorNodeID)),
 		)
-		deletableTables[fmt.Sprintf("gateway_envelopes_meta_o%d", t.OriginatorNodeID)] = struct{}{}
+		deletableTables[fmt.Sprintf("gateway_envelopes_meta_o%d", t.OriginatorNodeID)] = ceilingForThisOriginator
 	}
 
 	for {
@@ -112,9 +132,9 @@ func (e *Executor) Run() error {
 
 		var deletedThisCycle int64
 
-		for tableName := range deletableTables {
+		for tableName, ceiling := range deletableTables {
 			result, err := e.writerDB.Exec(
-				constructVariableMetaTableQuery(tableName, e.config.BatchSize),
+				constructVariableMetaTableQuery(tableName, e.config.BatchSize, ceiling),
 			)
 			if err != nil {
 				e.logger.Error(

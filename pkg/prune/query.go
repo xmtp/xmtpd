@@ -6,21 +6,18 @@ import (
 	"github.com/lib/pq"
 )
 
-func constructVariableMetaTableQuery(tableName string, batchSize int32) string {
+func constructVariableMetaTableQuery(
+	tableName string,
+	batchSize int32,
+	maxSequenceId int64,
+) string {
 	return fmt.Sprintf(`
-WITH max_prunable AS (SELECT originator_node_id,
-                             COALESCE(MAX(end_sequence_id), 0) AS max_end_sequence_id
-                      FROM payer_reports
-                      WHERE submission_status = 1 -- SUBMITTED
-                         OR submission_status = 2 -- SETTLED
-                      GROUP BY originator_node_id),
-     to_delete AS (SELECT ge.originator_node_id,
+
+WITH to_delete AS (SELECT ge.originator_node_id,
                           ge.originator_sequence_id
                    FROM %s ge
-                            LEFT JOIN max_prunable mp
-                                      ON ge.originator_node_id = mp.originator_node_id
                    WHERE ge.expiry < EXTRACT(EPOCH FROM now())::bigint
-                     AND ge.originator_sequence_id <= COALESCE(mp.max_end_sequence_id, 0)
+                     AND ge.originator_sequence_id <= %d
                    ORDER BY ge.expiry, ge.originator_node_id, ge.originator_sequence_id
                    LIMIT %d FOR UPDATE SKIP LOCKED)
 DELETE
@@ -29,5 +26,5 @@ FROM %s ge
 WHERE ge.originator_node_id = td.originator_node_id
   AND ge.originator_sequence_id = td.originator_sequence_id
 RETURNING ge.originator_node_id, ge.originator_sequence_id, ge.expiry;
-`, pq.QuoteIdentifier(tableName), batchSize, pq.QuoteIdentifier(tableName))
+`, pq.QuoteIdentifier(tableName), maxSequenceId, batchSize, pq.QuoteIdentifier(tableName))
 }

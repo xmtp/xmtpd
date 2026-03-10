@@ -12,3 +12,11 @@ FROM gateway_envelopes_meta ge
 WHERE ge.expiry IS NOT NULL
   AND ge.expiry < EXTRACT(EPOCH FROM now())::bigint
   AND ge.originator_sequence_id <= COALESCE(mp.max_end_sequence_id, 0);
+
+-- name: GetPrunableCeiling :many
+SELECT originator_node_id,
+       COALESCE(MAX(end_sequence_id), 0)::bigint AS max_end_sequence_id
+FROM payer_reports
+WHERE submission_status = 1 -- SUBMITTED
+   OR submission_status = 2 -- SETTLED
+GROUP BY originator_node_id;

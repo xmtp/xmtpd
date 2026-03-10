@@ -33,6 +33,7 @@ func setupTestData(
 	t *testing.T,
 	ctx context.Context,
 	db *sql.DB,
+	originatorID int32,
 	expired int,
 	valid int,
 	submitted int,
@@ -40,7 +41,7 @@ func setupTestData(
 	// Insert expired envelopes
 	for i := range expired {
 		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{{
-			OriginatorNodeID:     DefaultOriginatorID,
+			OriginatorNodeID:     originatorID,
 			OriginatorSequenceID: int64(i + 1),
 			Topic:                []byte("topic"),
 			OriginatorEnvelope:   []byte("payload"),
@@ -52,7 +53,7 @@ func setupTestData(
 	// Insert non-expired envelopes
 	for i := range valid {
 		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{{
-			OriginatorNodeID:     DefaultOriginatorID,
+			OriginatorNodeID:     originatorID,
 			OriginatorSequenceID: int64(i + expired + 1),
 			Topic:                []byte("topic"),
 			OriginatorEnvelope:   []byte("payload"),
@@ -61,38 +62,7 @@ func setupTestData(
 		}})
 	}
 
-	createPrunableReport(t, ctx, db, submitted)
-}
-
-func setupMigratedTestData(
-	t *testing.T,
-	db *sql.DB,
-	expired int,
-	valid int,
-) {
-	// Insert expired migrated envelopes (originator_node_id 10-14)
-	for i := range expired {
-		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{{
-			OriginatorNodeID:     MigratedOriginatorID,
-			OriginatorSequenceID: int64(i + 1),
-			Topic:                []byte("migrated-topic"),
-			OriginatorEnvelope:   []byte("migrated-payload"),
-			GatewayTime:          time.Now(),
-			Expiry:               time.Now().Add(-1 * time.Hour).Unix(),
-		}})
-	}
-
-	// Insert non-expired migrated envelopes
-	for i := range valid {
-		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{{
-			OriginatorNodeID:     MigratedOriginatorID,
-			OriginatorSequenceID: int64(i + expired + 1),
-			Topic:                []byte("migrated-topic"),
-			OriginatorEnvelope:   []byte("migrated-payload"),
-			GatewayTime:          time.Now(),
-			Expiry:               time.Now().Add(1 * time.Hour).Unix(),
-		}})
-	}
+	createPrunableReport(t, ctx, db, originatorID, submitted)
 }
 
 func makeTestExecutor(
@@ -111,7 +81,13 @@ func makeTestExecutor(
 	)
 }
 
-func createPrunableReport(t *testing.T, ctx context.Context, db *sql.DB, endSequence int) {
+func createPrunableReport(
+	t *testing.T,
+	ctx context.Context,
+	db *sql.DB,
+	originatorID int32,
+	endSequence int,
+) {
 	if endSequence == 0 {
 		return
 	}
@@ -122,12 +98,12 @@ func createPrunableReport(t *testing.T, ctx context.Context, db *sql.DB, endSequ
 
 	_, err := q.InsertOrIgnorePayerReport(ctx, queries.InsertOrIgnorePayerReportParams{
 		ID:                  reportID,
-		OriginatorNodeID:    DefaultOriginatorID,
+		OriginatorNodeID:    originatorID,
 		StartSequenceID:     0,
 		EndSequenceID:       int64(endSequence),
 		EndMinuteSinceEpoch: 0,
 		PayersMerkleRoot:    make([]byte, 0),
-		ActiveNodeIds:       []int32{DefaultOriginatorID},
+		ActiveNodeIds:       []int32{originatorID},
 	})
 	require.NoError(t, err)
 	err = q.SetReportSubmitted(ctx, queries.SetReportSubmittedParams{
@@ -145,7 +121,15 @@ func TestExecutor_PrunesExpired(t *testing.T) {
 	db := dbs[0]
 	q := queries.New(db)
 
-	setupTestData(t, ctx, db, DefaultExpiredCnt, DefaultValidCnt, DefaultSubmittedCnt)
+	setupTestData(
+		t,
+		ctx,
+		db,
+		DefaultOriginatorID,
+		DefaultExpiredCnt,
+		DefaultValidCnt,
+		DefaultSubmittedCnt,
+	)
 
 	exec := makeTestExecutor(t, ctx, db, &config.PruneConfig{
 		DryRun:    false,
@@ -172,7 +156,15 @@ func TestExecutor_DryRun_NoPrune(t *testing.T) {
 	dbs := testutils.NewDBs(t, ctx, 1)
 	db := dbs[0]
 
-	setupTestData(t, ctx, db, DefaultExpiredCnt, DefaultValidCnt, DefaultSubmittedCnt)
+	setupTestData(
+		t,
+		ctx,
+		db,
+		DefaultOriginatorID,
+		DefaultExpiredCnt,
+		DefaultValidCnt,
+		DefaultSubmittedCnt,
+	)
 
 	exec := makeTestExecutor(t, ctx, db, &config.PruneConfig{
 		DryRun:    true,
@@ -214,7 +206,7 @@ func TestExecutor_PrunesExpired_WithConcurrentLock(t *testing.T) {
 	db := dbs[0]
 	q := queries.New(db)
 
-	setupTestData(t, ctx, db, DefaultExpiredCnt, 0, DefaultSubmittedCnt)
+	setupTestData(t, ctx, db, DefaultOriginatorID, DefaultExpiredCnt, 0, DefaultSubmittedCnt)
 
 	tx := openAndHoldLock(t, ctx, db)
 
@@ -268,7 +260,7 @@ func TestExecutor_PrunesExpired_LargePayload(t *testing.T) {
 
 	const KeepThisMany = 10
 
-	setupTestData(t, ctx, db, 1000+KeepThisMany, 0, DefaultSubmittedCnt)
+	setupTestData(t, ctx, db, DefaultOriginatorID, 1000+KeepThisMany, 0, DefaultSubmittedCnt)
 
 	// only allow for 1 cycle, which deletes at most 1000 envelopes
 	exec := makeTestExecutor(t, ctx, db, &config.PruneConfig{
@@ -295,7 +287,15 @@ func TestExecutor_PruneCountWorks(t *testing.T) {
 	dbs := testutils.NewDBs(t, ctx, 1)
 	db := dbs[0]
 
-	setupTestData(t, ctx, db, DefaultExpiredCnt, DefaultValidCnt, DefaultSubmittedCnt)
+	setupTestData(
+		t,
+		ctx,
+		db,
+		DefaultOriginatorID,
+		DefaultExpiredCnt,
+		DefaultValidCnt,
+		DefaultSubmittedCnt,
+	)
 
 	logger := testutils.NewCapturingLogger(zapcore.DebugLevel)
 
@@ -322,7 +322,7 @@ func TestExecutor_CantPruneWithoutReport(t *testing.T) {
 	dbs := testutils.NewDBs(t, ctx, 1)
 	db := dbs[0]
 
-	setupTestData(t, ctx, db, DefaultExpiredCnt, DefaultValidCnt, 0)
+	setupTestData(t, ctx, db, DefaultOriginatorID, DefaultExpiredCnt, DefaultValidCnt, 0)
 
 	exec := makeTestExecutor(t, ctx, db, &config.PruneConfig{
 		DryRun:    false,
@@ -355,11 +355,11 @@ func TestExecutor_MultipleOverlappingReportsOK(t *testing.T) {
 	dbs := testutils.NewDBs(t, ctx, 1)
 	db := dbs[0]
 
-	setupTestData(t, ctx, db, DefaultExpiredCnt, DefaultValidCnt, 0)
+	setupTestData(t, ctx, db, DefaultOriginatorID, DefaultExpiredCnt, DefaultValidCnt, 0)
 
-	createPrunableReport(t, ctx, db, 10)
-	createPrunableReport(t, ctx, db, 50)
-	createPrunableReport(t, ctx, db, 100)
+	createPrunableReport(t, ctx, db, DefaultOriginatorID, 10)
+	createPrunableReport(t, ctx, db, DefaultOriginatorID, 50)
+	createPrunableReport(t, ctx, db, DefaultOriginatorID, 100)
 
 	exec := makeTestExecutor(t, ctx, db, &config.PruneConfig{
 		DryRun:    false,
@@ -414,7 +414,7 @@ func TestExecutor_ReportStatusVariants(t *testing.T) {
 			dbs := testutils.NewDBs(t, ctx, 1)
 			db := dbs[0]
 
-			setupTestData(t, ctx, db, DefaultExpiredCnt, DefaultValidCnt, 0)
+			setupTestData(t, ctx, db, DefaultOriginatorID, DefaultExpiredCnt, DefaultValidCnt, 0)
 
 			q := queries.New(db)
 			reportID := testutils.RandomReportID()
@@ -470,7 +470,15 @@ func TestExecutor_PrunesMigratedEnvelopes(t *testing.T) {
 	db := dbs[0]
 	q := queries.New(db)
 
-	setupMigratedTestData(t, db, DefaultExpiredCnt, DefaultValidCnt)
+	setupTestData(
+		t,
+		ctx,
+		db,
+		MigratedOriginatorID,
+		DefaultExpiredCnt,
+		DefaultValidCnt,
+		DefaultSubmittedCnt,
+	)
 
 	exec := makeTestExecutor(t, ctx, db, &config.PruneConfig{
 		DryRun:    false,
@@ -480,7 +488,7 @@ func TestExecutor_PrunesMigratedEnvelopes(t *testing.T) {
 	err := exec.Run()
 	require.NoError(t, err)
 
-	cnt, err := q.CountExpiredMigratedEnvelopes(ctx)
+	cnt, err := q.CountExpiredEnvelopes(ctx)
 	require.NoError(t, err)
 	assert.EqualValues(t, 0, cnt, "All expired migrated envelopes should be deleted")
 
@@ -504,8 +512,24 @@ func TestExecutor_PrunesBothRegularAndMigrated(t *testing.T) {
 	q := queries.New(db)
 
 	// Setup both regular and migrated test data
-	setupTestData(t, ctx, db, DefaultExpiredCnt, DefaultValidCnt, DefaultSubmittedCnt)
-	setupMigratedTestData(t, db, DefaultExpiredCnt, DefaultValidCnt)
+	setupTestData(
+		t,
+		ctx,
+		db,
+		DefaultOriginatorID,
+		DefaultExpiredCnt,
+		DefaultValidCnt,
+		DefaultSubmittedCnt,
+	)
+	setupTestData(
+		t,
+		ctx,
+		db,
+		MigratedOriginatorID,
+		DefaultExpiredCnt,
+		DefaultValidCnt,
+		DefaultSubmittedCnt,
+	)
 
 	exec := makeTestExecutor(t, ctx, db, &config.PruneConfig{
 		DryRun:    false,
@@ -521,7 +545,7 @@ func TestExecutor_PrunesBothRegularAndMigrated(t *testing.T) {
 	assert.EqualValues(t, 0, regularCnt, "All expired regular envelopes should be deleted")
 
 	// Verify migrated expired envelopes are deleted
-	migratedCnt, err := q.CountExpiredMigratedEnvelopes(ctx)
+	migratedCnt, err := q.CountExpiredEnvelopes(ctx)
 	require.NoError(t, err)
 	assert.EqualValues(t, 0, migratedCnt, "All expired migrated envelopes should be deleted")
 
@@ -543,7 +567,15 @@ func TestExecutor_DryRun_NoMigratedPrune(t *testing.T) {
 	dbs := testutils.NewDBs(t, ctx, 1)
 	db := dbs[0]
 
-	setupMigratedTestData(t, db, DefaultExpiredCnt, DefaultValidCnt)
+	setupTestData(
+		t,
+		ctx,
+		db,
+		MigratedOriginatorID,
+		DefaultExpiredCnt,
+		DefaultValidCnt,
+		DefaultSubmittedCnt,
+	)
 
 	exec := makeTestExecutor(t, ctx, db, &config.PruneConfig{
 		DryRun:    true,

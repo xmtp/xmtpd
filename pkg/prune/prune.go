@@ -53,6 +53,7 @@ func (e *Executor) Run() error {
 	if e.config.CountDeletable {
 		envelopesCount, err := querier.CountExpiredEnvelopes(e.ctx)
 		if err != nil {
+			e.logger.Error("could not count expired envelopes", zap.Error(err))
 			return err
 		}
 		e.logger.Info("count of envelopes eligible for pruning", utils.CountField(envelopesCount))
@@ -116,13 +117,23 @@ func (e *Executor) Run() error {
 				constructVariableMetaTableQuery(tableName, e.config.BatchSize),
 			)
 			if err != nil {
-				e.logger.Error("error pruning envelopes", zap.Error(err))
-				return err
+				e.logger.Error(
+					"error pruning envelopes",
+					zap.Error(err),
+					zap.String("table", tableName),
+				)
+				delete(deletableTables, tableName)
+				continue
 			}
 			rows, err := result.RowsAffected()
 			if err != nil {
-				e.logger.Error("Unexpected DB error: could not count envelopes", zap.Error(err))
-				return err
+				e.logger.Error(
+					"Unexpected DB error: could not count envelopes",
+					zap.Error(err),
+					zap.String("table", tableName),
+				)
+				delete(deletableTables, tableName)
+				continue
 			}
 
 			deletedThisCycle += rows
@@ -134,7 +145,7 @@ func (e *Executor) Run() error {
 
 			e.logger.Debug(
 				"pruned envelopes",
-				zap.Int64("deleted", deletedThisCycle),
+				zap.Int64("deleted", rows),
 				zap.String("table", tableName),
 			)
 		}

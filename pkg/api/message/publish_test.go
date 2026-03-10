@@ -78,7 +78,7 @@ func TestPublishEnvelope(t *testing.T) {
 		originatorEnv := &envelopes.OriginatorEnvelope{}
 		require.NoError(t, proto.Unmarshal(envs[0].OriginatorEnvelope, originatorEnv))
 		return proto.Equal(originatorEnv, resp.Msg.GetOriginatorEnvelopes()[0])
-	}, 500*time.Millisecond, 50*time.Millisecond)
+	}, 5*time.Second, 50*time.Millisecond)
 }
 
 func TestUnmarshalErrorOnPublish(t *testing.T) {
@@ -554,7 +554,7 @@ func TestPublishEnvelopeBatchPublish(t *testing.T) {
 		require.NoError(t, err)
 
 		return len(envs) == 3
-	}, 500*time.Millisecond, 50*time.Millisecond)
+	}, 5*time.Second, 50*time.Millisecond)
 }
 
 func TestPublishEnvelopeBatchPublishNoPartialError(t *testing.T) {

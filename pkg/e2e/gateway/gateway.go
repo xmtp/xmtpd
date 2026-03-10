@@ -17,8 +17,8 @@ import (
 )
 
 type Options struct {
+	ID        string
 	Image     string
-	Network   string
 	Alias     string
 	WsURL     string
 	RPCURL    string
@@ -46,9 +46,12 @@ func New(ctx context.Context, logger *zap.Logger, opts Options) (*Gateway, error
 	req := testcontainers.ContainerRequest{
 		Image:        opts.Image,
 		ExposedPorts: []string{"5050/tcp"},
-		Networks:     []string{opts.Network},
+		Networks:     []string{opts.ID},
 		NetworkAliases: map[string][]string{
-			opts.Network: {opts.Alias},
+			opts.ID: {opts.Alias},
+		},
+		Labels: map[string]string{
+			"com.docker.compose.project": opts.ID,
 		},
 		Env: envVars,
 		HostConfigModifier: func(hc *container.HostConfig) {

@@ -62,11 +62,11 @@ type Controller struct {
 func NewController(
 	ctx context.Context,
 	logger *zap.Logger,
-	networkName string,
+	id string,
 ) (*Controller, error) {
 	c := &Controller{
 		logger:   logger,
-		network:  networkName,
+		network:  id,
 		proxies:  make(map[string]*ProxyTarget),
 		nextPort: baseProxyPort,
 	}
@@ -77,9 +77,12 @@ func NewController(
 	req := testcontainers.ContainerRequest{
 		Image:        toxiproxyImage,
 		ExposedPorts: []string{fmt.Sprintf("%d/tcp", toxiproxyAPI)},
-		Networks:     []string{networkName},
+		Networks:     []string{id},
 		NetworkAliases: map[string][]string{
-			networkName: {"toxiproxy"},
+			id: {"toxiproxy"},
+		},
+		Labels: map[string]string{
+			"com.docker.compose.project": id,
 		},
 		HostConfigModifier: func(hc *container.HostConfig) {
 			hc.ExtraHosts = append(hc.ExtraHosts, "host.docker.internal:host-gateway")

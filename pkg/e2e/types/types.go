@@ -56,6 +56,8 @@ type Test interface {
 // all infrastructure (nodes, gateways, chain, chaos) and handles for interacting
 // with them. The runner creates a fresh environment for each test.
 type Environment struct {
+	// ID is the unique identifier for this environment.
+	ID string
 	// Logger is the structured logger for this test run.
 	Logger *zap.Logger
 	// Config holds the test run configuration.
@@ -248,7 +250,7 @@ func (e *Environment) AddNode(ctx context.Context, opts ...NodeOption) error {
 
 	nodeOpts := node.Options{
 		Image:     nodeImage,
-		Network:   e.Network,
+		ID:        e.ID,
 		Alias:     alias,
 		WsURL:     e.Chain.InternalWsURL(),
 		RPCURL:    e.Chain.InternalRPCURL(),
@@ -351,7 +353,7 @@ func (e *Environment) AddGateway(ctx context.Context, opts ...GatewayOption) err
 
 	gw, err := gateway.New(ctx, e.Logger.Named(alias), gateway.Options{
 		Image:     gwImage,
-		Network:   e.Network,
+		ID:        e.ID,
 		Alias:     alias,
 		WsURL:     e.Chain.InternalWsURL(),
 		RPCURL:    e.Chain.InternalRPCURL(),
@@ -635,8 +637,11 @@ func (e *Environment) runCLI(ctx context.Context, cmd []string) error {
 
 	req := testcontainers.ContainerRequest{
 		Image:    e.Config.CLIImage,
-		Networks: []string{e.Network},
-		Cmd:      cmd,
+		Networks: []string{e.ID},
+		Labels: map[string]string{
+			"com.docker.compose.project": e.ID,
+		},
+		Cmd: cmd,
 		HostConfigModifier: func(hc *container.HostConfig) {
 			hc.ExtraHosts = append(hc.ExtraHosts, "host.docker.internal:host-gateway")
 		},

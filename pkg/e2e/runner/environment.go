@@ -26,7 +26,10 @@ func NewEnvironment(
 	logger *zap.Logger,
 	cfg Config,
 ) (*types.Environment, error) {
+	id := fmt.Sprintf("xmtpd-e2e-%d", time.Now().Unix())
+
 	env := &types.Environment{
+		ID:     id,
 		Logger: logger,
 		Config: cfg,
 	}
@@ -37,18 +40,18 @@ func NewEnvironment(
 
 	var err error
 
-	env.Network, err = createDockerNetwork(ctx)
+	err = createDockerNetwork(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create docker network: %w", err)
 	}
 
-	env.Chaos, err = chaos.NewController(ctx, logger.Named("chaos"), env.Network)
+	env.Chaos, err = chaos.NewController(ctx, logger.Named("chaos"), id)
 	if err != nil {
 		_ = env.Cleanup(ctx)
 		return nil, fmt.Errorf("failed to start chaos controller: %w", err)
 	}
 
-	env.Chain, err = chain.New(ctx, logger.Named("chain"), env.Network, chain.ChainOptions{
+	env.Chain, err = chain.New(ctx, logger.Named("chain"), id, chain.ChainOptions{
 		Image: cfg.ChainImage,
 	})
 	if err != nil {
@@ -60,7 +63,7 @@ func NewEnvironment(
 
 	env.SetObserver(observe.New(logger.Named("observer")))
 
-	env.Redis, err = startRedis(ctx, env.Network)
+	env.Redis, err = startRedis(ctx, id)
 	if err != nil {
 		_ = env.Cleanup(ctx)
 		return nil, fmt.Errorf("failed to start redis: %w", err)
@@ -71,16 +74,19 @@ func NewEnvironment(
 	return env, nil
 }
 
-func startRedis(ctx context.Context, networkName string) (testcontainers.Container, error) {
+func startRedis(ctx context.Context, id string) (testcontainers.Container, error) {
 	createCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	req := testcontainers.ContainerRequest{
 		Image:        "redis:7-alpine",
 		ExposedPorts: []string{"6379/tcp"},
-		Networks:     []string{networkName},
+		Labels: map[string]string{
+			"com.docker.compose.project": id,
+		},
+		Networks: []string{id},
 		NetworkAliases: map[string][]string{
-			networkName: {"redis"},
+			id: {"redis"},
 		},
 		WaitingFor: wait.ForLog("Ready to accept connections").WithStartupTimeout(30 * time.Second),
 	}
@@ -131,24 +137,7 @@ func cleanupEnvironment(ctx context.Context, e *types.Environment) error {
 	return firstErr
 }
 
-func createDockerNetwork(ctx context.Context) (string, error) {
-	cli, err := dockerClient()
-	if err != nil {
-		return "", err
-	}
-	defer func() {
-		_ = cli.Close()
-	}()
-
-	name := "xmtpd-e2e-" + randomSuffix()
-	_, err = cli.NetworkCreate(ctx, name, dockerNetworkCreateOptions())
-	if err != nil {
-		return "", err
-	}
-	return name, nil
-}
-
-func removeDockerNetwork(ctx context.Context, name string) error {
+func createDockerNetwork(ctx context.Context, id string) error {
 	cli, err := dockerClient()
 	if err != nil {
 		return err
@@ -156,5 +145,24 @@ func removeDockerNetwork(ctx context.Context, name string) error {
 	defer func() {
 		_ = cli.Close()
 	}()
+
+	_, err = cli.NetworkCreate(ctx, id, dockerNetworkCreateOptions())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func removeDockerNetwork(ctx context.Context, name string) error {
+	cli, err := dockerClient()
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = cli.Close()
+	}()
+
 	return cli.NetworkRemove(ctx, name)
 }

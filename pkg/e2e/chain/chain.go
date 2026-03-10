@@ -31,12 +31,12 @@ type Chain struct {
 func New(
 	ctx context.Context,
 	logger *zap.Logger,
-	networkName string,
+	id string,
 	opts ChainOptions,
 ) (*Chain, error) {
 	c := &Chain{
 		logger:  logger,
-		network: networkName,
+		network: id,
 		alias:   "anvil",
 		opts:    opts,
 	}
@@ -47,9 +47,12 @@ func New(
 	req := testcontainers.ContainerRequest{
 		Image:        opts.Image,
 		ExposedPorts: []string{"8545/tcp"},
-		Networks:     []string{networkName},
+		Networks:     []string{id},
 		NetworkAliases: map[string][]string{
-			networkName: {c.alias},
+			id: {c.alias},
+		},
+		Labels: map[string]string{
+			"com.docker.compose.project": id,
 		},
 		HostConfigModifier: func(hc *container.HostConfig) {
 			hc.AutoRemove = true

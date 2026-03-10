@@ -3,6 +3,7 @@ package types
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	"go.uber.org/zap"
@@ -19,7 +20,7 @@ func (e *TestFailedError) Error() string {
 	if len(e.Messages) == 0 {
 		return "test failed"
 	}
-	return "test failed: " + e.Messages[len(e.Messages)-1]
+	return strings.Join(e.Messages, "\n")
 }
 
 // TestingT implements testify's TestingT interface so that require/assert
@@ -55,7 +56,7 @@ func (t *TestingT) Errorf(format string, args ...any) {
 	t.failed = true
 	t.messages = append(t.messages, msg)
 	t.mu.Unlock()
-	t.logger.Error("assertion failed", zap.String("message", msg))
+	t.logger.Error("assertion failed")
 }
 
 // FailNow marks the test as failed and aborts execution by panicking

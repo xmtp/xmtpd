@@ -60,6 +60,7 @@ func (r *Runner) Run(ctx context.Context) error {
 		zap.String("xmtpd_image", r.cfg.XmtpdImage),
 		zap.String("gateway_image", r.cfg.GatewayImage),
 		zap.String("chain_image", r.cfg.ChainImage),
+		zap.String("cli_image", r.cfg.CLIImage),
 	)
 
 	results := make([]TestResult, 0, len(selected))

@@ -28,16 +28,12 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	// cliImage is used to register nodes on-chain before they start.
-	cliImage = "ghcr.io/xmtp/xmtpd-cli:main"
-)
-
 // Config holds the configuration for an E2E test run.
 type Config struct {
 	ChainImage   string
 	XmtpdImage   string
 	GatewayImage string
+	CLIImage     string
 	TestFilter   []string
 	OutputFormat string
 }
@@ -608,7 +604,7 @@ func (e *Environment) runCLI(ctx context.Context, cmd []string) error {
 	defer cancel()
 
 	req := testcontainers.ContainerRequest{
-		Image:    cliImage,
+		Image:    e.Config.CLIImage,
 		Networks: []string{e.Network},
 		Cmd:      cmd,
 		HostConfigModifier: func(hc *container.HostConfig) {

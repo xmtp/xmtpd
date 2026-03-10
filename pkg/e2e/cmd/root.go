@@ -58,8 +58,9 @@ func init() {
 	rf.String("xmtpd-image", "ghcr.io/xmtp/xmtpd:latest", "docker image for xmtpd nodes")
 	rf.String("gateway-image", "ghcr.io/xmtp/xmtpd-gateway:latest", "docker image for gateways")
 	rf.String("chain-image", "ghcr.io/xmtp/contracts:latest", "docker image for chain")
+	rf.String("cli-image", "ghcr.io/xmtp/xmtpd-cli:latest", "docker image for cli")
 
-	for _, name := range []string{"test", "xmtpd-image", "gateway-image", "chain-image"} {
+	for _, name := range []string{"test", "xmtpd-image", "gateway-image", "chain-image", "cli-image"} {
 		_ = viper.BindPFlag(name, rf.Lookup(name))
 	}
 
@@ -84,6 +85,7 @@ func runE2E(cmd *cobra.Command, _ []string) error {
 		TestFilter:   viper.GetStringSlice("test"),
 		OutputFormat: viper.GetString("output-format"),
 		ChainImage:   viper.GetString("chain-image"),
+		CLIImage:     viper.GetString("cli-image"),
 	}
 
 	r := runner.New(logger, cfg)

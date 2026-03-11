@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types/network"
 	_ "github.com/lib/pq"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -33,7 +34,8 @@ func NewEnvironment(
 	cfg Config,
 	test string,
 ) (*types.Environment, error) {
-	// Drop stale e2e databases from previous runs so tests start with clean state.
+	// Clean up stale resources from previous runs.
+	cleanupStaleNetworks(ctx, logger)
 	if err := dropE2EDatabases(ctx, logger); err != nil {
 		logger.Warn("failed to clean up e2e databases (non-fatal)", zap.Error(err))
 	}
@@ -57,6 +59,7 @@ func NewEnvironment(
 	if err != nil {
 		return nil, fmt.Errorf("failed to create docker network: %w", err)
 	}
+	env.Network = id
 
 	env.Chaos, err = chaos.NewController(ctx, logger.Named("chaos"), id)
 	if err != nil {
@@ -188,6 +191,35 @@ func removeDockerNetwork(ctx context.Context, name string) error {
 	}()
 
 	return cli.NetworkRemove(ctx, name)
+}
+
+// cleanupStaleNetworks removes Docker networks from previous e2e runs.
+// This prevents Docker from exhausting its bridge subnet address space,
+// which causes container-to-host networking (host.docker.internal) to fail.
+func cleanupStaleNetworks(ctx context.Context, logger *zap.Logger) {
+	cli, err := dockerClient()
+	if err != nil {
+		logger.Warn("failed to create docker client for network cleanup", zap.Error(err))
+		return
+	}
+	defer func() { _ = cli.Close() }()
+
+	networks, err := cli.NetworkList(ctx, network.ListOptions{})
+	if err != nil {
+		logger.Warn("failed to list docker networks", zap.Error(err))
+		return
+	}
+
+	for _, n := range networks {
+		if strings.HasPrefix(n.Name, "xmtpd-e2e-") {
+			if err := cli.NetworkRemove(ctx, n.Name); err != nil {
+				logger.Warn("failed to remove stale network",
+					zap.String("network", n.Name), zap.Error(err))
+			} else {
+				logger.Info("removed stale e2e network", zap.String("network", n.Name))
+			}
+		}
+	}
 }
 
 // dropE2EDatabases drops idle databases matching the e2e_* pattern from the host

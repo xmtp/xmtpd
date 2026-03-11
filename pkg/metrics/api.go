@@ -91,8 +91,9 @@ func EmitNewFailedGRPCRequest(code connect.Code) {
 
 var apiStageEnvelopeDuration = prometheus.NewHistogram(
 	prometheus.HistogramOpts{
-		Name: "xmtp_api_stage_envelope_seconds",
-		Help: "Duration of the staging transaction: advisory lock wait + insert",
+		Name:    "xmtp_api_stage_envelope_seconds",
+		Help:    "Duration of the staging transaction: advisory lock wait + insert",
+		Buckets: SubSecondBuckets,
 	},
 )
 
@@ -102,8 +103,9 @@ func EmitAPIStageEnvelope(duration time.Duration) {
 
 var apiWaitForGatewayPublish = prometheus.NewHistogram(
 	prometheus.HistogramOpts{
-		Name: "xmtp_api_wait_for_gateway_publish_seconds",
-		Help: "Time spend waiting for staging envelope handing",
+		Name:    "xmtp_api_wait_for_gateway_publish_seconds",
+		Help:    "Time spend waiting for staging envelope handing",
+		Buckets: SubSecondBuckets,
 	},
 )
 
@@ -115,8 +117,9 @@ func EmitAPIWaitForGatewayPublish(
 
 var apiStagedEnvelopeProcessingDelay = prometheus.NewHistogram(
 	prometheus.HistogramOpts{
-		Name: "xmtp_api_staged_envelope_processing_delay_seconds",
-		Help: "Delay in seconds between receiving a staged envelope and processing it",
+		Name:    "xmtp_api_staged_envelope_processing_delay_seconds",
+		Help:    "Delay in seconds between receiving a staged envelope and processing it",
+		Buckets: SubSecondBuckets,
 	},
 )
 

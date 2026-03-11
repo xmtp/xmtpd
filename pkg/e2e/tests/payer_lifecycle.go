@@ -41,11 +41,21 @@ func (t *PayerLifecycleTest) Description() string {
 func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) error {
 	require := require.New(env.T())
 
+	const (
+		trafficDuration      = 75 * time.Minute
+		generatorTimeout     = 65 * time.Minute
+		postGeneratorTimeout = 15 * time.Minute
+	)
+
+	// Create nodes 100, 200, 300.
 	require.NoError(env.AddNode(ctx))
 	require.NoError(env.AddNode(ctx))
 	require.NoError(env.AddNode(ctx))
+
+	// Create a gateway.
 	require.NoError(env.AddGateway(ctx))
 
+	// Create a client for node 100.
 	require.NoError(env.NewClient(100))
 
 	// Record initial fee token balances for all nodes before any traffic.
@@ -62,23 +72,26 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 
 	// Fund the payer before generating traffic so that settlement can
 	// distribute actual tokens to node operators.
-	payer := env.Client(100)
-	depositAmount := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
+	var (
+		payer         = env.Client(100)
+		node100       = env.Node(100)
+		depositAmount = new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
+	)
+
 	env.Logger.Info("funding payer",
 		zap.String("payer", payer.Address().Hex()),
 		zap.String("amount", depositAmount.String()))
+
 	require.NoError(payer.Deposit(ctx, depositAmount))
 
-	// Verify the deposit landed
-	payerBalance, err := payer.GetPayerBalance(ctx)
+	// Verify the deposit landed.
+	payerInitialBalance, err := payer.GetPayerBalance(ctx)
 	require.NoError(err, "failed to get payer balance")
-	env.Logger.Info("payer balance after deposit",
-		zap.String("balance", payerBalance.String()))
-	require.Positive(payerBalance.Sign(), "payer should have a positive balance")
 
-	const trafficDuration = 75 * time.Minute
-	const generatorTimeout = 65 * time.Minute
-	const postGeneratorTimeout = 15 * time.Minute
+	env.Logger.Info("payer balance after deposit",
+		zap.String("balance", payerInitialBalance.String()))
+
+	require.Positive(payerInitialBalance.Sign(), "payer should have a positive balance")
 
 	// Start background traffic for the duration of the test.
 	// Capture the TrafficGenerator to check for errors after stopping.
@@ -88,11 +101,10 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	})
 	defer payer.Stop()
 
-	node100 := env.Node(100)
-
 	// Phase 1: Wait for payer reports to be created
 	// This is the long wait — up to 60 min for the generator's scheduled minute.
 	env.Logger.Info("phase 1: waiting for payer reports to be created")
+
 	createdCtx, createdCancel := context.WithTimeout(ctx, generatorTimeout)
 	defer createdCancel()
 
@@ -107,6 +119,7 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	// Phase 2: Wait for attestation approval
 	// Attestation worker polls every 10s, so this should be fast.
 	env.Logger.Info("phase 2: waiting for payer reports to be attested")
+
 	attestedCtx, attestedCancel := context.WithTimeout(ctx, postGeneratorTimeout)
 	defer attestedCancel()
 
@@ -122,6 +135,7 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	// The submitter fires 5 min after the generator. With anvil's instant mining,
 	// reports can transition from submitted -> settled before the observer polls.
 	env.Logger.Info("phase 3: waiting for payer reports to be submitted")
+
 	submittedCtx, submittedCancel := context.WithTimeout(ctx, postGeneratorTimeout)
 	defer submittedCancel()
 
@@ -137,6 +151,7 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	// The node that submitted the report immediately tries to settle it.
 	// With anvil's instant mining this should complete quickly.
 	env.Logger.Info("phase 4: waiting for payer reports to be settled")
+
 	settledCtx, settledCancel := context.WithTimeout(ctx, postGeneratorTimeout)
 	defer settledCancel()
 
@@ -182,10 +197,12 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	// strictly less than the original deposit.
 	payerBalanceAfter, err := payer.GetPayerBalance(ctx)
 	require.NoError(err, "failed to get payer balance after settlement")
+
 	env.Logger.Info("payer balance after settlement",
 		zap.String("before", depositAmount.String()),
 		zap.String("after", payerBalanceAfter.String()))
-	require.True(payerBalanceAfter.Cmp(depositAmount) < 0,
+
+	require.Negative(payerBalanceAfter.Cmp(depositAmount),
 		"payer balance should have decreased after settlement (before=%s, after=%s)",
 		depositAmount.String(), payerBalanceAfter.String())
 
@@ -194,13 +211,16 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	// payers (their balances were deducted). This creates "excess" that must be
 	// transferred to the DistributionManager before nodes can withdraw.
 	env.Logger.Info("phase 6: transferring excess to fee distributor")
+
 	excess, err := env.GetPayerRegistryExcess(ctx)
 	require.NoError(err, "failed to get payer registry excess")
 	env.Logger.Info("payer registry excess", zap.String("excess", excess.String()))
 
 	require.Positive(excess.Sign(),
 		"payer registry should have excess after settlement (did the payer have tokens deposited?)")
-	require.NoError(env.SendExcessToFeeDistributor(ctx))
+
+	err = env.SendExcessToFeeDistributor(ctx)
+	require.NoError(err, "failed to send excess to fee distributor")
 
 	// Phase 7: Each node claims and withdraws their owed fees.
 	env.Logger.Info("phase 7: claiming and withdrawing owed fees for each node")
@@ -315,6 +335,7 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	env.Logger.Info("total fees distributed",
 		zap.String("total_earned", totalEarned.String()),
 		zap.String("excess", excess.String()))
+
 	require.Equal(excess.String(), totalEarned.String(),
 		"total earned fees across all nodes should equal the excess transferred")
 
@@ -333,7 +354,7 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 			zap.String("amount", remainingBalance.String()))
 	}
 
-	// Log final status
+	// Log final status.
 	finalCounts, err := node100.GetPayerReportStatusCounts(ctx)
 	if err != nil {
 		env.Logger.Warn("failed to get final payer report counts", zap.Error(err))

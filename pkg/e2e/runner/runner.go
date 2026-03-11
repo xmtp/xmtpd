@@ -81,7 +81,7 @@ func (r *Runner) runTest(ctx context.Context, t Test) TestResult {
 
 	start := time.Now()
 
-	env, err := NewEnvironment(ctx, logger, r.cfg)
+	env, err := NewEnvironment(ctx, logger, r.cfg, t.Name())
 	if err != nil {
 		duration := time.Since(start)
 

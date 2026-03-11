@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/testcontainers/testcontainers-go"
@@ -25,8 +26,9 @@ func NewEnvironment(
 	ctx context.Context,
 	logger *zap.Logger,
 	cfg Config,
+	test string,
 ) (*types.Environment, error) {
-	id := fmt.Sprintf("xmtpd-e2e-%d", time.Now().Unix())
+	id := fmt.Sprintf("xmtpd-e2e-%s-%d", strings.ToLower(test), time.Now().Unix())
 
 	env := &types.Environment{
 		ID:     id,

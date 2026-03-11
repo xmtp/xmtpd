@@ -152,6 +152,17 @@ func (h *NodeHandle) GetGasBalance(ctx context.Context) (*big.Int, error) {
 	return h.env.GetGasBalance(ctx, h.Address())
 }
 
+// DisableProxy completely disables this node's proxy, refusing all connections.
+// This is a stronger isolation than toxics — no data flows at all.
+func (h *NodeHandle) DisableProxy(ctx context.Context) error {
+	return h.env.Chaos.DisableProxy(ctx, h.node.Alias())
+}
+
+// EnableProxy re-enables this node's proxy after it was disabled.
+func (h *NodeHandle) EnableProxy(ctx context.Context) error {
+	return h.env.Chaos.EnableProxy(ctx, h.node.Alias())
+}
+
 // --- Observer (database queries) ---
 // All observer methods query this node's own Postgres database.
 // The node handle provides the connection string automatically.

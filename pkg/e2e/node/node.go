@@ -193,10 +193,8 @@ func buildEnvVars(opts Options) map[string]string {
 		"XMTPD_PAYER_REPORT_ATTESTATION_WORKER_POLL_INTERVAL": "10s",
 		"XMTPD_PAYER_REPORT_EXPIRY_SELF_PERIOD":               "5m",
 		"XMTPD_PAYER_REPORT_EXPIRY_OTHERS_PERIOD":             "5m",
-
-		// Fast scheduling for e2e: 2-minute spread + 2-minute repeat (instead of 60/60)
-		"XMTPD_PAYER_REPORT_WORKER_SPREAD_MINUTES":          "2",
-		"XMTPD_PAYER_REPORT_WORKER_REPEAT_INTERVAL_MINUTES": "2",
+		"XMTPD_PAYER_REPORT_WORKER_REPEAT_INTERVAL_MINUTES":   "2",
+		"XMTPD_PAYER_REPORT_WORKER_SPREAD_MINUTES":            "2",
 	}
 
 	// Allow caller overrides

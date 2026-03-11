@@ -57,6 +57,10 @@ const (
 	gatewayPoolEnd   = 5
 	nodePoolStart    = 5 // accounts 5-9
 	nodePoolEnd      = 10
+
+	// The static ClientKey (account 1) is the only pre-allocated client key.
+	// Additional client keys are generated dynamically.
+	staticClientKeyCount = 1
 )
 
 // Manager allocates private keys from role-specific pools.
@@ -69,6 +73,7 @@ type Manager struct {
 	mu          sync.Mutex
 	nextNode    int
 	nextGateway int
+	nextClient  int
 }
 
 // NewManager creates a key manager that uses the given RPC URL to fund
@@ -89,6 +94,7 @@ func (m *Manager) Reset() {
 	defer m.mu.Unlock()
 	m.nextNode = 0
 	m.nextGateway = 0
+	m.nextClient = 0
 }
 
 // NextNodeKey returns the next available node signer key.
@@ -125,6 +131,24 @@ func (m *Manager) NextGatewayKey(ctx context.Context) (string, error) {
 	return m.generateAndFundKey(ctx, "gateway")
 }
 
+// NextClientKey returns a new client payer key.
+// The first call returns the static ClientKey (account 1). Subsequent calls
+// generate new ECDSA keys and fund them from the admin account.
+// Use this when a test needs traffic from multiple distinct payer addresses.
+func (m *Manager) NextClientKey(ctx context.Context) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	idx := m.nextClient
+	m.nextClient++
+
+	if idx < staticClientKeyCount {
+		return ClientKey(), nil
+	}
+
+	return m.generateAndFundKey(ctx, "client")
+}
+
 // generateAndFundKey creates a new ECDSA private key and funds it with ETH
 // from the admin account. Must be called with m.mu held.
 func (m *Manager) generateAndFundKey(ctx context.Context, role string) (string, error) {
@@ -133,12 +157,7 @@ func (m *Manager) generateAndFundKey(ctx context.Context, role string) (string, 
 		return "", fmt.Errorf("failed to generate %s key: %w", role, err)
 	}
 
-	privateKeyBytes, err := privateKey.Bytes()
-	if err != nil {
-		return "", fmt.Errorf("failed to get private key bytes: %w", err)
-	}
-
-	keyHex := "0x" + hex.EncodeToString(privateKeyBytes)
+	keyHex := "0x" + hex.EncodeToString(crypto.FromECDSA(privateKey))
 	address := crypto.PubkeyToAddress(privateKey.PublicKey)
 
 	m.logger.Info("generated new key (pool exhausted)",
@@ -214,4 +233,9 @@ func (m *Manager) fundAddress(ctx context.Context, toAddress string) error {
 	)
 
 	return nil
+}
+
+// PrivateKeyToHex converts an ECDSA private key to a 0x-prefixed hex string.
+func PrivateKeyToHex(key *ecdsa.PrivateKey) string {
+	return "0x" + hex.EncodeToString(crypto.FromECDSA(key))
 }

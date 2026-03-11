@@ -263,6 +263,31 @@ func (c *Controller) AddTimeout(ctx context.Context, targetName string, timeoutM
 	)
 }
 
+// DisableProxy completely disables the named proxy, refusing all connections.
+// This is a stronger isolation than toxics — no data flows at all.
+func (c *Controller) DisableProxy(ctx context.Context, targetName string) error {
+	proxy, ok := c.proxies[targetName]
+	if !ok {
+		return fmt.Errorf("unknown proxy target: %s", targetName)
+	}
+
+	c.logger.Info("disabling proxy", zap.String("target", proxy.Name))
+
+	return c.execToxiproxyCmd(ctx, "toggle", proxy.Name)
+}
+
+// EnableProxy re-enables a previously disabled proxy, restoring connectivity.
+func (c *Controller) EnableProxy(ctx context.Context, targetName string) error {
+	proxy, ok := c.proxies[targetName]
+	if !ok {
+		return fmt.Errorf("unknown proxy target: %s", targetName)
+	}
+
+	c.logger.Info("enabling proxy", zap.String("target", proxy.Name))
+
+	return c.execToxiproxyCmd(ctx, "toggle", proxy.Name)
+}
+
 // RemoveAllToxics removes all active toxics from the named proxy,
 // restoring normal network conditions for that service.
 func (c *Controller) RemoveAllToxics(ctx context.Context, targetName string) error {

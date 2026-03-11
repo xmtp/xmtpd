@@ -34,7 +34,7 @@ func (t *ChaosNodeDownTest) Run(ctx context.Context, env *types.Environment) err
 	require.NoError(env.AddGateway(ctx))
 
 	require.NoError(env.NewClient(100))
-	env.Client(100).GenerateTraffic(ctx, client.TrafficOptions{
+	gen := env.Client(100).GenerateTraffic(ctx, client.TrafficOptions{
 		BatchSize: 5,
 		Duration:  60 * time.Second,
 	})
@@ -51,7 +51,7 @@ func (t *ChaosNodeDownTest) Run(ctx context.Context, env *types.Environment) err
 	// Restart node-300
 	require.NoError(env.Node(300).Start(ctx))
 
-	env.Client(100).Stop()
+	gen.Stop()
 
 	// Verify healthy nodes received envelopes first to establish a baseline
 	checkCtx, cancel := context.WithTimeout(ctx, 120*time.Second)

@@ -71,6 +71,12 @@ func (h *ClientHandle) Address() common.Address {
 	return crypto.PubkeyToAddress(privKey.PublicKey)
 }
 
+// PayerAddress returns the hex-encoded Ethereum address for this client's payer key.
+// Convenience wrapper around Address().Hex() for use with string-based assertions.
+func (h *ClientHandle) PayerAddress() string {
+	return h.Address().Hex()
+}
+
 // --- Balance queries ---
 
 // GetPayerBalance returns this client's balance in the PayerRegistry.

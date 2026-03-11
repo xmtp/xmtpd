@@ -2,12 +2,14 @@ package runner
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"io"
 	"log"
 	"strings"
 	"time"
 
+	_ "github.com/lib/pq"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"github.com/xmtp/xmtpd/pkg/e2e/chain"
@@ -20,14 +22,22 @@ import (
 
 type Environment = types.Environment
 
-// NewEnvironment creates a new environment for the test run.
-// Each test run gets a new environment, completely isolated from other test runs.
+// hostDBConnStr is the connection string for the host Postgres instance
+// used by all e2e node containers. Nodes create per-node namespaces (e2e_node_100, etc.)
+// that must be cleaned up between test runs to avoid stale state.
+const hostDBConnStr = "postgres://postgres:xmtp@localhost:8765/postgres?sslmode=disable"
+
 func NewEnvironment(
 	ctx context.Context,
 	logger *zap.Logger,
 	cfg Config,
 	test string,
 ) (*types.Environment, error) {
+	// Drop stale e2e databases from previous runs so tests start with clean state.
+	if err := dropE2EDatabases(ctx, logger); err != nil {
+		logger.Warn("failed to clean up e2e databases (non-fatal)", zap.Error(err))
+	}
+
 	id := fmt.Sprintf("xmtpd-e2e-%s-%d", strings.ToLower(test), time.Now().Unix())
 
 	env := &types.Environment{
@@ -63,6 +73,12 @@ func NewEnvironment(
 	}
 
 	env.Keys = keys.NewManager(logger.Named("keys"), env.Chain.RPCURL())
+
+	env.Contracts, err = chain.NewContracts(ctx, logger.Named("contracts"), env.Chain.RPCURL())
+	if err != nil {
+		_ = env.Cleanup(ctx)
+		return nil, fmt.Errorf("failed to initialize contracts reader: %w", err)
+	}
 
 	env.SetObserver(observe.New(logger.Named("observer")))
 
@@ -125,6 +141,10 @@ func cleanupEnvironment(ctx context.Context, e *types.Environment) error {
 		capture(e.Redis.Terminate(ctx))
 	}
 
+	if e.Contracts != nil {
+		e.Contracts.Close()
+	}
+
 	if e.Chain != nil {
 		capture(e.Chain.Stop(ctx))
 	}
@@ -168,4 +188,58 @@ func removeDockerNetwork(ctx context.Context, name string) error {
 	}()
 
 	return cli.NetworkRemove(ctx, name)
+}
+
+// dropE2EDatabases drops idle databases matching the e2e_* pattern from the host
+// Postgres. This prevents stale state from previous test runs from interfering
+// with new runs (e.g., settled payer reports on a chain that no longer exists).
+// Databases with active connections are skipped to avoid interfering with
+// concurrently running test processes.
+func dropE2EDatabases(ctx context.Context, logger *zap.Logger) error {
+	db, err := sql.Open("postgres", hostDBConnStr)
+	if err != nil {
+		return fmt.Errorf("failed to connect to host postgres: %w", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	// Only select databases with NO active connections (excluding our own session).
+	rows, err := db.QueryContext(ctx, `
+		SELECT d.datname
+		FROM pg_database d
+		WHERE d.datname LIKE 'e2e_%'
+		  AND NOT EXISTS (
+			SELECT 1 FROM pg_stat_activity a
+			WHERE a.datname = d.datname
+			  AND a.pid != pg_backend_pid()
+		  )
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to list e2e databases: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var dbNames []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return fmt.Errorf("failed to scan database name: %w", err)
+		}
+		dbNames = append(dbNames, name)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	for _, name := range dbNames {
+		_, err := db.ExecContext(ctx, fmt.Sprintf("DROP DATABASE IF EXISTS %q", name))
+		if err != nil {
+			logger.Warn("failed to drop e2e database",
+				zap.String("database", name), zap.Error(err),
+			)
+		} else {
+			logger.Info("dropped stale e2e database", zap.String("database", name))
+		}
+	}
+
+	return nil
 }

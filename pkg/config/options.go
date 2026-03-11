@@ -134,6 +134,8 @@ type PayerReportOptions struct {
 	GenerateReportOthersPeriod    time.Duration `long:"generate-report-others-period"    env:"XMTPD_PAYER_REPORT_GENERATE_REPORT_OTHERS_PERIOD"    description:"Period of time we should use to generate backup payer reports about other nodes" default:"12h"`
 	ExpirySelfPeriod              time.Duration `long:"expiry-self-period"               env:"XMTPD_PAYER_REPORT_EXPIRY_SELF_PERIOD"               description:"Period of time we should use to expire payer reports about self"                 default:"9h"`
 	ExpiryOthersPeriod            time.Duration `long:"expiry-others-period"             env:"XMTPD_PAYER_REPORT_EXPIRY_OTHERS_PERIOD"             description:"Period of time we should use to expire backup payer reports about other nodes"   default:"18h"`
+	WorkerRepeatIntervalMinutes   uint32        `long:"worker-repeat-interval-minutes"   env:"XMTPD_PAYER_REPORT_WORKER_REPEAT_INTERVAL_MINUTES"   description:"How often each worker repeats its cycle in minutes"                              default:"60"`
+	WorkerSpreadMinutes           uint32        `long:"worker-spread-minutes"            env:"XMTPD_PAYER_REPORT_WORKER_SPREAD_MINUTES"            description:"Range of minutes across which to distribute worker start times"                  default:"60"`
 }
 
 type ServerOptions struct {

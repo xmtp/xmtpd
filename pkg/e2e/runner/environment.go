@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/network"
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"github.com/xmtp/xmtpd/pkg/e2e/chain"
@@ -267,7 +267,7 @@ func dropE2EDatabases(ctx context.Context, logger *zap.Logger) error {
 	}
 
 	for _, name := range dbNames {
-		_, err := db.ExecContext(ctx, fmt.Sprintf("DROP DATABASE IF EXISTS %q", name))
+		_, err := db.ExecContext(ctx, "DROP DATABASE IF EXISTS "+pq.QuoteIdentifier(name))
 		if err != nil {
 			logger.Warn("failed to drop e2e database",
 				zap.String("database", name), zap.Error(err),

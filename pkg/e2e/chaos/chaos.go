@@ -231,6 +231,10 @@ func (c *Controller) AddTimeout(ctx context.Context, targetName string, timeoutM
 
 // DisableProxy completely disables the named proxy, refusing all connections.
 // This is a stronger isolation than toxics — no data flows at all.
+//
+// Note: toxiproxy-cli only supports a "toggle" command (no separate enable/disable),
+// so this call is non-idempotent. Callers must always pair DisableProxy with a
+// corresponding EnableProxy call to restore proxy state.
 func (c *Controller) DisableProxy(ctx context.Context, targetName string) error {
 	proxy, ok := c.proxies.Load(targetName)
 	if !ok {

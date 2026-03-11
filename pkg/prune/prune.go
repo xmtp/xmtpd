@@ -4,6 +4,7 @@ package prune
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/config"
@@ -52,19 +53,12 @@ func (e *Executor) Run() error {
 	if e.config.CountDeletable {
 		envelopesCount, err := querier.CountExpiredEnvelopes(e.ctx)
 		if err != nil {
+			e.logger.Error("could not count expired envelopes", zap.Error(err))
 			return err
 		}
+		e.logger.Info("count of envelopes eligible for pruning", utils.CountField(envelopesCount))
 
-		migratedCount, err := querier.CountExpiredMigratedEnvelopes(e.ctx)
-		if err != nil {
-			return err
-		}
-
-		total := envelopesCount + migratedCount
-
-		e.logger.Info("count of envelopes eligible for pruning", utils.CountField(total))
-
-		if total == 0 {
+		if envelopesCount == 0 {
 			e.logger.Info("no envelopes found for pruning")
 			return nil
 		}
@@ -77,10 +71,51 @@ func (e *Executor) Run() error {
 
 	var (
 		cyclesCompleted    = 0
-		totalDeletionCount = 0
-		envelopesExhausted = false
-		migratedExhausted  = false
+		totalDeletionCount = int64(0)
 	)
+
+	latestEnvelopes, err := querier.SelectVectorClock(e.ctx)
+	if err != nil {
+		e.logger.Error("error selecting vector clock", zap.Error(err))
+		return err
+	}
+
+	ceilings, err := querier.GetPrunableCeiling(e.ctx)
+	if err != nil {
+		e.logger.Error("error getting ceilings", zap.Error(err))
+		return err
+	}
+	deletableCeilings := make(map[int32]int64)
+	for _, ceiling := range ceilings {
+		deletableCeilings[ceiling.OriginatorNodeID] = ceiling.MaxEndSequenceID
+	}
+
+	deletableTables := make(map[string]int64)
+	for _, t := range latestEnvelopes {
+		if t.OriginatorNodeID == 0 || t.OriginatorNodeID == 1 {
+			e.logger.Debug(
+				"originator is not prunable in this version of XMTPD. Skipping...",
+				utils.OriginatorIDField(uint32(t.OriginatorNodeID)),
+			)
+			continue
+		}
+
+		ceilingForThisOriginator := deletableCeilings[t.OriginatorNodeID]
+
+		if ceilingForThisOriginator == 0 {
+			e.logger.Debug(
+				"originator is not prunable. No reports exist. Skipping...",
+				utils.OriginatorIDField(uint32(t.OriginatorNodeID)),
+			)
+			continue
+		}
+
+		e.logger.Debug(
+			"Attempting to prune envelopes for originator",
+			utils.OriginatorIDField(uint32(t.OriginatorNodeID)),
+		)
+		deletableTables[fmt.Sprintf("gateway_envelopes_meta_o%d", t.OriginatorNodeID)] = ceilingForThisOriginator
+	}
 
 	for {
 		if cyclesCompleted >= e.config.MaxCycles {
@@ -91,46 +126,56 @@ func (e *Executor) Run() error {
 			break
 		}
 
-		var deletedThisCycle int
-
-		if !envelopesExhausted {
-			rows, err := querier.DeleteExpiredEnvelopesBatch(e.ctx, e.config.BatchSize)
-			if err != nil {
-				return err
-			}
-
-			deletedThisCycle += len(rows)
-
-			if len(rows) < int(e.config.BatchSize) {
-				envelopesExhausted = true
-			}
+		if len(deletableTables) == 0 {
+			e.logger.Info("all tables have been processed")
+			break
 		}
 
-		if !migratedExhausted {
-			rows, err := querier.DeleteExpiredMigratedEnvelopesBatch(
-				e.ctx,
-				e.config.BatchSize,
+		var deletedThisCycle int64
+
+		for tableName, ceiling := range deletableTables {
+			result, err := e.writerDB.Exec(
+				constructVariableMetaTableQuery(tableName, e.config.BatchSize, ceiling),
 			)
 			if err != nil {
-				return err
+				e.logger.Error(
+					"error pruning envelopes",
+					zap.Error(err),
+					zap.String("table", tableName),
+				)
+				delete(deletableTables, tableName)
+				continue
+			}
+			rows, err := result.RowsAffected()
+			if err != nil {
+				e.logger.Error(
+					"Unexpected DB error: could not count envelopes",
+					zap.Error(err),
+					zap.String("table", tableName),
+				)
+				delete(deletableTables, tableName)
+				continue
 			}
 
-			deletedThisCycle += len(rows)
+			deletedThisCycle += rows
 
-			if len(rows) < int(e.config.BatchSize) {
-				migratedExhausted = true
+			if rows < int64(e.config.BatchSize) {
+				// this one is fully exhausted
+				delete(deletableTables, tableName)
 			}
+
+			e.logger.Debug(
+				"pruned envelopes",
+				zap.Int64("deleted", rows),
+				zap.String("table", tableName),
+			)
 		}
 
 		totalDeletionCount += deletedThisCycle
 
-		e.logger.Info("pruned expired envelopes batch", utils.CountField(int64(deletedThisCycle)))
+		e.logger.Info("pruned expired envelopes batch", utils.CountField(deletedThisCycle))
 
 		cyclesCompleted++
-
-		if envelopesExhausted && migratedExhausted {
-			break
-		}
 	}
 
 	if totalDeletionCount == 0 {
@@ -139,7 +184,7 @@ func (e *Executor) Run() error {
 
 	e.logger.Info(
 		"done",
-		utils.CountField(int64(totalDeletionCount)),
+		utils.CountField(totalDeletionCount),
 		utils.DurationMsField(time.Since(start)),
 	)
 

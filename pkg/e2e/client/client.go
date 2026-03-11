@@ -160,14 +160,11 @@ func (c *client) GenerateTraffic(
 	if c.traffic != nil {
 		c.traffic.Stop()
 	}
-	c.mu.Unlock()
 
 	genCtx, cancel := context.WithTimeout(ctx, opts.Duration)
 
 	gen := &TrafficGenerator{cancel: cancel}
 	gen.wg.Add(1)
-
-	c.mu.Lock()
 	c.traffic = gen
 	c.mu.Unlock()
 

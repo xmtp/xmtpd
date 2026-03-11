@@ -11,9 +11,11 @@ package chaos
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -166,54 +168,49 @@ func (c *Controller) RegisterTarget(ctx context.Context, name, upstream string, 
 // inter-node traffic flows through toxiproxy.
 //
 // Returns "http://toxiproxy:<listen-port>" for the named proxy.
-// Panics if no proxy with that name exists.
-func (c *Controller) ProxyAddress(name string) string {
+func (c *Controller) ProxyAddress(name string) (string, error) {
 	proxy, ok := c.proxies.Load(name)
 	if !ok {
-		panic("no proxy registered for " + name)
+		return "", fmt.Errorf("no proxy registered for %s", name)
 	}
-	return fmt.Sprintf("http://toxiproxy:%d", proxy.(*ProxyTarget).ListenPort)
+	return fmt.Sprintf("http://toxiproxy:%d", proxy.(*ProxyTarget).ListenPort), nil
 }
 
-// AddLatency injects a network latency toxic on the named proxy.
-// All connections through the proxy will experience the specified delay in milliseconds.
-func (c *Controller) AddLatency(ctx context.Context, targetName string, latencyMs int) error {
+// addToxic is the common implementation for all toxic injection methods.
+func (c *Controller) addToxic(
+	ctx context.Context,
+	targetName string,
+	toxicSuffix string,
+	toxicType string,
+	attribute string,
+) error {
 	proxy, ok := c.proxies.Load(targetName)
 	if !ok {
 		return fmt.Errorf("unknown proxy target: %s", targetName)
 	}
 
-	c.logger.Info("adding latency",
+	c.logger.Info("adding toxic",
 		zap.String("target", proxy.(*ProxyTarget).Name),
-		zap.Int("latency_ms", latencyMs),
+		zap.String("type", toxicType),
+		zap.String("attribute", attribute),
 	)
 
 	return c.execToxiproxyCmd(ctx, "toxic", "add",
-		"-n", targetName+"_latency",
-		"-t", "latency",
-		"-a", fmt.Sprintf("latency=%d", latencyMs),
+		"-n", targetName+"_"+toxicSuffix,
+		"-t", toxicType,
+		"-a", attribute,
 		proxy.(*ProxyTarget).Name,
 	)
+}
+
+// AddLatency injects a network latency toxic on the named proxy.
+func (c *Controller) AddLatency(ctx context.Context, targetName string, latencyMs int) error {
+	return c.addToxic(ctx, targetName, "latency", "latency", fmt.Sprintf("latency=%d", latencyMs))
 }
 
 // AddBandwidthLimit restricts the proxy's throughput to the specified rate in KB/s.
 func (c *Controller) AddBandwidthLimit(ctx context.Context, targetName string, rateKB int) error {
-	proxy, ok := c.proxies.Load(targetName)
-	if !ok {
-		return fmt.Errorf("unknown proxy target: %s", targetName)
-	}
-
-	c.logger.Info("adding bandwidth limit",
-		zap.String("target", proxy.(*ProxyTarget).Name),
-		zap.Int("rate_kb", rateKB),
-	)
-
-	return c.execToxiproxyCmd(ctx, "toxic", "add",
-		"-n", targetName+"_bandwidth",
-		"-t", "bandwidth",
-		"-a", fmt.Sprintf("rate=%d", rateKB),
-		proxy.(*ProxyTarget).Name,
-	)
+	return c.addToxic(ctx, targetName, "bandwidth", "bandwidth", fmt.Sprintf("rate=%d", rateKB))
 }
 
 // AddConnectionReset simulates TCP connection resets (RST) on the proxy.
@@ -223,85 +220,58 @@ func (c *Controller) AddConnectionReset(
 	targetName string,
 	timeoutMs int,
 ) error {
-	proxy, ok := c.proxies.Load(targetName)
-	if !ok {
-		return fmt.Errorf("unknown proxy target: %s", targetName)
-	}
-
-	c.logger.Info("adding connection reset",
-		zap.String("target", proxy.(*ProxyTarget).Name),
-		zap.Int("timeout_ms", timeoutMs),
-	)
-
-	return c.execToxiproxyCmd(ctx, "toxic", "add",
-		"-n", targetName+"_reset",
-		"-t", "reset_peer",
-		"-a", fmt.Sprintf("timeout=%d", timeoutMs),
-		proxy.(*ProxyTarget).Name,
-	)
+	return c.addToxic(ctx, targetName, "reset", "reset_peer", fmt.Sprintf("timeout=%d", timeoutMs))
 }
 
-// AddTimeout stops all data from getting through and closes the connection after
-// the specified timeout in milliseconds. If timeoutMs is 0, data is dropped
-// indefinitely without closing the connection (black hole / network partition).
+// AddTimeout stops all data from getting through and closes the connection after timeout.
+// If timeoutMs is 0, data is dropped indefinitely (black hole / network partition).
 func (c *Controller) AddTimeout(ctx context.Context, targetName string, timeoutMs int) error {
-	proxy, ok := c.proxies.Load(targetName)
-	if !ok {
-		return fmt.Errorf("unknown proxy target: %s", targetName)
-	}
-
-	c.logger.Info("adding timeout",
-		zap.String("target", proxy.(*ProxyTarget).Name),
-		zap.Int("timeout_ms", timeoutMs),
-	)
-
-	return c.execToxiproxyCmd(ctx, "toxic", "add",
-		"-n", targetName+"_timeout",
-		"-t", "timeout",
-		"-a", fmt.Sprintf("timeout=%d", timeoutMs),
-		proxy.(*ProxyTarget).Name,
-	)
+	return c.addToxic(ctx, targetName, "timeout", "timeout", fmt.Sprintf("timeout=%d", timeoutMs))
 }
 
 // DisableProxy completely disables the named proxy, refusing all connections.
 // This is a stronger isolation than toxics — no data flows at all.
 func (c *Controller) DisableProxy(ctx context.Context, targetName string) error {
-	proxy, ok := c.proxies[targetName]
+	proxy, ok := c.proxies.Load(targetName)
 	if !ok {
 		return fmt.Errorf("unknown proxy target: %s", targetName)
 	}
 
-	c.logger.Info("disabling proxy", zap.String("target", proxy.Name))
+	c.logger.Info("disabling proxy", zap.String("target", proxy.(*ProxyTarget).Name))
 
-	return c.execToxiproxyCmd(ctx, "toggle", proxy.Name)
+	return c.execToxiproxyCmd(ctx, "toggle", proxy.(*ProxyTarget).Name)
 }
 
 // EnableProxy re-enables a previously disabled proxy, restoring connectivity.
 func (c *Controller) EnableProxy(ctx context.Context, targetName string) error {
-	proxy, ok := c.proxies[targetName]
+	proxy, ok := c.proxies.Load(targetName)
 	if !ok {
 		return fmt.Errorf("unknown proxy target: %s", targetName)
 	}
 
-	c.logger.Info("enabling proxy", zap.String("target", proxy.Name))
+	c.logger.Info("enabling proxy", zap.String("target", proxy.(*ProxyTarget).Name))
 
-	return c.execToxiproxyCmd(ctx, "toggle", proxy.Name)
+	return c.execToxiproxyCmd(ctx, "toggle", proxy.(*ProxyTarget).Name)
 }
 
 // RemoveAllToxics removes all active toxics from the named proxy,
 // restoring normal network conditions for that service.
+// Errors from removing non-existent toxics are ignored; other errors are returned.
 func (c *Controller) RemoveAllToxics(ctx context.Context, targetName string) error {
 	c.logger.Info("removing all toxics", zap.String("target", targetName))
 	// toxiproxy-cli doesn't have a bulk remove, so we remove known toxic names
+	var errs []error
 	for _, suffix := range []string{"latency", "bandwidth", "reset", "timeout"} {
 		toxicName := fmt.Sprintf("%s_%s", targetName, suffix)
-		// Ignore errors for toxics that don't exist
-		_ = c.execToxiproxyCmd(ctx, "toxic", "remove",
+		err := c.execToxiproxyCmd(ctx, "toxic", "remove",
 			"-n", toxicName,
 			targetName,
 		)
+		if err != nil && !strings.Contains(err.Error(), "not found") {
+			errs = append(errs, err)
+		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 // Stop terminates the toxiproxy container.

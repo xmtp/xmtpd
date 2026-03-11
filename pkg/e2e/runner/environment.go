@@ -144,6 +144,10 @@ func cleanupEnvironment(ctx context.Context, e *types.Environment) error {
 		capture(e.Redis.Terminate(ctx))
 	}
 
+	if obs := e.Observer(); obs != nil {
+		obs.Close()
+	}
+
 	if e.Contracts != nil {
 		e.Contracts.Close()
 	}

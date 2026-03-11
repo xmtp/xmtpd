@@ -37,20 +37,16 @@ type chainClients struct {
 
 // initChainClients lazily initializes the blockchain clients.
 // Uses the external RPC URL (host-accessible) since these calls run from the test process.
+// Unlike sync.Once, this retries on failure so transient errors don't permanently break
+// all chain operations.
 func (e *Environment) initChainClients(ctx context.Context) error {
-	// Prevents initializing once if the context is cancelled.
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-		break
+	e.contractsMu.Lock()
+	defer e.contractsMu.Unlock()
+
+	if e.contracts != nil {
+		return nil // already initialized
 	}
-
-	e.contractsOnce.Do(func() {
-		e.contractsInitErr = e.doInitChainClients(ctx)
-	})
-
-	return e.contractsInitErr
+	return e.doInitChainClients(ctx)
 }
 
 func (e *Environment) doInitChainClients(ctx context.Context) error {

@@ -85,9 +85,8 @@ type Environment struct {
 	cleanupFunc func(ctx context.Context) error
 
 	// contracts holds lazily initialized blockchain clients for direct contract calls.
-	contracts        *chainClients
-	contractsOnce    sync.Once
-	contractsInitErr error
+	contracts   *chainClients
+	contractsMu sync.Mutex
 
 	// t is the TestingT adapter set by the runner before each test.
 	t *TestingT
@@ -622,7 +621,10 @@ func (e *Environment) registerNode(ctx context.Context, signerKey string) (uint3
 		if proxyErr := e.Chaos.RegisterTarget(ctx, alias, alias, 5050); proxyErr != nil {
 			return 0, fmt.Errorf("failed to register chaos proxy for %s: %w", alias, proxyErr)
 		}
-		httpAddress = e.Chaos.ProxyAddress(alias)
+		httpAddress, err = e.Chaos.ProxyAddress(alias)
+		if err != nil {
+			return 0, fmt.Errorf("failed to get proxy address for %s: %w", alias, err)
+		}
 	}
 	rpcURL := e.Chain.InternalRPCURL()
 

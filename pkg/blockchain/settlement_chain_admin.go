@@ -54,6 +54,21 @@ type ISettlementChainAdmin interface {
 
 	BridgeParameters(ctx context.Context, keys []string) error
 
+	SendExcessToFeeDistributor(ctx context.Context) error
+	GetPayerRegistryExcess(ctx context.Context) (*big.Int, error)
+	ClaimFromDistributionManager(
+		ctx context.Context,
+		nodeID uint32,
+		originatorNodeIDs []uint32,
+		payerReportIndices []*big.Int,
+	) error
+	WithdrawFromDistributionManager(
+		ctx context.Context,
+		nodeID uint32,
+		recipient common.Address,
+	) error
+	GetDistributionManagerOwedFees(ctx context.Context, nodeID uint32) (*big.Int, error)
+
 	GetSettlementChainGatewayVersion(ctx context.Context) (string, error)
 	GetSettlementParameterRegistryVersion(ctx context.Context) (string, error)
 	GetPayerReportManagerVersion(ctx context.Context) (string, error)
@@ -547,6 +562,107 @@ func (s settlementChainAdmin) BridgeParameters(ctx context.Context, keys []strin
 	)
 
 	return err
+}
+
+func (s settlementChainAdmin) SendExcessToFeeDistributor(ctx context.Context) error {
+	err := ExecuteTransaction(
+		ctx,
+		s.signer, s.logger, s.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return s.payerRegistry.SendExcessToFeeDistributor(opts)
+		},
+		func(log *types.Log) (any, error) {
+			return s.payerRegistry.ParseExcessTransferred(*log)
+		},
+		func(event any) {
+			ev, ok := event.(*pr.PayerRegistryExcessTransferred)
+			if !ok {
+				s.logger.Error("unexpected event type, not PayerRegistryExcessTransferred")
+				return
+			}
+			s.logger.Info("excess transferred to fee distributor",
+				zap.String("amount", ev.Amount.String()))
+		},
+	)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s settlementChainAdmin) GetPayerRegistryExcess(ctx context.Context) (*big.Int, error) {
+	return s.payerRegistry.Excess(&bind.CallOpts{Context: ctx})
+}
+
+func (s settlementChainAdmin) ClaimFromDistributionManager(
+	ctx context.Context,
+	nodeID uint32,
+	originatorNodeIDs []uint32,
+	payerReportIndices []*big.Int,
+) error {
+	err := ExecuteTransaction(
+		ctx,
+		s.signer, s.logger, s.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return s.distributionManager.Claim(opts, nodeID, originatorNodeIDs, payerReportIndices)
+		},
+		func(log *types.Log) (any, error) {
+			return s.distributionManager.ParseClaim(*log)
+		},
+		func(event any) {
+			ev, ok := event.(*dm.DistributionManagerClaim)
+			if !ok {
+				s.logger.Error("unexpected event type, not DistributionManagerClaim")
+				return
+			}
+			s.logger.Info("claimed from distribution manager",
+				zap.Uint32("node_id", ev.NodeId),
+				zap.Uint32("originator_node_id", ev.OriginatorNodeId),
+				zap.String("amount", ev.Amount.String()))
+		},
+	)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s settlementChainAdmin) WithdrawFromDistributionManager(
+	ctx context.Context,
+	nodeID uint32,
+	recipient common.Address,
+) error {
+	err := ExecuteTransaction(
+		ctx,
+		s.signer, s.logger, s.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return s.distributionManager.Withdraw(opts, nodeID, recipient)
+		},
+		func(log *types.Log) (any, error) {
+			return s.distributionManager.ParseWithdrawal(*log)
+		},
+		func(event any) {
+			ev, ok := event.(*dm.DistributionManagerWithdrawal)
+			if !ok {
+				s.logger.Error("unexpected event type, not DistributionManagerWithdrawal")
+				return
+			}
+			s.logger.Info("withdrawn from distribution manager",
+				zap.Uint32("node_id", ev.NodeId),
+				zap.String("amount", ev.Amount.String()))
+		},
+	)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s settlementChainAdmin) GetDistributionManagerOwedFees(
+	ctx context.Context,
+	nodeID uint32,
+) (*big.Int, error) {
+	return s.distributionManager.GetOwedFees(&bind.CallOpts{Context: ctx}, nodeID)
 }
 
 func (s settlementChainAdmin) GetSettlementChainGatewayVersion(

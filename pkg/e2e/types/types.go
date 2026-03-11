@@ -14,6 +14,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -112,14 +113,6 @@ type nodeConfig struct {
 // NodeOption configures optional parameters for AddNode.
 type NodeOption func(*nodeConfig)
 
-// WithAlias overrides the auto-generated container alias for a node.
-// By default, aliases are derived from the nodeID: "node-100", "node-200", etc.
-func WithAlias(alias string) NodeOption {
-	return func(c *nodeConfig) {
-		c.alias = alias
-	}
-}
-
 // WithNodeImage overrides the default xmtpd Docker image for this node.
 // Use this to test a specific version or a locally built image.
 func WithNodeImage(image string) NodeOption {
@@ -213,8 +206,7 @@ func (e *Environment) Cleanup(ctx context.Context) error {
 
 // AddNode registers a new node on-chain and starts its container.
 // The node gets the next available nodeID (100, 200, 300, ...) from the
-// NodeRegistry contract. The alias is auto-generated as "node-{nodeID}"
-// unless overridden with WithAlias.
+// NodeRegistry contract. The alias is auto-generated as "node-{nodeID}".
 //
 // After AddNode returns, the node is accessible via env.Node(nodeID).
 func (e *Environment) AddNode(ctx context.Context, opts ...NodeOption) error {
@@ -619,12 +611,12 @@ func (e *Environment) resetNodeDB(alias string) error {
 		_ = db.Close()
 	}()
 
-	// Terminate active connections and drop the database
-	_, _ = db.Exec(fmt.Sprintf(
-		"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '%s'",
+	// Terminate active connections and drop the database.
+	_, _ = db.Exec(
+		"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1",
 		dbName,
-	))
-	_, _ = db.Exec("DROP DATABASE IF EXISTS " + dbName)
+	)
+	_, _ = db.Exec("DROP DATABASE IF EXISTS " + pq.QuoteIdentifier(dbName))
 
 	e.Logger.Info("reset node database", zap.String("db_name", dbName))
 	return nil

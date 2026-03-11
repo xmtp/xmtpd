@@ -38,9 +38,18 @@ type chainClients struct {
 // initChainClients lazily initializes the blockchain clients.
 // Uses the external RPC URL (host-accessible) since these calls run from the test process.
 func (e *Environment) initChainClients(ctx context.Context) error {
+	// Prevents initializing once if the context is cancelled.
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		break
+	}
+
 	e.contractsOnce.Do(func() {
 		e.contractsInitErr = e.doInitChainClients(ctx)
 	})
+
 	return e.contractsInitErr
 }
 

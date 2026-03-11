@@ -344,16 +344,22 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	// Phase 9: Payer requests withdrawal of remaining balance.
 	// After settlement, the payer should still have leftover funds in the
 	// PayerRegistry. Verify the withdrawal request flow works.
-	remainingBalance, err := payer.GetPayerBalance(ctx)
+	payerFinalBalance, err := payer.GetPayerBalance(ctx)
 	require.NoError(err, "failed to get remaining payer balance")
 	env.Logger.Info("payer remaining balance before withdrawal",
-		zap.String("balance", remainingBalance.String()))
+		zap.String("balance", payerFinalBalance.String()))
 
-	if remainingBalance.Sign() > 0 {
-		require.NoError(payer.RequestWithdrawal(ctx, remainingBalance),
+	require.Equal(
+		payerFinalBalance.Add(payerFinalBalance, excess),
+		payerInitialBalance,
+		"remaining payer balance should equal the sum of the total earned fees and the excess transferred",
+	)
+
+	if payerFinalBalance.Sign() > 0 {
+		require.NoError(payer.RequestWithdrawal(ctx, payerFinalBalance),
 			"payer withdrawal request should succeed")
 		env.Logger.Info("payer withdrawal requested",
-			zap.String("amount", remainingBalance.String()))
+			zap.String("amount", payerFinalBalance.String()))
 	}
 
 	// Log final status.

@@ -51,10 +51,9 @@ type Controller struct {
 	container testcontainers.Container
 	apiURL    string
 	network   string
-	proxies   map[string]*ProxyTarget
-
-	nextPort int
-	mu       sync.Mutex
+	proxies   sync.Map
+	nextPort  int
+	portsMu   sync.Mutex
 }
 
 // NewController starts a toxiproxy container on the given Docker network
@@ -67,7 +66,7 @@ func NewController(
 	c := &Controller{
 		logger:   logger,
 		network:  id,
-		proxies:  make(map[string]*ProxyTarget),
+		proxies:  sync.Map{},
 		nextPort: baseProxyPort,
 	}
 
@@ -121,8 +120,8 @@ func NewController(
 
 // allocatePort returns the next available port for a proxy listener.
 func (c *Controller) allocatePort() int {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.portsMu.Lock()
+	defer c.portsMu.Unlock()
 	port := c.nextPort
 	c.nextPort++
 	return port
@@ -135,12 +134,12 @@ func (c *Controller) allocatePort() int {
 func (c *Controller) RegisterTarget(ctx context.Context, name, upstream string, port int) error {
 	listenPort := c.allocatePort()
 
-	c.proxies[name] = &ProxyTarget{
+	c.proxies.Store(name, &ProxyTarget{
 		Name:         name,
 		Upstream:     upstream,
 		UpstreamPort: port,
 		ListenPort:   listenPort,
-	}
+	})
 
 	// Create the proxy in toxiproxy: listen on 0.0.0.0:<listenPort>,
 	// forward to <upstream>:<port>
@@ -150,7 +149,7 @@ func (c *Controller) RegisterTarget(ctx context.Context, name, upstream string, 
 		name,
 	)
 	if err != nil {
-		delete(c.proxies, name)
+		c.proxies.Delete(name)
 		return fmt.Errorf("failed to create toxiproxy proxy %s: %w", name, err)
 	}
 
@@ -169,23 +168,23 @@ func (c *Controller) RegisterTarget(ctx context.Context, name, upstream string, 
 // Returns "http://toxiproxy:<listen-port>" for the named proxy.
 // Panics if no proxy with that name exists.
 func (c *Controller) ProxyAddress(name string) string {
-	proxy, ok := c.proxies[name]
+	proxy, ok := c.proxies.Load(name)
 	if !ok {
 		panic("no proxy registered for " + name)
 	}
-	return fmt.Sprintf("http://toxiproxy:%d", proxy.ListenPort)
+	return fmt.Sprintf("http://toxiproxy:%d", proxy.(*ProxyTarget).ListenPort)
 }
 
 // AddLatency injects a network latency toxic on the named proxy.
 // All connections through the proxy will experience the specified delay in milliseconds.
 func (c *Controller) AddLatency(ctx context.Context, targetName string, latencyMs int) error {
-	proxy, ok := c.proxies[targetName]
+	proxy, ok := c.proxies.Load(targetName)
 	if !ok {
 		return fmt.Errorf("unknown proxy target: %s", targetName)
 	}
 
 	c.logger.Info("adding latency",
-		zap.String("target", proxy.Name),
+		zap.String("target", proxy.(*ProxyTarget).Name),
 		zap.Int("latency_ms", latencyMs),
 	)
 
@@ -193,19 +192,19 @@ func (c *Controller) AddLatency(ctx context.Context, targetName string, latencyM
 		"-n", targetName+"_latency",
 		"-t", "latency",
 		"-a", fmt.Sprintf("latency=%d", latencyMs),
-		proxy.Name,
+		proxy.(*ProxyTarget).Name,
 	)
 }
 
 // AddBandwidthLimit restricts the proxy's throughput to the specified rate in KB/s.
 func (c *Controller) AddBandwidthLimit(ctx context.Context, targetName string, rateKB int) error {
-	proxy, ok := c.proxies[targetName]
+	proxy, ok := c.proxies.Load(targetName)
 	if !ok {
 		return fmt.Errorf("unknown proxy target: %s", targetName)
 	}
 
 	c.logger.Info("adding bandwidth limit",
-		zap.String("target", proxy.Name),
+		zap.String("target", proxy.(*ProxyTarget).Name),
 		zap.Int("rate_kb", rateKB),
 	)
 
@@ -213,7 +212,7 @@ func (c *Controller) AddBandwidthLimit(ctx context.Context, targetName string, r
 		"-n", targetName+"_bandwidth",
 		"-t", "bandwidth",
 		"-a", fmt.Sprintf("rate=%d", rateKB),
-		proxy.Name,
+		proxy.(*ProxyTarget).Name,
 	)
 }
 
@@ -224,13 +223,13 @@ func (c *Controller) AddConnectionReset(
 	targetName string,
 	timeoutMs int,
 ) error {
-	proxy, ok := c.proxies[targetName]
+	proxy, ok := c.proxies.Load(targetName)
 	if !ok {
 		return fmt.Errorf("unknown proxy target: %s", targetName)
 	}
 
 	c.logger.Info("adding connection reset",
-		zap.String("target", proxy.Name),
+		zap.String("target", proxy.(*ProxyTarget).Name),
 		zap.Int("timeout_ms", timeoutMs),
 	)
 
@@ -238,7 +237,7 @@ func (c *Controller) AddConnectionReset(
 		"-n", targetName+"_reset",
 		"-t", "reset_peer",
 		"-a", fmt.Sprintf("timeout=%d", timeoutMs),
-		proxy.Name,
+		proxy.(*ProxyTarget).Name,
 	)
 }
 
@@ -246,13 +245,13 @@ func (c *Controller) AddConnectionReset(
 // the specified timeout in milliseconds. If timeoutMs is 0, data is dropped
 // indefinitely without closing the connection (black hole / network partition).
 func (c *Controller) AddTimeout(ctx context.Context, targetName string, timeoutMs int) error {
-	proxy, ok := c.proxies[targetName]
+	proxy, ok := c.proxies.Load(targetName)
 	if !ok {
 		return fmt.Errorf("unknown proxy target: %s", targetName)
 	}
 
 	c.logger.Info("adding timeout",
-		zap.String("target", proxy.Name),
+		zap.String("target", proxy.(*ProxyTarget).Name),
 		zap.Int("timeout_ms", timeoutMs),
 	)
 
@@ -260,7 +259,7 @@ func (c *Controller) AddTimeout(ctx context.Context, targetName string, timeoutM
 		"-n", targetName+"_timeout",
 		"-t", "timeout",
 		"-a", fmt.Sprintf("timeout=%d", timeoutMs),
-		proxy.Name,
+		proxy.(*ProxyTarget).Name,
 	)
 }
 

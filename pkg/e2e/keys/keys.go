@@ -14,7 +14,6 @@ package keys
 import (
 	"bytes"
 	"context"
-	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -215,13 +214,4 @@ func (m *Manager) fundAddress(ctx context.Context, toAddress string) error {
 	)
 
 	return nil
-}
-
-// PrivateKeyToHex converts an ECDSA private key to a 0x-prefixed hex string.
-func PrivateKeyToHex(key *ecdsa.PrivateKey) string {
-	privateKeyBytes, err := key.Bytes()
-	if err != nil {
-		return ""
-	}
-	return "0x" + hex.EncodeToString(privateKeyBytes)
 }

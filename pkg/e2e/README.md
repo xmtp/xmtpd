@@ -104,7 +104,6 @@ The `Environment` is the central orchestrator passed to every test:
 ```go
 // --- Node management ---
 env.AddNode(ctx)                              // register on-chain + start container
-env.AddNode(ctx, WithAlias("my-node"))        // custom alias (default: "node-{nodeID}")
 env.AddNode(ctx, WithNodeImage("img:v1"))     // custom Docker image
 env.AddNode(ctx, WithNodeEnvVars(map[string]string{"KEY": "VAL"}))
 env.Node(100)                                 // access by on-chain ID (panics if missing)

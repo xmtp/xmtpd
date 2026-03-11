@@ -64,6 +64,7 @@ func New(ctx context.Context, logger *zap.Logger, opts Options) (*Node, error) {
 	}
 
 	var err error
+
 	n.container, err = testcontainers.GenericContainer(
 		createCtx,
 		testcontainers.GenericContainerRequest{
@@ -78,17 +79,21 @@ func New(ctx context.Context, logger *zap.Logger, opts Options) (*Node, error) {
 				logBytes, _ := io.ReadAll(logs)
 				_ = logs.Close()
 				logger.Error("container logs on failure", zap.String("logs", string(logBytes)))
+				_ = n.container.Terminate(createCtx)
 			}
 		}
 		return nil, fmt.Errorf("failed to start xmtpd container: %w", err)
 	}
 
+	// API port and external address.
 	mappedPort, err := n.container.MappedPort(createCtx, "5050/tcp")
 	if err != nil {
+		_ = n.container.Terminate(createCtx)
 		return nil, fmt.Errorf("failed to get mapped port: %w", err)
 	}
 	n.externalAddr = "http://localhost:" + mappedPort.Port()
 
+	// Database name and connection string.
 	dbName := "e2e_" + strings.ReplaceAll(opts.Alias, "-", "_")
 	n.dbConnStr = fmt.Sprintf(
 		"postgres://postgres:xmtp@localhost:8765/%s?sslmode=disable",

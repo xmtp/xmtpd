@@ -63,14 +63,26 @@ func (r *Runner) Run(ctx context.Context) error {
 		zap.String("cli_image", r.cfg.CLIImage),
 	)
 
-	results := make([]TestResult, 0, len(selected))
+	var (
+		results  = make([]TestResult, 0, len(selected))
+		failures = 0
+	)
 
 	for _, t := range selected {
 		result := r.runTest(ctx, t)
+
+		if result.Status == testResultStatusFail {
+			failures++
+		}
+
 		results = append(results, result)
 	}
 
 	r.printResults(results)
+
+	if failures > 0 {
+		return errors.New("some tests failed")
+	}
 
 	return nil
 }

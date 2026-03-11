@@ -600,8 +600,10 @@ func (e *Environment) RemoveNodeFromCanonicalNetwork(ctx context.Context, nodeID
 // anvil chain is fresh each time. Stale DB state (e.g. settled payer reports) would
 // cause on-chain queries to fail.
 func (e *Environment) resetNodeDB(alias string) error {
-	dbName := "e2e_" + strings.ReplaceAll(alias, "-", "_")
-	adminConnStr := "postgres://postgres:xmtp@localhost:8765/postgres?sslmode=disable"
+	var (
+		dbName       = "e2e_" + strings.ReplaceAll(alias, "-", "_")
+		adminConnStr = "postgres://postgres:xmtp@localhost:8765/postgres?sslmode=disable"
+	)
 
 	db, err := sql.Open("postgres", adminConnStr)
 	if err != nil {
@@ -612,13 +614,21 @@ func (e *Environment) resetNodeDB(alias string) error {
 	}()
 
 	// Terminate active connections and drop the database.
-	_, _ = db.Exec(
+	_, err = db.Exec(
 		"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1",
 		dbName,
 	)
-	_, _ = db.Exec("DROP DATABASE IF EXISTS " + pq.QuoteIdentifier(dbName))
+	if err != nil {
+		return fmt.Errorf("failed to terminate connections: %w", err)
+	}
+
+	_, err = db.Exec("DROP DATABASE IF EXISTS " + pq.QuoteIdentifier(dbName))
+	if err != nil {
+		return fmt.Errorf("failed to drop database: %w", err)
+	}
 
 	e.Logger.Info("reset node database", zap.String("db_name", dbName))
+
 	return nil
 }
 

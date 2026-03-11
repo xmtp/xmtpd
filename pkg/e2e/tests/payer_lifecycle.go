@@ -349,8 +349,9 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	env.Logger.Info("payer remaining balance before withdrawal",
 		zap.String("balance", payerFinalBalance.String()))
 
+	expectedSum := new(big.Int).Add(payerFinalBalance, excess)
 	require.Equal(
-		payerFinalBalance.Add(payerFinalBalance, excess),
+		expectedSum,
 		payerInitialBalance,
 		"remaining payer balance should equal the sum of the total earned fees and the excess transferred",
 	)

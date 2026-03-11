@@ -234,8 +234,3 @@ func (m *Manager) fundAddress(ctx context.Context, toAddress string) error {
 
 	return nil
 }
-
-// PrivateKeyToHex converts an ECDSA private key to a 0x-prefixed hex string.
-func PrivateKeyToHex(key *ecdsa.PrivateKey) string {
-	return "0x" + hex.EncodeToString(crypto.FromECDSA(key))
-}

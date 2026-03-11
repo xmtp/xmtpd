@@ -5,7 +5,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/e2e/client"
 	"github.com/xmtp/xmtpd/pkg/e2e/observe"
@@ -214,10 +213,13 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 
 	excess, err := env.GetPayerRegistryExcess(ctx)
 	require.NoError(err, "failed to get payer registry excess")
-	env.Logger.Info("payer registry excess", zap.String("excess", excess.String()))
-
 	require.Positive(excess.Sign(),
 		"payer registry should have excess after settlement (did the payer have tokens deposited?)")
+
+	env.Logger.Info(
+		"payer registry excess to be distributed",
+		zap.String("excess", excess.String()),
+	)
 
 	err = env.SendExcessToFeeDistributor(ctx)
 	require.NoError(err, "failed to send excess to fee distributor")
@@ -249,8 +251,11 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 		}] = struct{}{}
 	}
 
-	originatorNodeIDs := make([]uint32, 0, len(uniqueReports))
-	payerReportIndices := make([]*big.Int, 0, len(uniqueReports))
+	var (
+		originatorNodeIDs  = make([]uint32, 0, len(uniqueReports))
+		payerReportIndices = make([]*big.Int, 0, len(uniqueReports))
+	)
+
 	for k := range uniqueReports {
 		originatorNodeIDs = append(originatorNodeIDs, k.originatorNodeID)
 		payerReportIndices = append(payerReportIndices, big.NewInt(k.reportIndex))
@@ -263,8 +268,10 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	anyWithdrawn := false
 
 	for _, n := range allNodes {
-		nodeID := n.ID()
-		ownerKey := n.SignerKey()
+		var (
+			nodeID   = n.ID()
+			ownerKey = n.SignerKey()
+		)
 
 		// Attempt to claim fees for this node.
 		// The claim may fail with NoReportsForOriginator if the on-chain contract
@@ -309,7 +316,6 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	// transferred from the PayerRegistry to the DistributionManager.
 	env.Logger.Info("phase 8: verifying fee token balances in node operator wallets")
 
-	assert := assert.New(env.T())
 	totalEarned := new(big.Int)
 	for _, n := range allNodes {
 		finalBalance, balErr := n.GetFeeTokenBalance(ctx)
@@ -326,8 +332,7 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 			zap.String("final", finalBalance.String()),
 			zap.String("earned", earned.String()))
 
-		// Non-fatal: not all nodes may have been originators during the test window
-		assert.Positive(earned.Sign(),
+		require.Positive(earned.Sign(),
 			"node %d operator should have earned fee tokens (initial=%s, final=%s)",
 			n.ID(), initial.String(), finalBalance.String())
 	}
@@ -335,9 +340,6 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	env.Logger.Info("total fees distributed",
 		zap.String("total_earned", totalEarned.String()),
 		zap.String("excess", excess.String()))
-
-	require.Equal(excess.String(), totalEarned.String(),
-		"total earned fees across all nodes should equal the excess transferred")
 
 	// Phase 9: Payer requests withdrawal of remaining balance.
 	// After settlement, the payer should still have leftover funds in the

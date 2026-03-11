@@ -31,9 +31,10 @@ func NewEnvironment(
 	id := fmt.Sprintf("xmtpd-e2e-%s-%d", strings.ToLower(test), time.Now().Unix())
 
 	env := &types.Environment{
-		ID:     id,
-		Logger: logger,
-		Config: cfg,
+		ID:      id,
+		Logger:  logger,
+		Config:  cfg,
+		Network: id,
 	}
 
 	env.SetCleanupFunc(func(cleanCtx context.Context) error {

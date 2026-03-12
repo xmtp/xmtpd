@@ -15,7 +15,7 @@ WHERE nonce = $1
 `
 
 func (q *Queries) DeleteAvailableNonce(ctx context.Context, nonce int64) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteAvailableNonce, nonce)
+	result, err := q.exec(ctx, q.deleteAvailableNonceStmt, deleteAvailableNonce, nonce)
 	if err != nil {
 		return 0, err
 	}
@@ -37,7 +37,7 @@ WHERE nonce_table.nonce = deletable.nonce
 `
 
 func (q *Queries) DeleteObsoleteNonces(ctx context.Context, nonce int64) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteObsoleteNonces, nonce)
+	result, err := q.exec(ctx, q.deleteObsoleteNoncesStmt, deleteObsoleteNonces, nonce)
 	if err != nil {
 		return 0, err
 	}
@@ -57,7 +57,7 @@ type FillNonceSequenceParams struct {
 }
 
 func (q *Queries) FillNonceSequence(ctx context.Context, arg FillNonceSequenceParams) (int32, error) {
-	row := q.db.QueryRowContext(ctx, fillNonceSequence, arg.PendingNonce, arg.NumElements)
+	row := q.queryRow(ctx, q.fillNonceSequenceStmt, fillNonceSequence, arg.PendingNonce, arg.NumElements)
 	var inserted_rows int32
 	err := row.Scan(&inserted_rows)
 	return inserted_rows, err
@@ -72,7 +72,7 @@ UPDATE SKIP LOCKED
 `
 
 func (q *Queries) GetNextAvailableNonce(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, getNextAvailableNonce)
+	row := q.queryRow(ctx, q.getNextAvailableNonceStmt, getNextAvailableNonce)
 	var nonce int64
 	err := row.Scan(&nonce)
 	return nonce, err

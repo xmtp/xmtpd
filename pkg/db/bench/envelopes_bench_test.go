@@ -30,7 +30,6 @@ var envelopeOriginators = []int32{100, 200, 300}
 
 // seedEnvelopes populates gateway_envelopes_meta and gateway_envelope_blobs.
 func seedEnvelopes(ctx context.Context, tier *envelopeTier) {
-	q := queries.New(tier.db)
 	tier.originators = envelopeOriginators
 
 	// Generate topics
@@ -43,7 +42,7 @@ func seedEnvelopes(ctx context.Context, tier *envelopeTier) {
 	tier.payerIDs = make([]int32, numBenchPayers)
 	for i := range numBenchPayers {
 		addr := utils.HexEncode(testutils.RandomBytes(20))
-		id, err := q.FindOrCreatePayer(ctx, addr)
+		id, err := tier.queries.FindOrCreatePayer(ctx, addr)
 		if err != nil {
 			log.Fatalf("seed envelope payer: %v", err)
 		}
@@ -54,7 +53,7 @@ func seedEnvelopes(ctx context.Context, tier *envelopeTier) {
 	perOriginator := tier.count / numOriginators
 	for seqID := int64(0); seqID < int64(perOriginator)+db.GatewayEnvelopeBandWidth; seqID += db.GatewayEnvelopeBandWidth {
 		for _, origID := range tier.originators {
-			_ = q.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
+			_ = tier.queries.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
 				OriginatorNodeID:     origID,
 				OriginatorSequenceID: seqID,
 				BandWidth:            db.GatewayEnvelopeBandWidth,
@@ -63,7 +62,7 @@ func seedEnvelopes(ctx context.Context, tier *envelopeTier) {
 	}
 	// Partitions for write benchmark originator
 	for seqID := int64(0); seqID < 10*db.GatewayEnvelopeBandWidth; seqID += db.GatewayEnvelopeBandWidth {
-		_ = q.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
+		_ = tier.queries.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
 			OriginatorNodeID:     writeOriginatorID,
 			OriginatorSequenceID: seqID,
 			BandWidth:            db.GatewayEnvelopeBandWidth,
@@ -135,7 +134,6 @@ func seedEnvelopes(ctx context.Context, tier *envelopeTier) {
 func BenchmarkSelectGatewayEnvelopesByTopics(b *testing.B) {
 	for _, tier := range envelopeTiers {
 		b.Run(tier.name, func(b *testing.B) {
-			q := queries.New(tier.db)
 			midSeq := int64(tier.count / numOriginators / 2)
 			params := queries.SelectGatewayEnvelopesByTopicsParams{
 				Topics:            tier.topics[:10],
@@ -144,7 +142,7 @@ func BenchmarkSelectGatewayEnvelopesByTopics(b *testing.B) {
 				CursorSequenceIds: []int64{midSeq, midSeq, midSeq},
 			}
 			for b.Loop() {
-				_, err := q.SelectGatewayEnvelopesByTopics(benchCtx, params)
+				_, err := tier.queries.SelectGatewayEnvelopesByTopics(benchCtx, params)
 				require.NoError(b, err)
 			}
 		})
@@ -154,7 +152,6 @@ func BenchmarkSelectGatewayEnvelopesByTopics(b *testing.B) {
 func BenchmarkSelectGatewayEnvelopesByOriginators(b *testing.B) {
 	for _, tier := range envelopeTiers {
 		b.Run(tier.name, func(b *testing.B) {
-			q := queries.New(tier.db)
 			midSeq := int64(tier.count / numOriginators / 2)
 			params := queries.SelectGatewayEnvelopesByOriginatorsParams{
 				RowLimit:          100,
@@ -162,7 +159,7 @@ func BenchmarkSelectGatewayEnvelopesByOriginators(b *testing.B) {
 				CursorSequenceIds: []int64{midSeq, midSeq, midSeq},
 			}
 			for b.Loop() {
-				_, err := q.SelectGatewayEnvelopesByOriginators(
+				_, err := tier.queries.SelectGatewayEnvelopesByOriginators(
 					benchCtx,
 					params,
 				)
@@ -175,7 +172,6 @@ func BenchmarkSelectGatewayEnvelopesByOriginators(b *testing.B) {
 func BenchmarkSelectGatewayEnvelopesBySingleOriginator(b *testing.B) {
 	for _, tier := range envelopeTiers {
 		b.Run(tier.name, func(b *testing.B) {
-			q := queries.New(tier.db)
 			midSeq := int64(tier.count / numOriginators / 2)
 			params := queries.SelectGatewayEnvelopesBySingleOriginatorParams{
 				OriginatorNodeID: tier.originators[0],
@@ -183,7 +179,7 @@ func BenchmarkSelectGatewayEnvelopesBySingleOriginator(b *testing.B) {
 				RowLimit:         100,
 			}
 			for b.Loop() {
-				_, err := q.SelectGatewayEnvelopesBySingleOriginator(
+				_, err := tier.queries.SelectGatewayEnvelopesBySingleOriginator(
 					benchCtx,
 					params,
 				)
@@ -196,7 +192,6 @@ func BenchmarkSelectGatewayEnvelopesBySingleOriginator(b *testing.B) {
 func BenchmarkSelectGatewayEnvelopesUnfiltered(b *testing.B) {
 	for _, tier := range envelopeTiers {
 		b.Run(tier.name, func(b *testing.B) {
-			q := queries.New(tier.db)
 			midSeq := int64(tier.count / numOriginators / 2)
 			params := queries.SelectGatewayEnvelopesUnfilteredParams{
 				RowLimit:          100,
@@ -204,7 +199,7 @@ func BenchmarkSelectGatewayEnvelopesUnfiltered(b *testing.B) {
 				CursorSequenceIds: []int64{midSeq, midSeq, midSeq},
 			}
 			for b.Loop() {
-				_, err := q.SelectGatewayEnvelopesUnfiltered(
+				_, err := tier.queries.SelectGatewayEnvelopesUnfiltered(
 					benchCtx,
 					params,
 				)
@@ -217,10 +212,9 @@ func BenchmarkSelectGatewayEnvelopesUnfiltered(b *testing.B) {
 func BenchmarkSelectNewestFromTopics(b *testing.B) {
 	for _, tier := range envelopeTiers {
 		b.Run(tier.name, func(b *testing.B) {
-			q := queries.New(tier.db)
 			topics := tier.topics[:10]
 			for b.Loop() {
-				_, err := q.SelectNewestFromTopics(benchCtx, topics)
+				_, err := tier.queries.SelectNewestFromTopics(benchCtx, topics)
 				require.NoError(b, err)
 			}
 		})
@@ -232,7 +226,6 @@ func BenchmarkSelectNewestFromTopics(b *testing.B) {
 func BenchmarkInsertGatewayEnvelope(b *testing.B) {
 	for _, tier := range envelopeTiers {
 		b.Run(tier.name, func(b *testing.B) {
-			q := queries.New(tier.db)
 			blob := testutils.RandomBytes(blobSize)
 			topic := tier.topics[0]
 			expiry := time.Now().Add(24 * time.Hour).Unix()
@@ -240,7 +233,7 @@ func BenchmarkInsertGatewayEnvelope(b *testing.B) {
 			counter.Store(1_000_000)
 			for b.Loop() {
 				seqID := counter.Add(1)
-				_, err := q.InsertGatewayEnvelope(
+				_, err := tier.queries.InsertGatewayEnvelope(
 					benchCtx,
 					queries.InsertGatewayEnvelopeParams{
 						OriginatorNodeID:     writeOriginatorID,
@@ -259,7 +252,6 @@ func BenchmarkInsertGatewayEnvelope(b *testing.B) {
 func BenchmarkInsertGatewayEnvelopeBatch(b *testing.B) {
 	for _, tier := range envelopeTiers {
 		b.Run(tier.name, func(b *testing.B) {
-			q := queries.New(tier.db)
 			blob := testutils.RandomBytes(blobSize)
 			batchLen := 10
 
@@ -296,7 +288,7 @@ func BenchmarkInsertGatewayEnvelopeBatch(b *testing.B) {
 				for j := range batchLen {
 					countFlags[j] = true
 				}
-				_, err := q.InsertGatewayEnvelopeBatchV2(
+				_, err := tier.queries.InsertGatewayEnvelopeBatchV2(
 					benchCtx,
 					queries.InsertGatewayEnvelopeBatchV2Params{
 						OriginatorNodeIds:     nodeIDs,

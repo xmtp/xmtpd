@@ -14,7 +14,7 @@ SELECT pg_advisory_xact_lock($1)
 `
 
 func (q *Queries) AdvisoryLockWithKey(ctx context.Context, lockingKey int64) error {
-	_, err := q.db.ExecContext(ctx, advisoryLockWithKey, lockingKey)
+	_, err := q.exec(ctx, q.advisoryLockWithKeyStmt, advisoryLockWithKey, lockingKey)
 	return err
 }
 
@@ -23,7 +23,7 @@ SELECT pg_try_advisory_xact_lock($1) as lock_succeeded
 `
 
 func (q *Queries) TryAdvisoryLockWithKey(ctx context.Context, lockingKey int64) (bool, error) {
-	row := q.db.QueryRowContext(ctx, tryAdvisoryLockWithKey, lockingKey)
+	row := q.queryRow(ctx, q.tryAdvisoryLockWithKeyStmt, tryAdvisoryLockWithKey, lockingKey)
 	var lock_succeeded bool
 	err := row.Scan(&lock_succeeded)
 	return lock_succeeded, err

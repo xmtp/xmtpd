@@ -26,7 +26,7 @@ WHERE ge.expiry IS NOT NULL
 `
 
 func (q *Queries) CountExpiredEnvelopes(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countExpiredEnvelopes)
+	row := q.queryRow(ctx, q.countExpiredEnvelopesStmt, countExpiredEnvelopes)
 	var expired_count int64
 	err := row.Scan(&expired_count)
 	return expired_count, err
@@ -47,7 +47,7 @@ type GetPrunableCeilingRow struct {
 }
 
 func (q *Queries) GetPrunableCeiling(ctx context.Context) ([]GetPrunableCeilingRow, error) {
-	rows, err := q.db.QueryContext(ctx, getPrunableCeiling)
+	rows, err := q.query(ctx, q.getPrunableCeilingStmt, getPrunableCeiling)
 	if err != nil {
 		return nil, err
 	}

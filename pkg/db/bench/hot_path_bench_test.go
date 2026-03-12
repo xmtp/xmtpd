@@ -4,7 +4,6 @@ package bench
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"sync/atomic"
@@ -30,14 +29,13 @@ const (
 
 // seedHotPath pre-creates payers and gateway partitions, and seeds staged rows
 // for SELECT benchmarks.
-func seedHotPath(ctx context.Context, benchDB *sql.DB) {
-	q := queries.New(benchDB)
+func seedHotPath(ctx context.Context) {
 	hotPathPayerIDs = make([]int32, hotPathPayerCount)
 
 	for i := range hotPathPayerCount {
 		addr := utils.HexEncode(testutils.RandomBytes(20))
 
-		id, err := q.FindOrCreatePayer(ctx, addr)
+		id, err := hotPathQueries.FindOrCreatePayer(ctx, addr)
 		if err != nil {
 			log.Fatalf("seed hot path payer: %v", err)
 		}
@@ -47,7 +45,7 @@ func seedHotPath(ctx context.Context, benchDB *sql.DB) {
 
 	// Pre-create gateway partitions so write benchmarks never hit partition-creation overhead.
 	for seqID := int64(0); seqID < 50*db.GatewayEnvelopeBandWidth; seqID += db.GatewayEnvelopeBandWidth {
-		_ = q.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
+		_ = hotPathQueries.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
 			OriginatorNodeID:     hotPathOriginatorID,
 			OriginatorSequenceID: seqID,
 			BandWidth:            db.GatewayEnvelopeBandWidth,
@@ -61,7 +59,7 @@ func seedHotPath(ctx context.Context, benchDB *sql.DB) {
 	)
 
 	for i := range hotPathStagedSeedRows {
-		_, err := q.InsertStagedOriginatorEnvelope(
+		_, err := hotPathQueries.InsertStagedOriginatorEnvelope(
 			ctx,
 			queries.InsertStagedOriginatorEnvelopeParams{
 				Topic:         topic,
@@ -84,13 +82,12 @@ func seedHotPath(ctx context.Context, benchDB *sql.DB) {
 // ID assignment, so this reflects the true serialised ingest cost.
 func BenchmarkHotPathInsertStaged(b *testing.B) {
 	var (
-		q     = queries.New(hotPathDB)
 		topic = testutils.RandomBytes(32)
 		blob  = testutils.RandomBytes(hotPathBlobSize)
 	)
 
 	for b.Loop() {
-		_, err := q.InsertStagedOriginatorEnvelope(
+		_, err := hotPathQueries.InsertStagedOriginatorEnvelope(
 			benchCtx,
 			queries.InsertStagedOriginatorEnvelopeParams{
 				Topic:         topic,
@@ -104,9 +101,8 @@ func BenchmarkHotPathInsertStaged(b *testing.B) {
 // BenchmarkHotPathSelectStaged measures SELECT from staged_originator_envelopes
 // as the publish worker does — fetching the next batch from a cursor position.
 func BenchmarkHotPathSelectStaged(b *testing.B) {
-	q := queries.New(hotPathDB)
 	for b.Loop() {
-		_, err := q.SelectStagedOriginatorEnvelopes(
+		_, err := hotPathQueries.SelectStagedOriginatorEnvelopes(
 			benchCtx,
 			queries.SelectStagedOriginatorEnvelopesParams{
 				LastSeenID: 0,
@@ -167,14 +163,13 @@ func BenchmarkHotPathInsertGatewayWithUsage(b *testing.B) {
 // measured delete always hits a real row.
 func BenchmarkHotPathDeleteStaged(b *testing.B) {
 	var (
-		q     = queries.New(hotPathDB)
 		topic = testutils.RandomBytes(32)
 		blob  = testutils.RandomBytes(hotPathBlobSize)
 	)
 
 	for b.Loop() {
 		b.StopTimer()
-		row, err := q.InsertStagedOriginatorEnvelope(
+		row, err := hotPathQueries.InsertStagedOriginatorEnvelope(
 			benchCtx,
 			queries.InsertStagedOriginatorEnvelopeParams{
 				Topic:         topic,
@@ -184,7 +179,7 @@ func BenchmarkHotPathDeleteStaged(b *testing.B) {
 		require.NoError(b, err)
 		b.StartTimer()
 
-		_, err = q.BulkDeleteStagedOriginatorEnvelopes(benchCtx, []int64{row.ID})
+		_, err = hotPathQueries.BulkDeleteStagedOriginatorEnvelopes(benchCtx, []int64{row.ID})
 		require.NoError(b, err)
 	}
 }
@@ -197,7 +192,6 @@ func BenchmarkHotPathDeleteStaged(b *testing.B) {
 //  4. DELETE the staged row
 func BenchmarkHotPathFullCycle(b *testing.B) {
 	var (
-		q          = queries.New(hotPathDB)
 		topic      = testutils.RandomBytes(32)
 		blob       = testutils.RandomBytes(hotPathBlobSize)
 		payerID    = hotPathPayerIDs[0]
@@ -212,7 +206,7 @@ func BenchmarkHotPathFullCycle(b *testing.B) {
 
 	for b.Loop() {
 		// 1. Payer client stages the envelope.
-		staged, err := q.InsertStagedOriginatorEnvelope(
+		staged, err := hotPathQueries.InsertStagedOriginatorEnvelope(
 			benchCtx,
 			queries.InsertStagedOriginatorEnvelopeParams{
 				Topic:         topic,
@@ -222,7 +216,7 @@ func BenchmarkHotPathFullCycle(b *testing.B) {
 		require.NoError(b, err)
 
 		// 2. Publish worker polls and fetches the staged envelope.
-		_, err = q.SelectStagedOriginatorEnvelopes(
+		_, err = hotPathQueries.SelectStagedOriginatorEnvelopes(
 			benchCtx,
 			queries.SelectStagedOriginatorEnvelopesParams{
 				LastSeenID: staged.ID - 1,
@@ -256,7 +250,7 @@ func BenchmarkHotPathFullCycle(b *testing.B) {
 		require.NoError(b, err)
 
 		// 4. Worker removes the processed staged envelope.
-		_, err = q.BulkDeleteStagedOriginatorEnvelopes(benchCtx, []int64{staged.ID})
+		_, err = hotPathQueries.BulkDeleteStagedOriginatorEnvelopes(benchCtx, []int64{staged.ID})
 		require.NoError(b, err)
 	}
 }
@@ -278,7 +272,6 @@ func BenchmarkHotPathBatchCycle(b *testing.B) {
 	for _, batchSize := range batchSizes {
 		b.Run(fmt.Sprintf("batch=%d", batchSize), func(b *testing.B) {
 			var (
-				q          = queries.New(hotPathDB)
 				topic      = testutils.RandomBytes(32)
 				blob       = testutils.RandomBytes(hotPathBlobSize)
 				payerAddr  = utils.HexEncode(testutils.RandomBytes(20))
@@ -295,7 +288,7 @@ func BenchmarkHotPathBatchCycle(b *testing.B) {
 				b.StopTimer()
 				var lastSeenID int64
 				for range batchSize {
-					staged, err := q.InsertStagedOriginatorEnvelope(
+					staged, err := hotPathQueries.InsertStagedOriginatorEnvelope(
 						benchCtx,
 						queries.InsertStagedOriginatorEnvelopeParams{
 							Topic:         topic,
@@ -309,7 +302,7 @@ func BenchmarkHotPathBatchCycle(b *testing.B) {
 				}
 
 				// Fetch the batch (single SELECT, untimed).
-				batch, err := q.SelectStagedOriginatorEnvelopes(
+				batch, err := hotPathQueries.SelectStagedOriginatorEnvelopes(
 					benchCtx,
 					queries.SelectStagedOriginatorEnvelopesParams{
 						LastSeenID: lastSeenID,
@@ -323,7 +316,7 @@ func BenchmarkHotPathBatchCycle(b *testing.B) {
 				// --- Timed: batch DB operations (3 round-trips) ---
 
 				// 1. Bulk find/create payers.
-				_, err = q.BulkFindOrCreatePayers(benchCtx, []string{payerAddr})
+				_, err = hotPathQueries.BulkFindOrCreatePayers(benchCtx, []string{payerAddr})
 				require.NoError(b, err)
 
 				// 2. Build batch and insert via V2 function.
@@ -352,7 +345,7 @@ func BenchmarkHotPathBatchCycle(b *testing.B) {
 				require.NoError(b, err)
 
 				// 3. Bulk delete staged envelopes.
-				_, err = q.BulkDeleteStagedOriginatorEnvelopes(benchCtx, stagedIDs)
+				_, err = hotPathQueries.BulkDeleteStagedOriginatorEnvelopes(benchCtx, stagedIDs)
 				require.NoError(b, err)
 			}
 		})

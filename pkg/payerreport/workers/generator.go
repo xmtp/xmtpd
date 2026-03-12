@@ -209,12 +209,12 @@ func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
 	// From the same snapshot:
 	//   - Expire reports that are too old: consider only pending reports for this.
 	//   - Collect valid (non-expired) reports that start exactly at the boundary.
-	//   - A valid report is one that is submitted or settled, and:
-	//     - Our local attestation status does not matter.
-	//     - Even if we rejected the report, others might submit and settle it if there is sufficient consensus.
-	//     - All other attestation status states are managed by the Attestation Worker and not relevant to generation.
+	//   - Valid reports blocking generation are:
+	//     - Submitted/settled reports.
+	//     - Pending reports that are non-expired and not locally attestation-rejected.
 	validReports := make([]*payerreport.PayerReportWithStatus, 0, len(reports))
 	for _, report := range reports {
+		// If report is pending and expired, expire it.
 		if report.SubmissionStatus == payerreport.SubmissionPending && w.isReportExpired(report) {
 			w.logger.Debug(
 				"expiring old report",
@@ -225,6 +225,18 @@ func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
 			if err := w.store.SetReportSubmissionRejected(w.ctx, report.ID); err != nil {
 				return err
 			}
+
+			continue
+		}
+
+		// If report is pending and locally rejected, ignore it.
+		if report.SubmissionStatus == payerreport.SubmissionPending &&
+			report.AttestationStatus == payerreport.AttestationRejected {
+			w.logger.Debug(
+				"ignore locally rejected report",
+				utils.OriginatorIDField(nodeID),
+				utils.PayerReportIDField(report.ID.String()),
+			)
 
 			continue
 		}

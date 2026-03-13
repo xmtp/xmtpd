@@ -34,7 +34,7 @@ type GetRecentOriginatorCongestionRow struct {
 }
 
 func (q *Queries) GetRecentOriginatorCongestion(ctx context.Context, arg GetRecentOriginatorCongestionParams) ([]GetRecentOriginatorCongestionRow, error) {
-	rows, err := q.db.QueryContext(ctx, getRecentOriginatorCongestion, arg.OriginatorID, arg.EndMinute, arg.NumMinutes)
+	rows, err := q.query(ctx, q.getRecentOriginatorCongestionStmt, getRecentOriginatorCongestion, arg.OriginatorID, arg.EndMinute, arg.NumMinutes)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ type IncrementOriginatorCongestionParams struct {
 }
 
 func (q *Queries) IncrementOriginatorCongestion(ctx context.Context, arg IncrementOriginatorCongestionParams) error {
-	_, err := q.db.ExecContext(ctx, incrementOriginatorCongestion, arg.OriginatorID, arg.MinutesSinceEpoch)
+	_, err := q.exec(ctx, q.incrementOriginatorCongestionStmt, incrementOriginatorCongestion, arg.OriginatorID, arg.MinutesSinceEpoch)
 	return err
 }
 
@@ -94,7 +94,7 @@ type SumOriginatorCongestionParams struct {
 }
 
 func (q *Queries) SumOriginatorCongestion(ctx context.Context, arg SumOriginatorCongestionParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, sumOriginatorCongestion, arg.OriginatorID, arg.MinutesSinceEpochGt, arg.MinutesSinceEpochLt)
+	row := q.queryRow(ctx, q.sumOriginatorCongestionStmt, sumOriginatorCongestion, arg.OriginatorID, arg.MinutesSinceEpochGt, arg.MinutesSinceEpochLt)
 	var num_messages int64
 	err := row.Scan(&num_messages)
 	return num_messages, err

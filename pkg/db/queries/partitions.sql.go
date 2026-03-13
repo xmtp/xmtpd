@@ -24,7 +24,7 @@ type EnsureGatewayPartsParams struct {
 }
 
 func (q *Queries) EnsureGatewayParts(ctx context.Context, arg EnsureGatewayPartsParams) error {
-	_, err := q.db.ExecContext(ctx, ensureGatewayParts, arg.OriginatorNodeID, arg.OriginatorSequenceID, arg.BandWidth)
+	_, err := q.exec(ctx, q.ensureGatewayPartsStmt, ensureGatewayParts, arg.OriginatorNodeID, arg.OriginatorSequenceID, arg.BandWidth)
 	return err
 }
 
@@ -33,7 +33,7 @@ SAVEPOINT sp_part
 `
 
 func (q *Queries) InsertSavePoint(ctx context.Context) error {
-	_, err := q.db.ExecContext(ctx, insertSavePoint)
+	_, err := q.exec(ctx, q.insertSavePointStmt, insertSavePoint)
 	return err
 }
 
@@ -42,7 +42,7 @@ RELEASE SAVEPOINT sp_part
 `
 
 func (q *Queries) InsertSavePointRelease(ctx context.Context) error {
-	_, err := q.db.ExecContext(ctx, insertSavePointRelease)
+	_, err := q.exec(ctx, q.insertSavePointReleaseStmt, insertSavePointRelease)
 	return err
 }
 
@@ -51,7 +51,7 @@ ROLLBACK TO SAVEPOINT sp_part
 `
 
 func (q *Queries) InsertSavePointRollback(ctx context.Context) error {
-	_, err := q.db.ExecContext(ctx, insertSavePointRollback)
+	_, err := q.exec(ctx, q.insertSavePointRollbackStmt, insertSavePointRollback)
 	return err
 }
 
@@ -60,7 +60,7 @@ SELECT make_blob_originator_part_v2($1)
 `
 
 func (q *Queries) MakeBlobOriginatorPart(ctx context.Context, originatorNodeID int32) error {
-	_, err := q.db.ExecContext(ctx, makeBlobOriginatorPart, originatorNodeID)
+	_, err := q.exec(ctx, q.makeBlobOriginatorPartStmt, makeBlobOriginatorPart, originatorNodeID)
 	return err
 }
 
@@ -75,7 +75,7 @@ type MakeBlobSeqBandParams struct {
 }
 
 func (q *Queries) MakeBlobSeqBand(ctx context.Context, arg MakeBlobSeqBandParams) error {
-	_, err := q.db.ExecContext(ctx, makeBlobSeqBand, arg.OriginatorNodeID, arg.BandStart, arg.BandEnd)
+	_, err := q.exec(ctx, q.makeBlobSeqBandStmt, makeBlobSeqBand, arg.OriginatorNodeID, arg.BandStart, arg.BandEnd)
 	return err
 }
 
@@ -84,7 +84,7 @@ SELECT make_meta_originator_part_v2($1)
 `
 
 func (q *Queries) MakeMetaOriginatorPart(ctx context.Context, originatorNodeID int32) error {
-	_, err := q.db.ExecContext(ctx, makeMetaOriginatorPart, originatorNodeID)
+	_, err := q.exec(ctx, q.makeMetaOriginatorPartStmt, makeMetaOriginatorPart, originatorNodeID)
 	return err
 }
 
@@ -99,6 +99,6 @@ type MakeMetaSeqBandParams struct {
 }
 
 func (q *Queries) MakeMetaSeqBand(ctx context.Context, arg MakeMetaSeqBandParams) error {
-	_, err := q.db.ExecContext(ctx, makeMetaSeqBand, arg.OriginatorNodeID, arg.BandStart, arg.BandEnd)
+	_, err := q.exec(ctx, q.makeMetaSeqBandStmt, makeMetaSeqBand, arg.OriginatorNodeID, arg.BandStart, arg.BandEnd)
 	return err
 }

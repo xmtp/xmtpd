@@ -14,7 +14,7 @@ SELECT set_config('work_mem', $1::TEXT, true)
 `
 
 func (q *Queries) SetLocalWorkMem(ctx context.Context, dollar_1 string) (string, error) {
-	row := q.db.QueryRowContext(ctx, setLocalWorkMem, dollar_1)
+	row := q.queryRow(ctx, q.setLocalWorkMemStmt, setLocalWorkMem, dollar_1)
 	var set_config string
 	err := row.Scan(&set_config)
 	return set_config, err

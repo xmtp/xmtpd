@@ -24,7 +24,7 @@ type GetLastEventParams struct {
 }
 
 func (q *Queries) GetLastEvent(ctx context.Context, arg GetLastEventParams) (PayerLedgerEvent, error) {
-	row := q.db.QueryRowContext(ctx, getLastEvent, arg.PayerID, arg.EventType)
+	row := q.queryRow(ctx, q.getLastEventStmt, getLastEvent, arg.PayerID, arg.EventType)
 	var i PayerLedgerEvent
 	err := row.Scan(
 		&i.EventID,
@@ -43,7 +43,7 @@ WHERE payer_id = $1
 `
 
 func (q *Queries) GetPayerBalance(ctx context.Context, payerID int32) (int64, error) {
-	row := q.db.QueryRowContext(ctx, getPayerBalance, payerID)
+	row := q.queryRow(ctx, q.getPayerBalanceStmt, getPayerBalance, payerID)
 	var balance int64
 	err := row.Scan(&balance)
 	return balance, err
@@ -72,7 +72,7 @@ type InsertPayerLedgerEventParams struct {
 }
 
 func (q *Queries) InsertPayerLedgerEvent(ctx context.Context, arg InsertPayerLedgerEventParams) error {
-	_, err := q.db.ExecContext(ctx, insertPayerLedgerEvent,
+	_, err := q.exec(ctx, q.insertPayerLedgerEventStmt, insertPayerLedgerEvent,
 		arg.EventID,
 		arg.PayerID,
 		arg.AmountPicodollars,

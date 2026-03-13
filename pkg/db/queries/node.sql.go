@@ -22,7 +22,7 @@ type InsertNodeInfoParams struct {
 }
 
 func (q *Queries) InsertNodeInfo(ctx context.Context, arg InsertNodeInfoParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, insertNodeInfo, arg.NodeID, arg.PublicKey)
+	result, err := q.exec(ctx, q.insertNodeInfoStmt, insertNodeInfo, arg.NodeID, arg.PublicKey)
 	if err != nil {
 		return 0, err
 	}
@@ -39,7 +39,7 @@ WHERE
 `
 
 func (q *Queries) SelectNodeInfo(ctx context.Context) (NodeInfo, error) {
-	row := q.db.QueryRowContext(ctx, selectNodeInfo)
+	row := q.queryRow(ctx, q.selectNodeInfoStmt, selectNodeInfo)
 	var i NodeInfo
 	err := row.Scan(&i.NodeID, &i.PublicKey, &i.SingletonID)
 	return i, err

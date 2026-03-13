@@ -7,6 +7,7 @@ package queries
 import (
 	"context"
 	"database/sql"
+	"fmt"
 )
 
 type DBTX interface {
@@ -20,12 +21,778 @@ func New(db DBTX) *Queries {
 	return &Queries{db: db}
 }
 
+func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
+	q := Queries{db: db}
+	var err error
+	if q.advisoryLockWithKeyStmt, err = db.PrepareContext(ctx, advisoryLockWithKey); err != nil {
+		return nil, fmt.Errorf("error preparing query AdvisoryLockWithKey: %w", err)
+	}
+	if q.buildPayerReportStmt, err = db.PrepareContext(ctx, buildPayerReport); err != nil {
+		return nil, fmt.Errorf("error preparing query BuildPayerReport: %w", err)
+	}
+	if q.bulkDeleteStagedOriginatorEnvelopesStmt, err = db.PrepareContext(ctx, bulkDeleteStagedOriginatorEnvelopes); err != nil {
+		return nil, fmt.Errorf("error preparing query BulkDeleteStagedOriginatorEnvelopes: %w", err)
+	}
+	if q.bulkFindOrCreatePayersStmt, err = db.PrepareContext(ctx, bulkFindOrCreatePayers); err != nil {
+		return nil, fmt.Errorf("error preparing query BulkFindOrCreatePayers: %w", err)
+	}
+	if q.clearUnsettledUsageStmt, err = db.PrepareContext(ctx, clearUnsettledUsage); err != nil {
+		return nil, fmt.Errorf("error preparing query ClearUnsettledUsage: %w", err)
+	}
+	if q.countExpiredEnvelopesStmt, err = db.PrepareContext(ctx, countExpiredEnvelopes); err != nil {
+		return nil, fmt.Errorf("error preparing query CountExpiredEnvelopes: %w", err)
+	}
+	if q.deleteAvailableNonceStmt, err = db.PrepareContext(ctx, deleteAvailableNonce); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteAvailableNonce: %w", err)
+	}
+	if q.deleteMigrationDeadLetterBoxStmt, err = db.PrepareContext(ctx, deleteMigrationDeadLetterBox); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteMigrationDeadLetterBox: %w", err)
+	}
+	if q.deleteObsoleteNoncesStmt, err = db.PrepareContext(ctx, deleteObsoleteNonces); err != nil {
+		return nil, fmt.Errorf("error preparing query DeleteObsoleteNonces: %w", err)
+	}
+	if q.ensureGatewayPartsStmt, err = db.PrepareContext(ctx, ensureGatewayParts); err != nil {
+		return nil, fmt.Errorf("error preparing query EnsureGatewayParts: %w", err)
+	}
+	if q.fetchPayerReportStmt, err = db.PrepareContext(ctx, fetchPayerReport); err != nil {
+		return nil, fmt.Errorf("error preparing query FetchPayerReport: %w", err)
+	}
+	if q.fetchPayerReportLockedStmt, err = db.PrepareContext(ctx, fetchPayerReportLocked); err != nil {
+		return nil, fmt.Errorf("error preparing query FetchPayerReportLocked: %w", err)
+	}
+	if q.fetchPayerReportsStmt, err = db.PrepareContext(ctx, fetchPayerReports); err != nil {
+		return nil, fmt.Errorf("error preparing query FetchPayerReports: %w", err)
+	}
+	if q.fillNonceSequenceStmt, err = db.PrepareContext(ctx, fillNonceSequence); err != nil {
+		return nil, fmt.Errorf("error preparing query FillNonceSequence: %w", err)
+	}
+	if q.findOrCreatePayerStmt, err = db.PrepareContext(ctx, findOrCreatePayer); err != nil {
+		return nil, fmt.Errorf("error preparing query FindOrCreatePayer: %w", err)
+	}
+	if q.getAddressLogsStmt, err = db.PrepareContext(ctx, getAddressLogs); err != nil {
+		return nil, fmt.Errorf("error preparing query GetAddressLogs: %w", err)
+	}
+	if q.getGatewayEnvelopeByIDStmt, err = db.PrepareContext(ctx, getGatewayEnvelopeByID); err != nil {
+		return nil, fmt.Errorf("error preparing query GetGatewayEnvelopeByID: %w", err)
+	}
+	if q.getLastEventStmt, err = db.PrepareContext(ctx, getLastEvent); err != nil {
+		return nil, fmt.Errorf("error preparing query GetLastEvent: %w", err)
+	}
+	if q.getLastSequenceIDForOriginatorMinuteStmt, err = db.PrepareContext(ctx, getLastSequenceIDForOriginatorMinute); err != nil {
+		return nil, fmt.Errorf("error preparing query GetLastSequenceIDForOriginatorMinute: %w", err)
+	}
+	if q.getLatestBlockStmt, err = db.PrepareContext(ctx, getLatestBlock); err != nil {
+		return nil, fmt.Errorf("error preparing query GetLatestBlock: %w", err)
+	}
+	if q.getLatestSequenceIdStmt, err = db.PrepareContext(ctx, getLatestSequenceId); err != nil {
+		return nil, fmt.Errorf("error preparing query GetLatestSequenceId: %w", err)
+	}
+	if q.getMigrationProgressStmt, err = db.PrepareContext(ctx, getMigrationProgress); err != nil {
+		return nil, fmt.Errorf("error preparing query GetMigrationProgress: %w", err)
+	}
+	if q.getNextAvailableNonceStmt, err = db.PrepareContext(ctx, getNextAvailableNonce); err != nil {
+		return nil, fmt.Errorf("error preparing query GetNextAvailableNonce: %w", err)
+	}
+	if q.getPayerBalanceStmt, err = db.PrepareContext(ctx, getPayerBalance); err != nil {
+		return nil, fmt.Errorf("error preparing query GetPayerBalance: %w", err)
+	}
+	if q.getPayerByAddressStmt, err = db.PrepareContext(ctx, getPayerByAddress); err != nil {
+		return nil, fmt.Errorf("error preparing query GetPayerByAddress: %w", err)
+	}
+	if q.getPayerInfoReportStmt, err = db.PrepareContext(ctx, getPayerInfoReport); err != nil {
+		return nil, fmt.Errorf("error preparing query GetPayerInfoReport: %w", err)
+	}
+	if q.getPayerUnsettledUsageStmt, err = db.PrepareContext(ctx, getPayerUnsettledUsage); err != nil {
+		return nil, fmt.Errorf("error preparing query GetPayerUnsettledUsage: %w", err)
+	}
+	if q.getPrunableCeilingStmt, err = db.PrepareContext(ctx, getPrunableCeiling); err != nil {
+		return nil, fmt.Errorf("error preparing query GetPrunableCeiling: %w", err)
+	}
+	if q.getRecentOriginatorCongestionStmt, err = db.PrepareContext(ctx, getRecentOriginatorCongestion); err != nil {
+		return nil, fmt.Errorf("error preparing query GetRecentOriginatorCongestion: %w", err)
+	}
+	if q.getRetryableMigrationDeadLetterBoxesStmt, err = db.PrepareContext(ctx, getRetryableMigrationDeadLetterBoxes); err != nil {
+		return nil, fmt.Errorf("error preparing query GetRetryableMigrationDeadLetterBoxes: %w", err)
+	}
+	if q.getSecondNewestMinuteStmt, err = db.PrepareContext(ctx, getSecondNewestMinute); err != nil {
+		return nil, fmt.Errorf("error preparing query GetSecondNewestMinute: %w", err)
+	}
+	if q.incrementOriginatorCongestionStmt, err = db.PrepareContext(ctx, incrementOriginatorCongestion); err != nil {
+		return nil, fmt.Errorf("error preparing query IncrementOriginatorCongestion: %w", err)
+	}
+	if q.incrementUnsettledUsageStmt, err = db.PrepareContext(ctx, incrementUnsettledUsage); err != nil {
+		return nil, fmt.Errorf("error preparing query IncrementUnsettledUsage: %w", err)
+	}
+	if q.insertAddressLogStmt, err = db.PrepareContext(ctx, insertAddressLog); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertAddressLog: %w", err)
+	}
+	if q.insertAddressLogsBatchStmt, err = db.PrepareContext(ctx, insertAddressLogsBatch); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertAddressLogsBatch: %w", err)
+	}
+	if q.insertGatewayEnvelopeStmt, err = db.PrepareContext(ctx, insertGatewayEnvelope); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertGatewayEnvelope: %w", err)
+	}
+	if q.insertGatewayEnvelopeBatchV2Stmt, err = db.PrepareContext(ctx, insertGatewayEnvelopeBatchV2); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertGatewayEnvelopeBatchV2: %w", err)
+	}
+	if q.insertMigrationDeadLetterBoxStmt, err = db.PrepareContext(ctx, insertMigrationDeadLetterBox); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertMigrationDeadLetterBox: %w", err)
+	}
+	if q.insertNodeInfoStmt, err = db.PrepareContext(ctx, insertNodeInfo); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertNodeInfo: %w", err)
+	}
+	if q.insertOrIgnorePayerReportStmt, err = db.PrepareContext(ctx, insertOrIgnorePayerReport); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertOrIgnorePayerReport: %w", err)
+	}
+	if q.insertOrIgnorePayerReportAttestationStmt, err = db.PrepareContext(ctx, insertOrIgnorePayerReportAttestation); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertOrIgnorePayerReportAttestation: %w", err)
+	}
+	if q.insertPayerLedgerEventStmt, err = db.PrepareContext(ctx, insertPayerLedgerEvent); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertPayerLedgerEvent: %w", err)
+	}
+	if q.insertSavePointStmt, err = db.PrepareContext(ctx, insertSavePoint); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertSavePoint: %w", err)
+	}
+	if q.insertSavePointReleaseStmt, err = db.PrepareContext(ctx, insertSavePointRelease); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertSavePointRelease: %w", err)
+	}
+	if q.insertSavePointRollbackStmt, err = db.PrepareContext(ctx, insertSavePointRollback); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertSavePointRollback: %w", err)
+	}
+	if q.insertStagedOriginatorEnvelopeStmt, err = db.PrepareContext(ctx, insertStagedOriginatorEnvelope); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertStagedOriginatorEnvelope: %w", err)
+	}
+	if q.insertStagedOriginatorEnvelopeBatchStmt, err = db.PrepareContext(ctx, insertStagedOriginatorEnvelopeBatch); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertStagedOriginatorEnvelopeBatch: %w", err)
+	}
+	if q.makeBlobOriginatorPartStmt, err = db.PrepareContext(ctx, makeBlobOriginatorPart); err != nil {
+		return nil, fmt.Errorf("error preparing query MakeBlobOriginatorPart: %w", err)
+	}
+	if q.makeBlobSeqBandStmt, err = db.PrepareContext(ctx, makeBlobSeqBand); err != nil {
+		return nil, fmt.Errorf("error preparing query MakeBlobSeqBand: %w", err)
+	}
+	if q.makeMetaOriginatorPartStmt, err = db.PrepareContext(ctx, makeMetaOriginatorPart); err != nil {
+		return nil, fmt.Errorf("error preparing query MakeMetaOriginatorPart: %w", err)
+	}
+	if q.makeMetaSeqBandStmt, err = db.PrepareContext(ctx, makeMetaSeqBand); err != nil {
+		return nil, fmt.Errorf("error preparing query MakeMetaSeqBand: %w", err)
+	}
+	if q.revokeAddressFromLogStmt, err = db.PrepareContext(ctx, revokeAddressFromLog); err != nil {
+		return nil, fmt.Errorf("error preparing query RevokeAddressFromLog: %w", err)
+	}
+	if q.revokeAddressFromLogBatchStmt, err = db.PrepareContext(ctx, revokeAddressFromLogBatch); err != nil {
+		return nil, fmt.Errorf("error preparing query RevokeAddressFromLogBatch: %w", err)
+	}
+	if q.selectAndLockStagedEnvelopesStmt, err = db.PrepareContext(ctx, selectAndLockStagedEnvelopes); err != nil {
+		return nil, fmt.Errorf("error preparing query SelectAndLockStagedEnvelopes: %w", err)
+	}
+	if q.selectGatewayEnvelopesByOriginatorsStmt, err = db.PrepareContext(ctx, selectGatewayEnvelopesByOriginators); err != nil {
+		return nil, fmt.Errorf("error preparing query SelectGatewayEnvelopesByOriginators: %w", err)
+	}
+	if q.selectGatewayEnvelopesByPerTopicCursorsStmt, err = db.PrepareContext(ctx, selectGatewayEnvelopesByPerTopicCursors); err != nil {
+		return nil, fmt.Errorf("error preparing query SelectGatewayEnvelopesByPerTopicCursors: %w", err)
+	}
+	if q.selectGatewayEnvelopesBySingleOriginatorStmt, err = db.PrepareContext(ctx, selectGatewayEnvelopesBySingleOriginator); err != nil {
+		return nil, fmt.Errorf("error preparing query SelectGatewayEnvelopesBySingleOriginator: %w", err)
+	}
+	if q.selectGatewayEnvelopesByTopicsStmt, err = db.PrepareContext(ctx, selectGatewayEnvelopesByTopics); err != nil {
+		return nil, fmt.Errorf("error preparing query SelectGatewayEnvelopesByTopics: %w", err)
+	}
+	if q.selectGatewayEnvelopesUnfilteredStmt, err = db.PrepareContext(ctx, selectGatewayEnvelopesUnfiltered); err != nil {
+		return nil, fmt.Errorf("error preparing query SelectGatewayEnvelopesUnfiltered: %w", err)
+	}
+	if q.selectNewestFromTopicsStmt, err = db.PrepareContext(ctx, selectNewestFromTopics); err != nil {
+		return nil, fmt.Errorf("error preparing query SelectNewestFromTopics: %w", err)
+	}
+	if q.selectNodeInfoStmt, err = db.PrepareContext(ctx, selectNodeInfo); err != nil {
+		return nil, fmt.Errorf("error preparing query SelectNodeInfo: %w", err)
+	}
+	if q.selectOriginatorNodeIDsStmt, err = db.PrepareContext(ctx, selectOriginatorNodeIDs); err != nil {
+		return nil, fmt.Errorf("error preparing query SelectOriginatorNodeIDs: %w", err)
+	}
+	if q.selectStagedOriginatorEnvelopesStmt, err = db.PrepareContext(ctx, selectStagedOriginatorEnvelopes); err != nil {
+		return nil, fmt.Errorf("error preparing query SelectStagedOriginatorEnvelopes: %w", err)
+	}
+	if q.selectVectorClockStmt, err = db.PrepareContext(ctx, selectVectorClock); err != nil {
+		return nil, fmt.Errorf("error preparing query SelectVectorClock: %w", err)
+	}
+	if q.setLatestBlockStmt, err = db.PrepareContext(ctx, setLatestBlock); err != nil {
+		return nil, fmt.Errorf("error preparing query SetLatestBlock: %w", err)
+	}
+	if q.setLocalWorkMemStmt, err = db.PrepareContext(ctx, setLocalWorkMem); err != nil {
+		return nil, fmt.Errorf("error preparing query SetLocalWorkMem: %w", err)
+	}
+	if q.setReportAttestationStatusStmt, err = db.PrepareContext(ctx, setReportAttestationStatus); err != nil {
+		return nil, fmt.Errorf("error preparing query SetReportAttestationStatus: %w", err)
+	}
+	if q.setReportSubmissionStatusStmt, err = db.PrepareContext(ctx, setReportSubmissionStatus); err != nil {
+		return nil, fmt.Errorf("error preparing query SetReportSubmissionStatus: %w", err)
+	}
+	if q.setReportSubmittedStmt, err = db.PrepareContext(ctx, setReportSubmitted); err != nil {
+		return nil, fmt.Errorf("error preparing query SetReportSubmitted: %w", err)
+	}
+	if q.sumOriginatorCongestionStmt, err = db.PrepareContext(ctx, sumOriginatorCongestion); err != nil {
+		return nil, fmt.Errorf("error preparing query SumOriginatorCongestion: %w", err)
+	}
+	if q.tryAdvisoryLockWithKeyStmt, err = db.PrepareContext(ctx, tryAdvisoryLockWithKey); err != nil {
+		return nil, fmt.Errorf("error preparing query TryAdvisoryLockWithKey: %w", err)
+	}
+	if q.updateMigrationProgressStmt, err = db.PrepareContext(ctx, updateMigrationProgress); err != nil {
+		return nil, fmt.Errorf("error preparing query UpdateMigrationProgress: %w", err)
+	}
+	return &q, nil
+}
+
+func (q *Queries) Close() error {
+	var err error
+	if q.advisoryLockWithKeyStmt != nil {
+		if cerr := q.advisoryLockWithKeyStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing advisoryLockWithKeyStmt: %w", cerr)
+		}
+	}
+	if q.buildPayerReportStmt != nil {
+		if cerr := q.buildPayerReportStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing buildPayerReportStmt: %w", cerr)
+		}
+	}
+	if q.bulkDeleteStagedOriginatorEnvelopesStmt != nil {
+		if cerr := q.bulkDeleteStagedOriginatorEnvelopesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing bulkDeleteStagedOriginatorEnvelopesStmt: %w", cerr)
+		}
+	}
+	if q.bulkFindOrCreatePayersStmt != nil {
+		if cerr := q.bulkFindOrCreatePayersStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing bulkFindOrCreatePayersStmt: %w", cerr)
+		}
+	}
+	if q.clearUnsettledUsageStmt != nil {
+		if cerr := q.clearUnsettledUsageStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing clearUnsettledUsageStmt: %w", cerr)
+		}
+	}
+	if q.countExpiredEnvelopesStmt != nil {
+		if cerr := q.countExpiredEnvelopesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing countExpiredEnvelopesStmt: %w", cerr)
+		}
+	}
+	if q.deleteAvailableNonceStmt != nil {
+		if cerr := q.deleteAvailableNonceStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteAvailableNonceStmt: %w", cerr)
+		}
+	}
+	if q.deleteMigrationDeadLetterBoxStmt != nil {
+		if cerr := q.deleteMigrationDeadLetterBoxStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteMigrationDeadLetterBoxStmt: %w", cerr)
+		}
+	}
+	if q.deleteObsoleteNoncesStmt != nil {
+		if cerr := q.deleteObsoleteNoncesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing deleteObsoleteNoncesStmt: %w", cerr)
+		}
+	}
+	if q.ensureGatewayPartsStmt != nil {
+		if cerr := q.ensureGatewayPartsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing ensureGatewayPartsStmt: %w", cerr)
+		}
+	}
+	if q.fetchPayerReportStmt != nil {
+		if cerr := q.fetchPayerReportStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing fetchPayerReportStmt: %w", cerr)
+		}
+	}
+	if q.fetchPayerReportLockedStmt != nil {
+		if cerr := q.fetchPayerReportLockedStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing fetchPayerReportLockedStmt: %w", cerr)
+		}
+	}
+	if q.fetchPayerReportsStmt != nil {
+		if cerr := q.fetchPayerReportsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing fetchPayerReportsStmt: %w", cerr)
+		}
+	}
+	if q.fillNonceSequenceStmt != nil {
+		if cerr := q.fillNonceSequenceStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing fillNonceSequenceStmt: %w", cerr)
+		}
+	}
+	if q.findOrCreatePayerStmt != nil {
+		if cerr := q.findOrCreatePayerStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing findOrCreatePayerStmt: %w", cerr)
+		}
+	}
+	if q.getAddressLogsStmt != nil {
+		if cerr := q.getAddressLogsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getAddressLogsStmt: %w", cerr)
+		}
+	}
+	if q.getGatewayEnvelopeByIDStmt != nil {
+		if cerr := q.getGatewayEnvelopeByIDStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getGatewayEnvelopeByIDStmt: %w", cerr)
+		}
+	}
+	if q.getLastEventStmt != nil {
+		if cerr := q.getLastEventStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getLastEventStmt: %w", cerr)
+		}
+	}
+	if q.getLastSequenceIDForOriginatorMinuteStmt != nil {
+		if cerr := q.getLastSequenceIDForOriginatorMinuteStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getLastSequenceIDForOriginatorMinuteStmt: %w", cerr)
+		}
+	}
+	if q.getLatestBlockStmt != nil {
+		if cerr := q.getLatestBlockStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getLatestBlockStmt: %w", cerr)
+		}
+	}
+	if q.getLatestSequenceIdStmt != nil {
+		if cerr := q.getLatestSequenceIdStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getLatestSequenceIdStmt: %w", cerr)
+		}
+	}
+	if q.getMigrationProgressStmt != nil {
+		if cerr := q.getMigrationProgressStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getMigrationProgressStmt: %w", cerr)
+		}
+	}
+	if q.getNextAvailableNonceStmt != nil {
+		if cerr := q.getNextAvailableNonceStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getNextAvailableNonceStmt: %w", cerr)
+		}
+	}
+	if q.getPayerBalanceStmt != nil {
+		if cerr := q.getPayerBalanceStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getPayerBalanceStmt: %w", cerr)
+		}
+	}
+	if q.getPayerByAddressStmt != nil {
+		if cerr := q.getPayerByAddressStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getPayerByAddressStmt: %w", cerr)
+		}
+	}
+	if q.getPayerInfoReportStmt != nil {
+		if cerr := q.getPayerInfoReportStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getPayerInfoReportStmt: %w", cerr)
+		}
+	}
+	if q.getPayerUnsettledUsageStmt != nil {
+		if cerr := q.getPayerUnsettledUsageStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getPayerUnsettledUsageStmt: %w", cerr)
+		}
+	}
+	if q.getPrunableCeilingStmt != nil {
+		if cerr := q.getPrunableCeilingStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getPrunableCeilingStmt: %w", cerr)
+		}
+	}
+	if q.getRecentOriginatorCongestionStmt != nil {
+		if cerr := q.getRecentOriginatorCongestionStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getRecentOriginatorCongestionStmt: %w", cerr)
+		}
+	}
+	if q.getRetryableMigrationDeadLetterBoxesStmt != nil {
+		if cerr := q.getRetryableMigrationDeadLetterBoxesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getRetryableMigrationDeadLetterBoxesStmt: %w", cerr)
+		}
+	}
+	if q.getSecondNewestMinuteStmt != nil {
+		if cerr := q.getSecondNewestMinuteStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getSecondNewestMinuteStmt: %w", cerr)
+		}
+	}
+	if q.incrementOriginatorCongestionStmt != nil {
+		if cerr := q.incrementOriginatorCongestionStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing incrementOriginatorCongestionStmt: %w", cerr)
+		}
+	}
+	if q.incrementUnsettledUsageStmt != nil {
+		if cerr := q.incrementUnsettledUsageStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing incrementUnsettledUsageStmt: %w", cerr)
+		}
+	}
+	if q.insertAddressLogStmt != nil {
+		if cerr := q.insertAddressLogStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertAddressLogStmt: %w", cerr)
+		}
+	}
+	if q.insertAddressLogsBatchStmt != nil {
+		if cerr := q.insertAddressLogsBatchStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertAddressLogsBatchStmt: %w", cerr)
+		}
+	}
+	if q.insertGatewayEnvelopeStmt != nil {
+		if cerr := q.insertGatewayEnvelopeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertGatewayEnvelopeStmt: %w", cerr)
+		}
+	}
+	if q.insertGatewayEnvelopeBatchV2Stmt != nil {
+		if cerr := q.insertGatewayEnvelopeBatchV2Stmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertGatewayEnvelopeBatchV2Stmt: %w", cerr)
+		}
+	}
+	if q.insertMigrationDeadLetterBoxStmt != nil {
+		if cerr := q.insertMigrationDeadLetterBoxStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertMigrationDeadLetterBoxStmt: %w", cerr)
+		}
+	}
+	if q.insertNodeInfoStmt != nil {
+		if cerr := q.insertNodeInfoStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertNodeInfoStmt: %w", cerr)
+		}
+	}
+	if q.insertOrIgnorePayerReportStmt != nil {
+		if cerr := q.insertOrIgnorePayerReportStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertOrIgnorePayerReportStmt: %w", cerr)
+		}
+	}
+	if q.insertOrIgnorePayerReportAttestationStmt != nil {
+		if cerr := q.insertOrIgnorePayerReportAttestationStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertOrIgnorePayerReportAttestationStmt: %w", cerr)
+		}
+	}
+	if q.insertPayerLedgerEventStmt != nil {
+		if cerr := q.insertPayerLedgerEventStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertPayerLedgerEventStmt: %w", cerr)
+		}
+	}
+	if q.insertSavePointStmt != nil {
+		if cerr := q.insertSavePointStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertSavePointStmt: %w", cerr)
+		}
+	}
+	if q.insertSavePointReleaseStmt != nil {
+		if cerr := q.insertSavePointReleaseStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertSavePointReleaseStmt: %w", cerr)
+		}
+	}
+	if q.insertSavePointRollbackStmt != nil {
+		if cerr := q.insertSavePointRollbackStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertSavePointRollbackStmt: %w", cerr)
+		}
+	}
+	if q.insertStagedOriginatorEnvelopeStmt != nil {
+		if cerr := q.insertStagedOriginatorEnvelopeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertStagedOriginatorEnvelopeStmt: %w", cerr)
+		}
+	}
+	if q.insertStagedOriginatorEnvelopeBatchStmt != nil {
+		if cerr := q.insertStagedOriginatorEnvelopeBatchStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertStagedOriginatorEnvelopeBatchStmt: %w", cerr)
+		}
+	}
+	if q.makeBlobOriginatorPartStmt != nil {
+		if cerr := q.makeBlobOriginatorPartStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing makeBlobOriginatorPartStmt: %w", cerr)
+		}
+	}
+	if q.makeBlobSeqBandStmt != nil {
+		if cerr := q.makeBlobSeqBandStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing makeBlobSeqBandStmt: %w", cerr)
+		}
+	}
+	if q.makeMetaOriginatorPartStmt != nil {
+		if cerr := q.makeMetaOriginatorPartStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing makeMetaOriginatorPartStmt: %w", cerr)
+		}
+	}
+	if q.makeMetaSeqBandStmt != nil {
+		if cerr := q.makeMetaSeqBandStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing makeMetaSeqBandStmt: %w", cerr)
+		}
+	}
+	if q.revokeAddressFromLogStmt != nil {
+		if cerr := q.revokeAddressFromLogStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing revokeAddressFromLogStmt: %w", cerr)
+		}
+	}
+	if q.revokeAddressFromLogBatchStmt != nil {
+		if cerr := q.revokeAddressFromLogBatchStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing revokeAddressFromLogBatchStmt: %w", cerr)
+		}
+	}
+	if q.selectAndLockStagedEnvelopesStmt != nil {
+		if cerr := q.selectAndLockStagedEnvelopesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing selectAndLockStagedEnvelopesStmt: %w", cerr)
+		}
+	}
+	if q.selectGatewayEnvelopesByOriginatorsStmt != nil {
+		if cerr := q.selectGatewayEnvelopesByOriginatorsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing selectGatewayEnvelopesByOriginatorsStmt: %w", cerr)
+		}
+	}
+	if q.selectGatewayEnvelopesByPerTopicCursorsStmt != nil {
+		if cerr := q.selectGatewayEnvelopesByPerTopicCursorsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing selectGatewayEnvelopesByPerTopicCursorsStmt: %w", cerr)
+		}
+	}
+	if q.selectGatewayEnvelopesBySingleOriginatorStmt != nil {
+		if cerr := q.selectGatewayEnvelopesBySingleOriginatorStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing selectGatewayEnvelopesBySingleOriginatorStmt: %w", cerr)
+		}
+	}
+	if q.selectGatewayEnvelopesByTopicsStmt != nil {
+		if cerr := q.selectGatewayEnvelopesByTopicsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing selectGatewayEnvelopesByTopicsStmt: %w", cerr)
+		}
+	}
+	if q.selectGatewayEnvelopesUnfilteredStmt != nil {
+		if cerr := q.selectGatewayEnvelopesUnfilteredStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing selectGatewayEnvelopesUnfilteredStmt: %w", cerr)
+		}
+	}
+	if q.selectNewestFromTopicsStmt != nil {
+		if cerr := q.selectNewestFromTopicsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing selectNewestFromTopicsStmt: %w", cerr)
+		}
+	}
+	if q.selectNodeInfoStmt != nil {
+		if cerr := q.selectNodeInfoStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing selectNodeInfoStmt: %w", cerr)
+		}
+	}
+	if q.selectOriginatorNodeIDsStmt != nil {
+		if cerr := q.selectOriginatorNodeIDsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing selectOriginatorNodeIDsStmt: %w", cerr)
+		}
+	}
+	if q.selectStagedOriginatorEnvelopesStmt != nil {
+		if cerr := q.selectStagedOriginatorEnvelopesStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing selectStagedOriginatorEnvelopesStmt: %w", cerr)
+		}
+	}
+	if q.selectVectorClockStmt != nil {
+		if cerr := q.selectVectorClockStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing selectVectorClockStmt: %w", cerr)
+		}
+	}
+	if q.setLatestBlockStmt != nil {
+		if cerr := q.setLatestBlockStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing setLatestBlockStmt: %w", cerr)
+		}
+	}
+	if q.setLocalWorkMemStmt != nil {
+		if cerr := q.setLocalWorkMemStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing setLocalWorkMemStmt: %w", cerr)
+		}
+	}
+	if q.setReportAttestationStatusStmt != nil {
+		if cerr := q.setReportAttestationStatusStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing setReportAttestationStatusStmt: %w", cerr)
+		}
+	}
+	if q.setReportSubmissionStatusStmt != nil {
+		if cerr := q.setReportSubmissionStatusStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing setReportSubmissionStatusStmt: %w", cerr)
+		}
+	}
+	if q.setReportSubmittedStmt != nil {
+		if cerr := q.setReportSubmittedStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing setReportSubmittedStmt: %w", cerr)
+		}
+	}
+	if q.sumOriginatorCongestionStmt != nil {
+		if cerr := q.sumOriginatorCongestionStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing sumOriginatorCongestionStmt: %w", cerr)
+		}
+	}
+	if q.tryAdvisoryLockWithKeyStmt != nil {
+		if cerr := q.tryAdvisoryLockWithKeyStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing tryAdvisoryLockWithKeyStmt: %w", cerr)
+		}
+	}
+	if q.updateMigrationProgressStmt != nil {
+		if cerr := q.updateMigrationProgressStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing updateMigrationProgressStmt: %w", cerr)
+		}
+	}
+	return err
+}
+
+func (q *Queries) exec(ctx context.Context, stmt *sql.Stmt, query string, args ...interface{}) (sql.Result, error) {
+	switch {
+	case stmt != nil && q.tx != nil:
+		return q.tx.StmtContext(ctx, stmt).ExecContext(ctx, args...)
+	case stmt != nil:
+		return stmt.ExecContext(ctx, args...)
+	default:
+		return q.db.ExecContext(ctx, query, args...)
+	}
+}
+
+func (q *Queries) query(ctx context.Context, stmt *sql.Stmt, query string, args ...interface{}) (*sql.Rows, error) {
+	switch {
+	case stmt != nil && q.tx != nil:
+		return q.tx.StmtContext(ctx, stmt).QueryContext(ctx, args...)
+	case stmt != nil:
+		return stmt.QueryContext(ctx, args...)
+	default:
+		return q.db.QueryContext(ctx, query, args...)
+	}
+}
+
+func (q *Queries) queryRow(ctx context.Context, stmt *sql.Stmt, query string, args ...interface{}) *sql.Row {
+	switch {
+	case stmt != nil && q.tx != nil:
+		return q.tx.StmtContext(ctx, stmt).QueryRowContext(ctx, args...)
+	case stmt != nil:
+		return stmt.QueryRowContext(ctx, args...)
+	default:
+		return q.db.QueryRowContext(ctx, query, args...)
+	}
+}
+
 type Queries struct {
-	db DBTX
+	db                                           DBTX
+	tx                                           *sql.Tx
+	advisoryLockWithKeyStmt                      *sql.Stmt
+	buildPayerReportStmt                         *sql.Stmt
+	bulkDeleteStagedOriginatorEnvelopesStmt      *sql.Stmt
+	bulkFindOrCreatePayersStmt                   *sql.Stmt
+	clearUnsettledUsageStmt                      *sql.Stmt
+	countExpiredEnvelopesStmt                    *sql.Stmt
+	deleteAvailableNonceStmt                     *sql.Stmt
+	deleteMigrationDeadLetterBoxStmt             *sql.Stmt
+	deleteObsoleteNoncesStmt                     *sql.Stmt
+	ensureGatewayPartsStmt                       *sql.Stmt
+	fetchPayerReportStmt                         *sql.Stmt
+	fetchPayerReportLockedStmt                   *sql.Stmt
+	fetchPayerReportsStmt                        *sql.Stmt
+	fillNonceSequenceStmt                        *sql.Stmt
+	findOrCreatePayerStmt                        *sql.Stmt
+	getAddressLogsStmt                           *sql.Stmt
+	getGatewayEnvelopeByIDStmt                   *sql.Stmt
+	getLastEventStmt                             *sql.Stmt
+	getLastSequenceIDForOriginatorMinuteStmt     *sql.Stmt
+	getLatestBlockStmt                           *sql.Stmt
+	getLatestSequenceIdStmt                      *sql.Stmt
+	getMigrationProgressStmt                     *sql.Stmt
+	getNextAvailableNonceStmt                    *sql.Stmt
+	getPayerBalanceStmt                          *sql.Stmt
+	getPayerByAddressStmt                        *sql.Stmt
+	getPayerInfoReportStmt                       *sql.Stmt
+	getPayerUnsettledUsageStmt                   *sql.Stmt
+	getPrunableCeilingStmt                       *sql.Stmt
+	getRecentOriginatorCongestionStmt            *sql.Stmt
+	getRetryableMigrationDeadLetterBoxesStmt     *sql.Stmt
+	getSecondNewestMinuteStmt                    *sql.Stmt
+	incrementOriginatorCongestionStmt            *sql.Stmt
+	incrementUnsettledUsageStmt                  *sql.Stmt
+	insertAddressLogStmt                         *sql.Stmt
+	insertAddressLogsBatchStmt                   *sql.Stmt
+	insertGatewayEnvelopeStmt                    *sql.Stmt
+	insertGatewayEnvelopeBatchV2Stmt             *sql.Stmt
+	insertMigrationDeadLetterBoxStmt             *sql.Stmt
+	insertNodeInfoStmt                           *sql.Stmt
+	insertOrIgnorePayerReportStmt                *sql.Stmt
+	insertOrIgnorePayerReportAttestationStmt     *sql.Stmt
+	insertPayerLedgerEventStmt                   *sql.Stmt
+	insertSavePointStmt                          *sql.Stmt
+	insertSavePointReleaseStmt                   *sql.Stmt
+	insertSavePointRollbackStmt                  *sql.Stmt
+	insertStagedOriginatorEnvelopeStmt           *sql.Stmt
+	insertStagedOriginatorEnvelopeBatchStmt      *sql.Stmt
+	makeBlobOriginatorPartStmt                   *sql.Stmt
+	makeBlobSeqBandStmt                          *sql.Stmt
+	makeMetaOriginatorPartStmt                   *sql.Stmt
+	makeMetaSeqBandStmt                          *sql.Stmt
+	revokeAddressFromLogStmt                     *sql.Stmt
+	revokeAddressFromLogBatchStmt                *sql.Stmt
+	selectAndLockStagedEnvelopesStmt             *sql.Stmt
+	selectGatewayEnvelopesByOriginatorsStmt      *sql.Stmt
+	selectGatewayEnvelopesByPerTopicCursorsStmt  *sql.Stmt
+	selectGatewayEnvelopesBySingleOriginatorStmt *sql.Stmt
+	selectGatewayEnvelopesByTopicsStmt           *sql.Stmt
+	selectGatewayEnvelopesUnfilteredStmt         *sql.Stmt
+	selectNewestFromTopicsStmt                   *sql.Stmt
+	selectNodeInfoStmt                           *sql.Stmt
+	selectOriginatorNodeIDsStmt                  *sql.Stmt
+	selectStagedOriginatorEnvelopesStmt          *sql.Stmt
+	selectVectorClockStmt                        *sql.Stmt
+	setLatestBlockStmt                           *sql.Stmt
+	setLocalWorkMemStmt                          *sql.Stmt
+	setReportAttestationStatusStmt               *sql.Stmt
+	setReportSubmissionStatusStmt                *sql.Stmt
+	setReportSubmittedStmt                       *sql.Stmt
+	sumOriginatorCongestionStmt                  *sql.Stmt
+	tryAdvisoryLockWithKeyStmt                   *sql.Stmt
+	updateMigrationProgressStmt                  *sql.Stmt
 }
 
 func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 	return &Queries{
-		db: tx,
+		db:                                           tx,
+		tx:                                           tx,
+		advisoryLockWithKeyStmt:                      q.advisoryLockWithKeyStmt,
+		buildPayerReportStmt:                         q.buildPayerReportStmt,
+		bulkDeleteStagedOriginatorEnvelopesStmt:      q.bulkDeleteStagedOriginatorEnvelopesStmt,
+		bulkFindOrCreatePayersStmt:                   q.bulkFindOrCreatePayersStmt,
+		clearUnsettledUsageStmt:                      q.clearUnsettledUsageStmt,
+		countExpiredEnvelopesStmt:                    q.countExpiredEnvelopesStmt,
+		deleteAvailableNonceStmt:                     q.deleteAvailableNonceStmt,
+		deleteMigrationDeadLetterBoxStmt:             q.deleteMigrationDeadLetterBoxStmt,
+		deleteObsoleteNoncesStmt:                     q.deleteObsoleteNoncesStmt,
+		ensureGatewayPartsStmt:                       q.ensureGatewayPartsStmt,
+		fetchPayerReportStmt:                         q.fetchPayerReportStmt,
+		fetchPayerReportLockedStmt:                   q.fetchPayerReportLockedStmt,
+		fetchPayerReportsStmt:                        q.fetchPayerReportsStmt,
+		fillNonceSequenceStmt:                        q.fillNonceSequenceStmt,
+		findOrCreatePayerStmt:                        q.findOrCreatePayerStmt,
+		getAddressLogsStmt:                           q.getAddressLogsStmt,
+		getGatewayEnvelopeByIDStmt:                   q.getGatewayEnvelopeByIDStmt,
+		getLastEventStmt:                             q.getLastEventStmt,
+		getLastSequenceIDForOriginatorMinuteStmt:     q.getLastSequenceIDForOriginatorMinuteStmt,
+		getLatestBlockStmt:                           q.getLatestBlockStmt,
+		getLatestSequenceIdStmt:                      q.getLatestSequenceIdStmt,
+		getMigrationProgressStmt:                     q.getMigrationProgressStmt,
+		getNextAvailableNonceStmt:                    q.getNextAvailableNonceStmt,
+		getPayerBalanceStmt:                          q.getPayerBalanceStmt,
+		getPayerByAddressStmt:                        q.getPayerByAddressStmt,
+		getPayerInfoReportStmt:                       q.getPayerInfoReportStmt,
+		getPayerUnsettledUsageStmt:                   q.getPayerUnsettledUsageStmt,
+		getPrunableCeilingStmt:                       q.getPrunableCeilingStmt,
+		getRecentOriginatorCongestionStmt:            q.getRecentOriginatorCongestionStmt,
+		getRetryableMigrationDeadLetterBoxesStmt:     q.getRetryableMigrationDeadLetterBoxesStmt,
+		getSecondNewestMinuteStmt:                    q.getSecondNewestMinuteStmt,
+		incrementOriginatorCongestionStmt:            q.incrementOriginatorCongestionStmt,
+		incrementUnsettledUsageStmt:                  q.incrementUnsettledUsageStmt,
+		insertAddressLogStmt:                         q.insertAddressLogStmt,
+		insertAddressLogsBatchStmt:                   q.insertAddressLogsBatchStmt,
+		insertGatewayEnvelopeStmt:                    q.insertGatewayEnvelopeStmt,
+		insertGatewayEnvelopeBatchV2Stmt:             q.insertGatewayEnvelopeBatchV2Stmt,
+		insertMigrationDeadLetterBoxStmt:             q.insertMigrationDeadLetterBoxStmt,
+		insertNodeInfoStmt:                           q.insertNodeInfoStmt,
+		insertOrIgnorePayerReportStmt:                q.insertOrIgnorePayerReportStmt,
+		insertOrIgnorePayerReportAttestationStmt:     q.insertOrIgnorePayerReportAttestationStmt,
+		insertPayerLedgerEventStmt:                   q.insertPayerLedgerEventStmt,
+		insertSavePointStmt:                          q.insertSavePointStmt,
+		insertSavePointReleaseStmt:                   q.insertSavePointReleaseStmt,
+		insertSavePointRollbackStmt:                  q.insertSavePointRollbackStmt,
+		insertStagedOriginatorEnvelopeStmt:           q.insertStagedOriginatorEnvelopeStmt,
+		insertStagedOriginatorEnvelopeBatchStmt:      q.insertStagedOriginatorEnvelopeBatchStmt,
+		makeBlobOriginatorPartStmt:                   q.makeBlobOriginatorPartStmt,
+		makeBlobSeqBandStmt:                          q.makeBlobSeqBandStmt,
+		makeMetaOriginatorPartStmt:                   q.makeMetaOriginatorPartStmt,
+		makeMetaSeqBandStmt:                          q.makeMetaSeqBandStmt,
+		revokeAddressFromLogStmt:                     q.revokeAddressFromLogStmt,
+		revokeAddressFromLogBatchStmt:                q.revokeAddressFromLogBatchStmt,
+		selectAndLockStagedEnvelopesStmt:             q.selectAndLockStagedEnvelopesStmt,
+		selectGatewayEnvelopesByOriginatorsStmt:      q.selectGatewayEnvelopesByOriginatorsStmt,
+		selectGatewayEnvelopesByPerTopicCursorsStmt:  q.selectGatewayEnvelopesByPerTopicCursorsStmt,
+		selectGatewayEnvelopesBySingleOriginatorStmt: q.selectGatewayEnvelopesBySingleOriginatorStmt,
+		selectGatewayEnvelopesByTopicsStmt:           q.selectGatewayEnvelopesByTopicsStmt,
+		selectGatewayEnvelopesUnfilteredStmt:         q.selectGatewayEnvelopesUnfilteredStmt,
+		selectNewestFromTopicsStmt:                   q.selectNewestFromTopicsStmt,
+		selectNodeInfoStmt:                           q.selectNodeInfoStmt,
+		selectOriginatorNodeIDsStmt:                  q.selectOriginatorNodeIDsStmt,
+		selectStagedOriginatorEnvelopesStmt:          q.selectStagedOriginatorEnvelopesStmt,
+		selectVectorClockStmt:                        q.selectVectorClockStmt,
+		setLatestBlockStmt:                           q.setLatestBlockStmt,
+		setLocalWorkMemStmt:                          q.setLocalWorkMemStmt,
+		setReportAttestationStatusStmt:               q.setReportAttestationStatusStmt,
+		setReportSubmissionStatusStmt:                q.setReportSubmissionStatusStmt,
+		setReportSubmittedStmt:                       q.setReportSubmittedStmt,
+		sumOriginatorCongestionStmt:                  q.sumOriginatorCongestionStmt,
+		tryAdvisoryLockWithKeyStmt:                   q.tryAdvisoryLockWithKeyStmt,
+		updateMigrationProgressStmt:                  q.updateMigrationProgressStmt,
 	}
 }

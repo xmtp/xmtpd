@@ -17,7 +17,7 @@ DELETE FROM staged_originator_envelopes WHERE id = ANY($1::BIGINT[])
 `
 
 func (q *Queries) BulkDeleteStagedOriginatorEnvelopes(ctx context.Context, ids []int64) (int64, error) {
-	result, err := q.db.ExecContext(ctx, bulkDeleteStagedOriginatorEnvelopes, pq.Array(ids))
+	result, err := q.exec(ctx, q.bulkDeleteStagedOriginatorEnvelopesStmt, bulkDeleteStagedOriginatorEnvelopes, pq.Array(ids))
 	if err != nil {
 		return 0, err
 	}
@@ -33,7 +33,7 @@ SELECT COALESCE((
 `
 
 func (q *Queries) GetLatestSequenceId(ctx context.Context, originatorNodeID int32) (int64, error) {
-	row := q.db.QueryRowContext(ctx, getLatestSequenceId, originatorNodeID)
+	row := q.queryRow(ctx, q.getLatestSequenceIdStmt, getLatestSequenceId, originatorNodeID)
 	var originator_sequence_id int64
 	err := row.Scan(&originator_sequence_id)
 	return originator_sequence_id, err
@@ -50,7 +50,7 @@ type InsertStagedOriginatorEnvelopeParams struct {
 }
 
 func (q *Queries) InsertStagedOriginatorEnvelope(ctx context.Context, arg InsertStagedOriginatorEnvelopeParams) (StagedOriginatorEnvelope, error) {
-	row := q.db.QueryRowContext(ctx, insertStagedOriginatorEnvelope, arg.Topic, arg.PayerEnvelope)
+	row := q.queryRow(ctx, q.insertStagedOriginatorEnvelopeStmt, insertStagedOriginatorEnvelope, arg.Topic, arg.PayerEnvelope)
 	var i StagedOriginatorEnvelope
 	err := row.Scan(
 		&i.ID,
@@ -86,7 +86,7 @@ type InsertStagedOriginatorEnvelopeBatchRow struct {
 }
 
 func (q *Queries) InsertStagedOriginatorEnvelopeBatch(ctx context.Context, arg InsertStagedOriginatorEnvelopeBatchParams) ([]InsertStagedOriginatorEnvelopeBatchRow, error) {
-	rows, err := q.db.QueryContext(ctx, insertStagedOriginatorEnvelopeBatch, pq.Array(arg.Topics), pq.Array(arg.PayerEnvelopes))
+	rows, err := q.query(ctx, q.insertStagedOriginatorEnvelopeBatchStmt, insertStagedOriginatorEnvelopeBatch, pq.Array(arg.Topics), pq.Array(arg.PayerEnvelopes))
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +122,7 @@ FOR UPDATE
 `
 
 func (q *Queries) SelectAndLockStagedEnvelopes(ctx context.Context, numRows int32) ([]StagedOriginatorEnvelope, error) {
-	rows, err := q.db.QueryContext(ctx, selectAndLockStagedEnvelopes, numRows)
+	rows, err := q.query(ctx, q.selectAndLockStagedEnvelopesStmt, selectAndLockStagedEnvelopes, numRows)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +156,7 @@ ORDER BY originator_node_id
 `
 
 func (q *Queries) SelectOriginatorNodeIDs(ctx context.Context) ([]int32, error) {
-	rows, err := q.db.QueryContext(ctx, selectOriginatorNodeIDs)
+	rows, err := q.query(ctx, q.selectOriginatorNodeIDsStmt, selectOriginatorNodeIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ type SelectStagedOriginatorEnvelopesParams struct {
 }
 
 func (q *Queries) SelectStagedOriginatorEnvelopes(ctx context.Context, arg SelectStagedOriginatorEnvelopesParams) ([]StagedOriginatorEnvelope, error) {
-	rows, err := q.db.QueryContext(ctx, selectStagedOriginatorEnvelopes, arg.LastSeenID, arg.NumRows)
+	rows, err := q.query(ctx, q.selectStagedOriginatorEnvelopesStmt, selectStagedOriginatorEnvelopes, arg.LastSeenID, arg.NumRows)
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +229,7 @@ ORDER BY originator_node_id
 `
 
 func (q *Queries) SelectVectorClock(ctx context.Context) ([]GatewayEnvelopesLatest, error) {
-	rows, err := q.db.QueryContext(ctx, selectVectorClock)
+	rows, err := q.query(ctx, q.selectVectorClockStmt, selectVectorClock)
 	if err != nil {
 		return nil, err
 	}

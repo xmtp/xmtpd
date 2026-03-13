@@ -4,7 +4,6 @@ package bench
 
 import (
 	"context"
-	"database/sql"
 	"log"
 	"sync/atomic"
 	"testing"
@@ -22,8 +21,7 @@ const (
 )
 
 // seedUsage creates payers and populates unsettled_usage.
-func seedUsage(ctx context.Context, db *sql.DB) {
-	q := queries.New(db)
+func seedUsage(ctx context.Context) {
 	usagePayerIDs = make([]int32, numUsagePayers)
 	usageOriginators = make([]int32, numUsageOriginators)
 
@@ -33,7 +31,7 @@ func seedUsage(ctx context.Context, db *sql.DB) {
 
 	for i := range numUsagePayers {
 		addr := utils.HexEncode(testutils.RandomBytes(20))
-		id, err := q.FindOrCreatePayer(ctx, addr)
+		id, err := usageQueries.FindOrCreatePayer(ctx, addr)
 		if err != nil {
 			log.Fatalf("seed usage payer: %v", err)
 		}
@@ -41,7 +39,7 @@ func seedUsage(ctx context.Context, db *sql.DB) {
 
 		for _, origID := range usageOriginators {
 			for minute := range int32(numUsageMinutes) {
-				err := q.IncrementUnsettledUsage(
+				err := usageQueries.IncrementUnsettledUsage(
 					ctx,
 					queries.IncrementUnsettledUsageParams{
 						PayerID:           id,
@@ -66,14 +64,13 @@ func seedUsage(ctx context.Context, db *sql.DB) {
 }
 
 func BenchmarkIncrementUnsettledUsage(b *testing.B) {
-	q := queries.New(usageDB)
 	payerID := usagePayerIDs[0]
 	origID := usageOriginators[0]
 	var counter atomic.Int32
 	counter.Store(100_000) // beyond seeded range
 	for b.Loop() {
 		minute := counter.Add(1)
-		err := q.IncrementUnsettledUsage(
+		err := usageQueries.IncrementUnsettledUsage(
 			benchCtx,
 			queries.IncrementUnsettledUsageParams{
 				PayerID:           payerID,

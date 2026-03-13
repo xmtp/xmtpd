@@ -2,6 +2,7 @@ package prune
 
 import (
 	"fmt"
+
 	"github.com/xmtp/xmtpd/pkg/utils"
 
 	"go.uber.org/zap"

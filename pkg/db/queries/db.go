@@ -108,6 +108,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getPrunableCeilingStmt, err = db.PrepareContext(ctx, getPrunableCeiling); err != nil {
 		return nil, fmt.Errorf("error preparing query GetPrunableCeiling: %w", err)
 	}
+	if q.getPrunableMetaPartitionsStmt, err = db.PrepareContext(ctx, getPrunableMetaPartitions); err != nil {
+		return nil, fmt.Errorf("error preparing query GetPrunableMetaPartitions: %w", err)
+	}
 	if q.getRecentOriginatorCongestionStmt, err = db.PrepareContext(ctx, getRecentOriginatorCongestion); err != nil {
 		return nil, fmt.Errorf("error preparing query GetRecentOriginatorCongestion: %w", err)
 	}
@@ -383,6 +386,11 @@ func (q *Queries) Close() error {
 	if q.getPrunableCeilingStmt != nil {
 		if cerr := q.getPrunableCeilingStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getPrunableCeilingStmt: %w", cerr)
+		}
+	}
+	if q.getPrunableMetaPartitionsStmt != nil {
+		if cerr := q.getPrunableMetaPartitionsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getPrunableMetaPartitionsStmt: %w", cerr)
 		}
 	}
 	if q.getRecentOriginatorCongestionStmt != nil {
@@ -672,6 +680,7 @@ type Queries struct {
 	getPayerInfoReportStmt                       *sql.Stmt
 	getPayerUnsettledUsageStmt                   *sql.Stmt
 	getPrunableCeilingStmt                       *sql.Stmt
+	getPrunableMetaPartitionsStmt                *sql.Stmt
 	getRecentOriginatorCongestionStmt            *sql.Stmt
 	getRetryableMigrationDeadLetterBoxesStmt     *sql.Stmt
 	getSecondNewestMinuteStmt                    *sql.Stmt
@@ -750,6 +759,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getPayerInfoReportStmt:                       q.getPayerInfoReportStmt,
 		getPayerUnsettledUsageStmt:                   q.getPayerUnsettledUsageStmt,
 		getPrunableCeilingStmt:                       q.getPrunableCeilingStmt,
+		getPrunableMetaPartitionsStmt:                q.getPrunableMetaPartitionsStmt,
 		getRecentOriginatorCongestionStmt:            q.getRecentOriginatorCongestionStmt,
 		getRetryableMigrationDeadLetterBoxesStmt:     q.getRetryableMigrationDeadLetterBoxesStmt,
 		getSecondNewestMinuteStmt:                    q.getSecondNewestMinuteStmt,

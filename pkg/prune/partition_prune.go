@@ -1,7 +1,6 @@
 package prune
 
 import (
-	"database/sql"
 	"fmt"
 	"strings"
 
@@ -45,21 +44,18 @@ func (e *Executor) DropPrunablePartitions() error {
 		return nil
 	}
 
-	tx, err := e.writerDB.BeginTx(ctx, &sql.TxOptions{})
-	if err != nil {
-		return fmt.Errorf("begin drop partition tx: %w", err)
-	}
-	defer func() {
-		_ = tx.Rollback()
-	}()
-
 	for _, p := range parts {
 		blobName, err := blobPartitionNameFromMeta(p.Tablename)
 		if err != nil {
+			e.logger.Error("derive blob partition from meta", zap.Error(err))
 			return fmt.Errorf("derive blob partition from meta %s: %w", p.Tablename, err)
 		}
 
-		if _, err := tx.ExecContext(ctx, constructDropQuery(p.Tablename, blobName)); err != nil {
+		if _, err := e.writerDB.ExecContext(
+			ctx,
+			constructDropQuery(p.Tablename, blobName),
+		); err != nil {
+			e.logger.Error("could not drop partition pair", zap.Error(err))
 			return fmt.Errorf("drop partition pair (%s, %s): %w", p.Tablename, blobName, err)
 		}
 
@@ -68,10 +64,6 @@ func (e *Executor) DropPrunablePartitions() error {
 			zap.String("blob_table", blobName),
 			zap.String("meta_table", p.Tablename),
 		)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit drop partition tx: %w", err)
 	}
 
 	return nil

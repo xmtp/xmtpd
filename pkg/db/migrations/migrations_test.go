@@ -407,7 +407,6 @@ func checkMetaPartitionSelect(t *testing.T, database *sql.DB) {
 	functionExists(t, database, "get_prunable_meta_partitions")
 }
 
-
 // --- Data verification after populateDatabase ---
 
 func checkDataVerification(t *testing.T, database *sql.DB) {

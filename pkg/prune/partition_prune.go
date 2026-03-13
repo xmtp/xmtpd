@@ -2,22 +2,20 @@ package prune
 
 import (
 	"fmt"
-	"strings"
+	"github.com/xmtp/xmtpd/pkg/utils"
 
 	"go.uber.org/zap"
 
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 )
 
-func blobPartitionNameFromMeta(metaTable string) (string, error) {
-	const metaPrefix = "gateway_envelopes_meta_"
-	const blobPrefix = "gateway_envelope_blobs_"
-
-	if !strings.HasPrefix(metaTable, metaPrefix) {
-		return "", fmt.Errorf("unexpected meta partition name: %s", metaTable)
-	}
-
-	return blobPrefix + strings.TrimPrefix(metaTable, metaPrefix), nil
+func constructBlobName(row queries.GetPrunableMetaPartitionsRow) string {
+	return fmt.Sprintf(
+		"gateway_envelope_blobs_o%d_s%d_%d",
+		row.OriginatorNodeID,
+		row.BandStart,
+		row.BandEnd,
+	)
 }
 
 func (e *Executor) DropPrunablePartitions() error {
@@ -44,25 +42,35 @@ func (e *Executor) DropPrunablePartitions() error {
 		return nil
 	}
 
-	for _, p := range parts {
-		blobName, err := blobPartitionNameFromMeta(p.Tablename)
-		if err != nil {
-			e.logger.Error("derive blob partition from meta", zap.Error(err))
-			return fmt.Errorf("derive blob partition from meta %s: %w", p.Tablename, err)
+	for _, droppableMetaRow := range parts {
+		if droppableMetaRow.OriginatorNodeID == 0 || droppableMetaRow.OriginatorNodeID == 1 {
+			e.logger.Info(
+				"refusing to drop this partition in this version of XMTPD",
+				zap.String("partition", droppableMetaRow.Tablename),
+				utils.OriginatorIDField(uint32(droppableMetaRow.OriginatorNodeID)),
+			)
+			continue
 		}
+
+		blobName := constructBlobName(droppableMetaRow)
 
 		if _, err := e.writerDB.ExecContext(
 			ctx,
-			constructDropQuery(p.Tablename, blobName),
+			constructDropQuery(droppableMetaRow.Tablename, blobName),
 		); err != nil {
 			e.logger.Error("could not drop partition pair", zap.Error(err))
-			return fmt.Errorf("drop partition pair (%s, %s): %w", p.Tablename, blobName, err)
+			return fmt.Errorf(
+				"drop partition pair (%s, %s): %w",
+				droppableMetaRow.Tablename,
+				blobName,
+				err,
+			)
 		}
 
 		e.logger.Info(
 			"dropped partition pair",
 			zap.String("blob_table", blobName),
-			zap.String("meta_table", p.Tablename),
+			zap.String("meta_table", droppableMetaRow.Tablename),
 		)
 	}
 

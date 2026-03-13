@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/stress"
 	"go.uber.org/zap"
@@ -52,10 +53,10 @@ type Client interface {
 	// Name returns the unique identifier for this client within the environment.
 	Name() string
 
-	// PayerAddress returns the Ethereum address derived from this client's payer key.
+	// Address returns the Ethereum address derived from this client's payer key.
 	// This address appears in the payers table and can be used to verify per-payer
 	// attribution via GetUnsettledUsage.
-	PayerAddress() string
+	Address() common.Address
 }
 
 // Options configures a new client instance.
@@ -71,11 +72,11 @@ type Options struct {
 }
 
 type client struct {
-	logger       *zap.Logger
-	opts         Options
-	payerAddress string
-	mu           sync.Mutex
-	traffic      *TrafficGenerator
+	logger  *zap.Logger
+	opts    Options
+	address common.Address
+	mu      sync.Mutex
+	traffic *TrafficGenerator
 }
 
 // New creates a new Client bound to the node specified in opts.
@@ -93,12 +94,12 @@ func New(logger *zap.Logger, opts Options) Client {
 	if err != nil {
 		panic(fmt.Sprintf("invalid PayerKey: %v", err))
 	}
-	address := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
+	address := crypto.PubkeyToAddress(privateKey.PublicKey)
 
 	return &client{
-		logger:       logger,
-		opts:         opts,
-		payerAddress: address,
+		logger:  logger,
+		opts:    opts,
+		address: address,
 	}
 }
 
@@ -117,9 +118,9 @@ func (c *client) Name() string {
 	return c.opts.Name
 }
 
-// PayerAddress returns the Ethereum address derived from this client's payer key.
-func (c *client) PayerAddress() string {
-	return c.payerAddress
+// Address returns the Ethereum address derived from this client's payer key.
+func (c *client) Address() common.Address {
+	return c.address
 }
 
 // PublishEnvelopes publishes the specified number of group message envelopes

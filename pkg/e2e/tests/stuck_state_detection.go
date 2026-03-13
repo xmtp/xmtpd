@@ -57,10 +57,10 @@ func (t *StuckStateDetectionTest) Run(
 	env.Logger.Info("phase 1: verifying normal pipeline operation")
 	gen := env.Client(100).GenerateTraffic(ctx, client.TrafficOptions{
 		BatchSize: 10,
-		Duration:  15 * time.Minute,
+		Duration:  75 * time.Minute,
 	})
 
-	createdCtx, createdCancel := context.WithTimeout(ctx, 10*time.Minute)
+	createdCtx, createdCancel := context.WithTimeout(ctx, 75*time.Minute)
 	defer createdCancel()
 
 	require.NoError(env.Node(100).WaitForPayerReports(
@@ -118,7 +118,7 @@ func (t *StuckStateDetectionTest) Run(
 
 	// Wait for the pipeline to recover — new reports should get attested.
 	env.Logger.Info("phase 3: waiting for pipeline recovery")
-	recoveryCtx, recoveryCancel := context.WithTimeout(ctx, 10*time.Minute)
+	recoveryCtx, recoveryCancel := context.WithTimeout(ctx, 75*time.Minute)
 	defer recoveryCancel()
 
 	// After recovery, at least one new report should progress to approved.

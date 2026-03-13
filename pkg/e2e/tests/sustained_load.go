@@ -12,11 +12,8 @@ import (
 )
 
 // SustainedLoadTest generates a realistic workload for 30 minutes, then waits
-// for all payer reports to be settled. It verifies that the system handles
-// sustained traffic without reports getting stuck or lost.
-//
-// Total runtime: ~90 minutes (30 min traffic + up to 60 min for payer report
-// cycle to complete).
+// for payer reports to settle. It verifies that the system handles sustained
+// traffic without reports getting stuck or lost.
 type SustainedLoadTest struct{}
 
 func NewSustainedLoadTest() *SustainedLoadTest {
@@ -46,7 +43,7 @@ func (t *SustainedLoadTest) Run(
 	require.NoError(env.NewClient(100))
 	require.NoError(env.NewClient(200))
 
-	const trafficDuration = 10 * time.Minute
+	const trafficDuration = 30 * time.Minute
 
 	// Start background traffic from multiple nodes simultaneously.
 	gen100 := env.Client(100).GenerateTraffic(ctx, client.TrafficOptions{
@@ -73,7 +70,7 @@ func (t *SustainedLoadTest) Run(
 	// Wait for at least one payer report to settle.
 	// Generator fires on a 60-min cycle, so worst case is ~65 min.
 	env.Logger.Info("traffic complete, waiting for payer report settlement")
-	settleCtx, settleCancel := context.WithTimeout(ctx, 10*time.Minute)
+	settleCtx, settleCancel := context.WithTimeout(ctx, 75*time.Minute)
 	defer settleCancel()
 
 	require.NoError(env.Node(100).WaitForPayerReports(

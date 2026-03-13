@@ -5,9 +5,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/e2e/client"
-	"github.com/xmtp/xmtpd/pkg/utils"
 )
 
 // ClientHandle wraps a traffic generation client and adds payer convenience
@@ -64,11 +62,7 @@ func (h *ClientHandle) NodeID() uint32 {
 // PayerRegistry when publishing directly to a node. In production, the
 // gateway's address would be charged instead.
 func (h *ClientHandle) Address() common.Address {
-	privKey, err := utils.ParseEcdsaPrivateKey(h.client.PayerKey())
-	if err != nil {
-		panic("failed to parse client payer key: " + err.Error())
-	}
-	return crypto.PubkeyToAddress(privKey.PublicKey)
+	return h.client.Address()
 }
 
 // PayerAddress returns the hex-encoded Ethereum address for this client's payer key.

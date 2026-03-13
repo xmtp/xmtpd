@@ -65,7 +65,7 @@ func (t *RateRegistryChangeTest) Run(
 	require.NoError(env.NewClient(100))
 	gen := env.Client(100).GenerateTraffic(ctx, client.TrafficOptions{
 		BatchSize: 10,
-		Duration:  10 * time.Minute,
+		Duration:  75 * time.Minute,
 	})
 
 	// Verify envelopes are accepted and replicated.
@@ -103,7 +103,7 @@ func (t *RateRegistryChangeTest) Run(
 	// Wait for payer reports to be created (demonstrates the system
 	// functions correctly across a rate change boundary).
 	env.Logger.Info("waiting for payer reports after rate change")
-	reportCtx, reportCancel := context.WithTimeout(ctx, 10*time.Minute)
+	reportCtx, reportCancel := context.WithTimeout(ctx, 75*time.Minute)
 	defer reportCancel()
 
 	require.NoError(env.Node(100).WaitForPayerReports(

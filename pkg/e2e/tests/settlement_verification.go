@@ -47,9 +47,9 @@ func (t *SettlementVerificationTest) Run(
 	// The generator worker fires at minute 0 of a 60-min cycle (worst case ~60 min),
 	// followed by attestation (~10s), submission (up to 60 min), and settlement (up to 60 min).
 	// Submitter and settlement workers use findNextRunTime with a 60-minute repeat interval.
-	const trafficDuration = 15 * time.Minute
-	const generatorTimeout = 10 * time.Minute
-	const postGeneratorTimeout = 10 * time.Minute
+	const trafficDuration = 75 * time.Minute
+	const generatorTimeout = 75 * time.Minute
+	const postGeneratorTimeout = 65 * time.Minute
 
 	gen := env.Client(100).GenerateTraffic(ctx, client.TrafficOptions{
 		BatchSize: 10,

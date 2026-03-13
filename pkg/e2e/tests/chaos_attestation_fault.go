@@ -58,10 +58,10 @@ func (t *ChaosAttestationFaultTest) Run(
 
 	gen := env.Client(100).GenerateTraffic(ctx, client.TrafficOptions{
 		BatchSize: 10,
-		Duration:  15 * time.Minute,
+		Duration:  75 * time.Minute,
 	})
 
-	createdCtx, createdCancel := context.WithTimeout(ctx, 10*time.Minute)
+	createdCtx, createdCancel := context.WithTimeout(ctx, 75*time.Minute)
 	defer createdCancel()
 
 	require.NoError(env.Node(100).WaitForPayerReports(
@@ -88,7 +88,7 @@ func (t *ChaosAttestationFaultTest) Run(
 
 	// Wait for at least one more report to get attested with only 2 nodes alive.
 	// This proves quorum works with the minimum number of nodes.
-	attestCtx, attestCancel := context.WithTimeout(ctx, 10*time.Minute)
+	attestCtx, attestCancel := context.WithTimeout(ctx, 75*time.Minute)
 	defer attestCancel()
 
 	prevApproved := baselineCounts.AttestationApproved

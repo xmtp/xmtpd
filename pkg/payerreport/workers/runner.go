@@ -20,39 +20,35 @@ type stoppable interface {
 // WorkerConfig contains the configuration for running payer report workers.
 // Use NewWorkerConfigBuilder() to create instances of this struct.
 type workerConfig struct {
-	ctx                         context.Context
-	logger                      *zap.Logger
-	registrant                  registrant.IRegistrant
-	registry                    registry.NodeRegistry
-	reportsManager              blockchain.PayerReportsManager
-	store                       payerreport.IPayerReportStore
-	domainSeparator             common.Hash
-	attestationPollInterval     time.Duration
-	generateSelfPeriod          time.Duration
-	generateOthersPeriod        time.Duration
-	expirySelfPeriod            time.Duration
-	expiryOthersPeriod          time.Duration
-	workerRepeatIntervalMinutes uint32
-	workerSpreadMinutes         uint32
+	ctx                     context.Context
+	logger                  *zap.Logger
+	registrant              registrant.IRegistrant
+	registry                registry.NodeRegistry
+	reportsManager          blockchain.PayerReportsManager
+	store                   payerreport.IPayerReportStore
+	domainSeparator         common.Hash
+	attestationPollInterval time.Duration
+	generateSelfPeriod      time.Duration
+	generateOthersPeriod    time.Duration
+	expirySelfPeriod        time.Duration
+	expiryOthersPeriod      time.Duration
 }
 
 // WorkerConfigBuilder provides a builder pattern for creating WorkerConfig instances.
 // All fields are required and the Build() method will validate that none are nil.
 type WorkerConfigBuilder struct {
-	ctx                         context.Context
-	logger                      *zap.Logger
-	registrant                  registrant.IRegistrant
-	registry                    registry.NodeRegistry
-	reportsManager              blockchain.PayerReportsManager
-	store                       payerreport.IPayerReportStore
-	domainSeparator             common.Hash
-	attestationPollInterval     time.Duration
-	generateSelfPeriod          time.Duration
-	generateOthersPeriod        time.Duration
-	expirySelfPeriod            time.Duration
-	expiryOthersPeriod          time.Duration
-	workerRepeatIntervalMinutes uint32
-	workerSpreadMinutes         uint32
+	ctx                     context.Context
+	logger                  *zap.Logger
+	registrant              registrant.IRegistrant
+	registry                registry.NodeRegistry
+	reportsManager          blockchain.PayerReportsManager
+	store                   payerreport.IPayerReportStore
+	domainSeparator         common.Hash
+	attestationPollInterval time.Duration
+	generateSelfPeriod      time.Duration
+	generateOthersPeriod    time.Duration
+	expirySelfPeriod        time.Duration
+	expiryOthersPeriod      time.Duration
 }
 
 // NewWorkerConfigBuilder creates a new WorkerConfigBuilder instance.
@@ -136,20 +132,6 @@ func (b *WorkerConfigBuilder) WithExpiryOthersPeriod(
 	return b
 }
 
-func (b *WorkerConfigBuilder) WithWorkerRepeatIntervalMinutes(
-	minutes uint32,
-) *WorkerConfigBuilder {
-	b.workerRepeatIntervalMinutes = minutes
-	return b
-}
-
-func (b *WorkerConfigBuilder) WithWorkerSpreadMinutes(
-	minutes uint32,
-) *WorkerConfigBuilder {
-	b.workerSpreadMinutes = minutes
-	return b
-}
-
 // Build creates a WorkerConfig instance after validating that all required fields are set.
 // Returns an error if any required field is nil or invalid.
 func (b *WorkerConfigBuilder) Build() (*workerConfig, error) {
@@ -201,20 +183,18 @@ func (b *WorkerConfigBuilder) Build() (*workerConfig, error) {
 	}
 
 	return &workerConfig{
-		ctx:                         b.ctx,
-		logger:                      b.logger,
-		registrant:                  b.registrant,
-		registry:                    b.registry,
-		reportsManager:              b.reportsManager,
-		store:                       b.store,
-		domainSeparator:             b.domainSeparator,
-		attestationPollInterval:     b.attestationPollInterval,
-		generateSelfPeriod:          b.generateSelfPeriod,
-		generateOthersPeriod:        b.generateOthersPeriod,
-		expirySelfPeriod:            b.expirySelfPeriod,
-		expiryOthersPeriod:          b.expiryOthersPeriod,
-		workerRepeatIntervalMinutes: b.workerRepeatIntervalMinutes,
-		workerSpreadMinutes:         b.workerSpreadMinutes,
+		ctx:                     b.ctx,
+		logger:                  b.logger,
+		registrant:              b.registrant,
+		registry:                b.registry,
+		reportsManager:          b.reportsManager,
+		store:                   b.store,
+		domainSeparator:         b.domainSeparator,
+		attestationPollInterval: b.attestationPollInterval,
+		generateSelfPeriod:      b.generateSelfPeriod,
+		generateOthersPeriod:    b.generateOthersPeriod,
+		expirySelfPeriod:        b.expirySelfPeriod,
+		expiryOthersPeriod:      b.expiryOthersPeriod,
 	}, nil
 }
 
@@ -232,14 +212,6 @@ func (w *WorkerWrapper) Stop() {
 // The configuration should be created using NewWorkerConfigBuilder().Build().
 // Returns a WorkerWrapper that can be used to stop all workers.
 func RunWorkers(cfg workerConfig) *WorkerWrapper {
-	// Apply configurable worker timing if non-zero values were provided.
-	if cfg.workerRepeatIntervalMinutes > 0 {
-		repeatIntervalMinutes = cfg.workerRepeatIntervalMinutes
-	}
-	if cfg.workerSpreadMinutes > 0 {
-		distributionSpreadMinutes = cfg.workerSpreadMinutes
-	}
-
 	attestationWorker := NewAttestationWorker(
 		cfg.ctx,
 		cfg.logger,

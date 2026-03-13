@@ -41,9 +41,9 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	require := require.New(env.T())
 
 	const (
-		trafficDuration      = 15 * time.Minute
-		generatorTimeout     = 10 * time.Minute
-		postGeneratorTimeout = 10 * time.Minute
+		trafficDuration      = 75 * time.Minute
+		generatorTimeout     = 75 * time.Minute
+		postGeneratorTimeout = 65 * time.Minute
 	)
 
 	// Create nodes 100, 200, 300.

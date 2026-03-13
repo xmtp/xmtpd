@@ -432,8 +432,6 @@ func NewBaseServer(
 			WithGenerationOthersPeriod(cfg.Options.PayerReport.GenerateReportOthersPeriod).
 			WithExpirySelfPeriod(cfg.Options.PayerReport.ExpirySelfPeriod).
 			WithExpiryOthersPeriod(cfg.Options.PayerReport.ExpiryOthersPeriod).
-			WithWorkerRepeatIntervalMinutes(cfg.Options.PayerReport.WorkerRepeatIntervalMinutes).
-			WithWorkerSpreadMinutes(cfg.Options.PayerReport.WorkerSpreadMinutes).
 			Build()
 		if err != nil {
 			cfg.Logger.Error("failed to build worker config", zap.Error(err))

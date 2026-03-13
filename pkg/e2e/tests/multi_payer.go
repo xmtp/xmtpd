@@ -43,7 +43,7 @@ func (t *MultiPayerTest) Run(ctx context.Context, env *types.Environment) error 
 		types.WithClientName("payer-a"),
 		types.WithPayerKey(payerKeyA),
 	))
-	payerAddrA := env.ClientByName("payer-a").PayerAddress()
+	payerAddrA := env.ClientByName("payer-a").Address().Hex()
 
 	// Create payer B with the next key (guaranteed to be different).
 	payerKeyB, err := env.Keys.NextClientKey(ctx)
@@ -52,7 +52,7 @@ func (t *MultiPayerTest) Run(ctx context.Context, env *types.Environment) error 
 		types.WithClientName("payer-b"),
 		types.WithPayerKey(payerKeyB),
 	))
-	payerAddrB := env.ClientByName("payer-b").PayerAddress()
+	payerAddrB := env.ClientByName("payer-b").Address().Hex()
 
 	// Sanity: addresses must differ.
 	require.NotEqual(payerAddrA, payerAddrB, "payer addresses must be distinct")

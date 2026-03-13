@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS get_prunable_meta_partitions;

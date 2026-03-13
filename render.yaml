@@ -1,0 +1,38 @@
+services:
+  - type: worker
+    runtime: node
+    name: xmtp-gateway
+    rootDir: npm/gateway
+    numInstances: 1
+    region: frankfurt
+    plan: starter
+    branch: main
+    buildCommand: npm install && npm run build
+    startCommand: node dist/start.js
+    envVars:
+      - key: PAYER_PRIVATE_KEY
+        sync: false
+      - key: APP_CHAIN_RPC_URL
+        sync: false
+      - key: APP_CHAIN_WSS_URL
+        sync: false
+      - key: SETTLEMENT_CHAIN_RPC_URL
+        sync: false
+      - key: SETTLEMENT_CHAIN_WSS_URL
+        sync: false
+      - key: CONTRACTS_ENVIRONMENT
+        value: 'testnet'
+      - key: REDIS_URL
+        fromService:
+          name: xmtp-gateway-redis
+          type: kvs
+          property: connectionString
+      - key: LOG_LEVEL
+        value: 'info'
+
+  - type: kvs
+    name: xmtp-gateway-redis
+    region: frankfurt
+    plan: starter
+    maxmemoryPolicy: noeviction
+    ipAllowList: []

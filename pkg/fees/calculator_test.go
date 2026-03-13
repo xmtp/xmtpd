@@ -241,6 +241,105 @@ func TestBatchFeeCalculator_CrossMinuteBoundary(t *testing.T) {
 	}
 }
 
+// TestCongestionFeeParity_StaleReadReplicaCausesDivergence demonstrates the bug described
+// in https://github.com/xmtp/xmtpd/issues/1818.
+//
+// When the remote node (EnvelopeSink) reads congestion from a stale read replica, it sees
+// lower (or zero) message counts and therefore computes lower congestion fees than the
+// originating node's BatchFeeCalculator.  The fix is to read congestion from the primary
+// (write) DB so both paths always see the same committed state.
+//
+// The test uses two separate DB instances to simulate the primary and a frozen replica:
+//   - writeDB: receives all IncrementOriginatorCongestion writes (primary)
+//   - staleDB: seeded once and never updated (frozen replica)
+//
+// With targetRatePerMinute=4 and 3 messages seeded, messages 3-5 cross the congestion
+// threshold and accrue non-zero fees on the batch/primary path but zero fees on the stale path.
+func TestCongestionFeeParity_StaleReadReplicaCausesDivergence(t *testing.T) {
+	calculator := setupCalculator()
+	ctx := context.Background()
+
+	messageTime := time.Now()
+	minutesSinceEpoch := utils.MinutesSinceEpoch(messageTime)
+	seedCongestion := 3
+	numMessages := 5
+
+	// writeDB acts as the primary. All congestion increments land here.
+	writeDB, _ := testutils.NewRawDB(t, ctx)
+	writeQuerier := queries.New(writeDB)
+	originatorID := uint32(testutils.RandomInt32())
+	addCongestion(t, writeQuerier, originatorID, minutesSinceEpoch, seedCongestion)
+
+	// staleDB simulates a lagging read replica frozen at 0 messages (no seed, no updates).
+	staleDB, _ := testutils.NewRawDB(t, ctx)
+	staleQuerier := queries.New(staleDB)
+
+	// --- Local node: BatchFeeCalculator reads from writeDB ---
+	batchCalc := calculator.NewBatchFeeCalculator(ctx, writeQuerier, originatorID)
+	batchTotal := currency.PicoDollar(0)
+	for range numMessages {
+		fee, err := batchCalc.CalculateCongestionFee(messageTime)
+		require.NoError(t, err)
+		batchTotal += fee
+	}
+
+	// --- Remote node (BUG): CalculateCongestionFee reads from stale replica ---
+	staleOriginatorID := uint32(testutils.RandomInt32())
+	staleTotal := currency.PicoDollar(0)
+	for range numMessages {
+		fee, err := calculator.CalculateCongestionFee(
+			ctx, staleQuerier, messageTime, staleOriginatorID,
+		)
+		require.NoError(t, err)
+		staleTotal += fee
+		// Increment only goes to writeDB; staleDB never sees it.
+		addCongestion(t, writeQuerier, staleOriginatorID, minutesSinceEpoch, 1)
+	}
+
+	// Stale path under-counts: all fees are zero because the replica has no congestion data.
+	require.Equal(
+		t, currency.PicoDollar(0), staleTotal,
+		"stale read replica should always return zero congestion (frozen at 0)",
+	)
+	// The batch path sees congestion and charges non-zero fees: proves the divergence.
+	require.Greater(t, int64(batchTotal), int64(staleTotal),
+		"local batch total (%d) should exceed stale remote total (%d): divergence confirmed",
+		batchTotal, staleTotal,
+	)
+
+	// --- Remote node (FIX): CalculateCongestionFee reads from writeDB ---
+	// Re-seed a fresh originator on writeDB so both paths start from the same state.
+	fixedOriginatorID := uint32(testutils.RandomInt32())
+	addCongestion(t, writeQuerier, fixedOriginatorID, minutesSinceEpoch, seedCongestion)
+
+	batchCalcFixed := calculator.NewBatchFeeCalculator(ctx, writeQuerier, fixedOriginatorID)
+	batchFixedTotal := currency.PicoDollar(0)
+	for range numMessages {
+		fee, err := batchCalcFixed.CalculateCongestionFee(messageTime)
+		require.NoError(t, err)
+		batchFixedTotal += fee
+	}
+
+	seqOriginatorID := uint32(testutils.RandomInt32())
+	addCongestion(t, writeQuerier, seqOriginatorID, minutesSinceEpoch, seedCongestion)
+
+	fixedTotal := currency.PicoDollar(0)
+	for range numMessages {
+		fee, err := calculator.CalculateCongestionFee(
+			ctx, writeQuerier, messageTime, seqOriginatorID,
+		)
+		require.NoError(t, err)
+		fixedTotal += fee
+		// Increment goes to the same writeDB that the fee read came from: parity is preserved.
+		addCongestion(t, writeQuerier, seqOriginatorID, minutesSinceEpoch, 1)
+	}
+
+	require.Equal(
+		t, batchFixedTotal, fixedTotal,
+		"remote (write DB) total should match local batch total: fix confirmed",
+	)
+}
+
 func TestOverflow(t *testing.T) {
 	calculator := setupCalculator()
 

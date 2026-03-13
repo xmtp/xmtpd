@@ -300,12 +300,12 @@ func (s *EnvelopeSink) calculateFees(
 		return baseFee + 0, nil
 	}
 
-	// NOTE: This is code smell IMO. We have a function that is (by name) a reader function,
-	// but it feels wrong to IMPOSE read limitation on it this way. However, if the goal is to
-	// have read queries work on a db read replica, then this should operate on the read db.
+	// Use WriteQuery so congestion reads come from the primary DB, the same database
+	// that receives IncrementOriginatorCongestion writes.
+	// (see: https://github.com/xmtp/xmtpd/issues/1818).
 	congestionFee, err = s.feeCalculator.CalculateCongestionFee(
 		s.ctx,
-		s.db.ReadQuery(),
+		s.db.WriteQuery(),
 		messageTime,
 		env.OriginatorNodeID(),
 	)

@@ -60,3 +60,6 @@ perf_results*.json
 # Claude plans
 doc/plans
 docs/plans
+
+# Git worktrees
+.worktrees/

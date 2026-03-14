@@ -414,34 +414,6 @@ func (p *publishWorker) persistBatch(
 	}, nil
 }
 
-// calculateFees computes the base and congestion fees for a staged envelope.
-// Used by the API handler to estimate fees before the publish worker processes the batch.
-func (p *publishWorker) calculateFees(
-	stagedEnv *queries.StagedOriginatorEnvelope,
-	retentionDays uint32,
-) (currency.PicoDollar, currency.PicoDollar, error) {
-	baseFee, err := p.feeCalculator.CalculateBaseFee(
-		stagedEnv.OriginatorTime,
-		int64(len(stagedEnv.PayerEnvelope)),
-		retentionDays,
-	)
-	if err != nil {
-		return 0, 0, err
-	}
-
-	congestionFee, err := p.feeCalculator.CalculateCongestionFee(
-		p.ctx,
-		p.store.WriteQuery(),
-		stagedEnv.OriginatorTime,
-		p.registrant.NodeID(),
-	)
-	if err != nil {
-		return 0, 0, err
-	}
-
-	return baseFee, congestionFee, nil
-}
-
 func deduplicatePayerAddresses(prepared []preparedEnvelope) []string {
 	seen := make(map[string]struct{}, len(prepared))
 	result := make([]string, 0, len(prepared))

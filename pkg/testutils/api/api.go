@@ -14,6 +14,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/config"
 	dbPkg "github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/interceptors/server"
+	ledgerPkg "github.com/xmtp/xmtpd/pkg/ledger"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
@@ -123,7 +124,8 @@ type APIServerTestSuite struct {
 
 // APIServerTestConfig allows explicitly setting some components used for tests.
 type APIServerTestConfig struct {
-	registryNodes []registry.Node
+	registryNodes               []registry.Node
+	requirePayerPositiveBalance bool
 }
 
 type TestAPIOption func(*APIServerTestConfig)
@@ -131,6 +133,12 @@ type TestAPIOption func(*APIServerTestConfig)
 func WithRegistryNodes(nodes []registry.Node) TestAPIOption {
 	return func(cfg *APIServerTestConfig) {
 		cfg.registryNodes = nodes
+	}
+}
+
+func WithRequirePayerPositiveBalance(enabled bool) TestAPIOption {
+	return func(cfg *APIServerTestConfig) {
+		cfg.requirePayerPositiveBalance = enabled
 	}
 }
 
@@ -212,11 +220,13 @@ func NewTestAPIServer(
 			metadata.NewCursorUpdater(ctx, log, db),
 			fees.NewTestFeeCalculator(),
 			config.APIOptions{
-				SendKeepAliveInterval: 30 * time.Second,
+				SendKeepAliveInterval:       30 * time.Second,
+				RequirePayerPositiveBalance: cfg.requirePayerPositiveBalance,
 			},
 			false,
 			10*time.Millisecond,
 			dbPkg.NewCachedOriginatorList(db.ReadQuery(), 100*time.Millisecond, log),
+			ledgerPkg.NewLedger(log, db),
 		)
 		require.NoError(t, err)
 

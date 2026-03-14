@@ -11,14 +11,17 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/cenkalti/backoff/v4"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/constants"
+	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/deserializer"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/fees"
+	"github.com/xmtp/xmtpd/pkg/ledger"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
@@ -59,6 +62,7 @@ type Service struct {
 	options           config.APIOptions
 	migrationEnabled  bool
 	originatorList    db.OriginatorLister
+	ledger            ledger.ILedger
 }
 
 var _ message_apiconnect.ReplicationApiHandler = (*Service)(nil)
@@ -76,6 +80,7 @@ func NewReplicationAPIService(
 	migrationEnabled bool,
 	sleepOnFailureTime time.Duration,
 	originatorList db.OriginatorLister,
+	ledger ledger.ILedger,
 ) (*Service, error) {
 	if validationService == nil {
 		return nil, errors.New("validation service must not be nil")
@@ -117,6 +122,7 @@ func NewReplicationAPIService(
 		options:           options,
 		migrationEnabled:  migrationEnabled,
 		originatorList:    originatorList,
+		ledger:            ledger,
 	}, nil
 }
 
@@ -695,6 +701,9 @@ type ValidatedBytesWithTopic struct {
 	EnvelopeBytes []byte
 	TopicBytes    []byte
 	RetentionDays uint32
+	PayerAddress  common.Address
+	BaseFee       currency.PicoDollar
+	CongestionFee currency.PicoDollar
 }
 
 func (s *Service) PublishPayerEnvelopes(
@@ -747,6 +756,12 @@ func (s *Service) PublishPayerEnvelopes(
 		)
 	}
 
+	if s.options.RequirePayerPositiveBalance {
+		if err := s.checkPayerBalance(ctx, processedEnvelopes); err != nil {
+			return nil, err
+		}
+	}
+
 	var results []*envelopesProto.OriginatorEnvelope
 	var latestStaged *queries.StagedOriginatorEnvelope
 
@@ -758,18 +773,10 @@ func (s *Service) PublishPayerEnvelopes(
 	for idx, stagedEnvelope := range stagedEnvelopes {
 		envelope := processedEnvelopes[idx]
 
-		baseFee, congestionFee, err := s.publishWorker.calculateFees(
-			&stagedEnvelope,
-			envelope.RetentionDays,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("could not calculate fees: %w", err)
-		}
-
 		originatorEnvelope, err := s.registrant.SignStagedEnvelope(
 			stagedEnvelope,
-			baseFee,
-			congestionFee,
+			envelope.BaseFee,
+			envelope.CongestionFee,
 			envelope.RetentionDays,
 		)
 		if err != nil {
@@ -852,8 +859,15 @@ func (s *Service) preprocessPayerEnvelopes(
 	var processedEnvelopes []ValidatedBytesWithTopic
 	var errs []string
 
+	now := time.Now()
+	batchCalc := s.feeCalculator.NewBatchFeeCalculator(
+		ctx,
+		s.store.ReadQuery(),
+		s.registrant.NodeID(),
+	)
+
 	for i, envelope := range payerEnvelopes {
-		payerEnvelope, err := s.validatePayerEnvelope(envelope)
+		payerEnvelope, payerAddr, err := s.validatePayerEnvelope(envelope)
 		if err != nil {
 			errs = append(errs, fmt.Sprintf("could not validate envelope. index %d: %v", i, err))
 			continue
@@ -910,16 +924,44 @@ func (s *Service) preprocessPayerEnvelopes(
 			}
 		}
 
+		envelopeBytes := bytes
+		retentionDays := payerEnvelope.Proto().GetMessageRetentionDays()
+
+		baseFee, err := s.feeCalculator.CalculateBaseFee(
+			now,
+			int64(len(envelopeBytes)),
+			retentionDays,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("could not calculate base fee for envelope %d: %w", i, err)
+		}
+
+		congestionFee, err := batchCalc.CalculateCongestionFee(now)
+		if err != nil {
+			return nil, fmt.Errorf("could not calculate congestion fee for envelope %d: %w", i, err)
+		}
+
 		processedEnvelopes = append(processedEnvelopes, ValidatedBytesWithTopic{
-			EnvelopeBytes: bytes,
+			EnvelopeBytes: envelopeBytes,
 			TopicBytes:    targetTopic.Bytes(),
-			RetentionDays: payerEnvelope.Proto().GetMessageRetentionDays(),
+			RetentionDays: retentionDays,
+			PayerAddress:  payerAddr,
+			BaseFee:       baseFee,
+			CongestionFee: congestionFee,
 		})
 	}
 
 	if len(errs) > 0 {
 		return nil, errors.New(strings.Join(errs, "\n"))
 	}
+
+	// Validate all envelopes share the same payer
+	for i := 1; i < len(processedEnvelopes); i++ {
+		if processedEnvelopes[i].PayerAddress != processedEnvelopes[0].PayerAddress {
+			return nil, errors.New("all envelopes in a request must be from the same payer")
+		}
+	}
+
 	return processedEnvelopes, nil
 }
 
@@ -1076,39 +1118,40 @@ func (s *Service) GetNewestEnvelope(
 
 func (s *Service) validatePayerEnvelope(
 	rawEnv *envelopesProto.PayerEnvelope,
-) (*envelopes.PayerEnvelope, error) {
+) (*envelopes.PayerEnvelope, common.Address, error) {
 	payerEnv, err := envelopes.NewPayerEnvelope(rawEnv)
 	if err != nil {
-		return nil, connect.NewError(
+		return nil, common.Address{}, connect.NewError(
 			connect.CodeInvalidArgument,
 			fmt.Errorf("could not unmarshal payer envelope: %w", err),
 		)
 	}
 
 	if payerEnv.TargetOriginator != s.registrant.NodeID() {
-		return nil, connect.NewError(
+		return nil, common.Address{}, connect.NewError(
 			connect.CodeInvalidArgument,
 			errors.New("invalid target originator"),
 		)
 	}
 
-	if _, err = payerEnv.RecoverSigner(); err != nil {
-		return nil, connect.NewError(
+	signerAddr, err := payerEnv.RecoverSigner()
+	if err != nil {
+		return nil, common.Address{}, connect.NewError(
 			connect.CodeInvalidArgument,
 			fmt.Errorf("could not recover signer: %w", err),
 		)
 	}
 
 	if err = s.validateClientInfo(&payerEnv.ClientEnvelope); err != nil {
-		return nil, err
+		return nil, common.Address{}, err
 	}
 
 	err = s.validateExpiry(payerEnv)
 	if err != nil {
-		return nil, err
+		return nil, common.Address{}, err
 	}
 
-	return payerEnv, nil
+	return payerEnv, *signerAddr, nil
 }
 
 func (s *Service) validateExpiry(payerEnv *envelopes.PayerEnvelope) error {
@@ -1227,6 +1270,77 @@ func (s *Service) validateClientInfo(clientEnv *envelopes.ClientEnvelope) error 
 	// TODO(rich): Perform any payload-specific validation (e.g. identity updates)
 
 	return nil
+}
+
+// checkPayerBalance rejects the request if the payer's available balance
+// (ledger balance minus unsettled usage) is less than the pre-computed fees.
+func (s *Service) checkPayerBalance(
+	ctx context.Context,
+	processedEnvelopes []ValidatedBytesWithTopic,
+) error {
+	if len(processedEnvelopes) == 0 {
+		return nil
+	}
+
+	// We already validate that all envelopes in a batch come from the same
+	// address
+	payerAddress := processedEnvelopes[0].PayerAddress
+
+	availableBalance, err := s.getAvailableBalance(ctx, payerAddress)
+	if err != nil {
+		return connect.NewError(connect.CodeInternal, err)
+	}
+
+	var totalFees currency.PicoDollar
+	for _, env := range processedEnvelopes {
+		totalFees += env.BaseFee + env.CongestionFee
+	}
+
+	if totalFees > availableBalance {
+		s.logger.Warn(
+			"rejected publish due to insufficient payer balance",
+			zap.String("payer_address", payerAddress.Hex()),
+			zap.Int64("available_balance", int64(availableBalance)),
+			zap.Int64("estimated_fees", int64(totalFees)),
+		)
+		return connect.NewError(
+			connect.CodeFailedPrecondition,
+			fmt.Errorf(
+				"insufficient payer balance: available %d picodollars, estimated fees %d picodollars",
+				availableBalance,
+				totalFees,
+			),
+		)
+	}
+
+	return nil
+}
+
+// getAvailableBalance returns the payer's settled ledger balance minus their
+// unsettled usage.
+func (s *Service) getAvailableBalance(
+	ctx context.Context,
+	payerAddress common.Address,
+) (currency.PicoDollar, error) {
+	payerID, err := s.ledger.FindOrCreatePayer(ctx, payerAddress)
+	if err != nil {
+		return 0, fmt.Errorf("could not resolve payer: %w", err)
+	}
+
+	balance, err := s.ledger.GetBalance(ctx, payerID)
+	if err != nil {
+		return 0, fmt.Errorf("could not get payer balance: %w", err)
+	}
+
+	unsettled, err := s.store.ReadQuery().GetPayerUnsettledUsage(
+		ctx,
+		queries.GetPayerUnsettledUsageParams{PayerID: payerID},
+	)
+	if err != nil {
+		return 0, fmt.Errorf("could not get unsettled usage: %w", err)
+	}
+
+	return balance - currency.PicoDollar(unsettled.TotalSpendPicodollars), nil
 }
 
 func (s *Service) waitForGatewayPublish(

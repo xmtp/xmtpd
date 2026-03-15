@@ -141,3 +141,13 @@ func (h *GatewayHandle) CancelWithdrawal(ctx context.Context) error {
 func (h *GatewayHandle) FinalizeWithdrawal(ctx context.Context, recipient common.Address) error {
 	return h.env.FinalizePayerWithdrawal(ctx, h.gateway.SignerKey(), recipient)
 }
+
+// DisableProxy completely disables this gateway's proxy, refusing all connections.
+func (h *GatewayHandle) DisableProxy(ctx context.Context) error {
+	return h.env.Chaos.DisableProxy(ctx, h.gateway.Alias())
+}
+
+// EnableProxy re-enables this gateway's proxy after it was disabled.
+func (h *GatewayHandle) EnableProxy(ctx context.Context) error {
+	return h.env.Chaos.EnableProxy(ctx, h.gateway.Alias())
+}

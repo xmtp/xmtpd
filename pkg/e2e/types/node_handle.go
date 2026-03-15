@@ -2,6 +2,7 @@ package types
 
 import (
 	"context"
+	"errors"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -150,6 +151,23 @@ func (h *NodeHandle) GetFeeTokenBalance(ctx context.Context) (*big.Int, error) {
 // GetGasBalance returns the native ETH balance for this node's owner address.
 func (h *NodeHandle) GetGasBalance(ctx context.Context) (*big.Int, error) {
 	return h.env.GetGasBalance(ctx, h.Address())
+}
+
+// DisableProxy completely disables this node's proxy, refusing all connections.
+// This is a stronger isolation than toxics — no data flows at all.
+func (h *NodeHandle) DisableProxy(ctx context.Context) error {
+	if h.env.Chaos == nil {
+		return errors.New("chaos controller not available")
+	}
+	return h.env.Chaos.DisableProxy(ctx, h.node.Alias())
+}
+
+// EnableProxy re-enables this node's proxy after it was disabled.
+func (h *NodeHandle) EnableProxy(ctx context.Context) error {
+	if h.env.Chaos == nil {
+		return errors.New("chaos controller not available")
+	}
+	return h.env.Chaos.EnableProxy(ctx, h.node.Alias())
 }
 
 // --- Observer (database queries) ---

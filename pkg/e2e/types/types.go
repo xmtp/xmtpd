@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -76,13 +77,16 @@ type Environment struct {
 	// Accessed through NodeHandle methods rather than directly.
 	observer *observe.Observer
 
+	// Contracts provides read-only access to on-chain state (e.g. payer reports).
+	// Initialized by the runner after the chain starts.
+	Contracts *chain.Contracts
+
 	Redis       testcontainers.Container
 	cleanupFunc func(ctx context.Context) error
 
 	// contracts holds lazily initialized blockchain clients for direct contract calls.
-	contracts        *chainClients
-	contractsOnce    sync.Once
-	contractsInitErr error
+	contracts   *chainClients
+	contractsMu sync.Mutex
 
 	// t is the TestingT adapter set by the runner before each test.
 	t *TestingT
@@ -98,8 +102,8 @@ type Environment struct {
 	nextGWIndex int
 	gatewaysMu  sync.Mutex
 
-	// Client tracking
-	clients   map[uint32]*ClientHandle
+	// Client tracking — keyed by client name (default: "{nodeID}").
+	clients   map[string]*ClientHandle
 	clientsMu sync.Mutex
 }
 
@@ -159,6 +163,40 @@ func WithGatewayImage(image string) GatewayOption {
 func WithGatewayEnvVars(vars map[string]string) GatewayOption {
 	return func(c *gatewayConfig) {
 		c.envVars = vars
+	}
+}
+
+// clientConfig holds options for NewClient, configured via ClientOption functions.
+type clientConfig struct {
+	name     string
+	payerKey string
+}
+
+// ClientOption configures optional parameters for NewClient.
+type ClientOption func(*clientConfig)
+
+// WithClientName sets a custom name for the client. By default, clients are named
+// after their target nodeID (e.g. "100"). Use this when creating multiple clients
+// for the same node with different payer keys.
+//
+// Example:
+//
+//	env.NewClient(100, types.WithClientName("payer-alice"), types.WithPayerKey(aliceKey))
+//	env.ClientByName("payer-alice").PublishEnvelopes(ctx, 10)
+func WithClientName(name string) ClientOption {
+	return func(c *clientConfig) {
+		c.name = name
+	}
+}
+
+// WithPayerKey overrides the default payer key (keys.ClientKey) for this client.
+// Use this to generate traffic from distinct payer addresses, allowing tests
+// to verify per-payer attribution via GetUnsettledUsage.
+//
+// Generate additional payer keys with env.Keys.NextClientKey(ctx).
+func WithPayerKey(key string) ClientOption {
+	return func(c *clientConfig) {
+		c.payerKey = key
 	}
 }
 
@@ -399,49 +437,41 @@ func (e *Environment) Gateways() []*GatewayHandle {
 
 // --- Client management ---
 
-// ClientOption configures optional parameters for NewClient.
-type ClientOption func(*clientConfig)
-
-type clientConfig struct {
-	payerKey string
-}
-
-// WithPayerKey overrides the default payer private key for this client.
-// The key is a 0x-prefixed hex-encoded ECDSA private key.
-// By default, clients use keys.ClientKey() (anvil account 1).
-func WithPayerKey(key string) ClientOption {
-	return func(c *clientConfig) {
-		c.payerKey = key
-	}
+// defaultClientName returns the default name for a client targeting the given nodeID.
+func defaultClientName(nodeID uint32) string {
+	return strconv.FormatUint(uint64(nodeID), 10)
 }
 
 // NewClient creates a traffic generation client bound to the node with the given
-// nodeID. The client is registered in the environment and accessible via Client(nodeID).
-// Only one client per nodeID is allowed; creating a second client for the same
-// nodeID replaces the previous one (stopping its traffic first).
+// nodeID. By default, the client uses keys.ClientKey() as the payer key and is
+// named after the nodeID (e.g. "100"). Use ClientOption functions to customize.
+//
+// Creating a client with the same name as an existing client replaces it
+// (stopping its traffic first).
 //
 // Use WithPayerKey to specify a custom payer identity for this client.
 // By default, all clients share keys.ClientKey() (anvil account 1).
 //
 // Example:
 //
-//	env.NewClient(100)                                      // default payer
-//	env.NewClient(200, types.WithPayerKey(customKey))       // custom payer
-//	env.Client(100).PublishEnvelopes(ctx, 10)
+//	env.NewClient(100)                                                    // default payer
+//	env.NewClient(100, types.WithClientName("alice"), types.WithPayerKey(aliceKey)) // custom payer
 func (e *Environment) NewClient(nodeID uint32, opts ...ClientOption) error {
 	n := e.Node(nodeID) // panics if node doesn't exist
 
 	cfg := &clientConfig{
+		name:     defaultClientName(nodeID),
 		payerKey: keys.ClientKey(),
 	}
 	for _, o := range opts {
 		o(cfg)
 	}
 
-	c := client.New(e.Logger.Named(fmt.Sprintf("client-%d", nodeID)), client.Options{
+	c := client.New(e.Logger.Named("client-"+cfg.name), client.Options{
 		NodeAddr:     n.Endpoint(),
 		PayerKey:     cfg.payerKey,
 		OriginatorID: nodeID,
+		Name:         cfg.name,
 	})
 
 	handle := newClientHandle(c, e)
@@ -449,19 +479,20 @@ func (e *Environment) NewClient(nodeID uint32, opts ...ClientOption) error {
 	e.clientsMu.Lock()
 	defer e.clientsMu.Unlock()
 	if e.clients == nil {
-		e.clients = make(map[uint32]*ClientHandle)
+		e.clients = make(map[string]*ClientHandle)
 	}
-	// Stop existing client if any
-	if existing, ok := e.clients[nodeID]; ok {
+	// Stop existing client with the same name if any.
+	if existing, ok := e.clients[cfg.name]; ok {
 		existing.Stop()
 	}
-	e.clients[nodeID] = handle
+	e.clients[cfg.name] = handle
 
 	return nil
 }
 
 // Client returns the ClientHandle bound to the node with the given nodeID.
-// Panics if no client for that nodeID has been created via NewClient.
+// The default client is the one created without WithClientName (named after the nodeID).
+// Panics if no default client for that nodeID exists.
 //
 // Example:
 //
@@ -470,11 +501,25 @@ func (e *Environment) NewClient(nodeID uint32, opts ...ClientOption) error {
 //	env.Client(100).GetPayerBalance(ctx)
 //	env.Client(100).Stop()
 func (e *Environment) Client(nodeID uint32) *ClientHandle {
+	return e.ClientByName(defaultClientName(nodeID))
+}
+
+// ClientByName returns the ClientHandle registered with the given name.
+// Panics if no client with that name exists.
+//
+// Example:
+//
+//	env.ClientByName("alice").PublishEnvelopes(ctx, 10)
+//	env.ClientByName("alice").Address() // Ethereum address for assertions
+func (e *Environment) ClientByName(name string) *ClientHandle {
 	e.clientsMu.Lock()
 	defer e.clientsMu.Unlock()
-	c, ok := e.clients[nodeID]
+	c, ok := e.clients[name]
 	if !ok {
-		panic(fmt.Sprintf("no client for node %d — call env.NewClient(%d) first", nodeID, nodeID))
+		panic(fmt.Sprintf(
+			"no client named %q — call env.NewClient with WithClientName(%q) first",
+			name, name,
+		))
 	}
 	return c
 }
@@ -488,6 +533,58 @@ func (e *Environment) Clients() []*ClientHandle {
 		result = append(result, c)
 	}
 	return result
+}
+
+// --- Rate Registry ---
+
+// RatesConfig holds the parameters for adding rates to the on-chain rate registry.
+type RatesConfig struct {
+	// MessageFee in picodollars.
+	MessageFee int64
+	// StorageFee in picodollars.
+	StorageFee int64
+	// CongestionFee in picodollars.
+	CongestionFee int64
+	// TargetRatePerMinute is the target message rate.
+	TargetRatePerMinute uint64
+	// StartTime is the unix timestamp when rates take effect.
+	// If zero, defaults to 10 seconds from now.
+	StartTime uint64
+}
+
+// AddRates adds a new rate entry to the on-chain rate registry via xmtpd-cli.
+// Nodes will pick up the new rates on their next registry refresh cycle
+// (controlled by XMTPD_SETTLEMENT_CHAIN_RATE_REGISTRY_REFRESH_INTERVAL).
+func (e *Environment) AddRates(ctx context.Context, cfg RatesConfig) error {
+	startTime := cfg.StartTime
+	if startTime == 0 {
+		startTime = uint64(time.Now().Add(10 * time.Second).Unix())
+	}
+
+	cmd := []string{
+		"--environment=anvil",
+		"--private-key=" + keys.AdminKey(),
+		"--settlement-rpc-url=" + e.Chain.InternalRPCURL(),
+		"rates", "add",
+		fmt.Sprintf("--message-fee=%d", cfg.MessageFee),
+		fmt.Sprintf("--storage-fee=%d", cfg.StorageFee),
+		fmt.Sprintf("--congestion-fee=%d", cfg.CongestionFee),
+		fmt.Sprintf("--target-rate=%d", cfg.TargetRatePerMinute),
+		fmt.Sprintf("--start-time=%d", startTime),
+	}
+
+	if err := e.runCLI(ctx, cmd); err != nil {
+		return fmt.Errorf("failed to add rates: %w", err)
+	}
+
+	e.Logger.Info("rates added to registry",
+		zap.Int64("message_fee", cfg.MessageFee),
+		zap.Int64("storage_fee", cfg.StorageFee),
+		zap.Int64("congestion_fee", cfg.CongestionFee),
+		zap.Uint64("target_rate", cfg.TargetRatePerMinute),
+		zap.Uint64("start_time", startTime),
+	)
+	return nil
 }
 
 // --- On-chain operations ---
@@ -524,7 +621,10 @@ func (e *Environment) registerNode(ctx context.Context, signerKey string) (uint3
 		if proxyErr := e.Chaos.RegisterTarget(ctx, alias, alias, 5050); proxyErr != nil {
 			return 0, fmt.Errorf("failed to register chaos proxy for %s: %w", alias, proxyErr)
 		}
-		httpAddress = e.Chaos.ProxyAddress(alias)
+		httpAddress, err = e.Chaos.ProxyAddress(alias)
+		if err != nil {
+			return 0, fmt.Errorf("failed to get proxy address for %s: %w", alias, err)
+		}
 	}
 	rpcURL := e.Chain.InternalRPCURL()
 

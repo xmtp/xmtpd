@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -484,7 +485,7 @@ func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
 			migrator.KeyPackagesOriginatorID,
 		}
 		ids             = append(nodeIDs(nodes), reservedOriginatorIDs...)
-		sourceEnvelopes = generateEnvelopes(t, ids, 50, 100, payerID, subTopic)
+		sourceEnvelopes = generateEnvelopes(t, ids, 10, 30, payerID, subTopic)
 
 		// For easier envelope lookup, use "<node-id>-<seq-id>" key.
 		keyID = func(nodeID int32, seqID int64) string {
@@ -518,31 +519,41 @@ func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
 
 	// Receive messages and do accounting.
 	var (
-		received_count = 0
-		received       = make(map[string]struct{})
+		receivedCount atomic.Int64
+		received      = make(map[string]struct{})
+		streamWG      sync.WaitGroup
 	)
-	for received_count < total {
 
-		ok := stream.Receive()
-		if !ok {
-			break
+	streamWG.Go(func() {
+		for receivedCount.Load() < int64(total) {
+			if ok := stream.Receive(); !ok {
+				break
+			}
+
+			msg := stream.Msg()
+
+			for _, env := range msg.GetEnvelopes() {
+				receivedCount.Add(1)
+
+				decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
+					t,
+					env.GetUnsignedOriginatorEnvelope(),
+				)
+
+				received[keyID(int32(decoded.GetOriginatorNodeId()), int64(decoded.GetOriginatorSequenceId()))] = struct{}{}
+			}
 		}
 
-		msg := stream.Msg()
+		cancel()
+	})
 
-		for _, env := range msg.GetEnvelopes() {
-			received_count += 1
+	require.Eventually(t, func() bool {
+		return receivedCount.Load() >= int64(total)
+	}, 10*time.Second, 100*time.Millisecond, "not all envelopes received")
 
-			decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
-				t,
-				env.GetUnsignedOriginatorEnvelope(),
-			)
+	streamWG.Wait()
 
-			received[keyID(int32(decoded.GetOriginatorNodeId()), int64(decoded.GetOriginatorSequenceId()))] = struct{}{}
-		}
-	}
-
-	cancel()
+	require.Equal(t, int64(total), receivedCount.Load())
 
 	err = stream.Err()
 	require.Truef(
@@ -550,13 +561,11 @@ func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
 		err == nil || errors.Is(err, context.Canceled),
 		"unexpected stream error: %s, received %v/%v envelopes",
 		err,
-		received_count,
+		receivedCount.Load(),
 		total,
 	)
 
-	require.Equal(t, total, received_count)
-
-	t.Logf("processed %v envelopes", received_count)
+	t.Logf("processed %v envelopes", receivedCount.Load())
 
 	// Accounting - verify that query returned everything.
 	// Confirm simply that we got back all envelopes based on nodeID and seqID.

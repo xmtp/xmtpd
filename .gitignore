@@ -53,6 +53,9 @@ contracts/config/anvil_localnet/*
 .version
 .wake
 
+# E2E test binary
+xmtpd-e2e
+
 # Perf test binaries and output
 cmd/perf-test/perf-test
 perf_results*.json

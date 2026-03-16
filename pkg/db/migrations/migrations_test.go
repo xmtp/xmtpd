@@ -14,7 +14,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
-const currentMigration int64 = 21
+const currentMigration int64 = 22
 
 var (
 	originatorIDs = []int32{100, 200, 300}
@@ -202,6 +202,10 @@ func TestMigrations(t *testing.T) {
 
 	t.Run("00021_insert_staged_envelopes_batch-v2", func(t *testing.T) {
 		checkStagedInsertBatchV2(t, database)
+	})
+
+	t.Run("00022_prune-meta-partitions", func(t *testing.T) {
+		checkMetaPartitionSelect(t, database)
 	})
 
 	t.Run("data_verification", func(t *testing.T) {
@@ -397,6 +401,10 @@ func checkInsertBatchV2(t *testing.T, database *sql.DB) {
 
 func checkStagedInsertBatchV2(t *testing.T, database *sql.DB) {
 	functionExists(t, database, "insert_staged_originator_envelope_batch_v2")
+}
+
+func checkMetaPartitionSelect(t *testing.T, database *sql.DB) {
+	functionExists(t, database, "get_prunable_meta_partitions")
 }
 
 // --- Data verification after populateDatabase ---

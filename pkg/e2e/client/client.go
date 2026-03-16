@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xmtp/xmtpd/pkg/stress"
 	"go.uber.org/zap"
 )
@@ -47,6 +49,14 @@ type Client interface {
 
 	// PayerKey returns the private key hex string used for signing payer envelopes.
 	PayerKey() string
+
+	// Name returns the unique identifier for this client within the environment.
+	Name() string
+
+	// Address returns the Ethereum address derived from this client's payer key.
+	// This address appears in the payers table and can be used to verify per-payer
+	// attribution via GetUnsettledUsage.
+	Address() common.Address
 }
 
 // Options configures a new client instance.
@@ -54,15 +64,17 @@ type Options struct {
 	// NodeAddr is the host-accessible address of a node (e.g. http://localhost:XXXXX).
 	NodeAddr string
 	// PayerKey is the private key used to sign payer envelopes.
-	// Defaults to the first anvil account if empty.
 	PayerKey string
 	// OriginatorID is the on-chain nodeID of the target node.
 	OriginatorID uint32
+	// Name is the unique identifier for this client within the environment.
+	Name string
 }
 
 type client struct {
 	logger  *zap.Logger
 	opts    Options
+	address common.Address
 	mu      sync.Mutex
 	traffic *TrafficGenerator
 }
@@ -72,9 +84,22 @@ func New(logger *zap.Logger, opts Options) Client {
 	if opts.PayerKey == "" {
 		panic("PayerKey must be provided — use keys.ClientKey()")
 	}
+
+	// Parse the payer key and derive the Ethereum address once at construction.
+	keyHex := opts.PayerKey
+	if len(keyHex) >= 2 && keyHex[:2] == "0x" {
+		keyHex = keyHex[2:]
+	}
+	privateKey, err := crypto.HexToECDSA(keyHex)
+	if err != nil {
+		panic(fmt.Sprintf("invalid PayerKey: %v", err))
+	}
+	address := crypto.PubkeyToAddress(privateKey.PublicKey)
+
 	return &client{
-		logger: logger,
-		opts:   opts,
+		logger:  logger,
+		opts:    opts,
+		address: address,
 	}
 }
 
@@ -86,6 +111,16 @@ func (c *client) NodeID() uint32 {
 // PayerKey returns the private key hex string used for signing payer envelopes.
 func (c *client) PayerKey() string {
 	return c.opts.PayerKey
+}
+
+// Name returns the unique identifier for this client within the environment.
+func (c *client) Name() string {
+	return c.opts.Name
+}
+
+// Address returns the Ethereum address derived from this client's payer key.
+func (c *client) Address() common.Address {
+	return c.address
 }
 
 // PublishEnvelopes publishes the specified number of group message envelopes
@@ -126,14 +161,11 @@ func (c *client) GenerateTraffic(
 	if c.traffic != nil {
 		c.traffic.Stop()
 	}
-	c.mu.Unlock()
 
 	genCtx, cancel := context.WithTimeout(ctx, opts.Duration)
 
 	gen := &TrafficGenerator{cancel: cancel}
 	gen.wg.Add(1)
-
-	c.mu.Lock()
 	c.traffic = gen
 	c.mu.Unlock()
 

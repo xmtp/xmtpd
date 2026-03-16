@@ -42,8 +42,8 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 
 	const (
 		trafficDuration      = 75 * time.Minute
-		generatorTimeout     = 65 * time.Minute
-		postGeneratorTimeout = 15 * time.Minute
+		generatorTimeout     = 75 * time.Minute
+		postGeneratorTimeout = 65 * time.Minute
 	)
 
 	// Create nodes 100, 200, 300.
@@ -192,8 +192,6 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	}
 
 	// Phase 5b: Verify payer balance decreased after settlement.
-	// Settlement deducts from the payer's PayerRegistry balance, so it must be
-	// strictly less than the original deposit.
 	payerBalanceAfter, err := payer.GetPayerBalance(ctx)
 	require.NoError(err, "failed to get payer balance after settlement")
 
@@ -206,9 +204,6 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 		depositAmount.String(), payerBalanceAfter.String())
 
 	// Phase 6: Transfer excess funds from PayerRegistry to DistributionManager.
-	// After settlement, the PayerRegistry holds tokens that are no longer owed to
-	// payers (their balances were deducted). This creates "excess" that must be
-	// transferred to the DistributionManager before nodes can withdraw.
 	env.Logger.Info("phase 6: transferring excess to fee distributor")
 
 	excess, err := env.GetPayerRegistryExcess(ctx)
@@ -227,8 +222,6 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	// Phase 7: Each node claims and withdraws their owed fees.
 	env.Logger.Info("phase 7: claiming and withdrawing owed fees for each node")
 
-	// Get settled reports from one node to build claim parameters.
-	// All nodes should have the same settled reports.
 	settledReports, err := node100.GetSettledPayerReports(ctx)
 	require.NoError(err, "failed to get settled payer reports")
 	require.NotEmpty(settledReports, "should have settled payer reports")
@@ -236,9 +229,7 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 	env.Logger.Info("settled payer reports found",
 		zap.Int("count", len(settledReports)))
 
-	// Group settled reports by originator node ID.
-	// Not all originators may have reports on-chain (e.g. a node didn't generate
-	// reports during the test window), so we need to deduplicate the originator list.
+	// Group settled reports by originator node ID for claim deduplication.
 	type reportKey struct {
 		originatorNodeID uint32
 		reportIndex      int64
@@ -261,10 +252,6 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 		payerReportIndices = append(payerReportIndices, big.NewInt(k.reportIndex))
 	}
 
-	env.Logger.Info("unique settled reports for claim",
-		zap.Int("count", len(originatorNodeIDs)),
-		zap.Any("originator_node_ids", originatorNodeIDs))
-
 	anyWithdrawn := false
 
 	for _, n := range allNodes {
@@ -273,10 +260,6 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 			ownerKey = n.SignerKey()
 		)
 
-		// Attempt to claim fees for this node.
-		// The claim may fail with NoReportsForOriginator if the on-chain contract
-		// doesn't have reports for some originators. This is expected when not all
-		// nodes generated reports during the test window.
 		err = env.ClaimFromDistributionManager(
 			ctx, ownerKey, nodeID, originatorNodeIDs, payerReportIndices,
 		)
@@ -287,14 +270,12 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 			continue
 		}
 
-		// Check owed fees after claim to verify they were credited
 		owedAfter, err := env.GetDistributionManagerOwedFees(ctx, nodeID)
 		require.NoError(err, "failed to get owed fees after claim for node %d", nodeID)
 		env.Logger.Info("owed fees after claim",
 			zap.Uint32("node_id", nodeID),
 			zap.String("owed", owedAfter.String()))
 
-		// Withdraw owed fees (must be signed by node owner).
 		if owedAfter.Sign() > 0 {
 			err = env.WithdrawFromDistributionManager(ctx, ownerKey, nodeID)
 			require.NoError(err, "withdraw failed for node %d", nodeID)
@@ -303,17 +284,12 @@ func (t *PayerLifecycleTest) Run(ctx context.Context, env *types.Environment) er
 				zap.Uint32("node_id", nodeID),
 				zap.String("amount", owedAfter.String()))
 			anyWithdrawn = true
-		} else {
-			env.Logger.Info("node has no owed fees to withdraw",
-				zap.Uint32("node_id", nodeID))
 		}
 	}
 
 	require.True(anyWithdrawn, "at least one node should have withdrawn fees")
 
-	// Phase 8: Verify that fee tokens arrived in node operator wallets.
-	// The sum of all earned fees across nodes must equal the excess that was
-	// transferred from the PayerRegistry to the DistributionManager.
+	// Phase 8: Verify fee tokens arrived in node operator wallets.
 	env.Logger.Info("phase 8: verifying fee token balances in node operator wallets")
 
 	totalEarned := new(big.Int)

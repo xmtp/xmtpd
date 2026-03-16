@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sync"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -13,12 +14,46 @@ import (
 
 type Observer struct {
 	logger *zap.Logger
+	mu     sync.Mutex
+	pools  map[string]*sql.DB
 }
 
 func New(logger *zap.Logger) *Observer {
 	return &Observer{
 		logger: logger,
+		pools:  make(map[string]*sql.DB),
 	}
+}
+
+// Close releases all cached database connection pools.
+func (o *Observer) Close() {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	for connStr, db := range o.pools {
+		_ = db.Close()
+		delete(o.pools, connStr)
+	}
+}
+
+// getDB returns a cached connection pool for the given connection string,
+// creating one on first use.
+func (o *Observer) getDB(connStr string) (*sql.DB, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	if db, ok := o.pools[connStr]; ok {
+		return db, nil
+	}
+
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to db: %w", err)
+	}
+	// Keep pool small — observer queries are infrequent and sequential.
+	db.SetMaxOpenConns(2)
+	db.SetMaxIdleConns(1)
+	o.pools[connStr] = db
+	return db, nil
 }
 
 type EnvelopeStats struct {
@@ -39,13 +74,10 @@ type VectorClockEntry struct {
 }
 
 func (o *Observer) GetEnvelopeCount(ctx context.Context, connStr string) (int64, error) {
-	db, err := sql.Open("postgres", connStr)
+	db, err := o.getDB(connStr)
 	if err != nil {
-		return 0, fmt.Errorf("failed to connect to db: %w", err)
+		return 0, err
 	}
-	defer func() {
-		_ = db.Close()
-	}()
 
 	var count int64
 	err = db.QueryRowContext(ctx,
@@ -59,13 +91,10 @@ func (o *Observer) GetEnvelopeCount(ctx context.Context, connStr string) (int64,
 }
 
 func (o *Observer) GetVectorClock(ctx context.Context, connStr string) ([]VectorClockEntry, error) {
-	db, err := sql.Open("postgres", connStr)
+	db, err := o.getDB(connStr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to db: %w", err)
+		return nil, err
 	}
-	defer func() {
-		_ = db.Close()
-	}()
 
 	rows, err := db.QueryContext(
 		ctx,
@@ -91,13 +120,10 @@ func (o *Observer) GetVectorClock(ctx context.Context, connStr string) ([]Vector
 }
 
 func (o *Observer) GetPayerReportCount(ctx context.Context, connStr string) (int64, error) {
-	db, err := sql.Open("postgres", connStr)
+	db, err := o.getDB(connStr)
 	if err != nil {
-		return 0, fmt.Errorf("failed to connect to db: %w", err)
+		return 0, err
 	}
-	defer func() {
-		_ = db.Close()
-	}()
 
 	var count int64
 	err = db.QueryRowContext(ctx,
@@ -114,13 +140,10 @@ func (o *Observer) GetUnsettledUsage(
 	ctx context.Context,
 	connStr string,
 ) ([]PayerUsageStats, error) {
-	db, err := sql.Open("postgres", connStr)
+	db, err := o.getDB(connStr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to db: %w", err)
+		return nil, err
 	}
-	defer func() {
-		_ = db.Close()
-	}()
 
 	rows, err := db.QueryContext(ctx, `
 		SELECT p.address,
@@ -165,13 +188,10 @@ func (o *Observer) GetPayerReportStatusCounts(
 	ctx context.Context,
 	connStr string,
 ) (*PayerReportStatusCounts, error) {
-	db, err := sql.Open("postgres", connStr)
+	db, err := o.getDB(connStr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to db: %w", err)
+		return nil, err
 	}
-	defer func() {
-		_ = db.Close()
-	}()
 
 	counts := &PayerReportStatusCounts{}
 
@@ -256,13 +276,10 @@ func (o *Observer) GetSettledPayerReports(
 	ctx context.Context,
 	connStr string,
 ) ([]SettledPayerReport, error) {
-	db, err := sql.Open("postgres", connStr)
+	db, err := o.getDB(connStr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to db: %w", err)
+		return nil, err
 	}
-	defer func() {
-		_ = db.Close()
-	}()
 
 	rows, err := db.QueryContext(ctx, `
 		SELECT originator_node_id, submitted_report_index
@@ -334,13 +351,10 @@ func (o *Observer) WaitForPayerReports(
 }
 
 func (o *Observer) GetStagedEnvelopeCount(ctx context.Context, connStr string) (int64, error) {
-	db, err := sql.Open("postgres", connStr)
+	db, err := o.getDB(connStr)
 	if err != nil {
-		return 0, fmt.Errorf("failed to connect to db: %w", err)
+		return 0, err
 	}
-	defer func() {
-		_ = db.Close()
-	}()
 
 	var count int64
 	err = db.QueryRowContext(ctx,
@@ -354,13 +368,10 @@ func (o *Observer) GetStagedEnvelopeCount(ctx context.Context, connStr string) (
 }
 
 func (o *Observer) GetNodeInfo(ctx context.Context, connStr string) (nodeID int32, err error) {
-	db, err := sql.Open("postgres", connStr)
+	db, err := o.getDB(connStr)
 	if err != nil {
-		return 0, fmt.Errorf("failed to connect to db: %w", err)
+		return 0, err
 	}
-	defer func() {
-		_ = db.Close()
-	}()
 
 	err = db.QueryRowContext(ctx,
 		"SELECT node_id FROM node_info LIMIT 1",

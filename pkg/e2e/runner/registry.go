@@ -10,7 +10,18 @@ func AllTests() []types.Test {
 		tests.NewSmokeTest(),
 		tests.NewChaosNodeDownTest(),
 		tests.NewChaosLatencyTest(),
+		tests.NewChaosNetworkPartitionTest(),
+		tests.NewChaosConnectionResetTest(),
+		tests.NewChaosBandwidthThrottleTest(),
+		tests.NewChaosCompoundFaultTest(),
+		tests.NewChaosAttestationFaultTest(),
 		tests.NewGatewayScaleTest(),
 		tests.NewPayerLifecycleTest(),
+		tests.NewMultiPayerTest(),
+		tests.NewSettlementVerificationTest(),
+		tests.NewSyncVerificationTest(),
+		tests.NewSustainedLoadTest(),
+		tests.NewRateRegistryChangeTest(),
+		tests.NewStuckStateDetectionTest(),
 	}
 }

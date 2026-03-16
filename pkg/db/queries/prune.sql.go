@@ -26,7 +26,7 @@ WHERE ge.expiry IS NOT NULL
 `
 
 func (q *Queries) CountExpiredEnvelopes(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countExpiredEnvelopes)
+	row := q.queryRow(ctx, q.countExpiredEnvelopesStmt, countExpiredEnvelopes)
 	var expired_count int64
 	err := row.Scan(&expired_count)
 	return expired_count, err
@@ -47,7 +47,7 @@ type GetPrunableCeilingRow struct {
 }
 
 func (q *Queries) GetPrunableCeiling(ctx context.Context) ([]GetPrunableCeilingRow, error) {
-	rows, err := q.db.QueryContext(ctx, getPrunableCeiling)
+	rows, err := q.query(ctx, q.getPrunableCeilingStmt, getPrunableCeiling)
 	if err != nil {
 		return nil, err
 	}
@@ -56,6 +56,60 @@ func (q *Queries) GetPrunableCeiling(ctx context.Context) ([]GetPrunableCeilingR
 	for rows.Next() {
 		var i GetPrunableCeilingRow
 		if err := rows.Scan(&i.OriginatorNodeID, &i.MaxEndSequenceID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getPrunableMetaPartitions = `-- name: GetPrunableMetaPartitions :many
+SELECT
+    p.originator_node_id::int   AS originator_node_id,
+    p.schemaname::text           AS schemaname,
+    p.tablename::text            AS tablename,
+    p.band_start::int           AS band_start,
+    p.band_end::int            AS band_end
+FROM get_prunable_meta_partitions() AS p(
+    originator_node_id,
+    schemaname,
+    tablename,
+    band_start,
+    band_end
+    )
+ORDER BY p.originator_node_id, p.band_start
+`
+
+type GetPrunableMetaPartitionsRow struct {
+	OriginatorNodeID int32
+	Schemaname       string
+	Tablename        string
+	BandStart        int32
+	BandEnd          int32
+}
+
+func (q *Queries) GetPrunableMetaPartitions(ctx context.Context) ([]GetPrunableMetaPartitionsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getPrunableMetaPartitions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPrunableMetaPartitionsRow
+	for rows.Next() {
+		var i GetPrunableMetaPartitionsRow
+		if err := rows.Scan(
+			&i.OriginatorNodeID,
+			&i.Schemaname,
+			&i.Tablename,
+			&i.BandStart,
+			&i.BandEnd,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

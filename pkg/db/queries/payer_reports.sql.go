@@ -35,7 +35,7 @@ type BuildPayerReportRow struct {
 }
 
 func (q *Queries) BuildPayerReport(ctx context.Context, arg BuildPayerReportParams) ([]BuildPayerReportRow, error) {
-	rows, err := q.db.QueryContext(ctx, buildPayerReport, arg.OriginatorID, arg.StartMinutesSinceEpoch, arg.EndMinutesSinceEpoch)
+	rows, err := q.query(ctx, q.buildPayerReportStmt, buildPayerReport, arg.OriginatorID, arg.StartMinutesSinceEpoch, arg.EndMinutesSinceEpoch)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +82,7 @@ type BulkFindOrCreatePayersRow struct {
 }
 
 func (q *Queries) BulkFindOrCreatePayers(ctx context.Context, addresses []string) ([]BulkFindOrCreatePayersRow, error) {
-	rows, err := q.db.QueryContext(ctx, bulkFindOrCreatePayers, pq.Array(addresses))
+	rows, err := q.query(ctx, q.bulkFindOrCreatePayersStmt, bulkFindOrCreatePayers, pq.Array(addresses))
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +118,7 @@ type ClearUnsettledUsageParams struct {
 }
 
 func (q *Queries) ClearUnsettledUsage(ctx context.Context, arg ClearUnsettledUsageParams) error {
-	_, err := q.db.ExecContext(ctx, clearUnsettledUsage, arg.OriginatorID, arg.PrevReportEndMinuteSinceEpoch, arg.EndMinuteSinceEpoch)
+	_, err := q.exec(ctx, q.clearUnsettledUsageStmt, clearUnsettledUsage, arg.OriginatorID, arg.PrevReportEndMinuteSinceEpoch, arg.EndMinuteSinceEpoch)
 	return err
 }
 
@@ -129,7 +129,7 @@ WHERE id = $1
 `
 
 func (q *Queries) FetchPayerReport(ctx context.Context, id []byte) (PayerReport, error) {
-	row := q.db.QueryRowContext(ctx, fetchPayerReport, id)
+	row := q.queryRow(ctx, q.fetchPayerReportStmt, fetchPayerReport, id)
 	var i PayerReport
 	err := row.Scan(
 		&i.ID,
@@ -155,7 +155,7 @@ FOR UPDATE
 `
 
 func (q *Queries) FetchPayerReportLocked(ctx context.Context, id []byte) (PayerReport, error) {
-	row := q.db.QueryRowContext(ctx, fetchPayerReportLocked, id)
+	row := q.queryRow(ctx, q.fetchPayerReportLockedStmt, fetchPayerReportLocked, id)
 	var i PayerReport
 	err := row.Scan(
 		&i.ID,
@@ -246,7 +246,7 @@ type FetchPayerReportsRow struct {
 }
 
 func (q *Queries) FetchPayerReports(ctx context.Context, arg FetchPayerReportsParams) ([]FetchPayerReportsRow, error) {
-	rows, err := q.db.QueryContext(ctx, fetchPayerReports,
+	rows, err := q.query(ctx, q.fetchPayerReportsStmt, fetchPayerReports,
 		arg.MinAttestations,
 		pq.Array(arg.AttestationStatusIn),
 		pq.Array(arg.SubmissionStatusIn),
@@ -309,7 +309,7 @@ LIMIT 1
 `
 
 func (q *Queries) FindOrCreatePayer(ctx context.Context, address string) (int32, error) {
-	row := q.db.QueryRowContext(ctx, findOrCreatePayer, address)
+	row := q.queryRow(ctx, q.findOrCreatePayerStmt, findOrCreatePayer, address)
 	var id int32
 	err := row.Scan(&id)
 	return id, err
@@ -328,7 +328,7 @@ type GetGatewayEnvelopeByIDParams struct {
 }
 
 func (q *Queries) GetGatewayEnvelopeByID(ctx context.Context, arg GetGatewayEnvelopeByIDParams) (GatewayEnvelopesView, error) {
-	row := q.db.QueryRowContext(ctx, getGatewayEnvelopeByID, arg.OriginatorSequenceID, arg.OriginatorNodeID)
+	row := q.queryRow(ctx, q.getGatewayEnvelopeByIDStmt, getGatewayEnvelopeByID, arg.OriginatorSequenceID, arg.OriginatorNodeID)
 	var i GatewayEnvelopesView
 	err := row.Scan(
 		&i.OriginatorNodeID,
@@ -353,7 +353,7 @@ type GetLastSequenceIDForOriginatorMinuteParams struct {
 }
 
 func (q *Queries) GetLastSequenceIDForOriginatorMinute(ctx context.Context, arg GetLastSequenceIDForOriginatorMinuteParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, getLastSequenceIDForOriginatorMinute, arg.OriginatorID, arg.MinutesSinceEpoch)
+	row := q.queryRow(ctx, q.getLastSequenceIDForOriginatorMinuteStmt, getLastSequenceIDForOriginatorMinute, arg.OriginatorID, arg.MinutesSinceEpoch)
 	var last_sequence_id int64
 	err := row.Scan(&last_sequence_id)
 	return last_sequence_id, err
@@ -366,7 +366,7 @@ WHERE address = $1
 `
 
 func (q *Queries) GetPayerByAddress(ctx context.Context, address string) (int32, error) {
-	row := q.db.QueryRowContext(ctx, getPayerByAddress, address)
+	row := q.queryRow(ctx, q.getPayerByAddressStmt, getPayerByAddress, address)
 	var id int32
 	err := row.Scan(&id)
 	return id, err
@@ -403,7 +403,7 @@ type GetPayerInfoReportRow struct {
 }
 
 func (q *Queries) GetPayerInfoReport(ctx context.Context, arg GetPayerInfoReportParams) ([]GetPayerInfoReportRow, error) {
-	rows, err := q.db.QueryContext(ctx, getPayerInfoReport, arg.GroupBy, arg.PayerID)
+	rows, err := q.query(ctx, q.getPayerInfoReportStmt, getPayerInfoReport, arg.GroupBy, arg.PayerID)
 	if err != nil {
 		return nil, err
 	}
@@ -452,7 +452,7 @@ type GetPayerUnsettledUsageRow struct {
 }
 
 func (q *Queries) GetPayerUnsettledUsage(ctx context.Context, arg GetPayerUnsettledUsageParams) (GetPayerUnsettledUsageRow, error) {
-	row := q.db.QueryRowContext(ctx, getPayerUnsettledUsage, arg.PayerID, arg.MinutesSinceEpochGt, arg.MinutesSinceEpochLt)
+	row := q.queryRow(ctx, q.getPayerUnsettledUsageStmt, getPayerUnsettledUsage, arg.PayerID, arg.MinutesSinceEpochGt, arg.MinutesSinceEpochLt)
 	var i GetPayerUnsettledUsageRow
 	err := row.Scan(&i.TotalSpendPicodollars, &i.LastSequenceID)
 	return i, err
@@ -486,7 +486,7 @@ type GetSecondNewestMinuteRow struct {
 }
 
 func (q *Queries) GetSecondNewestMinute(ctx context.Context, arg GetSecondNewestMinuteParams) (GetSecondNewestMinuteRow, error) {
-	row := q.db.QueryRowContext(ctx, getSecondNewestMinute, arg.OriginatorID, arg.MinimumMinutesSinceEpoch)
+	row := q.queryRow(ctx, q.getSecondNewestMinuteStmt, getSecondNewestMinute, arg.OriginatorID, arg.MinimumMinutesSinceEpoch)
 	var i GetSecondNewestMinuteRow
 	err := row.Scan(&i.MaxSequenceID, &i.MinutesSinceEpoch)
 	return i, err
@@ -525,7 +525,7 @@ type IncrementUnsettledUsageParams struct {
 }
 
 func (q *Queries) IncrementUnsettledUsage(ctx context.Context, arg IncrementUnsettledUsageParams) error {
-	_, err := q.db.ExecContext(ctx, incrementUnsettledUsage,
+	_, err := q.exec(ctx, q.incrementUnsettledUsageStmt, incrementUnsettledUsage,
 		arg.PayerID,
 		arg.OriginatorID,
 		arg.MinutesSinceEpoch,
@@ -568,7 +568,7 @@ type InsertOrIgnorePayerReportParams struct {
 }
 
 func (q *Queries) InsertOrIgnorePayerReport(ctx context.Context, arg InsertOrIgnorePayerReportParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, insertOrIgnorePayerReport,
+	result, err := q.exec(ctx, q.insertOrIgnorePayerReportStmt, insertOrIgnorePayerReport,
 		arg.ID,
 		arg.OriginatorNodeID,
 		arg.StartSequenceID,
@@ -595,7 +595,7 @@ type InsertOrIgnorePayerReportAttestationParams struct {
 }
 
 func (q *Queries) InsertOrIgnorePayerReportAttestation(ctx context.Context, arg InsertOrIgnorePayerReportAttestationParams) error {
-	_, err := q.db.ExecContext(ctx, insertOrIgnorePayerReportAttestation, arg.PayerReportID, arg.NodeID, arg.Signature)
+	_, err := q.exec(ctx, q.insertOrIgnorePayerReportAttestationStmt, insertOrIgnorePayerReportAttestation, arg.PayerReportID, arg.NodeID, arg.Signature)
 	return err
 }
 
@@ -613,7 +613,7 @@ type SetReportAttestationStatusParams struct {
 }
 
 func (q *Queries) SetReportAttestationStatus(ctx context.Context, arg SetReportAttestationStatusParams) error {
-	_, err := q.db.ExecContext(ctx, setReportAttestationStatus, arg.NewStatus, arg.ReportID, pq.Array(arg.PrevStatus))
+	_, err := q.exec(ctx, q.setReportAttestationStatusStmt, setReportAttestationStatus, arg.NewStatus, arg.ReportID, pq.Array(arg.PrevStatus))
 	return err
 }
 
@@ -631,7 +631,7 @@ type SetReportSubmissionStatusParams struct {
 }
 
 func (q *Queries) SetReportSubmissionStatus(ctx context.Context, arg SetReportSubmissionStatusParams) error {
-	_, err := q.db.ExecContext(ctx, setReportSubmissionStatus, arg.NewStatus, arg.ReportID, pq.Array(arg.PrevStatus))
+	_, err := q.exec(ctx, q.setReportSubmissionStatusStmt, setReportSubmissionStatus, arg.NewStatus, arg.ReportID, pq.Array(arg.PrevStatus))
 	return err
 }
 
@@ -651,7 +651,7 @@ type SetReportSubmittedParams struct {
 }
 
 func (q *Queries) SetReportSubmitted(ctx context.Context, arg SetReportSubmittedParams) error {
-	_, err := q.db.ExecContext(ctx, setReportSubmitted,
+	_, err := q.exec(ctx, q.setReportSubmittedStmt, setReportSubmitted,
 		arg.NewStatus,
 		arg.SubmittedReportIndex,
 		arg.ReportID,

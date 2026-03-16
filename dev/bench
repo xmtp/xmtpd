@@ -14,6 +14,10 @@ Environment variables:
   BENCH_TIER    Optional tier filter from pkg/db/bench/main_test.go.
                 Valid values: 100K, 1M, 10M (case-insensitive).
                 If unset, all tiers run.
+  BENCH_USE_PREPARED
+                Optional query mode toggle consumed by bench tests.
+                true/1/t enables prepared queries (default).
+                false/0/f disables prepared queries.
 
 Examples:
   dev/bench
@@ -39,12 +43,14 @@ fi
 RESULTS_DIR="benchmarks/results"
 mkdir -p "$RESULTS_DIR"
 
-OUTFILE="$RESULTS_DIR/${BENCH_TIER:-all}-$(date +%Y-%m-%d-T%H%M%S).txt"
+BENCH_MODE="${BENCH_USE_PREPARED:-true}"
+OUTFILE="$RESULTS_DIR/${BENCH_TIER:-all}-$(date +%Y-%m-%d-T%H%M%S)-prepared-${BENCH_MODE}.txt"
 RAWFILE=$(mktemp)
 trap 'rm -f "$RAWFILE"' EXIT
 
 echo "Running benchmarks..."
 echo "Tier filter: ${BENCH_TIER:-all}"
+echo "Prepared queries: ${BENCH_MODE}"
 echo "Output: $OUTFILE"
 echo
 

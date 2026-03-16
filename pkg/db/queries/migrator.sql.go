@@ -19,7 +19,7 @@ type DeleteMigrationDeadLetterBoxParams struct {
 }
 
 func (q *Queries) DeleteMigrationDeadLetterBox(ctx context.Context, arg DeleteMigrationDeadLetterBoxParams) (bool, error) {
-	row := q.db.QueryRowContext(ctx, deleteMigrationDeadLetterBox, arg.SourceTable, arg.SequenceID)
+	row := q.queryRow(ctx, q.deleteMigrationDeadLetterBoxStmt, deleteMigrationDeadLetterBox, arg.SourceTable, arg.SequenceID)
 	var delete_migration_dead_letter_box bool
 	err := row.Scan(&delete_migration_dead_letter_box)
 	return delete_migration_dead_letter_box, err
@@ -34,7 +34,7 @@ WHERE source_table = $1
 
 // Migration Tracker Operations
 func (q *Queries) GetMigrationProgress(ctx context.Context, sourceTable string) (int64, error) {
-	row := q.db.QueryRowContext(ctx, getMigrationProgress, sourceTable)
+	row := q.queryRow(ctx, q.getMigrationProgressStmt, getMigrationProgress, sourceTable)
 	var last_migrated_id int64
 	err := row.Scan(&last_migrated_id)
 	return last_migrated_id, err
@@ -49,7 +49,7 @@ LIMIT $1
 `
 
 func (q *Queries) GetRetryableMigrationDeadLetterBoxes(ctx context.Context, rowLimit int32) ([]MigrationDeadLetterBox, error) {
-	rows, err := q.db.QueryContext(ctx, getRetryableMigrationDeadLetterBoxes, rowLimit)
+	rows, err := q.query(ctx, q.getRetryableMigrationDeadLetterBoxesStmt, getRetryableMigrationDeadLetterBoxes, rowLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ type InsertMigrationDeadLetterBoxParams struct {
 }
 
 func (q *Queries) InsertMigrationDeadLetterBox(ctx context.Context, arg InsertMigrationDeadLetterBoxParams) (MigrationDeadLetterBox, error) {
-	row := q.db.QueryRowContext(ctx, insertMigrationDeadLetterBox,
+	row := q.queryRow(ctx, q.insertMigrationDeadLetterBoxStmt, insertMigrationDeadLetterBox,
 		arg.SourceTable,
 		arg.SequenceID,
 		arg.Payload,
@@ -126,6 +126,6 @@ type UpdateMigrationProgressParams struct {
 }
 
 func (q *Queries) UpdateMigrationProgress(ctx context.Context, arg UpdateMigrationProgressParams) error {
-	_, err := q.db.ExecContext(ctx, updateMigrationProgress, arg.LastMigratedID, arg.SourceTable)
+	_, err := q.exec(ctx, q.updateMigrationProgressStmt, updateMigrationProgress, arg.LastMigratedID, arg.SourceTable)
 	return err
 }

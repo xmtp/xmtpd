@@ -7,16 +7,20 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/currency"
+	dbPkg "github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	envelopeUtils "github.com/xmtp/xmtpd/pkg/envelopes"
+	"github.com/xmtp/xmtpd/pkg/ledger"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
 	apiv1 "github.com/xmtp/xmtpd/pkg/proto/mls/api/v1"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	message_apiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
+	"github.com/xmtp/xmtpd/pkg/testutils"
 	apiTestUtils "github.com/xmtp/xmtpd/pkg/testutils/api"
 	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
 	"github.com/xmtp/xmtpd/pkg/topic"
@@ -599,4 +603,188 @@ func TestPublishEnvelopeBatchPublishNoPartialError(t *testing.T) {
 		SelectGatewayEnvelopesUnfiltered(context.Background(), queries.SelectGatewayEnvelopesUnfilteredParams{})
 	require.NoError(t, err)
 	require.Empty(t, envs)
+}
+
+func TestPublishEnvelopeBalanceEnforcement(t *testing.T) {
+	tests := []struct {
+		name           string
+		enforce        bool
+		deposit        currency.PicoDollar
+		unsettledUsage int64
+		wantCode       connect.Code // 0 means expect success
+	}{
+		{
+			name:    "enforcement off, no balance — succeeds",
+			enforce: false,
+		},
+		{
+			name:     "enforcement on, no balance — rejected",
+			enforce:  true,
+			wantCode: connect.CodeFailedPrecondition,
+		},
+		{
+			name:    "enforcement on, sufficient balance — succeeds",
+			enforce: true,
+			deposit: 1_000_000_000_000, // 1 dollar
+		},
+		{
+			name:           "enforcement on, balance consumed by unsettled usage — rejected",
+			enforce:        true,
+			deposit:        1_000_000_000_000, // 1 dollar
+			unsettledUsage: 999_999_999_999,   // nearly 1 dollar
+			wantCode:       connect.CodeFailedPrecondition,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var opts []apiTestUtils.TestAPIOption
+			if tc.enforce {
+				opts = append(opts, apiTestUtils.WithRequirePayerPositiveBalance(true))
+			}
+			suite := apiTestUtils.NewTestAPIServer(t, opts...)
+
+			payerEnvelope := envelopeTestUtils.CreatePayerEnvelope(
+				t,
+				envelopeTestUtils.DefaultClientEnvelopeNodeID,
+			)
+
+			if tc.deposit > 0 || tc.unsettledUsage > 0 {
+				payerEnv, err := envelopeUtils.NewPayerEnvelope(payerEnvelope)
+				require.NoError(t, err)
+				payerAddr, err := payerEnv.RecoverSigner()
+				require.NoError(t, err)
+
+				payerLedger := ledger.NewLedger(
+					testutils.NewLog(t),
+					dbPkg.NewDBHandler(suite.DB),
+				)
+				payerID, err := payerLedger.FindOrCreatePayer(
+					context.Background(),
+					*payerAddr,
+				)
+				require.NoError(t, err)
+
+				if tc.deposit > 0 {
+					eventID := ledger.EventID{}
+					copy(eventID[:], []byte("test-deposit-event-id-00001"))
+					err = payerLedger.Deposit(
+						context.Background(),
+						payerID,
+						tc.deposit,
+						eventID,
+					)
+					require.NoError(t, err)
+				}
+
+				if tc.unsettledUsage > 0 {
+					err = queries.New(suite.DB).IncrementUnsettledUsage(
+						context.Background(),
+						queries.IncrementUnsettledUsageParams{
+							PayerID:           payerID,
+							OriginatorID:      int32(envelopeTestUtils.DefaultClientEnvelopeNodeID),
+							MinutesSinceEpoch: 1,
+							SpendPicodollars:  tc.unsettledUsage,
+							SequenceID:        1,
+							MessageCount:      1,
+						},
+					)
+					require.NoError(t, err)
+				}
+			}
+
+			resp, err := suite.ClientReplication.PublishPayerEnvelopes(
+				context.Background(),
+				connect.NewRequest(&message_api.PublishPayerEnvelopesRequest{
+					PayerEnvelopes: []*envelopes.PayerEnvelope{payerEnvelope},
+				}),
+			)
+
+			if tc.wantCode == 0 {
+				require.NoError(t, err)
+				require.NotNil(t, resp)
+			} else {
+				require.Error(t, err)
+				require.Equal(t, tc.wantCode, connect.CodeOf(err))
+			}
+		})
+	}
+}
+
+func TestPublishEnvelopeMultiEnvelopeBatchBalance(t *testing.T) {
+	suite := apiTestUtils.NewTestAPIServer(
+		t,
+		apiTestUtils.WithRequirePayerPositiveBalance(true),
+	)
+
+	// Create a shared signer so all envelopes have the same payer
+	signerKey := testutils.RandomPrivateKey(t)
+
+	nodeID := envelopeTestUtils.DefaultClientEnvelopeNodeID
+
+	// Create 3 envelopes from the same payer
+	env1 := envelopeTestUtils.CreatePayerEnvelopeWithSigner(
+		t, nodeID, signerKey, 30, envelopeTestUtils.CreateClientEnvelope(),
+	)
+	env2 := envelopeTestUtils.CreatePayerEnvelopeWithSigner(
+		t, nodeID, signerKey, 30, envelopeTestUtils.CreateClientEnvelope(),
+	)
+	env3 := envelopeTestUtils.CreatePayerEnvelopeWithSigner(
+		t, nodeID, signerKey, 30, envelopeTestUtils.CreateClientEnvelope(),
+	)
+
+	// Deposit enough for 1 envelope but not 3
+	payerAddr := crypto.PubkeyToAddress(signerKey.PublicKey)
+	payerLedger := ledger.NewLedger(testutils.NewLog(t), dbPkg.NewDBHandler(suite.DB))
+	payerID, err := payerLedger.FindOrCreatePayer(context.Background(), payerAddr)
+	require.NoError(t, err)
+
+	// Deposit a very small amount — enough for maybe 1 message but not 3
+	eventID := ledger.EventID{}
+	copy(eventID[:], []byte("test-batch-event-id-0000001"))
+	err = payerLedger.Deposit(
+		context.Background(),
+		payerID,
+		currency.PicoDollar(1), // 1 picodollar — nearly nothing
+		eventID,
+	)
+	require.NoError(t, err)
+
+	// Should fail — batch fee total exceeds tiny balance
+	_, err = suite.ClientReplication.PublishPayerEnvelopes(
+		context.Background(),
+		connect.NewRequest(&message_api.PublishPayerEnvelopesRequest{
+			PayerEnvelopes: []*envelopes.PayerEnvelope{env1, env2, env3},
+		}),
+	)
+	require.Error(t, err)
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+}
+
+func TestPublishEnvelopeMixedPayerAddressesRejected(t *testing.T) {
+	suite := apiTestUtils.NewTestAPIServer(t)
+
+	nodeID := envelopeTestUtils.DefaultClientEnvelopeNodeID
+
+	// Create two envelopes with different signers (different payer addresses)
+	key1 := testutils.RandomPrivateKey(t)
+	key2 := testutils.RandomPrivateKey(t)
+
+	env1 := envelopeTestUtils.CreatePayerEnvelopeWithSigner(
+		t, nodeID, key1, 30, envelopeTestUtils.CreateClientEnvelope(),
+	)
+	env2 := envelopeTestUtils.CreatePayerEnvelopeWithSigner(
+		t, nodeID, key2, 30, envelopeTestUtils.CreateClientEnvelope(),
+	)
+
+	// Should fail with InvalidArgument — mixed payers
+	_, err := suite.ClientReplication.PublishPayerEnvelopes(
+		context.Background(),
+		connect.NewRequest(&message_api.PublishPayerEnvelopesRequest{
+			PayerEnvelopes: []*envelopes.PayerEnvelope{env1, env2},
+		}),
+	)
+	require.Error(t, err)
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	require.Contains(t, err.Error(), "same payer")
 }

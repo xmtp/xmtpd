@@ -10,7 +10,7 @@ VERSION="${1:?Usage: sync-versions.sh <version>}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Validate version string to prevent command injection
-if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9._]+)?$ ]]; then
+if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9._-]+)?$ ]]; then
   echo "ERROR: Invalid version format: ${VERSION}"
   echo "Expected format: X.Y.Z or X.Y.Z-prerelease (e.g. 0.2.0, 0.2.0-dev.abc1234)"
   exit 1

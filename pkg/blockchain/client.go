@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -176,7 +177,7 @@ func WaitForTransaction(
 		if receipt == nil {
 			receipt, err = client.TransactionReceipt(ctx, hash)
 			if err != nil {
-				if errors.Is(err, ethereum.NotFound) {
+				if isTransactionNotFound(err) {
 					logger.Debug("waiting for transaction", utils.HashField(hash.String()))
 				} else {
 					return nil, NewBlockchainError(err)
@@ -194,7 +195,7 @@ func WaitForTransaction(
 				if err != nil {
 					// Redundant check to handle load-balanced RPC backends that may not
 					// have the tx available for tracing yet.
-					if errors.Is(err, ethereum.NotFound) {
+					if isTransactionNotFound(err) {
 						logger.Debug("waiting for transaction", utils.HashField(hash.String()))
 					} else {
 						return receipt, NewBlockchainError(
@@ -236,21 +237,45 @@ func getProtocolError(
 		Tracer: "callTracer",
 	}
 
-	var traceOut traceTransactionResult
+	var (
+		traceOut traceTransactionResult
+		ticker   = time.NewTicker(100 * time.Millisecond)
+	)
 
-	err := client.Client().
-		CallContext(ctx, &traceOut, "debug_traceTransaction", tx.Hash(), &traceCfg)
-	if err != nil {
-		return NewBlockchainError(
-			fmt.Errorf("failed to trace transaction %s: %w", tx.Hash().Hex(), err),
-		)
+	defer ticker.Stop()
+
+	for {
+		err := client.Client().
+			CallContext(ctx, &traceOut, "debug_traceTransaction", tx.Hash(), &traceCfg)
+		if err == nil {
+			if traceOut.Output == "" {
+				return NewBlockchainError(
+					fmt.Errorf("transaction %s reverted without reason", tx.Hash().Hex()),
+				)
+			}
+
+			return NewBlockchainError(errors.New(traceOut.Output))
+		}
+
+		if !isTransactionNotFound(err) {
+			return NewBlockchainError(
+				fmt.Errorf("failed to trace transaction %s: %w", tx.Hash().Hex(), err),
+			)
+		}
+
+		select {
+		case <-ctx.Done():
+			return NewBlockchainError(errors.New("timed out"))
+		case <-ticker.C:
+		}
 	}
+}
 
-	if traceOut.Output == "" {
-		return NewBlockchainError(
-			fmt.Errorf("transaction %s reverted without reason", tx.Hash().Hex()),
-		)
-	}
-
-	return NewBlockchainError(errors.New(traceOut.Output))
+// isTransactionNotFound checks if an error is a transaction not found,
+// from a Geth and Reth clients.
+//   - reth: https://github.com/paradigmxyz/reth/blob/main/crates/rpc/rpc-eth-types/src/error/mod.rs#L136
+//   - geth: https://github.com/ethereum/go-ethereum/blob/master/interfaces.go#L32
+func isTransactionNotFound(err error) bool {
+	return errors.Is(err, ethereum.NotFound) ||
+		strings.Contains(err.Error(), "transaction not found")
 }

@@ -148,7 +148,7 @@ func (e *Executor) PruneRows() error {
 	}
 
 	e.logger.Info(
-		"done",
+		"row pruning done",
 		utils.CountField(totalDeletionCount),
 		utils.DurationMsField(time.Since(start)),
 	)

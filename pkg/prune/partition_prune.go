@@ -2,6 +2,9 @@ package prune
 
 import (
 	"fmt"
+	"time"
+
+	"github.com/xmtp/xmtpd/pkg/constants"
 
 	"github.com/xmtp/xmtpd/pkg/utils"
 
@@ -22,6 +25,7 @@ func constructBlobName(row queries.GetPrunableMetaPartitionsRow) string {
 func (e *Executor) DropPrunablePartitions() error {
 	ctx := e.ctx
 
+	start := time.Now()
 	q := queries.New(e.writerDB)
 
 	parts, err := q.GetPrunableMetaPartitions(ctx)
@@ -44,7 +48,8 @@ func (e *Executor) DropPrunablePartitions() error {
 	}
 
 	for _, droppableMetaRow := range parts {
-		if droppableMetaRow.OriginatorNodeID == 0 || droppableMetaRow.OriginatorNodeID == 1 {
+		if droppableMetaRow.OriginatorNodeID == constants.GroupMessageOriginatorID ||
+			droppableMetaRow.OriginatorNodeID == constants.IdentityUpdateOriginatorID {
 			e.logger.Info(
 				"refusing to drop this partition in this version of XMTPD",
 				zap.String("partition", droppableMetaRow.Tablename),
@@ -74,6 +79,11 @@ func (e *Executor) DropPrunablePartitions() error {
 			zap.String("meta_table", droppableMetaRow.Tablename),
 		)
 	}
+
+	e.logger.Info(
+		"partition deletion done",
+		utils.DurationMsField(time.Since(start)),
+	)
 
 	return nil
 }

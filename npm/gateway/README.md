@@ -87,7 +87,6 @@ const agent = await Agent.createFromEnv();
 | `logLevel` | no | `"info"` | Log level (`debug`, `info`, `warn`, `error`) |
 | `nodeSelectorStrategy` | no | `"stable"` | Node selection: `stable`, `random`, `ordered`, `closest`, `manual` |
 | `healthCheckTimeout` | no | `30000` | Startup health check timeout (ms) |
-| `statusPort` | no | port + 1 | HTTP status dashboard port |
 
 \* Provide one of `contractsEnvironment`, `contractsConfigJson`, or `contractsConfigFilePath`.
 
@@ -99,10 +98,27 @@ const agent = await Agent.createFromEnv();
 |----------|------|-------------|
 | `url` | `string` | Gateway URL (e.g. `http://localhost:5050`) |
 | `port` | `number` | Listening port |
-| `statusUrl` | `string` | Status dashboard URL (e.g. `http://localhost:5051`) |
 | `process` | `ChildProcess` | Underlying child process |
 | `stop()` | `() => Promise<void>` | Gracefully shut down the gateway |
 | `stats()` | `() => GatewayStats` | Get current publish/error/request counts |
+
+## Monitoring
+
+The gateway forwards all Go binary logs to the console, prefixed with `[gateway]`. Errors go to `stderr`, everything else to `stdout`. Use the `logLevel` option to control verbosity:
+
+```typescript
+const gateway = await startGateway({
+  // ...
+  logLevel: "debug", // "debug" | "info" | "warn" | "error"
+});
+```
+
+The `stats()` method on the handle returns live counters you can use for programmatic monitoring:
+
+```typescript
+const { online, uptimeSeconds, publishes, errors, requests } = gateway.stats();
+console.log(`Gateway is ${online ? "up" : "down"}, ${publishes} publishes, ${errors} errors`);
+```
 
 ## Custom binary path
 

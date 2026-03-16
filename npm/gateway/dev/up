@@ -10,6 +10,10 @@ echo "Setting up XMTP gateway dev environment..."
 # 1. Start Redis
 if docker ps --format '{{.Names}}' | grep -q '^xmtp-gateway-redis$'; then
   echo "Redis already running"
+elif docker ps -a --format '{{.Names}}' | grep -q '^xmtp-gateway-redis$'; then
+  echo "Starting stopped Redis container..."
+  docker start xmtp-gateway-redis > /dev/null
+  echo "Redis started on port 6379"
 else
   echo "Starting Redis..."
   docker run -d --name xmtp-gateway-redis -p 6379:6379 redis:7-alpine > /dev/null

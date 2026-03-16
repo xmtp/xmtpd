@@ -27,8 +27,6 @@ export interface GatewayConfig {
   nodeSelectorStrategy?: "stable" | "random" | "ordered" | "closest" | "manual";
   /** Health check timeout in milliseconds (default: 30000) */
   healthCheckTimeout?: number;
-  /** HTTP status page port (default: gRPC port + 1) */
-  statusPort?: number;
 }
 
 export interface GatewayHandle {
@@ -36,8 +34,6 @@ export interface GatewayHandle {
   url: string;
   /** The port the gateway is listening on */
   port: number;
-  /** The URL of the status dashboard */
-  statusUrl: string;
   /** The underlying child process */
   process: ChildProcess;
   /** Gracefully stop the gateway */

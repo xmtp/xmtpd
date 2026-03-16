@@ -2,21 +2,17 @@ name: Publish Gateway npm Package
 
 on:
   push:
-    branches: [main, mc/gateway-go-sidecar]
+    tags:
+      - "v*"
+    branches:
+      - main
+  pull_request:
   workflow_dispatch:
     inputs:
       dry_run:
         description: "Dry run (build and pack but skip publish)"
         type: boolean
         default: false
-      npm_tag:
-        description: "npm dist-tag override (auto = latest for main, poc for feature branches)"
-        type: choice
-        options:
-          - auto
-          - latest
-          - poc
-        default: auto
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -28,12 +24,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-tags: true
+          fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
+      - name: Git describe
+        id: ghd
+        uses: proudust/gh-describe@v2
+
       - name: Cross-compile gateway
-        run: npm/build.sh
+        run: npm/build.sh "${{ steps.ghd.outputs.describe }}"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -74,6 +77,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          fetch-tags: true
           fetch-depth: 0
 
       - uses: actions/setup-node@v6
@@ -81,8 +85,9 @@ jobs:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
 
-      - name: Update npm to latest
-        run: npm install -g npm@latest
+      - name: Git describe
+        id: ghd
+        uses: proudust/gh-describe@v2
 
       - name: Download binaries
         uses: actions/download-artifact@v4
@@ -102,25 +107,18 @@ jobs:
       - name: Determine version and tag
         id: version
         run: |
-          BASE_VERSION=$(node -p "require('./npm/gateway/package.json').version")
-          GIT_HASH=$(git log -1 --pretty=format:"%h")
-          BRANCH="${GITHUB_REF_NAME}"
+          DESCRIBE="${{ steps.ghd.outputs.describe }}"
 
-          # npm tag: main → latest, other branches → poc, or manual override
-          if [[ "${{ inputs.npm_tag }}" != "" && "${{ inputs.npm_tag }}" != "auto" ]]; then
-            NPM_TAG="${{ inputs.npm_tag }}"
-          elif [[ "$BRANCH" == "main" ]]; then
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            # Tag push: use semver from tag (strip leading v)
+            VERSION="${GITHUB_REF#refs/tags/v}"
             NPM_TAG="latest"
           else
-            NPM_TAG="poc"
-          fi
-
-          # version: non-latest tags get git hash suffix
-          if [[ "$NPM_TAG" != "latest" ]]; then
-            CLEAN=$(echo "$BASE_VERSION" | sed 's/-[a-z].*//')
-            VERSION="${CLEAN}-${NPM_TAG}.${GIT_HASH}"
-          else
-            VERSION="$BASE_VERSION"
+            # Branch/PR: use git describe as prerelease version
+            VERSION="${DESCRIBE#v}"
+            # Replace any characters npm doesn't like
+            VERSION=$(echo "$VERSION" | sed 's/[^0-9A-Za-z._-]/-/g')
+            NPM_TAG="dev"
           fi
 
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
@@ -132,20 +130,16 @@ jobs:
           chmod +x npm/sync-versions.sh
           npm/sync-versions.sh "${{ steps.version.outputs.version }}"
 
+      # Snapshot: build and pack but don't publish (PRs and branch pushes)
+      - name: Pack (snapshot)
+        if: github.event_name != 'push' || !startsWith(github.ref, 'refs/tags/v')
+        run: npm pack
+        working-directory: npm/gateway
+
+      # Real publish on tag pushes
       - name: Publish @xmtp/gateway
-        if: ${{ !inputs.dry_run }}
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run
         run: npm publish --access public --provenance --tag ${{ steps.version.outputs.npm_tag }}
         working-directory: npm/gateway
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Tag release
-        if: ${{ !inputs.dry_run && github.ref_name == 'main' }}
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git tag -a "gateway-npm-v${VERSION}" -m "gateway npm ${VERSION}"
-          git push origin "gateway-npm-v${VERSION}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -28,7 +28,7 @@ export async function startGateway(
   const counters = { publishes: 0, errors: 0, requests: 0 };
 
   const getStats = (): GatewayStats => ({
-    online: !child.killed && child.exitCode === null,
+    online: !child.killed && child.exitCode === null && child.signalCode === null,
     uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
     gatewayPort: port,
     publishes: counters.publishes,
@@ -155,9 +155,19 @@ function setupLogForwarding(
     }
   });
 
+  let stderrBuf = "";
   child.stderr?.on("data", (data: Buffer) => {
-    for (const line of data.toString().split("\n")) {
+    stderrBuf += data.toString();
+    const parts = stderrBuf.split("\n");
+    stderrBuf = parts.pop() ?? "";
+    for (const line of parts) {
       if (line) console.error(`[gateway:err] ${line}`);
+    }
+  });
+  child.stderr?.on("end", () => {
+    if (stderrBuf.trim()) {
+      console.error(`[gateway:err] ${stderrBuf.trim()}`);
+      stderrBuf = "";
     }
   });
 }
@@ -185,11 +195,16 @@ async function waitForHealthy(
 function isPortListening(port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const socket = createConnection({ port, host: "127.0.0.1" });
+    socket.setTimeout(2_000);
     socket.once("connect", () => {
       socket.destroy();
       resolve(true);
     });
     socket.once("error", () => {
+      socket.destroy();
+      resolve(false);
+    });
+    socket.once("timeout", () => {
       socket.destroy();
       resolve(false);
     });
@@ -210,8 +225,7 @@ function isPortBound(port: number): Promise<boolean> {
     const server = createServer();
     server.once("error", () => resolve(true));
     server.once("listening", () => {
-      server.close();
-      resolve(false);
+      server.close(() => resolve(false));
     });
     server.listen(port, "127.0.0.1");
   });

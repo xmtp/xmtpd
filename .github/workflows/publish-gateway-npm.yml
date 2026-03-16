@@ -6,6 +6,7 @@ on:
       - "v*"
     branches:
       - main
+      - mc/gateway-go-sidecar
   pull_request:
   workflow_dispatch:
     inputs:
@@ -119,14 +120,8 @@ jobs:
           chmod +x npm/sync-versions.sh
           npm/sync-versions.sh "${{ steps.version.outputs.version }}"
 
-      - name: Pack (snapshot)
-        if: github.event_name == 'pull_request' || (github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/v'))
-        run: npm pack
-        working-directory: npm/gateway
-
       - name: Publish @xmtp/gateway
-        if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run) || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
-        run: npm publish --access public --provenance --tag ${{ steps.version.outputs.npm_tag }}
+        run: npm publish --access public --provenance --tag dev
         working-directory: npm/gateway
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

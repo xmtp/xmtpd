@@ -27,16 +27,12 @@ jobs:
         with:
           fetch-tags: true
           fetch-depth: 0
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
-      - name: Git describe
-        id: ghd
-        uses: proudust/gh-describe@v2
-
       - name: Cross-compile gateway
-        run: npm/build.sh "${{ steps.ghd.outputs.describe }}"
+        run: npm/build.sh "$(git describe HEAD --tags --long 2>/dev/null || echo dev)"
 
       - uses: actions/upload-artifact@v6
         with:
@@ -85,10 +81,6 @@ jobs:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
 
-      - name: Git describe
-        id: ghd
-        uses: proudust/gh-describe@v2
-
       - name: Download binaries
         uses: actions/download-artifact@v6
         with:
@@ -107,16 +99,13 @@ jobs:
       - name: Determine version and tag
         id: version
         run: |
-          DESCRIBE="${{ steps.ghd.outputs.describe }}"
+          DESCRIBE="$(git describe HEAD --tags --long 2>/dev/null || echo 0.0.0-dev)"
 
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            # Tag push: use semver from tag (strip leading v)
             VERSION="${GITHUB_REF#refs/tags/v}"
             NPM_TAG="latest"
           else
-            # Branch/PR: use git describe as prerelease version
             VERSION="${DESCRIBE#v}"
-            # Replace any characters npm doesn't like
             VERSION=$(echo "$VERSION" | sed 's/[^0-9A-Za-z._-]/-/g')
             NPM_TAG="dev"
           fi
@@ -130,13 +119,11 @@ jobs:
           chmod +x npm/sync-versions.sh
           npm/sync-versions.sh "${{ steps.version.outputs.version }}"
 
-      # Snapshot: build and pack but don't publish (PRs and branch pushes)
       - name: Pack (snapshot)
         if: github.event_name != 'push' || !startsWith(github.ref, 'refs/tags/v')
         run: npm pack
         working-directory: npm/gateway
 
-      # Real publish on tag pushes
       - name: Publish @xmtp/gateway
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run
         run: npm publish --access public --provenance --tag ${{ steps.version.outputs.npm_tag }}

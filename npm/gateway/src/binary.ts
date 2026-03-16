@@ -1,6 +1,9 @@
 import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import os from "node:os";
 import path from "node:path";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const PLATFORM_MAP: Record<string, string> = {
   darwin: "darwin",

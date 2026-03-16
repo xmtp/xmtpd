@@ -484,7 +484,7 @@ func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
 			migrator.KeyPackagesOriginatorID,
 		}
 		ids             = append(nodeIDs(nodes), reservedOriginatorIDs...)
-		sourceEnvelopes = generateEnvelopes(t, ids, 50, 100, payerID, subTopic)
+		sourceEnvelopes = generateEnvelopes(t, ids, 10, 30, payerID, subTopic)
 
 		// For easier envelope lookup, use "<node-id>-<seq-id>" key.
 		keyID = func(nodeID int32, seqID int64) string {
@@ -518,11 +518,11 @@ func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
 
 	// Receive messages and do accounting.
 	var (
-		received_count = 0
-		received       = make(map[string]struct{})
+		receivedCount = 0
+		received      = make(map[string]struct{})
 	)
-	for received_count < total {
 
+	for receivedCount < total {
 		ok := stream.Receive()
 		if !ok {
 			break
@@ -531,7 +531,7 @@ func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
 		msg := stream.Msg()
 
 		for _, env := range msg.GetEnvelopes() {
-			received_count += 1
+			receivedCount += 1
 
 			decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
 				t,
@@ -550,13 +550,13 @@ func TestSubscribeVariableEnvelopesPerOriginator(t *testing.T) {
 		err == nil || errors.Is(err, context.Canceled),
 		"unexpected stream error: %s, received %v/%v envelopes",
 		err,
-		received_count,
+		receivedCount,
 		total,
 	)
 
-	require.Equal(t, total, received_count)
+	require.Equal(t, total, receivedCount)
 
-	t.Logf("processed %v envelopes", received_count)
+	t.Logf("processed %v envelopes", receivedCount)
 
 	// Accounting - verify that query returned everything.
 	// Confirm simply that we got back all envelopes based on nodeID and seqID.

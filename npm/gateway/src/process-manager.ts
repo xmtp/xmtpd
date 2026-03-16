@@ -1,8 +1,19 @@
 import { spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
+import { EventEmitter } from "node:events";
 import { createConnection, createServer } from "node:net";
 import { resolveBinary } from "./binary.js";
-import type { GatewayConfig, GatewayHandle } from "./types.js";
+import { startStatusServer } from "./status-server.js";
+import type { GatewayConfig, GatewayHandle, GatewayStats } from "./types.js";
+
+const LOG_BUFFER_SIZE = 200;
+const LOG_LEVELS: Record<string, number> = {
+  debug: 0,
+  info: 1,
+  warn: 2,
+  error: 3,
+  fatal: 4,
+};
 
 /** Starts the XMTP gateway as a subprocess and waits for it to become healthy. */
 export async function startGateway(
@@ -10,6 +21,7 @@ export async function startGateway(
 ): Promise<GatewayHandle> {
   const binaryPath = resolveBinary();
   const port = config.port ?? (await findAvailablePort(5050));
+  const statusPort = config.statusPort ?? port + 1;
   const env = buildEnv(config, port);
 
   const child = spawn(binaryPath, [], {
@@ -17,7 +29,23 @@ export async function startGateway(
     stdio: ["ignore", "pipe", "pipe"],
   });
 
-  setupLogForwarding(child);
+  // Stats tracking
+  const startedAt = Date.now();
+  const counters = { publishes: 0, errors: 0, requests: 0 };
+  const logBuffer: string[] = [];
+  const logEmitter = new EventEmitter();
+
+  const getStats = (): GatewayStats => ({
+    online: !child.killed && child.exitCode === null,
+    uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
+    gatewayPort: port,
+    publishes: counters.publishes,
+    errors: counters.errors,
+    requests: counters.requests,
+  });
+
+  const userLogLevel = config.logLevel ?? "info";
+  setupLogForwarding(child, counters, logBuffer, logEmitter, userLogLevel);
 
   const onExit = (code: number | null, signal: string | null) => {
     earlyExitReject(
@@ -48,11 +76,25 @@ export async function startGateway(
     child.removeListener("error", onError);
   }
 
+  // Start status server
+  const status = startStatusServer({
+    port: statusPort,
+    gatewayPort: port,
+    getStats,
+    logEmitter,
+    logBuffer,
+  });
+
   return {
     url: `http://localhost:${port}`,
     port,
+    statusUrl: `http://localhost:${statusPort}`,
     process: child,
-    stop: () => gracefulShutdown(child),
+    stop: async () => {
+      await status.close();
+      await gracefulShutdown(child);
+    },
+    stats: getStats,
   };
 }
 
@@ -68,8 +110,10 @@ function buildEnv(config: GatewayConfig, port: number): NodeJS.ProcessEnv {
     XMTPD_APP_CHAIN_WSS_URL: config.appChainWssUrl,
     XMTPD_SETTLEMENT_CHAIN_RPC_URL: config.settlementChainRpcUrl,
     XMTPD_SETTLEMENT_CHAIN_WSS_URL: config.settlementChainWssUrl,
-    XMTPD_LOG_ENCODING: config.logEncoding ?? "console",
-    XMTPD_LOG_LEVEL: config.logLevel ?? "info",
+    XMTPD_LOG_ENCODING: "json",
+    // Always use debug internally so we can count requests/publishes.
+    // The log forwarder filters console output to the user's configured level.
+    XMTPD_LOG_LEVEL: "debug",
   };
 
   if (config.contractsEnvironment) {
@@ -87,7 +131,27 @@ function buildEnv(config: GatewayConfig, port: number): NodeJS.ProcessEnv {
   return env;
 }
 
-function setupLogForwarding(child: ChildProcess): void {
+function pushLog(
+  logBuffer: string[],
+  logEmitter: EventEmitter,
+  text: string,
+): void {
+  logBuffer.push(text);
+  if (logBuffer.length > LOG_BUFFER_SIZE) logBuffer.shift();
+  logEmitter.emit("log", text);
+}
+
+function shouldLog(level: string, minLevel: string): boolean {
+  return (LOG_LEVELS[level.toLowerCase()] ?? 1) >= (LOG_LEVELS[minLevel.toLowerCase()] ?? 1);
+}
+
+function setupLogForwarding(
+  child: ChildProcess,
+  counters: { publishes: number; errors: number; requests: number },
+  logBuffer: string[],
+  logEmitter: EventEmitter,
+  consoleLogLevel: string,
+): void {
   let buffer = "";
   child.stdout?.on("data", (data: Buffer) => {
     buffer += data.toString();
@@ -97,30 +161,50 @@ function setupLogForwarding(child: ChildProcess): void {
       if (!line) continue;
       try {
         const log = JSON.parse(line);
-        const level = log.level ?? log.L ?? "info";
-        const msg = log.msg ?? log.M ?? line;
-        if (level === "error" || level === "fatal") {
-          console.error(`[gateway] ${msg}`);
-        } else if (level === "warn") {
-          console.warn(`[gateway] ${msg}`);
-        } else if (level !== "debug") {
-          console.log(`[gateway] ${msg}`);
+        const level = (log.level ?? log.L ?? "info").toLowerCase();
+        const msg = log.msg ?? log.M ?? log.message ?? line;
+
+        // Track stats from all levels (including debug)
+        if (level === "error" || level === "fatal") counters.errors++;
+        if (msg.includes("received request")) counters.requests++;
+        if (msg.includes("publishing to originator") || msg.includes("publishing to blockchain")) counters.publishes++;
+
+        const formatted = `[gateway] ${msg}`;
+        pushLog(logBuffer, logEmitter, formatted);
+
+        // Only print to console if at or above user's configured level
+        if (shouldLog(level, consoleLogLevel)) {
+          if (level === "error" || level === "fatal") {
+            console.error(formatted);
+          } else if (level === "warn") {
+            console.warn(formatted);
+          } else {
+            console.log(formatted);
+          }
         }
       } catch {
-        console.log(`[gateway] ${line}`);
+        const formatted = `[gateway] ${line}`;
+        pushLog(logBuffer, logEmitter, formatted);
+        console.log(formatted);
       }
     }
   });
   child.stdout?.on("end", () => {
     if (buffer.trim()) {
-      console.log(`[gateway] ${buffer.trim()}`);
+      const formatted = `[gateway] ${buffer.trim()}`;
+      pushLog(logBuffer, logEmitter, formatted);
+      console.log(formatted);
       buffer = "";
     }
   });
 
   child.stderr?.on("data", (data: Buffer) => {
     for (const line of data.toString().split("\n")) {
-      if (line) console.error(`[gateway:err] ${line}`);
+      if (line) {
+        const formatted = `[gateway:err] ${line}`;
+        pushLog(logBuffer, logEmitter, formatted);
+        console.error(formatted);
+      }
     }
   });
 }

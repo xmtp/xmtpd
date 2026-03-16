@@ -1,7 +1,14 @@
 {
   "name": "@xmtp/gateway",
   "version": "0.1.0-dev",
+  "type": "module",
   "description": "XMTP gateway sidecar — ships the Go gateway binary as an npm package",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {

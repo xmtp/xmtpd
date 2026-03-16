@@ -16,18 +16,20 @@ All platform binaries (macOS/Linux, x64/arm64) are included. The correct one is 
 - **Payer wallet** — a funded private key for signing blockchain transactions
 - **RPC endpoints** — for the App Chain and Settlement Chain
 
+See [SETUP.md](./SETUP.md) for step-by-step instructions on getting these.
+
 ## Quick start
 
 ```typescript
 import { startGateway } from "@xmtp/gateway";
 
 const gateway = await startGateway({
-  payerPrivateKey: process.env.PAYER_PRIVATE_KEY,
-  redisUrl: "redis://localhost:6379",
-  appChainRpcUrl: process.env.APP_CHAIN_RPC_URL,
-  appChainWssUrl: process.env.APP_CHAIN_WSS_URL,
-  settlementChainRpcUrl: process.env.SETTLEMENT_CHAIN_RPC_URL,
-  settlementChainWssUrl: process.env.SETTLEMENT_CHAIN_WSS_URL,
+  payerPrivateKey: process.env.PAYER_PRIVATE_KEY!,
+  redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
+  appChainRpcUrl: process.env.APP_CHAIN_RPC_URL!,
+  appChainWssUrl: process.env.APP_CHAIN_WSS_URL!,
+  settlementChainRpcUrl: process.env.SETTLEMENT_CHAIN_RPC_URL!,
+  settlementChainWssUrl: process.env.SETTLEMENT_CHAIN_WSS_URL!,
   contractsEnvironment: "testnet",
 });
 
@@ -39,27 +41,19 @@ await gateway.stop();
 
 ## Connecting your agent
 
-Pass the gateway URL to the XMTP agent SDK via the `XMTP_GATEWAY_HOST` environment variable or the `gatewayHost` option:
-
-### Option 1: Environment variable
-
-```bash
-XMTP_GATEWAY_HOST=http://localhost:5050 node my-agent.js
-```
-
-### Option 2: Programmatic
+Pass the gateway URL to the XMTP agent SDK:
 
 ```typescript
 import { startGateway } from "@xmtp/gateway";
 import { Agent } from "@xmtp/agent-sdk";
 
 const gateway = await startGateway({
-  payerPrivateKey: process.env.PAYER_PRIVATE_KEY,
-  redisUrl: "redis://localhost:6379",
-  appChainRpcUrl: process.env.APP_CHAIN_RPC_URL,
-  appChainWssUrl: process.env.APP_CHAIN_WSS_URL,
-  settlementChainRpcUrl: process.env.SETTLEMENT_CHAIN_RPC_URL,
-  settlementChainWssUrl: process.env.SETTLEMENT_CHAIN_WSS_URL,
+  payerPrivateKey: process.env.PAYER_PRIVATE_KEY!,
+  redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
+  appChainRpcUrl: process.env.APP_CHAIN_RPC_URL!,
+  appChainWssUrl: process.env.APP_CHAIN_WSS_URL!,
+  settlementChainRpcUrl: process.env.SETTLEMENT_CHAIN_RPC_URL!,
+  settlementChainWssUrl: process.env.SETTLEMENT_CHAIN_WSS_URL!,
   contractsEnvironment: "testnet",
 });
 
@@ -69,17 +63,10 @@ const agent = await Agent.create(signer, {
 });
 ```
 
-### Option 3: Start gateway, then use `createFromEnv`
+Or set the environment variable before creating the agent:
 
 ```typescript
-import { startGateway } from "@xmtp/gateway";
-import { Agent } from "@xmtp/agent-sdk";
-
-const gateway = await startGateway({ /* ... */ });
-
-// Set the env var before creating the agent
 process.env.XMTP_GATEWAY_HOST = gateway.url;
-
 const agent = await Agent.createFromEnv();
 ```
 
@@ -98,9 +85,9 @@ const agent = await Agent.createFromEnv();
 | `contractsConfigFilePath` | * | — | Path to JSON contracts config file |
 | `port` | no | auto (5050+) | gRPC listener port |
 | `logLevel` | no | `"info"` | Log level (`debug`, `info`, `warn`, `error`) |
-| `logEncoding` | no | `"console"` | Log format (`"json"` or `"console"`) |
 | `nodeSelectorStrategy` | no | `"stable"` | Node selection: `stable`, `random`, `ordered`, `closest`, `manual` |
 | `healthCheckTimeout` | no | `30000` | Startup health check timeout (ms) |
+| `statusPort` | no | port + 1 | HTTP status dashboard port |
 
 \* Provide one of `contractsEnvironment`, `contractsConfigJson`, or `contractsConfigFilePath`.
 
@@ -112,8 +99,10 @@ const agent = await Agent.createFromEnv();
 |----------|------|-------------|
 | `url` | `string` | Gateway URL (e.g. `http://localhost:5050`) |
 | `port` | `number` | Listening port |
+| `statusUrl` | `string` | Status dashboard URL (e.g. `http://localhost:5051`) |
 | `process` | `ChildProcess` | Underlying child process |
 | `stop()` | `() => Promise<void>` | Gracefully shut down the gateway |
+| `stats()` | `() => GatewayStats` | Get current publish/error/request counts |
 
 ## Custom binary path
 

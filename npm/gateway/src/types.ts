@@ -23,12 +23,12 @@ export interface GatewayConfig {
   port?: number;
   /** Log level (default: 'info') */
   logLevel?: string;
-  /** Log format (default: 'console') */
-  logEncoding?: "json" | "console";
   /** Node selection strategy (default: 'stable') */
   nodeSelectorStrategy?: "stable" | "random" | "ordered" | "closest" | "manual";
   /** Health check timeout in milliseconds (default: 30000) */
   healthCheckTimeout?: number;
+  /** HTTP status page port (default: gRPC port + 1) */
+  statusPort?: number;
 }
 
 export interface GatewayHandle {
@@ -36,8 +36,21 @@ export interface GatewayHandle {
   url: string;
   /** The port the gateway is listening on */
   port: number;
+  /** The URL of the status dashboard */
+  statusUrl: string;
   /** The underlying child process */
   process: ChildProcess;
   /** Gracefully stop the gateway */
   stop: () => Promise<void>;
+  /** Get current gateway stats */
+  stats: () => GatewayStats;
+}
+
+export interface GatewayStats {
+  online: boolean;
+  uptimeSeconds: number;
+  gatewayPort: number;
+  publishes: number;
+  errors: number;
+  requests: number;
 }

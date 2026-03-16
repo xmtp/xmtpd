@@ -2,13 +2,12 @@ services:
   - type: worker
     runtime: node
     name: xmtp-gateway
-    rootDir: npm/gateway
     numInstances: 1
     region: frankfurt
     plan: starter
     branch: main
-    buildCommand: npm install && npm run build
-    startCommand: node dist/start.js
+    buildCommand: npm init -y && npm install @xmtp/gateway
+    startCommand: node node_modules/@xmtp/gateway/dist/start.js
     envVars:
       - key: PAYER_PRIVATE_KEY
         sync: false

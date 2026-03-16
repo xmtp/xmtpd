@@ -934,7 +934,7 @@ func (s *Service) validateGroupMessage(
 		)
 	}
 
-	isCommit, err := deserializer.IsGroupMessageCommit(payload)
+	shouldSendToBlockchain, err := deserializer.ShouldSendToBlockchain(payload)
 	if err != nil {
 		return connect.NewError(
 			connect.CodeInvalidArgument,
@@ -942,10 +942,10 @@ func (s *Service) validateGroupMessage(
 		)
 	}
 
-	if isCommit {
+	if shouldSendToBlockchain {
 		return connect.NewError(
 			connect.CodeInvalidArgument,
-			errors.New("commit messages must be published via the blockchain"),
+			errors.New("commit and proposal messages must be published via the blockchain"),
 		)
 	}
 

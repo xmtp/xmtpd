@@ -35,7 +35,7 @@ func DeserializeGroupMessage(
 	return &msg, nil
 }
 
-func IsGroupMessageCommit(
+func ShouldSendToBlockchain(
 	payload *envelopesProto.ClientEnvelope_GroupMessage,
 ) (bool, error) {
 	msg, err := DeserializeGroupMessage(payload)
@@ -54,5 +54,7 @@ func IsGroupMessageCommit(
 		return false, status.Errorf(codes.InvalidArgument, "invalid message type")
 	}
 
-	return ct == ContentTypeCommit, nil
+	shouldSendToBlockchain := ct == ContentTypeCommit || ct == ContentTypeProposal
+
+	return shouldSendToBlockchain, nil
 }

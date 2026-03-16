@@ -615,12 +615,12 @@ func determineRetentionPolicy(clientEnvelope *envelopes.ClientEnvelope) (uint32,
 	case topic.TopicKindGroupMessagesV1:
 		switch payload := clientEnvelope.Payload().(type) {
 		case *envelopesProto.ClientEnvelope_GroupMessage:
-			isCommit, err := deserializer.IsGroupMessageCommit(payload)
+			shouldSendToBlockchain, err := deserializer.ShouldSendToBlockchain(payload)
 			if err != nil {
 				return 0, err
 			}
-			if isCommit {
-				panic("should not be called for group message commits")
+			if shouldSendToBlockchain {
+				panic("should not be called for group message commits or proposals")
 			}
 		default:
 			panic("mismatched payload type")
@@ -637,11 +637,11 @@ func shouldSendToBlockchain(clientEnvelope *envelopes.ClientEnvelope) (bool, err
 	case topic.TopicKindGroupMessagesV1:
 		switch payload := clientEnvelope.Payload().(type) {
 		case *envelopesProto.ClientEnvelope_GroupMessage:
-			isCommit, err := deserializer.IsGroupMessageCommit(payload)
+			shouldSendToBlockchain, err := deserializer.ShouldSendToBlockchain(payload)
 			if err != nil {
 				return false, err
 			}
-			return isCommit, nil
+			return shouldSendToBlockchain, nil
 		default:
 			panic("mismatched payload type")
 		}

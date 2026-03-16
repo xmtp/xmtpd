@@ -95,7 +95,7 @@ type GetPrunableMetaPartitionsRow struct {
 }
 
 func (q *Queries) GetPrunableMetaPartitions(ctx context.Context) ([]GetPrunableMetaPartitionsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getPrunableMetaPartitions)
+	rows, err := q.query(ctx, q.getPrunableMetaPartitionsStmt, getPrunableMetaPartitions)
 	if err != nil {
 		return nil, err
 	}

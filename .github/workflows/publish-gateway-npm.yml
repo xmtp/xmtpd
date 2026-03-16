@@ -38,7 +38,7 @@ jobs:
       - name: Cross-compile gateway
         run: npm/build.sh "${{ steps.ghd.outputs.describe }}"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: gateway-binaries
           path: npm/gateway/bin/
@@ -61,7 +61,7 @@ jobs:
       - run: npm run build
         working-directory: npm/gateway
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: gateway-dist
           path: npm/gateway/dist/
@@ -90,13 +90,13 @@ jobs:
         uses: proudust/gh-describe@v2
 
       - name: Download binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: gateway-binaries
           path: npm/gateway/bin/
 
       - name: Download compiled TypeScript
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: gateway-dist
           path: npm/gateway/dist/

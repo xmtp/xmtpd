@@ -25,3 +25,11 @@ DELETE FROM %s
 WHERE ctid IN (SELECT ctid FROM to_delete);
 `, pq.QuoteIdentifier(tableName), maxSequenceId, batchSize, pq.QuoteIdentifier(tableName))
 }
+
+func constructDropQuery(metaTable string, blobTable string) string {
+	return fmt.Sprintf(
+		"DROP TABLE IF EXISTS %s,%s CASCADE",
+		pq.QuoteIdentifier(metaTable),
+		pq.QuoteIdentifier(blobTable),
+	)
+}

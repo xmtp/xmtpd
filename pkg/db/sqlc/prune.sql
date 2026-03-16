@@ -20,3 +20,19 @@ FROM payer_reports
 WHERE submission_status = 1 -- SUBMITTED
    OR submission_status = 2 -- SETTLED
 GROUP BY originator_node_id;
+
+-- name: GetPrunableMetaPartitions :many
+SELECT
+    p.originator_node_id::int   AS originator_node_id,
+    p.schemaname::text           AS schemaname,
+    p.tablename::text            AS tablename,
+    p.band_start::int           AS band_start,
+    p.band_end::int            AS band_end
+FROM get_prunable_meta_partitions() AS p(
+    originator_node_id,
+    schemaname,
+    tablename,
+    band_start,
+    band_end
+    )
+ORDER BY p.originator_node_id, p.band_start;

@@ -8,15 +8,15 @@ Run the XMTP gateway as a sidecar process in your Node.js agent.
 npm install @xmtp/gateway
 ```
 
-All platform binaries (macOS/Linux, x64/arm64) are included. The correct one is selected at runtime.
+Platform binaries (macOS/Linux, x64/arm64) are included. The right one is picked at runtime.
 
 ## Prerequisites
 
-- **Redis** — the gateway requires Redis for nonce management
-- **Payer wallet** — a funded private key for signing blockchain transactions
-- **RPC endpoints** — for the App Chain and Settlement Chain
+- **Redis** for nonce management
+- **Payer wallet** - a funded private key for signing transactions
+- **RPC endpoints** for the App Chain and Settlement Chain
 
-See [SETUP.md](./SETUP.md) for step-by-step instructions on getting these.
+See [SETUP.md](./SETUP.md) for how to get these.
 
 ## Quick start
 
@@ -35,7 +35,6 @@ const gateway = await startGateway({
 
 console.log(`Gateway running at ${gateway.url}`);
 
-// Stop when done
 await gateway.stop();
 ```
 
@@ -63,7 +62,7 @@ const agent = await Agent.create(signer, {
 });
 ```
 
-Or set the environment variable before creating the agent:
+Or set the env var before creating the agent:
 
 ```typescript
 process.env.XMTP_GATEWAY_HOST = gateway.url;
@@ -74,55 +73,53 @@ const agent = await Agent.createFromEnv();
 
 | Option | Required | Default | Description |
 |--------|----------|---------|-------------|
-| `payerPrivateKey` | yes | — | Private key for signing blockchain transactions |
-| `redisUrl` | yes | — | Redis connection URL |
-| `appChainRpcUrl` | yes | — | App Chain RPC endpoint |
-| `appChainWssUrl` | yes | — | App Chain WebSocket endpoint |
-| `settlementChainRpcUrl` | yes | — | Settlement Chain RPC endpoint |
-| `settlementChainWssUrl` | yes | — | Settlement Chain WebSocket endpoint |
-| `contractsEnvironment` | * | — | `"testnet"` or `"mainnet"` |
-| `contractsConfigJson` | * | — | Inline JSON contracts config |
-| `contractsConfigFilePath` | * | — | Path to JSON contracts config file |
-| `port` | no | auto (5050+) | gRPC listener port |
-| `logLevel` | no | `"info"` | Log level (`debug`, `info`, `warn`, `error`) |
-| `nodeSelectorStrategy` | no | `"stable"` | Node selection: `stable`, `random`, `ordered`, `closest`, `manual` |
+| `payerPrivateKey` | yes | - | Private key for signing transactions |
+| `redisUrl` | yes | - | Redis connection URL |
+| `appChainRpcUrl` | yes | - | App Chain RPC endpoint |
+| `appChainWssUrl` | yes | - | App Chain WebSocket endpoint |
+| `settlementChainRpcUrl` | yes | - | Settlement Chain RPC endpoint |
+| `settlementChainWssUrl` | yes | - | Settlement Chain WebSocket endpoint |
+| `contractsEnvironment` | * | - | `"testnet"` or `"mainnet"` |
+| `contractsConfigJson` | * | - | Inline JSON contracts config |
+| `contractsConfigFilePath` | * | - | Path to JSON contracts config file |
+| `port` | no | auto (5050+) | gRPC port |
+| `logLevel` | no | `"info"` | `debug`, `info`, `warn`, `error` |
+| `nodeSelectorStrategy` | no | `"stable"` | `stable`, `random`, `ordered`, `closest`, `manual` |
 | `healthCheckTimeout` | no | `30000` | Startup health check timeout (ms) |
 
-\* Provide one of `contractsEnvironment`, `contractsConfigJson`, or `contractsConfigFilePath`.
+\* One of `contractsEnvironment`, `contractsConfigJson`, or `contractsConfigFilePath` is required.
 
 ## GatewayHandle
 
-`startGateway()` returns a handle with:
+`startGateway()` returns:
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `url` | `string` | Gateway URL (e.g. `http://localhost:5050`) |
+| `url` | `string` | e.g. `http://localhost:5050` |
 | `port` | `number` | Listening port |
-| `process` | `ChildProcess` | Underlying child process |
-| `stop()` | `() => Promise<void>` | Gracefully shut down the gateway |
-| `stats()` | `() => GatewayStats` | Get current publish/error/request counts |
+| `process` | `ChildProcess` | The child process |
+| `stop()` | `() => Promise<void>` | Shut down the gateway |
+| `stats()` | `() => GatewayStats` | Publish/error/request counts |
 
-## Monitoring
+## Logs and monitoring
 
-The gateway forwards all Go binary logs to the console, prefixed with `[gateway]`. Errors go to `stderr`, everything else to `stdout`. Use the `logLevel` option to control verbosity:
+Gateway logs are forwarded to the console with a `[gateway]` prefix. Errors go to stderr, the rest to stdout. Control verbosity with `logLevel`:
 
 ```typescript
 const gateway = await startGateway({
   // ...
-  logLevel: "debug", // "debug" | "info" | "warn" | "error"
+  logLevel: "debug",
 });
 ```
 
-The `stats()` method on the handle returns live counters you can use for programmatic monitoring:
+You can also check stats programmatically:
 
 ```typescript
-const { online, uptimeSeconds, publishes, errors, requests } = gateway.stats();
-console.log(`Gateway is ${online ? "up" : "down"}, ${publishes} publishes, ${errors} errors`);
+const s = gateway.stats();
+console.log(`${s.publishes} publishes, ${s.errors} errors`);
 ```
 
-## Custom binary path
-
-To use a custom-built gateway binary:
+## Custom binary
 
 ```bash
 export XMTP_GATEWAY_BINARY_PATH=/path/to/xmtp-gateway

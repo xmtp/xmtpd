@@ -12,7 +12,6 @@ const LOG_LEVELS: Record<string, number> = {
   fatal: 4,
 };
 
-/** Starts the XMTP gateway as a subprocess and waits for it to become healthy. */
 export async function startGateway(
   config: GatewayConfig,
 ): Promise<GatewayHandle> {
@@ -91,8 +90,7 @@ function buildEnv(config: GatewayConfig, port: number): NodeJS.ProcessEnv {
     XMTPD_SETTLEMENT_CHAIN_RPC_URL: config.settlementChainRpcUrl,
     XMTPD_SETTLEMENT_CHAIN_WSS_URL: config.settlementChainWssUrl,
     XMTPD_LOG_ENCODING: "json",
-    // Always use debug internally so we can count requests/publishes.
-    // The log forwarder filters console output to the user's configured level.
+    // debug internally so we can count stats; the forwarder filters to the user's level
     XMTPD_LOG_LEVEL: "debug",
   };
 
@@ -172,7 +170,7 @@ async function waitForHealthy(
 
   while (Date.now() - start < timeoutMs) {
     if (await isPortListening(port)) {
-      // Brief settle delay — the port may be open before the gRPC server is ready
+      // let the gRPC server finish binding
       await sleep(200);
       return;
     }

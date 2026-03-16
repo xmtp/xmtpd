@@ -1,12 +1,12 @@
 # Gateway Setup Guide
 
-Set up and run the XMTP gateway in your Node.js agent.
+How to set up and run the XMTP gateway in your Node.js agent.
 
 ## Prerequisites
 
 - **Node.js 22+**
-- **Redis** — used for nonce management
-- **An RPC provider** — [Alchemy](https://www.alchemy.com/) (free tier works) or similar
+- **Redis** for nonce management
+- **An RPC provider** like [Alchemy](https://www.alchemy.com/) (free tier works)
 
 ## 1. Install
 
@@ -24,17 +24,17 @@ docker run -d -p 6379:6379 redis
 brew install redis && brew services start redis
 ```
 
-Verify: `redis-cli ping` should return `PONG`.
+Check it's working: `redis-cli ping` should return `PONG`.
 
 ## 3. Create a payer wallet
 
-The payer wallet signs transactions to publish messages on the XMTP network. Any standard Ethereum wallet works (secp256k1 key).
+The payer wallet signs transactions on the XMTP network. Any Ethereum wallet works.
 
 ```bash
 node -e "console.log('0x' + require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-To get the wallet address:
+Get the address:
 
 ```bash
 node -e "
@@ -47,7 +47,7 @@ Save both the private key and address.
 
 ## 4. Fund the payer wallet
 
-Your payer wallet needs funds allocated through the XMTP Funding Portal before the gateway can process messages.
+The payer needs funds allocated via the XMTP Funding Portal.
 
 ### Testnet
 
@@ -71,20 +71,20 @@ You can also get testnet USDC from the [Circle faucet](https://faucet.circle.com
 
 ### Mainnet
 
-Acquire USDC on Base, then allocate through [fund.xmtp.org](https://fund.xmtp.org/).
+Get USDC on Base, then allocate through [fund.xmtp.org](https://fund.xmtp.org/).
 
-See the [official funding docs](https://docs.xmtp.org/fund-agents-apps/fund-your-app) for details.
+More info in the [funding docs](https://docs.xmtp.org/fund-agents-apps/fund-your-app).
 
 ## 5. Get RPC endpoints
 
-Sign up at [Alchemy](https://www.alchemy.com/) and create apps for these two networks:
+Sign up at [Alchemy](https://www.alchemy.com/) and create apps for:
 
 | Chain | Purpose | Testnet network |
 |-------|---------|-----------------|
 | **App Chain** (XMTP L3) | Message publishing | XMTP testnet |
 | **Settlement Chain** | Contract settlement | Base Sepolia |
 
-You'll get four URLs (HTTP + WebSocket for each chain):
+You'll get four URLs (HTTP + WebSocket for each):
 
 ```
 # App Chain
@@ -116,8 +116,6 @@ console.log(`Gateway running at ${gateway.url}`);
 
 ## 7. Connect your agent
 
-Pass the gateway URL to the agent SDK:
-
 ```typescript
 import { Agent } from "@xmtp/agent-sdk";
 
@@ -127,7 +125,7 @@ const agent = await Agent.create(signer, {
 });
 ```
 
-Or via environment variable:
+Or via env var:
 
 ```typescript
 process.env.XMTP_GATEWAY_HOST = gateway.url;
@@ -140,51 +138,49 @@ const agent = await Agent.createFromEnv();
 await gateway.stop();
 ```
 
-This sends SIGTERM to the subprocess and waits up to 5 seconds for graceful shutdown.
+Sends SIGTERM and waits up to 5s for graceful shutdown.
 
 ---
 
 ## Deploy to Render
 
-The easiest way to deploy is using the `render.yaml` blueprint in the xmtpd repo. It sets up a Node.js worker with a managed Redis instance.
+The `render.yaml` in the xmtpd repo sets up a Node.js worker with managed Redis.
 
-1. Fork the [xmtpd repo](https://github.com/xmtp/xmtpd) on GitHub
-2. Go to [Render](https://render.com/) and create a new **Blueprint Instance**
-3. Connect your fork — Render auto-detects the `render.yaml`
-4. Fill in the required env vars when prompted:
-   - `PAYER_PRIVATE_KEY` — your funded payer wallet key
-   - `APP_CHAIN_RPC_URL` / `APP_CHAIN_WSS_URL` — XMTP chain endpoints
-   - `SETTLEMENT_CHAIN_RPC_URL` / `SETTLEMENT_CHAIN_WSS_URL` — Base chain endpoints
-5. Redis is provisioned automatically and wired via `REDIS_URL`
+1. Fork the [xmtpd repo](https://github.com/xmtp/xmtpd)
+2. On [Render](https://render.com/), create a new **Blueprint Instance**
+3. Connect your fork - Render picks up the `render.yaml`
+4. Fill in the env vars:
+   - `PAYER_PRIVATE_KEY` - your funded payer key
+   - `APP_CHAIN_RPC_URL` / `APP_CHAIN_WSS_URL`
+   - `SETTLEMENT_CHAIN_RPC_URL` / `SETTLEMENT_CHAIN_WSS_URL`
+5. Redis is provisioned automatically as `REDIS_URL`
 
-The blueprint installs `@xmtp/gateway` from npm (which includes the pre-built Go binary) and runs the bundled start script.
+### Manual setup (no blueprint)
 
-### Deploy without a blueprint
-
-If you prefer to set up manually, create a Render **Background Worker** with:
+Create a Render **Background Worker**:
 
 - **Runtime**: Node
 - **Build command**: `npm init -y && npm install @xmtp/gateway`
 - **Start command**: `node node_modules/@xmtp/gateway/dist/start.js`
 
-Add the same env vars listed above, plus a Render Redis (Key Value) instance connected as `REDIS_URL`.
+Add the env vars above, plus a Redis instance connected as `REDIS_URL`.
 
 ---
 
 ## Troubleshooting
 
 **Gateway exits immediately**
-- Check Redis is running: `redis-cli ping`
-- Make sure `contractsEnvironment` is `"testnet"` or `"mainnet"`
-- Verify your RPC URLs are correct
+- Check Redis: `redis-cli ping`
+- `contractsEnvironment` must be `"testnet"` or `"mainnet"`
+- Check your RPC URLs
 
 **`INSUFFICIENT_PAYER_BALANCE`**
 - Allocate more funds at [testnet.fund.xmtp.org](https://testnet.fund.xmtp.org/)
 
 **Health check timeout**
-- Increase `healthCheckTimeout` (default is 30s)
-- Check that RPC endpoints are reachable
+- Bump `healthCheckTimeout` (default 30s)
+- Check RPC endpoints are reachable
 
 **Binary not found**
-- Reinstall with `npm install @xmtp/gateway`
-- Or set `XMTP_GATEWAY_BINARY_PATH` to a custom binary path
+- Reinstall: `npm install @xmtp/gateway`
+- Or set `XMTP_GATEWAY_BINARY_PATH`

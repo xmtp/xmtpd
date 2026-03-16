@@ -12,7 +12,6 @@ const ARCH_MAP: Record<string, string> = {
   x64: "x64",
 };
 
-/** Resolves the path to the xmtp-gateway binary for the current platform. */
 export function resolveBinary(): string {
   const envPath = process.env.XMTP_GATEWAY_BINARY_PATH;
   if (envPath) {

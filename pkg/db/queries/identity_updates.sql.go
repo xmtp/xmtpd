@@ -40,7 +40,7 @@ type GetAddressLogsRow struct {
 }
 
 func (q *Queries) GetAddressLogs(ctx context.Context, addresses []string) ([]GetAddressLogsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getAddressLogs, pq.Array(addresses))
+	rows, err := q.query(ctx, q.getAddressLogsStmt, getAddressLogs, pq.Array(addresses))
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ type InsertAddressLogParams struct {
 }
 
 func (q *Queries) InsertAddressLog(ctx context.Context, arg InsertAddressLogParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, insertAddressLog, arg.Address, arg.InboxID, arg.AssociationSequenceID)
+	result, err := q.exec(ctx, q.insertAddressLogStmt, insertAddressLog, arg.Address, arg.InboxID, arg.AssociationSequenceID)
 	if err != nil {
 		return 0, err
 	}
@@ -112,7 +112,7 @@ type InsertAddressLogsBatchParams struct {
 }
 
 func (q *Queries) InsertAddressLogsBatch(ctx context.Context, arg InsertAddressLogsBatchParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, insertAddressLogsBatch, pq.Array(arg.Addresses), arg.InboxID, arg.AssociationSequenceID)
+	result, err := q.exec(ctx, q.insertAddressLogsBatchStmt, insertAddressLogsBatch, pq.Array(arg.Addresses), arg.InboxID, arg.AssociationSequenceID)
 	if err != nil {
 		return 0, err
 	}
@@ -136,7 +136,7 @@ type RevokeAddressFromLogParams struct {
 }
 
 func (q *Queries) RevokeAddressFromLog(ctx context.Context, arg RevokeAddressFromLogParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, revokeAddressFromLog, arg.RevocationSequenceID, arg.Address, arg.InboxID)
+	result, err := q.exec(ctx, q.revokeAddressFromLogStmt, revokeAddressFromLog, arg.RevocationSequenceID, arg.Address, arg.InboxID)
 	if err != nil {
 		return 0, err
 	}
@@ -163,7 +163,7 @@ type RevokeAddressFromLogBatchParams struct {
 }
 
 func (q *Queries) RevokeAddressFromLogBatch(ctx context.Context, arg RevokeAddressFromLogBatchParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, revokeAddressFromLogBatch, pq.Array(arg.Addresses), arg.InboxID, arg.RevocationSequenceID)
+	result, err := q.exec(ctx, q.revokeAddressFromLogBatchStmt, revokeAddressFromLogBatch, pq.Array(arg.Addresses), arg.InboxID, arg.RevocationSequenceID)
 	if err != nil {
 		return 0, err
 	}

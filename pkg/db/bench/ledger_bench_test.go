@@ -4,7 +4,6 @@ package bench
 
 import (
 	"context"
-	"database/sql"
 	"log"
 	"sync/atomic"
 	"testing"
@@ -21,13 +20,12 @@ const (
 )
 
 // seedLedger creates payers and populates payer_ledger_events.
-func seedLedger(ctx context.Context, db *sql.DB) {
-	q := queries.New(db)
+func seedLedger(ctx context.Context) {
 	ledgerPayerIDs = make([]int32, numLedgerPayers)
 
 	for i := range numLedgerPayers {
 		addr := utils.HexEncode(testutils.RandomBytes(20))
-		id, err := q.FindOrCreatePayer(ctx, addr)
+		id, err := ledgerQueries.FindOrCreatePayer(ctx, addr)
 		if err != nil {
 			log.Fatalf("seed ledger payer: %v", err)
 		}
@@ -40,7 +38,7 @@ func seedLedger(ctx context.Context, db *sql.DB) {
 			if eventType == 2 {
 				amount = -amount
 			}
-			err := q.InsertPayerLedgerEvent(
+			err := ledgerQueries.InsertPayerLedgerEvent(
 				ctx,
 				queries.InsertPayerLedgerEventParams{
 					EventID:           testutils.RandomBytes(32),
@@ -62,7 +60,6 @@ func seedLedger(ctx context.Context, db *sql.DB) {
 }
 
 func BenchmarkInsertPayerLedgerEvent(b *testing.B) {
-	q := queries.New(ledgerDB)
 	payerID := ledgerPayerIDs[0]
 	// Pre-generate a pool of unique event IDs to avoid crypto/rand in hot path.
 	const poolSize = 10_000
@@ -73,7 +70,7 @@ func BenchmarkInsertPayerLedgerEvent(b *testing.B) {
 	var counter atomic.Int64
 	for b.Loop() {
 		idx := counter.Add(1)
-		err := q.InsertPayerLedgerEvent(
+		err := ledgerQueries.InsertPayerLedgerEvent(
 			benchCtx,
 			queries.InsertPayerLedgerEventParams{
 				EventID:           eventIDs[idx%poolSize],
@@ -87,22 +84,20 @@ func BenchmarkInsertPayerLedgerEvent(b *testing.B) {
 }
 
 func BenchmarkGetPayerBalance(b *testing.B) {
-	q := queries.New(ledgerDB)
 	payerID := ledgerPayerIDs[0]
 	for b.Loop() {
-		_, err := q.GetPayerBalance(benchCtx, payerID)
+		_, err := ledgerQueries.GetPayerBalance(benchCtx, payerID)
 		require.NoError(b, err)
 	}
 }
 
 func BenchmarkGetLastEvent(b *testing.B) {
-	q := queries.New(ledgerDB)
 	params := queries.GetLastEventParams{
 		PayerID:   ledgerPayerIDs[0],
 		EventType: 1, // deposits
 	}
 	for b.Loop() {
-		_, err := q.GetLastEvent(benchCtx, params)
+		_, err := ledgerQueries.GetLastEvent(benchCtx, params)
 		require.NoError(b, err)
 	}
 }

@@ -64,7 +64,7 @@ type InsertGatewayEnvelopeRow struct {
 }
 
 func (q *Queries) InsertGatewayEnvelope(ctx context.Context, arg InsertGatewayEnvelopeParams) (InsertGatewayEnvelopeRow, error) {
-	row := q.db.QueryRowContext(ctx, insertGatewayEnvelope,
+	row := q.queryRow(ctx, q.insertGatewayEnvelopeStmt, insertGatewayEnvelope,
 		arg.OriginatorNodeID,
 		arg.OriginatorSequenceID,
 		arg.Topic,
@@ -119,7 +119,7 @@ type InsertGatewayEnvelopeBatchV2Row struct {
 }
 
 func (q *Queries) InsertGatewayEnvelopeBatchV2(ctx context.Context, arg InsertGatewayEnvelopeBatchV2Params) (InsertGatewayEnvelopeBatchV2Row, error) {
-	row := q.db.QueryRowContext(ctx, insertGatewayEnvelopeBatchV2,
+	row := q.queryRow(ctx, q.insertGatewayEnvelopeBatchV2Stmt, insertGatewayEnvelopeBatchV2,
 		pq.Array(arg.OriginatorNodeIds),
 		pq.Array(arg.OriginatorSequenceIds),
 		pq.Array(arg.Topics),
@@ -209,7 +209,7 @@ type SelectGatewayEnvelopesByOriginatorsRow struct {
 // LATERAL per originator with per-originator blob join.
 // Requires callers to include all desired originators in cursor arrays (use seq_id=0 for unseen).
 func (q *Queries) SelectGatewayEnvelopesByOriginators(ctx context.Context, arg SelectGatewayEnvelopesByOriginatorsParams) ([]SelectGatewayEnvelopesByOriginatorsRow, error) {
-	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopesByOriginators, pq.Array(arg.CursorNodeIds), pq.Array(arg.CursorSequenceIds), arg.RowLimit)
+	rows, err := q.query(ctx, q.selectGatewayEnvelopesByOriginatorsStmt, selectGatewayEnvelopesByOriginators, pq.Array(arg.CursorNodeIds), pq.Array(arg.CursorSequenceIds), arg.RowLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -309,7 +309,7 @@ type SelectGatewayEnvelopesByPerTopicCursorsRow struct {
 // instead of CROSS JOINing topics × cursors.
 // Uses gem_topic_orig_seq_idx for index-only scans.
 func (q *Queries) SelectGatewayEnvelopesByPerTopicCursors(ctx context.Context, arg SelectGatewayEnvelopesByPerTopicCursorsParams) ([]SelectGatewayEnvelopesByPerTopicCursorsRow, error) {
-	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopesByPerTopicCursors,
+	rows, err := q.query(ctx, q.selectGatewayEnvelopesByPerTopicCursorsStmt, selectGatewayEnvelopesByPerTopicCursors,
 		pq.Array(arg.CursorTopics),
 		pq.Array(arg.CursorNodeIds),
 		pq.Array(arg.CursorSequenceIds),
@@ -376,7 +376,7 @@ type SelectGatewayEnvelopesBySingleOriginatorRow struct {
 
 // Optimized query for a single originator - uses direct index scan
 func (q *Queries) SelectGatewayEnvelopesBySingleOriginator(ctx context.Context, arg SelectGatewayEnvelopesBySingleOriginatorParams) ([]SelectGatewayEnvelopesBySingleOriginatorRow, error) {
-	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopesBySingleOriginator, arg.OriginatorNodeID, arg.CursorSequenceID, arg.RowLimit)
+	rows, err := q.query(ctx, q.selectGatewayEnvelopesBySingleOriginatorStmt, selectGatewayEnvelopesBySingleOriginator, arg.OriginatorNodeID, arg.CursorSequenceID, arg.RowLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -481,7 +481,7 @@ type SelectGatewayEnvelopesByTopicsRow struct {
 // Uses gem_topic_orig_seq_idx for index-only scans.
 // row_limit is required and caps total rows returned.
 func (q *Queries) SelectGatewayEnvelopesByTopics(ctx context.Context, arg SelectGatewayEnvelopesByTopicsParams) ([]SelectGatewayEnvelopesByTopicsRow, error) {
-	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopesByTopics,
+	rows, err := q.query(ctx, q.selectGatewayEnvelopesByTopicsStmt, selectGatewayEnvelopesByTopics,
 		pq.Array(arg.CursorNodeIds),
 		pq.Array(arg.CursorSequenceIds),
 		pq.Array(arg.Topics),
@@ -540,7 +540,7 @@ type SelectGatewayEnvelopesUnfilteredParams struct {
 }
 
 func (q *Queries) SelectGatewayEnvelopesUnfiltered(ctx context.Context, arg SelectGatewayEnvelopesUnfilteredParams) ([]GatewayEnvelopesView, error) {
-	rows, err := q.db.QueryContext(ctx, selectGatewayEnvelopesUnfiltered, arg.RowLimit, pq.Array(arg.CursorNodeIds), pq.Array(arg.CursorSequenceIds))
+	rows, err := q.query(ctx, q.selectGatewayEnvelopesUnfilteredStmt, selectGatewayEnvelopesUnfiltered, arg.RowLimit, pq.Array(arg.CursorNodeIds), pq.Array(arg.CursorSequenceIds))
 	if err != nil {
 		return nil, err
 	}
@@ -598,7 +598,7 @@ type SelectNewestFromTopicsRow struct {
 
 // TODO(mkysel) -- sorting by gateway time can lead to wrong results, this query needs to be redone
 func (q *Queries) SelectNewestFromTopics(ctx context.Context, topics [][]byte) ([]SelectNewestFromTopicsRow, error) {
-	rows, err := q.db.QueryContext(ctx, selectNewestFromTopics, pq.Array(topics))
+	rows, err := q.query(ctx, q.selectNewestFromTopicsStmt, selectNewestFromTopics, pq.Array(topics))
 	if err != nil {
 		return nil, err
 	}

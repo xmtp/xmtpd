@@ -8,12 +8,14 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/xmtp/xmtpd/pkg/db/migrations"
+	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 )
 
@@ -26,6 +28,7 @@ const (
 type envelopeTier struct {
 	name        string // sub-benchmark name, e.g. "rows=100K"
 	db          *sql.DB
+	queries     *queries.Queries
 	count       int      // total envelope rows seeded
 	topics      [][]byte // topics seeded into this DB
 	originators []int32  // originator node IDs seeded
@@ -35,13 +38,19 @@ type envelopeTier struct {
 // Package-level handles, populated by TestMain.
 // testing.M has no Context() or Cleanup() methods, so we manage lifecycle manually.
 var (
-	benchCtx      = context.Background()
-	envelopeTiers []*envelopeTier
-	congestionDB  *sql.DB
-	ledgerDB      *sql.DB
-	indexerDB     *sql.DB
-	usageDB       *sql.DB
-	hotPathDB     *sql.DB
+	benchCtx          = context.Background()
+	usePreparedPlans  = parseBenchUsePrepared()
+	envelopeTiers     []*envelopeTier
+	congestionDB      *sql.DB
+	congestionQueries *queries.Queries
+	ledgerDB          *sql.DB
+	ledgerQueries     *queries.Queries
+	indexerDB         *sql.DB
+	indexerQueries    *queries.Queries
+	usageDB           *sql.DB
+	usageQueries      *queries.Queries
+	hotPathDB         *sql.DB
+	hotPathQueries    *queries.Queries
 
 	// Seeded data references for non-envelope groups.
 	congestionOriginators []int32
@@ -55,21 +64,17 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	log.Printf("benchmark prepared queries enabled: %t", usePreparedPlans)
+
 	ctlDB, err := connectDB(localDSNPrefix + localDSNSuffix)
 	if err != nil {
 		log.Fatalf("failed to connect to control DB: %v", err)
 	}
-	defer func() { _ = ctlDB.Close() }()
 
 	// Track cleanups so they run even if a seed function calls log.Fatalf
 	// (log.Fatalf calls os.Exit, so defers in this function won't run either —
 	// but at least we get cleanup for the normal exit path).
 	var cleanups []func()
-	defer func() {
-		for _, fn := range cleanups {
-			fn()
-		}
-	}()
 
 	// --- Envelope tiers ---
 	tiers := []struct {
@@ -86,13 +91,14 @@ func TestMain(m *testing.M) {
 		if benchTier != "" && !strings.EqualFold(benchTier, t.name) {
 			continue
 		}
-		db, cleanup := createBenchDB(ctlDB, "env_"+strings.ToLower(t.name))
+		db, querySet, cleanup := createBenchDB(ctlDB, "env_"+strings.ToLower(t.name))
 		cleanups = append(cleanups, cleanup)
 
 		tier := &envelopeTier{
-			name:  "rows=" + t.name,
-			db:    db,
-			count: t.count,
+			name:    "rows=" + t.name,
+			db:      db,
+			queries: querySet,
+			count:   t.count,
 		}
 		seedEnvelopes(benchCtx, tier)
 		envelopeTiers = append(envelopeTiers, tier)
@@ -100,27 +106,32 @@ func TestMain(m *testing.M) {
 
 	// --- Non-envelope groups ---
 	var cleanup func()
-	congestionDB, cleanup = createBenchDB(ctlDB, "congestion")
+	congestionDB, congestionQueries, cleanup = createBenchDB(ctlDB, "congestion")
 	cleanups = append(cleanups, cleanup)
-	seedCongestion(benchCtx, congestionDB)
+	seedCongestion(benchCtx)
 
-	ledgerDB, cleanup = createBenchDB(ctlDB, "ledger")
+	ledgerDB, ledgerQueries, cleanup = createBenchDB(ctlDB, "ledger")
 	cleanups = append(cleanups, cleanup)
-	seedLedger(benchCtx, ledgerDB)
+	seedLedger(benchCtx)
 
-	indexerDB, cleanup = createBenchDB(ctlDB, "indexer")
+	indexerDB, indexerQueries, cleanup = createBenchDB(ctlDB, "indexer")
 	cleanups = append(cleanups, cleanup)
-	seedIndexer(benchCtx, indexerDB)
+	seedIndexer(benchCtx)
 
-	usageDB, cleanup = createBenchDB(ctlDB, "usage")
+	usageDB, usageQueries, cleanup = createBenchDB(ctlDB, "usage")
 	cleanups = append(cleanups, cleanup)
-	seedUsage(benchCtx, usageDB)
+	seedUsage(benchCtx)
 
-	hotPathDB, cleanup = createBenchDB(ctlDB, "hot_path")
+	hotPathDB, hotPathQueries, cleanup = createBenchDB(ctlDB, "hot_path")
 	cleanups = append(cleanups, cleanup)
-	seedHotPath(benchCtx, hotPathDB)
+	seedHotPath(benchCtx)
 
-	os.Exit(m.Run())
+	code := m.Run()
+	for _, fn := range cleanups {
+		fn()
+	}
+	_ = ctlDB.Close()
+	os.Exit(code)
 }
 
 // connectDB opens a pgx-backed *sql.DB.
@@ -133,7 +144,10 @@ func connectDB(dsn string) (*sql.DB, error) {
 }
 
 // createBenchDB creates an isolated database, runs migrations, returns handle + cleanup.
-func createBenchDB(ctlDB *sql.DB, suffix string) (*sql.DB, func()) {
+func createBenchDB(
+	ctlDB *sql.DB,
+	suffix string,
+) (db *sql.DB, q *queries.Queries, cleanup func()) {
 	dbName := "bench_" + suffix + "_" + testutils.RandomStringLower(8)
 	log.Printf("creating benchmark database %s...", dbName)
 
@@ -151,8 +165,36 @@ func createBenchDB(ctlDB *sql.DB, suffix string) (*sql.DB, func()) {
 		log.Fatalf("migrate %s: %v", dbName, err)
 	}
 
-	return db, func() {
+	if !usePreparedPlans {
+		querySet := queries.New(db)
+		return db, querySet, func() {
+			_ = db.Close()
+			_, _ = ctlDB.Exec("DROP DATABASE " + dbName + " WITH (FORCE)")
+		}
+	}
+
+	querySet, err := queries.Prepare(benchCtx, db)
+	if err != nil {
+		log.Fatalf("prepare queries %s: %v", dbName, err)
+	}
+
+	return db, querySet, func() {
+		_ = querySet.Close()
 		_ = db.Close()
 		_, _ = ctlDB.Exec("DROP DATABASE " + dbName + " WITH (FORCE)")
 	}
+}
+
+func parseBenchUsePrepared() bool {
+	raw := os.Getenv("BENCH_USE_PREPARED")
+	if raw == "" {
+		return true
+	}
+
+	enabled, err := strconv.ParseBool(raw)
+	if err != nil {
+		log.Fatalf("invalid BENCH_USE_PREPARED=%q: %v", raw, err)
+	}
+
+	return enabled
 }

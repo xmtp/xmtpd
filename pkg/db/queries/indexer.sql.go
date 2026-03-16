@@ -25,7 +25,7 @@ type GetLatestBlockRow struct {
 }
 
 func (q *Queries) GetLatestBlock(ctx context.Context, contractAddress string) (GetLatestBlockRow, error) {
-	row := q.db.QueryRowContext(ctx, getLatestBlock, contractAddress)
+	row := q.queryRow(ctx, q.getLatestBlockStmt, getLatestBlock, contractAddress)
 	var i GetLatestBlockRow
 	err := row.Scan(&i.BlockNumber, &i.BlockHash)
 	return i, err
@@ -49,6 +49,6 @@ type SetLatestBlockParams struct {
 }
 
 func (q *Queries) SetLatestBlock(ctx context.Context, arg SetLatestBlockParams) error {
-	_, err := q.db.ExecContext(ctx, setLatestBlock, arg.ContractAddress, arg.BlockNumber, arg.BlockHash)
+	_, err := q.exec(ctx, q.setLatestBlockStmt, setLatestBlock, arg.ContractAddress, arg.BlockNumber, arg.BlockHash)
 	return err
 }

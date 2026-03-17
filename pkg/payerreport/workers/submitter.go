@@ -2,6 +2,7 @@ package workers
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -129,6 +130,7 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 		}
 
 		reportLogger.Info("submitting report")
+
 		// Submit the report to the blockchain
 		reportIndex, submitErr := w.submitReport(report)
 		if submitErr != nil {
@@ -152,10 +154,28 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 			}
 
 			// If the on-chain protocol throws an InvalidSequenceIDs or InvalidStartSequenceID error,
-			// it means the report has invalid sequence IDs or start sequence ID.
-			// Most likely another node submitted a valid report with the same start sequence ID before the node.
-			// We set the report submission status to rejected and continue.
+			// it means the report has invalid sequence IDs or start sequence ID, or another node submitted a valid report with the same start sequence ID before the node.
+			// If the report is already marked as submitted (likely by the indexer), skip it.
+			// Otherwise, we set the report submission status to rejected and continue.
 			if submitErr.IsErrInvalidSequenceIDs() {
+				currentReport, err := w.payerReportStore.FetchReport(ctx, report.ID)
+				if err != nil && !errors.Is(err, payerreport.ErrReportNotFound) {
+					reportLogger.Error(
+						"failed to fetch report",
+						utils.PayerReportIDField(report.ID.String()),
+						zap.Error(err),
+					)
+					latestErr = err
+					continue
+				}
+
+				// If the report has already been submitted, skip it.
+				if currentReport != nil &&
+					currentReport.SubmissionStatus == payerreport.SubmissionSubmitted {
+					reportLogger.Info("report already submitted, skipping")
+					continue
+				}
+
 				reportLogger.Info("report has invalid sequence IDs, submission rejected")
 
 				err = w.payerReportStore.SetReportSubmissionRejected(ctx, report.ID)

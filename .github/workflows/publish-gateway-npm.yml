@@ -1,0 +1,135 @@
+name: Publish Gateway npm Package
+
+on:
+  push:
+    tags:
+      - "v*"
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (build and pack but skip publish)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-binaries:
+    name: Build Go binaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-tags: true
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Cross-compile gateway
+        run: npm/build.sh "$(git describe HEAD --tags --long 2>/dev/null || echo 0.0.0-dev)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gateway-binaries
+          path: npm/gateway/bin/
+          retention-days: 1
+
+  build-typescript:
+    name: Build TypeScript wrapper
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: npm/gateway/package-lock.json
+
+      - run: npm ci
+        working-directory: npm/gateway
+
+      - run: npm run build
+        working-directory: npm/gateway
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gateway-dist
+          path: npm/gateway/dist/
+          retention-days: 1
+
+  publish:
+    name: Publish to npm
+    needs: [build-binaries, build-typescript]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-tags: true
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Update npm to latest
+        run: npm install -g npm@latest
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: gateway-binaries
+          path: npm/gateway/bin/
+
+      - name: Download compiled TypeScript
+        uses: actions/download-artifact@v4
+        with:
+          name: gateway-dist
+          path: npm/gateway/dist/
+
+      - name: Make binaries executable
+        run: chmod +x npm/gateway/bin/xmtp-gateway-*
+
+      - name: Determine version and tag
+        id: version
+        run: |
+          DESCRIBE="$(git describe HEAD --tags --long 2>/dev/null || echo 0.0.0-dev)"
+
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            NPM_TAG="latest"
+          else
+            VERSION="${DESCRIBE#v}"
+            VERSION=$(echo "$VERSION" | sed 's/[^0-9A-Za-z._-]/-/g')
+            NPM_TAG="dev"
+          fi
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "npm_tag=${NPM_TAG}" >> $GITHUB_OUTPUT
+          echo "Publishing ${VERSION} with tag ${NPM_TAG}"
+
+      - name: Set version
+        run: |
+          chmod +x npm/sync-versions.sh
+          npm/sync-versions.sh "${{ steps.version.outputs.version }}"
+
+      - name: Pack (snapshot)
+        if: github.event_name != 'push' || !startsWith(github.ref, 'refs/tags/v')
+        run: npm pack
+        working-directory: npm/gateway
+
+      - name: Publish @xmtp/gateway
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !inputs.dry_run
+        run: npm publish --access public --provenance --tag ${{ steps.version.outputs.npm_tag }}
+        working-directory: npm/gateway
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

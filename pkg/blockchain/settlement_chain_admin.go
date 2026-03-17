@@ -62,11 +62,17 @@ type ISettlementChainAdmin interface {
 		originatorNodeIDs []uint32,
 		payerReportIndices []*big.Int,
 	) error
+	ClaimProtocolFeesFromDistributionManager(
+		ctx context.Context,
+		originatorNodeIDs []uint32,
+		payerReportIndices []*big.Int,
+	) error
 	WithdrawFromDistributionManager(
 		ctx context.Context,
 		nodeID uint32,
 		recipient common.Address,
 	) error
+	WithdrawProtocolFeesFromDistributionManager(ctx context.Context) error
 	GetDistributionManagerOwedFees(ctx context.Context, nodeID uint32) (*big.Int, error)
 
 	GetSettlementChainGatewayVersion(ctx context.Context) (string, error)
@@ -627,6 +633,34 @@ func (s settlementChainAdmin) ClaimFromDistributionManager(
 	return nil
 }
 
+func (s settlementChainAdmin) ClaimProtocolFeesFromDistributionManager(
+	ctx context.Context,
+	originatorNodeIDs []uint32,
+	payerReportIndices []*big.Int,
+) error {
+	err := ExecuteTransaction(
+		ctx,
+		s.signer, s.logger, s.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return s.distributionManager.ClaimProtocolFees(opts, originatorNodeIDs, payerReportIndices)
+		},
+		func(log *types.Log) (any, error) {
+			return s.distributionManager.ParseProtocolFeesClaim(*log)
+		},
+		func(event any) {
+			ev, ok := event.(*dm.DistributionManagerProtocolFeesClaim)
+			if !ok {
+				s.logger.Error("unexpected event type, not DistributionManagerProtocolFeesClaim")
+				return
+			}
+			s.logger.Info("claimed protocol fees from distribution manager",
+				zap.Uint32("originator_node_id", ev.OriginatorNodeId),
+				zap.String("amount", ev.Amount.String()))
+		},
+	)
+	return err
+}
+
 func (s settlementChainAdmin) WithdrawFromDistributionManager(
 	ctx context.Context,
 	nodeID uint32,
@@ -656,6 +690,29 @@ func (s settlementChainAdmin) WithdrawFromDistributionManager(
 		return err
 	}
 	return nil
+}
+
+func (s settlementChainAdmin) WithdrawProtocolFeesFromDistributionManager(ctx context.Context) error {
+	err := ExecuteTransaction(
+		ctx,
+		s.signer, s.logger, s.client,
+		func(opts *bind.TransactOpts) (*types.Transaction, error) {
+			return s.distributionManager.WithdrawProtocolFees(opts)
+		},
+		func(log *types.Log) (any, error) {
+			return s.distributionManager.ParseProtocolFeesWithdrawal(*log)
+		},
+		func(event any) {
+			ev, ok := event.(*dm.DistributionManagerProtocolFeesWithdrawal)
+			if !ok {
+				s.logger.Error("unexpected event type, not DistributionManagerProtocolFeesWithdrawal")
+				return
+			}
+			s.logger.Info("withdrew protocol fees from distribution manager",
+				zap.String("amount", ev.Amount.String()))
+		},
+	)
+	return err
 }
 
 func (s settlementChainAdmin) GetDistributionManagerOwedFees(

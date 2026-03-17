@@ -1,13 +1,14 @@
 // Package server implements the server authentication interceptors.
-// It validates JWT tokens from other nodes and logs the incoming address.
+// It validates JWT tokens from other nodes.
 package server
 
 import (
 	"context"
 	"errors"
-	"net"
+	"strconv"
 
 	"connectrpc.com/connect"
+	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/xmtp/xmtpd/pkg/authn"
 	"github.com/xmtp/xmtpd/pkg/constants"
@@ -16,11 +17,6 @@ import (
 )
 
 // TODO(borja): Next PR - Fail requests if the token is not valid.
-
-const (
-	dnsNameField       = "dns_name"
-	clientAddressField = "client_address"
-)
 
 // ServerAuthInterceptor validates JWT tokens from other nodes
 type ServerAuthInterceptor struct {
@@ -52,13 +48,15 @@ func (i *ServerAuthInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryF
 
 		nodeID, cancel, err := i.verifier.Verify(token)
 		if err != nil {
-
-			i.logger.Error("JWT verification failed",
+			logFields := []zap.Field{
 				zap.String("procedure", req.Spec().Procedure),
 				zap.String("protocol", req.Peer().Protocol),
-				zap.String("peer", req.Peer().Addr),
 				zap.Error(err),
-			)
+			}
+			if id := tryExtractNodeIDFromToken(token); id != 0 {
+				logFields = append(logFields, utils.OriginatorIDField(id))
+			}
+			i.logger.Error("JWT verification failed", logFields...)
 
 			// Do not expose too much information to the client (e.g. wrapped errors)
 			return nil, connect.NewError(
@@ -68,7 +66,7 @@ func (i *ServerAuthInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryF
 		}
 		defer cancel()
 
-		i.connectLogIncomingAddress(req.Peer().Addr, nodeID)
+		i.connectLogIncomingAddress(nodeID)
 
 		ctx = context.WithValue(ctx, constants.VerifiedNodeRequestCtxKey{}, true)
 
@@ -98,20 +96,22 @@ func (i *ServerAuthInterceptor) WrapStreamingHandler(
 
 		nodeID, cancel, err := i.verifier.Verify(token)
 		if err != nil {
-
-			i.logger.Error("JWT verification failed",
+			logFields := []zap.Field{
 				zap.String("procedure", conn.Spec().Procedure),
 				zap.String("protocol", conn.Peer().Protocol),
-				zap.String("peer", conn.Peer().Addr),
 				zap.Error(err),
-			)
+			}
+			if id := tryExtractNodeIDFromToken(token); id != 0 {
+				logFields = append(logFields, utils.OriginatorIDField(id))
+			}
+			i.logger.Error("JWT verification failed", logFields...)
 
 			// Do not expose too much information to the client (e.g. wrapped errors)
 			return connect.NewError(connect.CodeUnauthenticated, errors.New("invalid auth token"))
 		}
 		defer cancel()
 
-		i.connectLogIncomingAddress(conn.Peer().Addr, nodeID)
+		i.connectLogIncomingAddress(nodeID)
 
 		ctx = context.WithValue(ctx, constants.VerifiedNodeRequestCtxKey{}, true)
 
@@ -121,24 +121,26 @@ func (i *ServerAuthInterceptor) WrapStreamingHandler(
 
 /* Connect-go interceptors helpers */
 
-func (i *ServerAuthInterceptor) connectLogIncomingAddress(
-	addr string,
-	nodeID uint32,
-) {
+func (i *ServerAuthInterceptor) connectLogIncomingAddress(nodeID uint32) {
 	if i.logger.Core().Enabled(zap.DebugLevel) {
-		host, _, err := net.SplitHostPort(addr)
-		if err == nil {
-			dnsName, err := net.LookupAddr(host)
-			if err != nil || len(dnsName) == 0 {
-				dnsName = []string{unknownDNSName}
-			}
-
-			i.logger.Debug(
-				"incoming connection",
-				zap.String(clientAddressField, addr),
-				zap.String(dnsNameField, dnsName[0]),
-				utils.OriginatorIDField(nodeID),
-			)
-		}
+		i.logger.Debug("incoming connection", utils.OriginatorIDField(nodeID))
 	}
+}
+
+// tryExtractNodeIDFromToken parses the JWT subject claim without signature verification.
+// Returns 0 if the subject cannot be extracted or parsed as a node ID.
+func tryExtractNodeIDFromToken(tokenString string) uint32 {
+	token, _, err := jwt.NewParser().ParseUnverified(tokenString, jwt.MapClaims{})
+	if err != nil {
+		return 0
+	}
+	subject, err := token.Claims.GetSubject()
+	if err != nil {
+		return 0
+	}
+	parsed, err := strconv.ParseInt(subject, 10, 32)
+	if err != nil {
+		return 0
+	}
+	return uint32(parsed)
 }

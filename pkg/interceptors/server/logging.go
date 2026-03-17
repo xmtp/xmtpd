@@ -13,8 +13,6 @@ import (
 )
 
 const (
-	unknownDNSName = "unknown"
-
 	codeField    = "code"
 	messageField = "message"
 )

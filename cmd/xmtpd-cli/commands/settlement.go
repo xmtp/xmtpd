@@ -32,7 +32,9 @@ func settlementChainCmd() *cobra.Command {
 		settleRateMigratorCmd(),
 		settleSendExcessCmd(),
 		settleDMClaimCmd(),
+		settleDMClaimProtocolFeesCmd(),
 		settleDMWithdrawCmd(),
+		settleDMWithdrawProtocolFeesCmd(),
 	)
 	return cmd
 }
@@ -736,6 +738,97 @@ func settleDMWithdrawHandler(nodeID uint32, recipient common.Address) error {
 	logger.Info("withdrawn from distribution manager",
 		zap.Uint32("node_id", nodeID),
 		zap.String("recipient", recipient.Hex()))
+	return nil
+}
+
+// --- DistributionManager: claim protocol fees ---
+
+func settleDMClaimProtocolFeesCmd() *cobra.Command {
+	var (
+		originatorNodeIDsStr  string
+		payerReportIndicesStr string
+	)
+
+	cmd := &cobra.Command{
+		Use:          "dm-claim-protocol-fees",
+		Short:        "Claim protocol fees from DistributionManager",
+		SilenceUsage: true,
+		RunE: func(*cobra.Command, []string) error {
+			originatorNodeIDs, err := parseUint32CSV(originatorNodeIDsStr)
+			if err != nil {
+				return fmt.Errorf("invalid --originator-node-ids: %w", err)
+			}
+			payerReportIndices, err := parseBigIntCSV(payerReportIndicesStr)
+			if err != nil {
+				return fmt.Errorf("invalid --payer-report-indices: %w", err)
+			}
+			return settleDMClaimProtocolFeesHandler(originatorNodeIDs, payerReportIndices)
+		},
+	}
+
+	cmd.Flags().
+		StringVar(&originatorNodeIDsStr, "originator-node-ids", "", "comma-separated originator node IDs")
+	cmd.Flags().
+		StringVar(&payerReportIndicesStr, "payer-report-indices", "", "comma-separated payer report indices")
+	_ = cmd.MarkFlagRequired("originator-node-ids")
+	_ = cmd.MarkFlagRequired("payer-report-indices")
+
+	return cmd
+}
+
+func settleDMClaimProtocolFeesHandler(
+	originatorNodeIDs []uint32,
+	payerReportIndices []*big.Int,
+) error {
+	logger, err := cliLogger()
+	if err != nil {
+		return fmt.Errorf("could not build logger: %w", err)
+	}
+	ctx := context.Background()
+	_, admin, err := setupSettlementChainAdmin(ctx, logger)
+	if err != nil {
+		return err
+	}
+	if err := admin.ClaimProtocolFeesFromDistributionManager(
+		ctx,
+		originatorNodeIDs,
+		payerReportIndices,
+	); err != nil {
+		logger.Error("dm claim protocol fees failed", zap.Error(err))
+		return err
+	}
+	logger.Info("claimed protocol fees from distribution manager")
+	return nil
+}
+
+// --- DistributionManager: withdraw protocol fees ---
+
+func settleDMWithdrawProtocolFeesCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:          "dm-withdraw-protocol-fees",
+		Short:        "Withdraw protocol fees from DistributionManager to the protocol fees recipient",
+		SilenceUsage: true,
+		RunE: func(*cobra.Command, []string) error {
+			return settleDMWithdrawProtocolFeesHandler()
+		},
+	}
+}
+
+func settleDMWithdrawProtocolFeesHandler() error {
+	logger, err := cliLogger()
+	if err != nil {
+		return fmt.Errorf("could not build logger: %w", err)
+	}
+	ctx := context.Background()
+	_, admin, err := setupSettlementChainAdmin(ctx, logger)
+	if err != nil {
+		return err
+	}
+	if err := admin.WithdrawProtocolFeesFromDistributionManager(ctx); err != nil {
+		logger.Error("dm withdraw protocol fees failed", zap.Error(err))
+		return err
+	}
+	logger.Info("withdrew protocol fees from distribution manager")
 	return nil
 }
 

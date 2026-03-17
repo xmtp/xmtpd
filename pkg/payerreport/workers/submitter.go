@@ -191,6 +191,8 @@ func (w *SubmitterWorker) SubmitReports(ctx context.Context) error {
 				utils.PayerReportIDField(report.ID.String()),
 			)
 		}
+
+		reportLogger.Info("report submitted")
 	}
 
 	return latestErr

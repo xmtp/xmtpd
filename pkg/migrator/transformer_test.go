@@ -431,6 +431,133 @@ func TestTransformWelcomeMessage(t *testing.T) {
 	checkOriginatorSignature(t, envelope, test.nodePrivateKey, test.nodeAddress)
 }
 
+func TestTransformGroupMessage_NilInput(t *testing.T) {
+	test := newTransformerTest(t)
+	defer test.cleanup()
+
+	_, err := test.transformer.TransformGroupMessage(nil)
+	require.Error(t, err)
+}
+
+func TestTransformGroupMessage_NilGroupID(t *testing.T) {
+	test := newTransformerTest(t)
+	defer test.cleanup()
+
+	_, err := test.transformer.TransformGroupMessage(&migrator.GroupMessage{
+		ID:   1,
+		Data: []byte("some data"),
+	})
+	require.Error(t, err)
+}
+
+func TestTransformGroupMessage_EmptyData(t *testing.T) {
+	test := newTransformerTest(t)
+	defer test.cleanup()
+
+	// Use a valid-looking 16-byte group ID.
+	_, err := test.transformer.TransformGroupMessage(&migrator.GroupMessage{
+		ID:      1,
+		GroupID: make([]byte, 16),
+		Data:    []byte{},
+	})
+	require.Error(t, err)
+}
+
+func TestTransformInboxLog_NilInput(t *testing.T) {
+	test := newTransformerTest(t)
+	defer test.cleanup()
+
+	_, err := test.transformer.TransformInboxLog(nil)
+	require.Error(t, err)
+}
+
+func TestTransformInboxLog_NilInboxID(t *testing.T) {
+	test := newTransformerTest(t)
+	defer test.cleanup()
+
+	_, err := test.transformer.TransformInboxLog(&migrator.InboxLog{
+		SequenceID:          1,
+		IdentityUpdateProto: []byte("proto"),
+	})
+	require.Error(t, err)
+}
+
+func TestTransformInboxLog_EmptyIdentityUpdateProto(t *testing.T) {
+	test := newTransformerTest(t)
+	defer test.cleanup()
+
+	_, err := test.transformer.TransformInboxLog(&migrator.InboxLog{
+		SequenceID:          1,
+		InboxID:             make([]byte, 32),
+		IdentityUpdateProto: []byte{},
+	})
+	require.Error(t, err)
+}
+
+func TestTransformInboxLog_InvalidProtoBytes(t *testing.T) {
+	test := newTransformerTest(t)
+	defer test.cleanup()
+
+	// Provide a non-empty byte slice that is not a valid proto.
+	_, err := test.transformer.TransformInboxLog(&migrator.InboxLog{
+		SequenceID:          1,
+		InboxID:             make([]byte, 32),
+		IdentityUpdateProto: []byte("not valid protobuf"),
+	})
+	require.Error(t, err)
+}
+
+func TestTransformKeyPackage_NilInput(t *testing.T) {
+	test := newTransformerTest(t)
+	defer test.cleanup()
+
+	_, err := test.transformer.TransformKeyPackage(nil)
+	require.Error(t, err)
+}
+
+func TestTransformKeyPackage_EmptyKeyPackage(t *testing.T) {
+	test := newTransformerTest(t)
+	defer test.cleanup()
+
+	_, err := test.transformer.TransformKeyPackage(&migrator.KeyPackage{
+		SequenceID:     1,
+		InstallationID: make([]byte, 32),
+		KeyPackage:     []byte{},
+	})
+	require.Error(t, err)
+}
+
+func TestTransformWelcomeMessage_NilInput(t *testing.T) {
+	test := newTransformerTest(t)
+	defer test.cleanup()
+
+	_, err := test.transformer.TransformWelcomeMessage(nil)
+	require.Error(t, err)
+}
+
+func TestTransformCommitMessage_NilInput(t *testing.T) {
+	test := newTransformerTest(t)
+	defer test.cleanup()
+
+	_, err := test.transformer.TransformCommitMessage(nil)
+	require.Error(t, err)
+}
+
+// unknownRecord implements ISourceRecord with an unrecognized table name.
+type unknownRecord struct{}
+
+func (u *unknownRecord) GetID() int64           { return 1 }
+func (u *unknownRecord) TableName() string      { return "unknown_table" }
+func (u *unknownRecord) Scan(_ *sql.Rows) error { return nil }
+
+func TestTransform_UnknownTableName(t *testing.T) {
+	test := newTransformerTest(t)
+	defer test.cleanup()
+
+	_, err := test.transformer.Transform(&unknownRecord{})
+	require.Error(t, err)
+}
+
 func checkTopic(
 	t *testing.T,
 	envelope *envelopes.OriginatorEnvelope,

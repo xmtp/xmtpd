@@ -642,7 +642,11 @@ func (s settlementChainAdmin) ClaimProtocolFeesFromDistributionManager(
 		ctx,
 		s.signer, s.logger, s.client,
 		func(opts *bind.TransactOpts) (*types.Transaction, error) {
-			return s.distributionManager.ClaimProtocolFees(opts, originatorNodeIDs, payerReportIndices)
+			return s.distributionManager.ClaimProtocolFees(
+				opts,
+				originatorNodeIDs,
+				payerReportIndices,
+			)
 		},
 		func(log *types.Log) (any, error) {
 			return s.distributionManager.ParseProtocolFeesClaim(*log)
@@ -692,7 +696,9 @@ func (s settlementChainAdmin) WithdrawFromDistributionManager(
 	return nil
 }
 
-func (s settlementChainAdmin) WithdrawProtocolFeesFromDistributionManager(ctx context.Context) error {
+func (s settlementChainAdmin) WithdrawProtocolFeesFromDistributionManager(
+	ctx context.Context,
+) error {
 	err := ExecuteTransaction(
 		ctx,
 		s.signer, s.logger, s.client,
@@ -705,7 +711,9 @@ func (s settlementChainAdmin) WithdrawProtocolFeesFromDistributionManager(ctx co
 		func(event any) {
 			ev, ok := event.(*dm.DistributionManagerProtocolFeesWithdrawal)
 			if !ok {
-				s.logger.Error("unexpected event type, not DistributionManagerProtocolFeesWithdrawal")
+				s.logger.Error(
+					"unexpected event type, not DistributionManagerProtocolFeesWithdrawal",
+				)
 				return
 			}
 			s.logger.Info("withdrew protocol fees from distribution manager",

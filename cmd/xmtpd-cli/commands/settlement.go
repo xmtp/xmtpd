@@ -789,7 +789,11 @@ func settleDMClaimProtocolFeesHandler(
 	if err != nil {
 		return err
 	}
-	if err := admin.ClaimProtocolFeesFromDistributionManager(ctx, originatorNodeIDs, payerReportIndices); err != nil {
+	if err := admin.ClaimProtocolFeesFromDistributionManager(
+		ctx,
+		originatorNodeIDs,
+		payerReportIndices,
+	); err != nil {
 		logger.Error("dm claim protocol fees failed", zap.Error(err))
 		return err
 	}

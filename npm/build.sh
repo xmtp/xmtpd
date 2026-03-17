@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 XMTPD_DIR="${XMTPD_DIR:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
-VERSION="${1:-$(git -C "${XMTPD_DIR}" describe HEAD --tags --long 2>/dev/null || echo "dev")}"
+VERSION="${1:-$(git -C "${XMTPD_DIR}" describe HEAD --tags --long 2>/dev/null || echo "0.0.0-dev")}"
 
 echo "Building XMTP gateway binaries (${VERSION})..."
 

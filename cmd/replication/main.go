@@ -165,7 +165,10 @@ func main() {
 				dbopts = append(dbopts, db.WithReadReplica(readDB))
 			}
 
-			dbh = db.NewDBHandler(writeDB, dbopts...)
+			dbh, err = db.NewDBHandler(ctx, writeDB, dbopts...)
+			if err != nil {
+				logger.Fatal("preparing database statements", zap.Error(err))
+			}
 
 			// Start a database worker in the background.
 			err = worker.NewWorker(logger, dbh).Start(ctx)

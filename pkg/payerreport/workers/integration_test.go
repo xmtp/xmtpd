@@ -220,8 +220,12 @@ func setupMultiNodeTest(t *testing.T) multiNodeTestScaffold {
 	)
 	require.NoError(t, err)
 
-	payerReportStore1 := payerreport.NewStore(log, db.NewDBHandler(dbs[0]))
-	payerReportStore2 := payerreport.NewStore(log, db.NewDBHandler(dbs[1]))
+	dbHandler1, err := db.NewDBHandler(t.Context(), dbs[0])
+	require.NoError(t, err)
+	dbHandler2, err := db.NewDBHandler(t.Context(), dbs[1])
+	require.NoError(t, err)
+	payerReportStore1 := payerreport.NewStore(log, dbHandler1)
+	payerReportStore2 := payerreport.NewStore(log, dbHandler2)
 	reportGenerator1 := workers.NewGeneratorWorker(
 		t.Context(),
 		log.With(zap.Uint32("node_id", server1NodeID)),

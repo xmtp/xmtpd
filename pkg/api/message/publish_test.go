@@ -655,9 +655,11 @@ func TestPublishEnvelopeBalanceEnforcement(t *testing.T) {
 				payerAddr, err := payerEnv.RecoverSigner()
 				require.NoError(t, err)
 
+				dbHandler, err := dbPkg.NewDBHandler(t.Context(), suite.DB)
+				require.NoError(t, err)
 				payerLedger := ledger.NewLedger(
 					testutils.NewLog(t),
-					dbPkg.NewDBHandler(suite.DB),
+					dbHandler,
 				)
 				payerID, err := payerLedger.FindOrCreatePayer(
 					context.Background(),
@@ -735,7 +737,9 @@ func TestPublishEnvelopeMultiEnvelopeBatchBalance(t *testing.T) {
 
 	// Deposit enough for 1 envelope but not 3
 	payerAddr := crypto.PubkeyToAddress(signerKey.PublicKey)
-	payerLedger := ledger.NewLedger(testutils.NewLog(t), dbPkg.NewDBHandler(suite.DB))
+	payerDBHandler, err := dbPkg.NewDBHandler(t.Context(), suite.DB)
+	require.NoError(t, err)
+	payerLedger := ledger.NewLedger(testutils.NewLog(t), payerDBHandler)
 	payerID, err := payerLedger.FindOrCreatePayer(context.Background(), payerAddr)
 	require.NoError(t, err)
 

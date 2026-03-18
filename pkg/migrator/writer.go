@@ -34,9 +34,8 @@ func (w *Worker) insertOriginatorEnvelopeDatabaseBatch(
 		return re.NewNonRecoverableError("", errors.New("batch is nil"))
 	}
 
-	err := db.RunInTx(
+	err := w.writer.RunInTx(
 		ctx,
-		w.writer.Write(),
 		nil,
 		func(ctx context.Context, querier *queries.Queries) error {
 			_, err := querier.SetLocalWorkMem(ctx, batchWorkMem)

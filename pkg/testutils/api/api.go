@@ -171,10 +171,12 @@ func NewTestAPIServer(
 		ctx, cancel           = context.WithCancel(context.Background())
 		log                   = testutils.NewLog(t)
 		sqlDB, _              = testutils.NewRawDB(t, ctx)
-		db                    = dbPkg.NewDBHandler(sqlDB)
 		mockMessagePublisher  = blockchainMocks.NewMockIBlockchainPublisher(t)
 		mockValidationService = mlsvalidateMocks.NewMockMLSValidationService(t)
 	)
+
+	db, err := dbPkg.NewDBHandler(ctx, sqlDB)
+	require.NoError(t, err)
 
 	privKey, err := crypto.GenerateKey()
 	require.NoError(t, err)

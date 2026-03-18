@@ -14,7 +14,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
-const currentMigration int64 = 22
+const currentMigration int64 = 23
 
 var (
 	originatorIDs = []int32{100, 200, 300}
@@ -206,6 +206,10 @@ func TestMigrations(t *testing.T) {
 
 	t.Run("00022_prune-meta-partitions", func(t *testing.T) {
 		checkMetaPartitionSelect(t, database)
+	})
+
+	t.Run("00023_fix-blob-orphans", func(t *testing.T) {
+		checkFixBlobOrphans(t, database)
 	})
 
 	t.Run("data_verification", func(t *testing.T) {
@@ -405,6 +409,43 @@ func checkStagedInsertBatchV2(t *testing.T, database *sql.DB) {
 
 func checkMetaPartitionSelect(t *testing.T, database *sql.DB) {
 	functionExists(t, database, "get_prunable_meta_partitions")
+}
+
+func checkFixBlobOrphans(t *testing.T, database *sql.DB) {
+	// Verify updated sub-partition functions exist.
+	for _, fn := range []string{"make_meta_seq_subpart_v2", "make_blob_seq_subpart_v2"} {
+		functionExists(t, database, fn)
+	}
+
+	// Verify no orphan blobs exist after the migration.
+	var orphanCount int
+	err := database.QueryRowContext(
+		t.Context(),
+		`SELECT COUNT(*)
+		 FROM gateway_envelope_blobs b
+		 WHERE NOT EXISTS (
+		     SELECT 1
+		     FROM gateway_envelopes_meta m
+		     WHERE m.originator_node_id     = b.originator_node_id
+		       AND m.originator_sequence_id = b.originator_sequence_id
+		 )`,
+	).Scan(&orphanCount)
+	require.NoError(t, err)
+	assert.Equal(t, 0, orphanCount, "there should be no orphan blobs after migration 23")
+
+	// Verify the FK constraint is present on gateway_envelope_blobs.
+	var hasForeignKey bool
+	err = database.QueryRowContext(
+		t.Context(),
+		`SELECT EXISTS (
+		     SELECT 1
+		     FROM pg_constraint
+		     WHERE conrelid = 'gateway_envelope_blobs'::regclass
+		       AND contype  = 'f'
+		 )`,
+	).Scan(&hasForeignKey)
+	require.NoError(t, err)
+	assert.True(t, hasForeignKey, "gateway_envelope_blobs should have a FK constraint")
 }
 
 // --- Data verification after populateDatabase ---

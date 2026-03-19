@@ -5,7 +5,7 @@
 // UsageSettled events and derives health signals: submission cadence,
 // settlement latency, node participation, envelope gaps, and fee flow.
 //
-// Designed to run in ECS Fargate alongside the xdbg probe loop.
+// Exposes a /metrics endpoint for scraping by AMP (Amazon Managed Prometheus).
 package main
 
 import (
@@ -22,7 +22,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/client_golang/prometheus/push"
 	"github.com/xmtp/xmtpd/pkg/chainwatcher"
 	"github.com/xmtp/xmtpd/pkg/config/environments"
 	"go.uber.org/zap"
@@ -53,12 +52,6 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	// Optional PushGateway support for Fargate
-	pushGatewayURL := os.Getenv("PUSHGATEWAY_URL")
-	if pushGatewayURL != "" {
-		go pushMetricsLoop(ctx, logger, reg, pushGatewayURL)
-	}
 
 	watcher, err := chainwatcher.New(ctx, logger, cfg)
 	if err != nil {
@@ -172,26 +165,5 @@ func serveMetrics(logger *zap.Logger, reg *prometheus.Registry, port string) {
 	srv := &http.Server{Addr: addr, Handler: mux}
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		logger.Error("metrics server error", zap.Error(err))
-	}
-}
-
-func pushMetricsLoop(
-	ctx context.Context,
-	logger *zap.Logger,
-	reg prometheus.Gatherer,
-	pushGatewayURL string,
-) {
-	pusher := push.New(pushGatewayURL, "chain-watcher").Gatherer(reg)
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			if err := pusher.Push(); err != nil {
-				logger.Warn("failed to push metrics", zap.Error(err))
-			}
-		}
 	}
 }

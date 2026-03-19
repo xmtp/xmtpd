@@ -18,7 +18,7 @@ jobs:
   push_to_registry:
     strategy:
       matrix:
-        image: ["xmtpd", "xmtpd-cli", "xmtpd-prune", "xmtpd-gateway", "xmtpd-e2e"]
+        image: ["xmtpd", "xmtpd-cli", "xmtpd-prune", "xmtpd-gateway", "xmtpd-e2e", "xmtpd-chain-watcher"]
     name: Push Docker Images to GitHub Packages
     runs-on: ubuntu-latest
     permissions:
@@ -63,6 +63,8 @@ jobs:
           echo "dockerfile=gateway.Dockerfile" >> $GITHUB_OUTPUT
           elif [[ "${{ matrix.image }}" == "xmtpd-e2e" ]]; then
           echo "dockerfile=e2e.Dockerfile" >> $GITHUB_OUTPUT
+          elif [[ "${{ matrix.image }}" == "xmtpd-chain-watcher" ]]; then
+          echo "dockerfile=chain-watcher.Dockerfile" >> $GITHUB_OUTPUT
           else
           echo "Unknown image: ${{ matrix.image }}"
           exit 1

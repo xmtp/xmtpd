@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -117,8 +118,8 @@ func buildConfig(logger *zap.Logger) chainwatcher.Config {
 
 	// Optional overrides
 	if v := os.Getenv("DEPLOYMENT_BLOCK"); v != "" {
-		var block uint64
-		if _, err := fmt.Sscanf(v, "%d", &block); err == nil {
+		block, err := strconv.ParseUint(v, 10, 64)
+		if err == nil {
 			cfg.DeploymentBlock = block
 		}
 	}
@@ -130,8 +131,8 @@ func buildConfig(logger *zap.Logger) chainwatcher.Config {
 	}
 
 	if v := os.Getenv("BACKFILL_BLOCK_PAGE_SIZE"); v != "" {
-		var size uint64
-		if _, err := fmt.Sscanf(v, "%d", &size); err == nil {
+		size, err := strconv.ParseUint(v, 10, 64)
+		if err == nil {
 			cfg.BackfillBlockPageSize = size
 		}
 	}

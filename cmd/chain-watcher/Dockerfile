@@ -20,7 +20,7 @@ LABEL description="XMTP Chain Watcher - Payer Report Observability"
 
 ENV GOLOG_LOG_FMT=nocolor
 
-RUN apk add --no-cache curl
+RUN apk add --no-cache curl ca-certificates
 
 COPY --from=builder /app/bin/chain-watcher /usr/bin/
 

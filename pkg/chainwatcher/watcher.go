@@ -318,6 +318,13 @@ func (w *Watcher) handlePayerReportSubmitted(log types.Log) {
 	eventsProcessedTotal.WithLabelValues("PayerReportSubmitted").Inc()
 
 	// Envelope range
+	if parsed.EndSequenceId < parsed.StartSequenceId {
+		w.logger.Error("invalid envelope range: end < start",
+			zap.Uint64("start_seq", parsed.StartSequenceId),
+			zap.Uint64("end_seq", parsed.EndSequenceId),
+		)
+		return
+	}
 	envelopeCount := parsed.EndSequenceId - parsed.StartSequenceId
 	envelopeRangeTotal.WithLabelValues(nodeLabel).Add(float64(envelopeCount))
 

@@ -80,19 +80,32 @@ type Watcher struct {
 // New creates a new chain watcher.
 func New(ctx context.Context, logger *zap.Logger, cfg Config) (*Watcher, error) {
 	ctx, cancel := context.WithCancel(ctx)
+	success := false
+	defer func() {
+		if !success {
+			cancel()
+		}
+	}()
 
 	rpcClient, err := blockchain.NewRPCClient(ctx, cfg.SettlementChainRPCURL)
 	if err != nil {
-		cancel()
 		return nil, err
 	}
+	defer func() {
+		if !success {
+			rpcClient.Close()
+		}
+	}()
 
 	wsClient, err := blockchain.NewWebsocketClient(ctx, cfg.SettlementChainWSSURL)
 	if err != nil {
-		cancel()
-		rpcClient.Close()
 		return nil, err
 	}
+	defer func() {
+		if !success {
+			wsClient.Close()
+		}
+	}()
 
 	payerReportManagerAddr := common.HexToAddress(cfg.PayerReportManagerAddress)
 	payerRegistryAddr := common.HexToAddress(cfg.PayerRegistryAddress)
@@ -102,9 +115,6 @@ func New(ctx context.Context, logger *zap.Logger, cfg Config) (*Watcher, error) 
 		rpcClient,
 	)
 	if err != nil {
-		cancel()
-		rpcClient.Close()
-		wsClient.Close()
 		return nil, err
 	}
 
@@ -113,25 +123,16 @@ func New(ctx context.Context, logger *zap.Logger, cfg Config) (*Watcher, error) 
 		rpcClient,
 	)
 	if err != nil {
-		cancel()
-		rpcClient.Close()
-		wsClient.Close()
 		return nil, err
 	}
 
 	prmABI, err := payerreportmanagerabi.PayerReportManagerMetaData.GetAbi()
 	if err != nil {
-		cancel()
-		rpcClient.Close()
-		wsClient.Close()
 		return nil, err
 	}
 
 	prABI, err := payerregistryabi.PayerRegistryMetaData.GetAbi()
 	if err != nil {
-		cancel()
-		rpcClient.Close()
-		wsClient.Close()
 		return nil, err
 	}
 
@@ -181,12 +182,10 @@ func New(ctx context.Context, logger *zap.Logger, cfg Config) (*Watcher, error) 
 		rpcstreamer.WithBackfillBlockPageSize(pageSize),
 	)
 	if err != nil {
-		cancel()
-		rpcClient.Close()
-		wsClient.Close()
 		return nil, err
 	}
 
+	success = true
 	return &Watcher{
 		ctx:                        ctx,
 		cancel:                     cancel,

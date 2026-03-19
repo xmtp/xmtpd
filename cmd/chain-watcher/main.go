@@ -98,6 +98,10 @@ func buildConfig(logger *zap.Logger) chainwatcher.Config {
 		}
 		cfg.PayerReportManagerAddress = ec.PayerReportManager
 		cfg.PayerRegistryAddress = ec.PayerRegistry
+		if ec.SettlementChainDeploymentBlock < 0 {
+			logger.Fatal("settlementChainDeploymentBlock cannot be negative",
+				zap.Int("value", ec.SettlementChainDeploymentBlock))
+		}
 		cfg.DeploymentBlock = uint64(ec.SettlementChainDeploymentBlock)
 		logger.Info("loaded contract addresses from environment",
 			zap.String("environment", envName),

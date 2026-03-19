@@ -14,7 +14,7 @@ var (
 			Name: "xmtp_chain_report_submitted_total",
 			Help: "Total number of payer reports submitted on-chain, by originator node.",
 		},
-		[]string{"originator_node_id"},
+		[]string{"originator_id"},
 	)
 
 	reportSettledTotal = prometheus.NewCounterVec(
@@ -22,7 +22,7 @@ var (
 			Name: "xmtp_chain_report_settled_total",
 			Help: "Total number of payer reports fully settled on-chain, by originator node.",
 		},
-		[]string{"originator_node_id"},
+		[]string{"originator_id"},
 	)
 
 	timeSinceLastSubmissionSeconds = prometheus.NewGauge(
@@ -40,7 +40,7 @@ var (
 				60, 120, 300, 600, 900, 1800, 3600, 5400, 7200,
 			},
 		},
-		[]string{"originator_node_id"},
+		[]string{"originator_id"},
 	)
 
 	envelopeRangeTotal = prometheus.NewCounterVec(
@@ -48,7 +48,7 @@ var (
 			Name: "xmtp_chain_envelope_range_total",
 			Help: "Total envelopes covered by payer reports (endSeq - startSeq).",
 		},
-		[]string{"originator_node_id"},
+		[]string{"originator_id"},
 	)
 
 	envelopeRangeGap = prometheus.NewGaugeVec(
@@ -56,7 +56,7 @@ var (
 			Name: "xmtp_chain_envelope_range_gap",
 			Help: "Gap between consecutive report ranges for the same originator. >0 indicates potential data loss.",
 		},
-		[]string{"originator_node_id"},
+		[]string{"originator_id"},
 	)
 
 	attestingNodeCount = prometheus.NewGaugeVec(
@@ -64,7 +64,7 @@ var (
 			Name: "xmtp_chain_attesting_node_count",
 			Help: "Number of nodes that signed the report.",
 		},
-		[]string{"originator_node_id"},
+		[]string{"originator_id"},
 	)
 
 	activeOriginatorNodes = prometheus.NewGauge(
@@ -79,7 +79,7 @@ var (
 			Name: "xmtp_chain_fees_settled_picodollars",
 			Help: "Total fees settled on-chain in picodollars.",
 		},
-		[]string{"originator_node_id"},
+		[]string{"originator_id"},
 	)
 
 	usageSettledTotal = prometheus.NewCounter(

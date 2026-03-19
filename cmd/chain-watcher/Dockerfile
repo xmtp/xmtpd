@@ -18,7 +18,9 @@ LABEL maintainer="eng@xmtp.com"
 LABEL source="https://github.com/xmtp/xmtpd"
 LABEL description="XMTP Chain Watcher - Payer Report Observability"
 
-RUN apk add --no-cache ca-certificates curl
+ENV GOLOG_LOG_FMT=nocolor
+
+RUN apk add --no-cache curl
 
 COPY --from=builder /app/bin/chain-watcher /usr/bin/
 

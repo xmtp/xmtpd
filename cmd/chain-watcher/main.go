@@ -30,9 +30,9 @@ import (
 
 // envConfig represents the subset of environment JSON config we need.
 type envConfig struct {
-	PayerReportManager          string `json:"payerReportManager"`
-	PayerRegistry               string `json:"payerRegistry"`
-	SettlementChainDeploymentBlock int  `json:"settlementChainDeploymentBlock"`
+	PayerReportManager             string `json:"payerReportManager"`
+	PayerRegistry                  string `json:"payerRegistry"`
+	SettlementChainDeploymentBlock int    `json:"settlementChainDeploymentBlock"`
 }
 
 func main() {
@@ -175,7 +175,12 @@ func serveMetrics(logger *zap.Logger, reg *prometheus.Registry, port string) {
 	}
 }
 
-func pushMetricsLoop(ctx context.Context, logger *zap.Logger, reg prometheus.Gatherer, pushGatewayURL string) {
+func pushMetricsLoop(
+	ctx context.Context,
+	logger *zap.Logger,
+	reg prometheus.Gatherer,
+	pushGatewayURL string,
+) {
 	pusher := push.New(pushGatewayURL, "chain-watcher").Gatherer(reg)
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()

@@ -211,6 +211,90 @@ func TestCommitMessageReader(t *testing.T) {
 	}
 }
 
+// TestGroupMessageReaderLowerLimit verifies that the lower limit correctly
+// excludes records with IDs below the threshold.
+func TestGroupMessageReaderLowerLimit(t *testing.T) {
+	ctx := t.Context()
+
+	db, _, cleanup := testdata.NewMigratorTestDB(t, ctx)
+	defer cleanup()
+
+	// Set lower limit to 10; only records with id >= 10 should be returned.
+	const lowerLimit int64 = 10
+	reader := migrator.NewGroupMessageReader(db, lowerLimit)
+
+	records, err := reader.Fetch(ctx, 0, 9999)
+	require.NoError(t, err)
+	require.NotEmpty(t, records)
+
+	for _, r := range records {
+		require.GreaterOrEqual(t, r.GetID(), lowerLimit,
+			"record id %d is below lower limit %d", r.GetID(), lowerLimit)
+	}
+}
+
+// TestWelcomeMessageReaderLowerLimit verifies that welcome message readers with a
+// high lower limit skip early records — this mirrors the production config where
+// welcome messages start at a large offset (e.g. 150 000 000).
+func TestWelcomeMessageReaderLowerLimit(t *testing.T) {
+	ctx := t.Context()
+
+	db, _, cleanup := testdata.NewMigratorTestDB(t, ctx)
+	defer cleanup()
+
+	// The test dataset contains IDs starting at 150000001. Using a limit of
+	// 150000010 means only IDs >= 150000010 should be returned.
+	const lowerLimit int64 = 150_000_010
+	reader := migrator.NewWelcomeMessageReader(db, lowerLimit)
+
+	records, err := reader.Fetch(ctx, 0, 9999)
+	require.NoError(t, err)
+	require.NotEmpty(t, records)
+
+	for _, r := range records {
+		require.GreaterOrEqual(t, r.GetID(), lowerLimit,
+			"record id %d is below lower limit %d", r.GetID(), lowerLimit)
+	}
+}
+
+// TestWelcomeMessageReaderLowerLimit_SkipsAll verifies that when the lower limit
+// is above all available records, no records are returned.
+func TestWelcomeMessageReaderLowerLimit_SkipsAll(t *testing.T) {
+	ctx := t.Context()
+
+	db, _, cleanup := testdata.NewMigratorTestDB(t, ctx)
+	defer cleanup()
+
+	// lowerLimit above all data in the test set.
+	const lowerLimit int64 = 999_999_999
+	reader := migrator.NewWelcomeMessageReader(db, lowerLimit)
+
+	records, err := reader.Fetch(ctx, 0, 9999)
+	require.NoError(t, err)
+	require.Empty(t, records)
+}
+
+// TestKeyPackageReaderLowerLimit verifies that the key-package reader respects
+// the lower limit and skips records below it.
+func TestKeyPackageReaderLowerLimit(t *testing.T) {
+	ctx := t.Context()
+
+	db, _, cleanup := testdata.NewMigratorTestDB(t, ctx)
+	defer cleanup()
+
+	const lowerLimit int64 = 5
+	reader := migrator.NewKeyPackageReader(db, lowerLimit)
+
+	records, err := reader.Fetch(ctx, 0, 9999)
+	require.NoError(t, err)
+	require.NotEmpty(t, records)
+
+	for _, r := range records {
+		require.GreaterOrEqual(t, r.GetID(), lowerLimit,
+			"record id %d is below lower limit %d", r.GetID(), lowerLimit)
+	}
+}
+
 func TestWelcomeMessageReader(t *testing.T) {
 	ctx := t.Context()
 

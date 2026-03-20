@@ -110,6 +110,10 @@ func (t *Transformer) TransformGroupMessage(
 func (t *Transformer) TransformCommitMessage(
 	commitMessage *CommitMessage,
 ) (*envelopes.OriginatorEnvelope, error) {
+	if commitMessage == nil {
+		return nil, errors.New("commitMessage is nil")
+	}
+
 	protoClientEnvelope, err := transformGroupMessage(&commitMessage.GroupMessage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to transform group message: %w", err)

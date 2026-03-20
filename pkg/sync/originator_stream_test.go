@@ -469,6 +469,143 @@ func TestSyncWorkerOutOfOrderStillAdvancesLastSequenceId(t *testing.T) {
 	}, 3*time.Second, 50*time.Millisecond)
 }
 
+// TestSyncWorkerMigratedEnvelopesStartFromOne reproduces issue #1659:
+// When a node has existing data for migrator originator IDs (e.g. originator 10
+// at seq 220249) and the migration restarts sending envelopes from seq=1, the
+// stream must log an "out-of-order" error but still accept and forward all
+// envelopes — not silently drop them.
+func TestSyncWorkerMigratedEnvelopesStartFromOne(t *testing.T) {
+	const (
+		migratorOriginatorID = migrator.GroupMessageOriginatorID // 10
+		priorLastSeenSeq     = uint64(220249)
+	)
+
+	// Simulate the migration serving envelopes starting from seq=1
+	// (fresh migration run), while our lastSequenceIds[10] = 220249
+	// (left over from a previous migration run).
+	envs := []*envelopes.OriginatorEnvelope{
+		envelopeTestUtils.CreateOriginatorEnvelope(t, migratorOriginatorID, 1),
+		envelopeTestUtils.CreateOriginatorEnvelope(t, migratorOriginatorID, 2),
+		envelopeTestUtils.CreateOriginatorEnvelope(t, migratorOriginatorID, 3),
+	}
+
+	stream := mockSubscriptionOnePage(t, envs)
+	nodeID := uint32(200)
+	node := registryTestUtils.CreateNode(nodeID, 999, testutils.RandomPrivateKey(t))
+
+	writeQueue := make(chan *envUtils.OriginatorEnvelope, 10)
+	defer close(writeQueue)
+
+	dbStorerInstance := newTestEnvelopeSink(t, writeQueue, t.Context())
+	go dbStorerInstance.Start()
+
+	// lastSequenceIds has a high value for the migrator originator ID,
+	// simulating a node that previously processed migrations up to seq 220249.
+	lastSequenceIds := map[uint32]uint64{
+		migratorOriginatorID: priorLastSeenSeq,
+	}
+
+	core, recorded := observer.New(zap.ErrorLevel)
+	logger := zap.New(core)
+
+	permitted := map[uint32]struct{}{
+		nodeID:               {},
+		migratorOriginatorID: {},
+	}
+
+	origStream := newOriginatorStream(
+		t.Context(),
+		logger,
+		&node,
+		lastSequenceIds,
+		permitted,
+		stream,
+		writeQueue,
+	)
+
+	_ = origStream.listen()
+
+	// All three envelopes must reach the write queue despite being "out-of-order"
+	// relative to priorLastSeenSeq — the stream must not silently drop them.
+	require.Eventually(
+		t,
+		func() bool {
+			envs := getAllMessagesForOriginator(t, dbStorerInstance, migratorOriginatorID)
+			return len(envs) == 3
+		},
+		3*time.Second,
+		50*time.Millisecond,
+		"all 3 migrated envelopes must be forwarded even when received below the prior last-seen seq",
+	)
+
+	// An "out-of-order" error log must be emitted for each envelope that
+	// arrived below priorLastSeenSeq, alerting operators to the discrepancy.
+	require.Eventually(
+		t,
+		func() bool {
+			return recorded.FilterMessage("received out-of-order envelope").Len() > 0
+		},
+		3*time.Second,
+		50*time.Millisecond,
+		"out-of-order error log must be emitted when migrated envelopes arrive below the prior cursor",
+	)
+}
+
+// TestSyncWorkerMigratedEnvelopesAllOriginatorIDs verifies that all three
+// database-bound migrator originator IDs (10, 11, 13) are accepted by the
+// stream when they are listed as permitted originators.
+func TestSyncWorkerMigratedEnvelopesAllOriginatorIDs(t *testing.T) {
+	envs := []*envelopes.OriginatorEnvelope{
+		envelopeTestUtils.CreateOriginatorEnvelope(t, migrator.GroupMessageOriginatorID, 1),
+		envelopeTestUtils.CreateOriginatorEnvelope(t, migrator.WelcomeMessageOriginatorID, 1),
+		envelopeTestUtils.CreateOriginatorEnvelope(t, migrator.KeyPackagesOriginatorID, 1),
+	}
+
+	stream := mockSubscriptionOnePage(t, envs)
+	nodeID := uint32(200)
+	node := registryTestUtils.CreateNode(nodeID, 999, testutils.RandomPrivateKey(t))
+
+	writeQueue := make(chan *envUtils.OriginatorEnvelope, 10)
+	defer close(writeQueue)
+
+	dbStorerInstance := newTestEnvelopeSink(t, writeQueue, t.Context())
+	go dbStorerInstance.Start()
+
+	lastSequenceIds := make(map[uint32]uint64)
+
+	permitted := map[uint32]struct{}{
+		nodeID:                              {},
+		migrator.GroupMessageOriginatorID:   {},
+		migrator.WelcomeMessageOriginatorID: {},
+		migrator.KeyPackagesOriginatorID:    {},
+	}
+
+	core, recorded := observer.New(zap.ErrorLevel)
+	logger := zap.New(core)
+
+	origStream := newOriginatorStream(
+		t.Context(),
+		logger,
+		&node,
+		lastSequenceIds,
+		permitted,
+		stream,
+		writeQueue,
+	)
+
+	_ = origStream.listen()
+
+	require.Eventually(t, func() bool {
+		a := getAllMessagesForOriginator(t, dbStorerInstance, migrator.GroupMessageOriginatorID)
+		b := getAllMessagesForOriginator(t, dbStorerInstance, migrator.WelcomeMessageOriginatorID)
+		c := getAllMessagesForOriginator(t, dbStorerInstance, migrator.KeyPackagesOriginatorID)
+		return len(a) == 1 && len(b) == 1 && len(c) == 1
+	}, 3*time.Second, 50*time.Millisecond)
+
+	// No out-of-order errors expected — all originators start from seq=1 cleanly.
+	require.Empty(t, recorded.FilterMessage("received out-of-order envelope").All())
+}
+
 func TestSyncWorkerNoOutOfOrderErrorForMultipleOriginatorsInOrder(t *testing.T) {
 	envs := []*envelopes.OriginatorEnvelope{
 		envelopeTestUtils.CreateOriginatorEnvelope(t, 200, 1),

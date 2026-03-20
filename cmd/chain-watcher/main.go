@@ -37,22 +37,27 @@ var Version string
 type ChainWatcherOptions struct {
 	Log config.LogOptions `group:"Log Options" namespace:"log"`
 
-	Version bool `short:"v" long:"version" description:"Output binary version and exit"`
+	Version bool `short:"v" long:"version"`
 
-	Contracts string `long:"contracts-environment" env:"XMTPD_CONTRACTS_ENVIRONMENT" description:"Named contract environment (e.g. testnet-dev)"`
+	Contracts string `long:"contracts-env" env:"XMTPD_CONTRACTS_ENVIRONMENT"`
 
-	SettlementChainRPCURL string `long:"settlement-chain-rpc-url" env:"SETTLEMENT_CHAIN_RPC_URL" description:"Settlement chain HTTP RPC URL" required:"true"`
-	SettlementChainWSSURL string `long:"settlement-chain-wss-url" env:"SETTLEMENT_CHAIN_WSS_URL" description:"Settlement chain WebSocket URL" required:"true"`
+	RPCURL string `long:"rpc-url" env:"SETTLEMENT_CHAIN_RPC_URL" required:"true"`
 
-	PayerReportManagerAddress string `long:"payer-report-manager-address" env:"PAYER_REPORT_MANAGER_ADDRESS" description:"PayerReportManager contract address"`
-	PayerRegistryAddress      string `long:"payer-registry-address" env:"PAYER_REGISTRY_ADDRESS" description:"PayerRegistry contract address"`
+	WSSURL string `long:"wss-url" env:"SETTLEMENT_CHAIN_WSS_URL" required:"true"`
 
-	DeploymentBlock        uint64        `long:"deployment-block" env:"DEPLOYMENT_BLOCK" description:"Block number to start backfill from"`
-	MaxChainDisconnectTime time.Duration `long:"max-chain-disconnect-time" env:"MAX_CHAIN_DISCONNECT_TIME" description:"Max time before considering chain disconnected" default:"5m"`
-	BackfillBlockPageSize  uint64        `long:"backfill-block-page-size" env:"BACKFILL_BLOCK_PAGE_SIZE" description:"Number of blocks per backfill page" default:"500"`
-	ActiveOriginatorWindow time.Duration `long:"active-originator-window" env:"ACTIVE_ORIGINATOR_WINDOW" description:"Sliding window for active originator tracking" default:"150m"`
+	PRMAddress string `long:"prm-address" env:"PAYER_REPORT_MANAGER_ADDRESS"`
 
-	MetricsPort string `long:"metrics-port" env:"METRICS_PORT" description:"Port for metrics/health HTTP server" default:"8008"`
+	PRAddress string `long:"pr-address" env:"PAYER_REGISTRY_ADDRESS"`
+
+	DeploymentBlock uint64 `long:"deploy-block" env:"DEPLOYMENT_BLOCK"`
+
+	MaxDisconnect time.Duration `env:"MAX_CHAIN_DISCONNECT_TIME" default:"5m"`
+
+	BackfillPageSize uint64 `env:"BACKFILL_BLOCK_PAGE_SIZE" default:"500"`
+
+	OriginatorWindow time.Duration `env:"ACTIVE_ORIGINATOR_WINDOW" default:"150m"`
+
+	MetricsPort string `long:"metrics-port" env:"METRICS_PORT" default:"8008"`
 }
 
 // envConfig represents the subset of environment JSON config we need.
@@ -135,11 +140,11 @@ func main() {
 // buildConfig creates a chainwatcher.Config from parsed options.
 func buildConfig(logger *zap.Logger) chainwatcher.Config {
 	cfg := chainwatcher.Config{
-		SettlementChainRPCURL:  options.SettlementChainRPCURL,
-		SettlementChainWSSURL:  options.SettlementChainWSSURL,
-		MaxChainDisconnectTime: options.MaxChainDisconnectTime,
-		BackfillBlockPageSize:  options.BackfillBlockPageSize,
-		ActiveOriginatorWindow: options.ActiveOriginatorWindow,
+		SettlementChainRPCURL:  options.RPCURL,
+		SettlementChainWSSURL:  options.WSSURL,
+		MaxChainDisconnectTime: options.MaxDisconnect,
+		BackfillBlockPageSize:  options.BackfillPageSize,
+		ActiveOriginatorWindow: options.OriginatorWindow,
 		DeploymentBlock:        options.DeploymentBlock,
 	}
 
@@ -195,16 +200,16 @@ func buildConfig(logger *zap.Logger) chainwatcher.Config {
 		)
 	} else {
 		// Explicit addresses required when not using named environment.
-		if options.PayerReportManagerAddress == "" {
-			fatal("--payer-report-manager-address is required " +
-				"when --contracts-environment is not set")
+		if options.PRMAddress == "" {
+			fatal("--prm-address is required " +
+				"when --contracts-env is not set")
 		}
-		if options.PayerRegistryAddress == "" {
-			fatal("--payer-registry-address is required " +
-				"when --contracts-environment is not set")
+		if options.PRAddress == "" {
+			fatal("--pr-address is required " +
+				"when --contracts-env is not set")
 		}
-		cfg.PayerReportManagerAddress = options.PayerReportManagerAddress
-		cfg.PayerRegistryAddress = options.PayerRegistryAddress
+		cfg.PayerReportManagerAddress = options.PRMAddress
+		cfg.PayerRegistryAddress = options.PRAddress
 	}
 
 	return cfg

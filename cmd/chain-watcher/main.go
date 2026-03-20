@@ -35,8 +35,9 @@ var Version string
 
 // ChainWatcherOptions holds go-flags options for the chain-watcher binary.
 type ChainWatcherOptions struct {
-	Log     config.LogOptions `group:"Log Options" namespace:"log"`
-	Version bool              `short:"v" long:"version" description:"Output binary version and exit"`
+	Log config.LogOptions `group:"Log Options" namespace:"log"`
+
+	Version bool `short:"v" long:"version" description:"Output binary version and exit"`
 
 	Contracts string `long:"contracts-environment" env:"XMTPD_CONTRACTS_ENVIRONMENT" description:"Named contract environment (e.g. testnet-dev)"`
 
@@ -134,8 +135,8 @@ func main() {
 // buildConfig creates a chainwatcher.Config from parsed options.
 func buildConfig(logger *zap.Logger) chainwatcher.Config {
 	cfg := chainwatcher.Config{
-		SettlementChainRPCURL: options.SettlementChainRPCURL,
-		SettlementChainWSSURL: options.SettlementChainWSSURL,
+		SettlementChainRPCURL:  options.SettlementChainRPCURL,
+		SettlementChainWSSURL:  options.SettlementChainWSSURL,
 		MaxChainDisconnectTime: options.MaxChainDisconnectTime,
 		BackfillBlockPageSize:  options.BackfillBlockPageSize,
 		ActiveOriginatorWindow: options.ActiveOriginatorWindow,

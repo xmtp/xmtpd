@@ -30,6 +30,42 @@ func TestToMicroDollars(t *testing.T) {
 	require.EqualValues(t, int64(1250000), initial.ToMicroDollars())
 }
 
+func TestFromMicrodollarsBigInt(t *testing.T) {
+	// Normal conversion: 1_000_000 microdollars == $1 == 1e12 picodollars
+	result, err := currency.FromMicrodollarsBigInt(big.NewInt(1_000_000))
+	require.NoError(t, err)
+	require.Equal(t, currency.PicoDollar(1_000_000_000_000), result)
+
+	// Max representable: math.MaxInt64 / 1e6 microdollars fits exactly
+	maxMicro := big.NewInt(9_223_372_036_854) // floor(MaxInt64 / 1e6)
+	result, err = currency.FromMicrodollarsBigInt(maxMicro)
+	require.NoError(t, err)
+	require.Equal(t, currency.PicoDollar(9_223_372_036_854_000_000), result)
+
+	// Overflow: amount from the issue (~$17.28M) exceeds the ~$9.22M int64 limit
+	issueAmount, _ := new(big.Int).SetString("17283224176240", 10)
+	_, err = currency.FromMicrodollarsBigInt(issueAmount)
+	require.Error(t, err)
+
+	// Overflow: any amount > math.MaxInt64/1e6
+	overflowAmount, _ := new(big.Int).SetString("10000000000000", 10) // $10M
+	_, err = currency.FromMicrodollarsBigInt(overflowAmount)
+	require.Error(t, err)
+
+	// Negative amount
+	_, err = currency.FromMicrodollarsBigInt(big.NewInt(-1))
+	require.Error(t, err)
+
+	// Nil amount
+	_, err = currency.FromMicrodollarsBigInt(nil)
+	require.Error(t, err)
+
+	// Zero is allowed (non-negative)
+	result, err = currency.FromMicrodollarsBigInt(big.NewInt(0))
+	require.NoError(t, err)
+	require.Equal(t, currency.PicoDollar(0), result)
+}
+
 // FromWei: formatting & trimming behavior.
 func TestFromWei_Basic(t *testing.T) {
 	// 1 ether, 18 decimals -> "1"

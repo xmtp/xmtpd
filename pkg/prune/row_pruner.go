@@ -99,22 +99,14 @@ func (e *Executor) PruneRows() error {
 		var deletedThisCycle int64
 
 		for tableName, ceiling := range deletableTables {
-			result, err := e.writerDB.Exec(
+			var rows int64
+			err := e.writerDB.QueryRowContext(
+				e.ctx,
 				constructVariableMetaTableQuery(tableName, e.config.BatchSize, ceiling),
-			)
+			).Scan(&rows)
 			if err != nil {
 				e.logger.Error(
 					"error pruning envelopes",
-					zap.Error(err),
-					zap.String("table", tableName),
-				)
-				delete(deletableTables, tableName)
-				continue
-			}
-			rows, err := result.RowsAffected()
-			if err != nil {
-				e.logger.Error(
-					"Unexpected DB error: could not count envelopes",
 					zap.Error(err),
 					zap.String("table", tableName),
 				)

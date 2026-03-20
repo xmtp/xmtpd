@@ -75,7 +75,9 @@ func NewDB(t *testing.T, ctx context.Context) (*xmtpdb.Handler, string) {
 	t.Helper()
 
 	dbh, dsn := NewRawDB(t, ctx)
-	return xmtpdb.NewDBHandler(dbh), dsn
+	handler, err := xmtpdb.NewDBHandler(ctx, dbh)
+	require.NoError(t, err)
+	return handler, dsn
 }
 
 func NewDBs(t *testing.T, ctx context.Context, count int) []*sql.DB {

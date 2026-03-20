@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 
@@ -30,30 +31,39 @@ type Handler struct {
 	// Handle to read-only DB. Preferred for reads, if available.
 	read *sql.DB
 
-	// NOTE: This is potentially just overhead since it's trivial to create queries in other places.
 	query     *queries.Queries
 	readQuery *queries.Queries
 }
 
 // NewDBHandler creates a new database handler with two database connections - a read-write and a read one.
 // If there's no exclusive read replica it can be omitted and the write replica will be used.
-func NewDBHandler(db *sql.DB, options ...HandlerOption) *Handler {
+// Prepared statements are registered on startup so the PostgreSQL server can cache query plans.
+func NewDBHandler(ctx context.Context, db *sql.DB, options ...HandlerOption) (*Handler, error) {
 	var cfg handlerConfig
 	for _, opt := range options {
 		opt(&cfg)
 	}
 
+	q, err := queries.Prepare(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+
 	handler := &Handler{
 		write: db,
-		query: queries.New(db),
+		query: q,
 	}
 
 	if cfg.readReplica != nil {
+		rq, err := queries.Prepare(ctx, cfg.readReplica)
+		if err != nil {
+			return nil, err
+		}
 		handler.read = cfg.readReplica
-		handler.readQuery = queries.New(cfg.readReplica)
+		handler.readQuery = rq
 	}
 
-	return handler
+	return handler, nil
 }
 
 func (h *Handler) DB() *sql.DB {

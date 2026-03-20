@@ -15,6 +15,7 @@ package migrator
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"sync"
@@ -103,7 +104,7 @@ type Migrator struct {
 
 	// Data management.
 	target              *db.Handler
-	source              *db.Handler
+	source              *sql.DB
 	readers             map[string]ISourceReader
 	transformer         IDataTransformer
 	blockchainPublisher blockchain.IBlockchainPublisher
@@ -182,8 +183,6 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 		return nil, err
 	}
 
-	readDB := db.NewDBHandler(reader, db.WithReadReplica(reader))
-
 	logger.Info(
 		"running migration service with lower limits configured as",
 		zap.Int64(
@@ -210,19 +209,19 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 
 	readers := map[string]ISourceReader{
 		groupMessagesTableName: NewGroupMessageReader(
-			readDB.DB(),
+			reader,
 			cfg.options.LowerLimits.Get(config.MigrationSourceGroupMessages),
 		),
-		inboxLogTableName: NewInboxLogReader(readDB.DB()),
+		inboxLogTableName: NewInboxLogReader(reader),
 		keyPackagesTableName: NewKeyPackageReader(
-			readDB.DB(),
+			reader,
 			cfg.options.LowerLimits.Get(config.MigrationSourceKeyPackages),
 		),
 		welcomeMessagesTableName: NewWelcomeMessageReader(
-			readDB.DB(),
+			reader,
 			cfg.options.LowerLimits.Get(config.MigrationSourceWelcomeMessages),
 		),
-		commitMessagesTableName: NewCommitMessageReader(readDB.DB()),
+		commitMessagesTableName: NewCommitMessageReader(reader),
 	}
 
 	transformer := NewTransformer(cfg.feeCalculator, payerPrivateKey, nodeSigningKey)
@@ -247,7 +246,7 @@ func NewMigrationService(opts ...DBMigratorOption) (*Migrator, error) {
 		mu:                  sync.RWMutex{},
 		logger:              logger,
 		target:              cfg.db,
-		source:              readDB,
+		source:              reader,
 		readers:             readers,
 		transformer:         transformer,
 		blockchainPublisher: blockchainPublisher,

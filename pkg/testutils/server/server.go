@@ -44,10 +44,13 @@ func NewTestBaseServer(
 ) *s.BaseServer {
 	log := testutils.NewLog(t)
 
+	dbHandler, err := db.NewDBHandler(t.Context(), cfg.DB)
+	require.NoError(t, err)
+
 	opts := []s.BaseServerOption{
 		s.WithContext(t.Context()),
 		s.WithLogger(log),
-		s.WithDB(db.NewDBHandler(cfg.DB)),
+		s.WithDB(dbHandler),
 		s.WithNodeRegistry(cfg.Registry),
 		s.WithServerVersion(testutils.GetLatestVersion(t)),
 		s.WithFeeCalculator(fees.NewTestFeeCalculator()),

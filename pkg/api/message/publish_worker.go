@@ -175,8 +175,8 @@ func (p *publishWorker) processBatch() (int32, error) {
 
 	var spans []tracing.Span
 
-	result, err := db.RunInTxWithResult(
-		p.ctx, p.store.DB(), &sql.TxOptions{},
+	result, err := db.HandlerRunInTxWithResult(
+		p.ctx, p.store, &sql.TxOptions{},
 		func(ctx context.Context, txQueries *queries.Queries) (batchResult, error) {
 			staged, err := txQueries.SelectAndLockStagedEnvelopes(
 				ctx, numRowsPerBatch,

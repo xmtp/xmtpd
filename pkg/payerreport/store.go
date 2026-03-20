@@ -165,9 +165,8 @@ func (s *Store) ForceSetReportSubmitted(ctx context.Context, id ReportID, report
 }
 
 func (s *Store) SetReportSettled(ctx context.Context, id ReportID) error {
-	return db.RunInTx(
+	return s.db.RunInTx(
 		ctx,
-		s.db.DB(),
 		&sql.TxOptions{},
 		func(ctx context.Context, txQueries *queries.Queries) error {
 			var (
@@ -289,9 +288,8 @@ func (s *Store) CreatePayerReport(
 		return nil, err
 	}
 
-	if err = db.RunInTx(
+	if err = s.db.RunInTx(
 		ctx,
-		s.db.DB(),
 		&sql.TxOptions{},
 		func(ctx context.Context, tx *queries.Queries) error {
 			var (
@@ -346,9 +344,8 @@ func (s *Store) CreateAttestation(
 		return ErrReportNil
 	}
 
-	return db.RunInTx(
+	return s.db.RunInTx(
 		ctx,
-		s.db.DB(),
 		&sql.TxOptions{},
 		func(ctx context.Context, tx *queries.Queries) error {
 			report, err := tx.FetchPayerReportLocked(ctx, reportID)
@@ -450,9 +447,8 @@ func (s *Store) StoreSyncedReport(
 		return err
 	}
 
-	return db.RunInTx(
+	return s.db.RunInTx(
 		ctx,
-		s.db.DB(),
 		&sql.TxOptions{},
 		func(ctx context.Context, txQueries *queries.Queries) error {
 			_, err := db.InsertGatewayEnvelopeWithChecksTransactional(ctx, txQueries,
@@ -496,9 +492,8 @@ func (s *Store) StoreSyncedAttestation(
 
 	attestationProto := attestationProtoWrapper.PayerReportAttestation
 
-	return db.RunInTx(
+	return s.db.RunInTx(
 		ctx,
-		s.db.DB(),
 		&sql.TxOptions{},
 		func(ctx context.Context, txQueries *queries.Queries) error {
 			_, err := db.InsertGatewayEnvelopeWithChecksTransactional(ctx, txQueries,

@@ -13,20 +13,46 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
 
+	"github.com/jessevdk/go-flags"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/xmtp/xmtpd/pkg/chainwatcher"
+	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/config/environments"
+	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 )
+
+var Version string
+
+// ChainWatcherOptions holds go-flags options for the chain-watcher binary.
+type ChainWatcherOptions struct {
+	Log     config.LogOptions `group:"Log Options" namespace:"log"`
+	Version bool              `short:"v" long:"version" description:"Output binary version and exit"`
+
+	Contracts string `long:"contracts-environment" env:"XMTPD_CONTRACTS_ENVIRONMENT" description:"Named contract environment (e.g. testnet-dev)"`
+
+	SettlementChainRPCURL string `long:"settlement-chain-rpc-url" env:"SETTLEMENT_CHAIN_RPC_URL" description:"Settlement chain HTTP RPC URL" required:"true"`
+	SettlementChainWSSURL string `long:"settlement-chain-wss-url" env:"SETTLEMENT_CHAIN_WSS_URL" description:"Settlement chain WebSocket URL" required:"true"`
+
+	PayerReportManagerAddress string `long:"payer-report-manager-address" env:"PAYER_REPORT_MANAGER_ADDRESS" description:"PayerReportManager contract address"`
+	PayerRegistryAddress      string `long:"payer-registry-address" env:"PAYER_REGISTRY_ADDRESS" description:"PayerRegistry contract address"`
+
+	DeploymentBlock        uint64        `long:"deployment-block" env:"DEPLOYMENT_BLOCK" description:"Block number to start backfill from"`
+	MaxChainDisconnectTime time.Duration `long:"max-chain-disconnect-time" env:"MAX_CHAIN_DISCONNECT_TIME" description:"Max time before considering chain disconnected" default:"5m"`
+	BackfillBlockPageSize  uint64        `long:"backfill-block-page-size" env:"BACKFILL_BLOCK_PAGE_SIZE" description:"Number of blocks per backfill page" default:"500"`
+	ActiveOriginatorWindow time.Duration `long:"active-originator-window" env:"ACTIVE_ORIGINATOR_WINDOW" description:"Sliding window for active originator tracking" default:"150m"`
+
+	MetricsPort string `long:"metrics-port" env:"METRICS_PORT" description:"Port for metrics/health HTTP server" default:"8008"`
+}
 
 // envConfig represents the subset of environment JSON config we need.
 type envConfig struct {
@@ -35,21 +61,44 @@ type envConfig struct {
 	SettlementChainDeploymentBlock int    `json:"settlementChainDeploymentBlock"`
 }
 
+var options ChainWatcherOptions
+
 func main() {
-	logger, _ := zap.NewProduction()
+	_, err := flags.Parse(&options)
+	if err != nil {
+		var flagsErr *flags.Error
+		if errors.As(err, &flagsErr) &&
+			flagsErr.Type == flags.ErrHelp {
+			return
+		}
+		fatal("could not parse options: %s", err)
+	}
+
+	if Version == "" {
+		Version = os.Getenv("VERSION")
+	}
+
+	if options.Version {
+		fmt.Printf("version: %s\n", Version)
+		return
+	}
+
+	logger, _, err := utils.BuildLogger(options.Log)
+	if err != nil {
+		fatal("could not build logger: %s", err)
+	}
 	defer func() { _ = logger.Sync() }()
+
+	if Version != "" {
+		logger.Info("version: " + Version)
+	}
 
 	cfg := buildConfig(logger)
 
 	// Metrics setup
 	reg := prometheus.NewRegistry()
 	chainwatcher.RegisterMetrics(reg)
-
-	metricsPort := os.Getenv("METRICS_PORT")
-	if metricsPort == "" {
-		metricsPort = "8008"
-	}
-	go serveMetrics(logger, reg, metricsPort)
+	go serveMetrics(logger, reg, options.MetricsPort)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -65,127 +114,120 @@ func main() {
 
 	// Wait for shutdown signal
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(
+		sigCh,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGHUP,
+		syscall.SIGQUIT,
+	)
 	sig := <-sigCh
-	logger.Info("received signal, shutting down", zap.String("signal", sig.String()))
+	logger.Info(
+		"received signal, shutting down",
+		zap.String("signal", sig.String()),
+	)
 
 	cancel()
 	watcher.Stop()
 }
 
-// buildConfig creates a Config from environment variables.
-// Supports two modes:
-//  1. Explicit: PAYER_REPORT_MANAGER_ADDRESS + PAYER_REGISTRY_ADDRESS
-//  2. Environment-based: XMTPD_CONTRACTS_ENVIRONMENT=testnet-staging (auto-loads addresses)
+// buildConfig creates a chainwatcher.Config from parsed options.
 func buildConfig(logger *zap.Logger) chainwatcher.Config {
 	cfg := chainwatcher.Config{
-		SettlementChainRPCURL: requireEnv("SETTLEMENT_CHAIN_RPC_URL"),
-		SettlementChainWSSURL: requireEnv("SETTLEMENT_CHAIN_WSS_URL"),
+		SettlementChainRPCURL: options.SettlementChainRPCURL,
+		SettlementChainWSSURL: options.SettlementChainWSSURL,
+		MaxChainDisconnectTime: options.MaxChainDisconnectTime,
+		BackfillBlockPageSize:  options.BackfillBlockPageSize,
+		ActiveOriginatorWindow: options.ActiveOriginatorWindow,
+		DeploymentBlock:        options.DeploymentBlock,
 	}
 
-	// Try environment-based config first
-	if envName := os.Getenv("XMTPD_CONTRACTS_ENVIRONMENT"); envName != "" {
+	// Load contract addresses from named environment if provided.
+	if options.Contracts != "" {
 		var env environments.SmartContractEnvironment
-		if err := env.UnmarshalFlag(envName); err != nil {
-			logger.Fatal("invalid contracts environment", zap.Error(err))
+		if err := env.UnmarshalFlag(options.Contracts); err != nil {
+			logger.Fatal(
+				"invalid contracts environment",
+				zap.Error(err),
+			)
 		}
 		data, err := environments.GetEnvironmentConfig(env)
 		if err != nil {
-			logger.Fatal("failed to load environment config", zap.Error(err))
+			logger.Fatal(
+				"failed to load environment config",
+				zap.Error(err),
+			)
 		}
 		var ec envConfig
 		if err := json.Unmarshal(data, &ec); err != nil {
-			logger.Fatal("failed to parse environment config", zap.Error(err))
+			logger.Fatal(
+				"failed to parse environment config",
+				zap.Error(err),
+			)
 		}
 		cfg.PayerReportManagerAddress = ec.PayerReportManager
 		cfg.PayerRegistryAddress = ec.PayerRegistry
 		if ec.SettlementChainDeploymentBlock < 0 {
-			logger.Fatal("settlementChainDeploymentBlock cannot be negative",
-				zap.Int("value", ec.SettlementChainDeploymentBlock))
+			logger.Fatal(
+				"settlementChainDeploymentBlock cannot be negative",
+				zap.Int("value", ec.SettlementChainDeploymentBlock),
+			)
 		}
-		cfg.DeploymentBlock = uint64(ec.SettlementChainDeploymentBlock)
+		// Only override deployment block from environment config
+		// if not explicitly set via flag/env.
+		if cfg.DeploymentBlock == 0 {
+			cfg.DeploymentBlock = uint64(
+				ec.SettlementChainDeploymentBlock,
+			)
+		}
 		logger.Info("loaded contract addresses from environment",
-			zap.String("environment", envName),
-			zap.String("payer_report_manager", cfg.PayerReportManagerAddress),
-			zap.String("payer_registry", cfg.PayerRegistryAddress),
+			zap.String("environment", options.Contracts),
+			zap.String(
+				"payer_report_manager",
+				cfg.PayerReportManagerAddress,
+			),
+			zap.String(
+				"payer_registry",
+				cfg.PayerRegistryAddress,
+			),
 			zap.Uint64("deployment_block", cfg.DeploymentBlock),
 		)
 	} else {
-		// Explicit addresses
-		cfg.PayerReportManagerAddress = requireEnv("PAYER_REPORT_MANAGER_ADDRESS")
-		cfg.PayerRegistryAddress = requireEnv("PAYER_REGISTRY_ADDRESS")
-	}
-
-	// Optional overrides
-	if v := os.Getenv("DEPLOYMENT_BLOCK"); v != "" {
-		block, err := strconv.ParseUint(v, 10, 64)
-		if err != nil {
-			logger.Fatal(
-				"failed to parse DEPLOYMENT_BLOCK",
-				zap.String("value", v),
-				zap.Error(err),
-			)
+		// Explicit addresses required when not using named environment.
+		if options.PayerReportManagerAddress == "" {
+			fatal("--payer-report-manager-address is required " +
+				"when --contracts-environment is not set")
 		}
-		cfg.DeploymentBlock = block
-	}
-
-	if v := os.Getenv("MAX_CHAIN_DISCONNECT_TIME"); v != "" {
-		d, err := time.ParseDuration(v)
-		if err != nil {
-			logger.Fatal(
-				"failed to parse MAX_CHAIN_DISCONNECT_TIME",
-				zap.String("value", v),
-				zap.Error(err),
-			)
+		if options.PayerRegistryAddress == "" {
+			fatal("--payer-registry-address is required " +
+				"when --contracts-environment is not set")
 		}
-		cfg.MaxChainDisconnectTime = d
-	}
-
-	if v := os.Getenv("BACKFILL_BLOCK_PAGE_SIZE"); v != "" {
-		size, err := strconv.ParseUint(v, 10, 64)
-		if err != nil {
-			logger.Fatal(
-				"failed to parse BACKFILL_BLOCK_PAGE_SIZE",
-				zap.String("value", v),
-				zap.Error(err),
-			)
-		}
-		cfg.BackfillBlockPageSize = size
-	}
-
-	if v := os.Getenv("ACTIVE_ORIGINATOR_WINDOW"); v != "" {
-		d, err := time.ParseDuration(v)
-		if err != nil {
-			logger.Fatal(
-				"failed to parse ACTIVE_ORIGINATOR_WINDOW",
-				zap.String("value", v),
-				zap.Error(err),
-			)
-		}
-		cfg.ActiveOriginatorWindow = d
+		cfg.PayerReportManagerAddress = options.PayerReportManagerAddress
+		cfg.PayerRegistryAddress = options.PayerRegistryAddress
 	}
 
 	return cfg
 }
 
-func requireEnv(key string) string {
-	v := os.Getenv(key)
-	if v == "" {
-		fmt.Fprintf(os.Stderr, "required environment variable %s is not set\n", key)
-		os.Exit(1)
-	}
-	return v
-}
-
-func serveMetrics(logger *zap.Logger, reg *prometheus.Registry, port string) {
+func serveMetrics(
+	logger *zap.Logger,
+	reg *prometheus.Registry,
+	port string,
+) {
 	mux := http.NewServeMux()
-	mux.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{
-		EnableOpenMetrics: true,
-	}))
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok"))
-	})
+	mux.Handle(
+		"/metrics",
+		promhttp.HandlerFor(reg, promhttp.HandlerOpts{
+			EnableOpenMetrics: true,
+		}),
+	)
+	mux.HandleFunc(
+		"/health",
+		func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("ok"))
+		},
+	)
 
 	addr := net.JoinHostPort("0.0.0.0", port)
 	logger.Info("serving metrics", zap.String("address", addr))
@@ -194,7 +236,12 @@ func serveMetrics(logger *zap.Logger, reg *prometheus.Registry, port string) {
 		Handler:           mux,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
-	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	if err := srv.ListenAndServe(); err != nil &&
+		!errors.Is(err, http.ErrServerClosed) {
 		logger.Error("metrics server error", zap.Error(err))
 	}
+}
+
+func fatal(msg string, args ...any) {
+	log.Fatalf(msg, args...)
 }

@@ -108,6 +108,11 @@ func (s *PayerRegistryStorer) handleDeposit(
 
 	amount, err := currency.FromMicrodollarsBigInt(parsedEvent.Amount)
 	if err != nil {
+		s.logger.Error(
+			ErrInvalidEvent,
+			zap.Error(err),
+			utils.PayerAddressField(parsedEvent.Payer.Hex()),
+		)
 		return re.NewNonRecoverableError(ErrInvalidEvent, err)
 	}
 	eventID := ledger.BuildEventID(log)
@@ -153,6 +158,11 @@ func (s *PayerRegistryStorer) handleWithdrawalRequested(
 
 	amount, err := currency.FromMicrodollarsBigInt(parsedEvent.Amount)
 	if err != nil {
+		s.logger.Error(
+			ErrInvalidEvent,
+			zap.Error(err),
+			utils.PayerAddressField(parsedEvent.Payer.Hex()),
+		)
 		return re.NewNonRecoverableError(ErrInvalidEvent, err)
 	}
 	eventID := ledger.BuildEventID(log)
@@ -198,6 +208,11 @@ func (s *PayerRegistryStorer) handleUsageSettled(
 
 	amount, err := currency.FromMicrodollarsBigInt(parsedEvent.Amount)
 	if err != nil {
+		s.logger.Error(
+			ErrInvalidEvent,
+			zap.Error(err),
+			utils.PayerAddressField(parsedEvent.Payer.Hex()),
+		)
 		return re.NewNonRecoverableError(ErrInvalidEvent, err)
 	}
 	eventID := ledger.BuildEventID(log)

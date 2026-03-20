@@ -167,7 +167,11 @@ func serveMetrics(logger *zap.Logger, reg *prometheus.Registry, port string) {
 
 	addr := net.JoinHostPort("0.0.0.0", port)
 	logger.Info("serving metrics", zap.String("address", addr))
-	srv := &http.Server{Addr: addr, Handler: mux}
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		logger.Error("metrics server error", zap.Error(err))
 	}

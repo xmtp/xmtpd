@@ -215,6 +215,46 @@ func TestPayerRegistryStorer(t *testing.T) {
 	runTestCases(t, testCases)
 }
 
+// TestAmountOverflow verifies that events with amounts exceeding the int64
+// picodollar capacity are rejected with a non-recoverable error (not silently
+// dropped with a misleading "amount must be greater than 0" error).
+func TestAmountOverflow(t *testing.T) {
+	tester := buildPayerRegistryStorerTester(t)
+
+	// 17_283_224_176_240 microdollars is the amount from the issue (~$17.28M).
+	// It exceeds the ~$9.22M limit imposed by int64 picodollar storage.
+	overflowAmount, _ := new(big.Int).SetString("17283224176240", 10)
+	expectedErr := re.NewNonRecoverableError(ErrInvalidEvent, errors.New("overflow"))
+
+	testCases := []testCase{
+		{
+			name: "deposit_overflow_amount",
+			actionLogs: []types.Log{
+				tester.newDepositLogBigInt(t, address, overflowAmount),
+			},
+			expectedError: expectedErr,
+		},
+		{
+			name: "withdrawal_requested_overflow_amount",
+			actionLogs: []types.Log{
+				tester.newWithdrawalRequestedLogBigInt(t, address, overflowAmount, 100, 0),
+			},
+			expectedError: expectedErr,
+		},
+		{
+			name: "usage_settled_overflow_amount",
+			actionLogs: []types.Log{
+				tester.newUsageSettledLogBigInt(
+					t, address, overflowAmount, common.HexToHash("0x1"),
+				),
+			},
+			expectedError: expectedErr,
+		},
+	}
+
+	runTestCases(t, testCases)
+}
+
 func TestStoreLogIdempotency(t *testing.T) {
 	tester := buildPayerRegistryStorerTester(t)
 
@@ -386,6 +426,53 @@ func (st *payerRegistryStorerTester) newWithdrawalCancelledLog(
 	payerAddress common.Address,
 ) types.Log {
 	baseLog := testutils.BuildPayerRegistryWithdrawalCancelledLog(t, payerAddress)
+	setLogFields(&baseLog, 1, 0, testutils.RandomBlockHash())
+
+	return baseLog
+}
+
+func (st *payerRegistryStorerTester) newDepositLogBigInt(
+	t *testing.T,
+	payerAddress common.Address,
+	amount *big.Int,
+) types.Log {
+	baseLog := testutils.BuildPayerRegistryDepositLog(t, payerAddress, amount)
+	setLogFields(&baseLog, 1, 0, testutils.RandomBlockHash())
+
+	return baseLog
+}
+
+func (st *payerRegistryStorerTester) newWithdrawalRequestedLogBigInt(
+	t *testing.T,
+	payerAddress common.Address,
+	amount *big.Int,
+	withdrawableTimestamp uint32,
+	nonce uint32,
+) types.Log {
+	baseLog := testutils.BuildPayerRegistryWithdrawalRequestedLog(
+		t,
+		payerAddress,
+		amount,
+		withdrawableTimestamp,
+		nonce,
+	)
+	setLogFields(&baseLog, 1, 0, testutils.RandomBlockHash())
+
+	return baseLog
+}
+
+func (st *payerRegistryStorerTester) newUsageSettledLogBigInt(
+	t *testing.T,
+	payerAddress common.Address,
+	amount *big.Int,
+	payerReportId common.Hash,
+) types.Log {
+	baseLog := testutils.BuildPayerRegistryUsageSettledLog(
+		t,
+		payerAddress,
+		amount,
+		payerReportId,
+	)
 	setLogFields(&baseLog, 1, 0, testutils.RandomBlockHash())
 
 	return baseLog

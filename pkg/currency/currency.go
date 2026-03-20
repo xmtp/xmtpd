@@ -39,6 +39,28 @@ func FromMicrodollars(microdollars MicroDollar) PicoDollar {
 	return PicoDollar(microdollars * 1e6)
 }
 
+var (
+	bigMicroToPico   = big.NewInt(1_000_000) // 1e6: picodollars per microdollar
+	bigMaxPicoDollar = big.NewInt(math.MaxInt64)
+)
+
+// FromMicrodollarsBigInt converts a *big.Int microdollar amount to PicoDollar.
+// Returns an error if the value is negative or would overflow int64 after the
+// microdollar-to-picodollar conversion (×1e6).
+func FromMicrodollarsBigInt(microdollars *big.Int) (PicoDollar, error) {
+	if microdollars == nil || microdollars.Sign() < 0 {
+		return 0, errors.New("microdollar amount must be non-negative")
+	}
+	pico := new(big.Int).Mul(microdollars, bigMicroToPico)
+	if pico.Cmp(bigMaxPicoDollar) > 0 {
+		return 0, fmt.Errorf(
+			"amount overflows int64 picodollars: %s microdollars",
+			microdollars.String(),
+		)
+	}
+	return PicoDollar(pico.Int64()), nil
+}
+
 // ToMicroDollars converts PicoDollars to MicroDollars (1e6 units per dollar)
 func (p PicoDollar) ToMicroDollars() MicroDollar {
 	return MicroDollar(p / 1e6)

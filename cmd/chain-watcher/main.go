@@ -119,28 +119,34 @@ func buildConfig(logger *zap.Logger) chainwatcher.Config {
 	// Optional overrides
 	if v := os.Getenv("DEPLOYMENT_BLOCK"); v != "" {
 		block, err := strconv.ParseUint(v, 10, 64)
-		if err == nil {
-			cfg.DeploymentBlock = block
+		if err != nil {
+			logger.Fatal("failed to parse DEPLOYMENT_BLOCK", zap.String("value", v), zap.Error(err))
 		}
+		cfg.DeploymentBlock = block
 	}
 
 	if v := os.Getenv("MAX_CHAIN_DISCONNECT_TIME"); v != "" {
-		if d, err := time.ParseDuration(v); err == nil {
-			cfg.MaxChainDisconnectTime = d
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			logger.Fatal("failed to parse MAX_CHAIN_DISCONNECT_TIME", zap.String("value", v), zap.Error(err))
 		}
+		cfg.MaxChainDisconnectTime = d
 	}
 
 	if v := os.Getenv("BACKFILL_BLOCK_PAGE_SIZE"); v != "" {
 		size, err := strconv.ParseUint(v, 10, 64)
-		if err == nil {
-			cfg.BackfillBlockPageSize = size
+		if err != nil {
+			logger.Fatal("failed to parse BACKFILL_BLOCK_PAGE_SIZE", zap.String("value", v), zap.Error(err))
 		}
+		cfg.BackfillBlockPageSize = size
 	}
 
 	if v := os.Getenv("ACTIVE_ORIGINATOR_WINDOW"); v != "" {
-		if d, err := time.ParseDuration(v); err == nil {
-			cfg.ActiveOriginatorWindow = d
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			logger.Fatal("failed to parse ACTIVE_ORIGINATOR_WINDOW", zap.String("value", v), zap.Error(err))
 		}
+		cfg.ActiveOriginatorWindow = d
 	}
 
 	return cfg

@@ -128,7 +128,11 @@ func buildConfig(logger *zap.Logger) chainwatcher.Config {
 	if v := os.Getenv("MAX_CHAIN_DISCONNECT_TIME"); v != "" {
 		d, err := time.ParseDuration(v)
 		if err != nil {
-			logger.Fatal("failed to parse MAX_CHAIN_DISCONNECT_TIME", zap.String("value", v), zap.Error(err))
+			logger.Fatal(
+				"failed to parse MAX_CHAIN_DISCONNECT_TIME",
+				zap.String("value", v),
+				zap.Error(err),
+			)
 		}
 		cfg.MaxChainDisconnectTime = d
 	}

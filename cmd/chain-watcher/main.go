@@ -120,7 +120,11 @@ func buildConfig(logger *zap.Logger) chainwatcher.Config {
 	if v := os.Getenv("DEPLOYMENT_BLOCK"); v != "" {
 		block, err := strconv.ParseUint(v, 10, 64)
 		if err != nil {
-			logger.Fatal("failed to parse DEPLOYMENT_BLOCK", zap.String("value", v), zap.Error(err))
+			logger.Fatal(
+				"failed to parse DEPLOYMENT_BLOCK",
+				zap.String("value", v),
+				zap.Error(err),
+			)
 		}
 		cfg.DeploymentBlock = block
 	}
@@ -140,7 +144,11 @@ func buildConfig(logger *zap.Logger) chainwatcher.Config {
 	if v := os.Getenv("BACKFILL_BLOCK_PAGE_SIZE"); v != "" {
 		size, err := strconv.ParseUint(v, 10, 64)
 		if err != nil {
-			logger.Fatal("failed to parse BACKFILL_BLOCK_PAGE_SIZE", zap.String("value", v), zap.Error(err))
+			logger.Fatal(
+				"failed to parse BACKFILL_BLOCK_PAGE_SIZE",
+				zap.String("value", v),
+				zap.Error(err),
+			)
 		}
 		cfg.BackfillBlockPageSize = size
 	}
@@ -148,7 +156,11 @@ func buildConfig(logger *zap.Logger) chainwatcher.Config {
 	if v := os.Getenv("ACTIVE_ORIGINATOR_WINDOW"); v != "" {
 		d, err := time.ParseDuration(v)
 		if err != nil {
-			logger.Fatal("failed to parse ACTIVE_ORIGINATOR_WINDOW", zap.String("value", v), zap.Error(err))
+			logger.Fatal(
+				"failed to parse ACTIVE_ORIGINATOR_WINDOW",
+				zap.String("value", v),
+				zap.Error(err),
+			)
 		}
 		cfg.ActiveOriginatorWindow = d
 	}

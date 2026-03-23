@@ -161,7 +161,7 @@ See [Node Registry Migration](doc/node-registry-migration-v2.md).
 
 ## xmtpd OpenMetrics catalog
 
-See [xmptd OpenMetrics catalog](doc/metrics_catalog.md).
+See [xmtpd OpenMetrics catalog](doc/metrics_catalog.md).
 
 ## Contributing
 

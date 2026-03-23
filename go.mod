@@ -6,7 +6,7 @@ require (
 	connectrpc.com/connect v1.19.1
 	connectrpc.com/grpchealth v1.4.0
 	connectrpc.com/grpcreflect v1.3.0
-	github.com/DataDog/datadog-agent/pkg/trace/log v0.76.2
+	github.com/DataDog/datadog-agent/pkg/trace/log v0.77.0
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/bojand/ghz v0.121.0
 	github.com/cenkalti/backoff/v4 v4.3.0
@@ -21,10 +21,10 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.1.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
-	github.com/jackc/pgx/v5 v5.8.0
+	github.com/jackc/pgx/v5 v5.9.1
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jhump/protoreflect v1.18.0
-	github.com/lib/pq v1.11.1
+	github.com/lib/pq v1.12.0
 	github.com/pires/go-proxyproto v0.11.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.23.2

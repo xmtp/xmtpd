@@ -399,17 +399,13 @@ func transformGroupMessage(groupMessage *GroupMessage) (*proto.ClientEnvelope, e
 		return nil, errors.New("groupMessage is nil")
 	}
 
-	if groupMessage.GroupID == nil {
-		return nil, errors.New("groupID is nil")
+	if len(groupMessage.Data) <= 0 {
+		return nil, errors.New("data is empty")
 	}
 
 	_, err := utils.ParseGroupID(groupMessage.GroupID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse group ID: %w", err)
-	}
-
-	if len(groupMessage.Data) <= 0 {
-		return nil, errors.New("data is empty")
 	}
 
 	return &proto.ClientEnvelope{

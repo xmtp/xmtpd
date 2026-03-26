@@ -24,6 +24,8 @@ const (
 	StaleReservationTimeout = 30 * time.Second
 	// BatchSize is the number of nonces to generate in a single replenish operation
 	BatchSize = 10000
+	// RedisOperationTimeout bounds how long cancel/consume Redis calls can take
+	RedisOperationTimeout = 5 * time.Second
 )
 
 // Lua scripts for atomic operations
@@ -245,16 +247,16 @@ func (r *RedisBackedNonceManager) createNonceContext(nonce int64) *noncemanager.
 				return // Already cancelled or consumed
 			}
 
-			r.cancelNonce(nonce)
 			r.releaseLimiter()
+			r.cancelNonce(nonce)
 		},
 		Consume: func() error {
 			if !operationDone.CompareAndSwap(0, 1) {
 				return fmt.Errorf("nonce %d already consumed or cancelled", nonce)
 			}
 
-			r.consumeNonce(nonce)
 			r.releaseLimiter()
+			r.consumeNonce(nonce)
 			return nil
 		},
 	}
@@ -262,14 +264,17 @@ func (r *RedisBackedNonceManager) createNonceContext(nonce int64) *noncemanager.
 
 // cancelNonce returns a nonce to the available pool
 func (r *RedisBackedNonceManager) cancelNonce(nonce int64) {
+	ctx, cancel := context.WithTimeout(context.Background(), RedisOperationTimeout)
+	defer cancel()
+
 	pipe := r.client.Pipeline()
-	pipe.ZRem(context.Background(), r.reservedKey(), nonce)
-	pipe.ZAdd(context.Background(), r.availableKey(), redis.Z{
+	pipe.ZRem(ctx, r.reservedKey(), nonce)
+	pipe.ZAdd(ctx, r.availableKey(), redis.Z{
 		Score:  float64(nonce),
 		Member: nonce,
 	})
 
-	if _, err := pipe.Exec(context.Background()); err != nil {
+	if _, err := pipe.Exec(ctx); err != nil {
 		r.logger.Error("failed to return cancelled nonce to Redis",
 			utils.NonceField(uint64(nonce)), zap.Error(err))
 	}
@@ -277,7 +282,10 @@ func (r *RedisBackedNonceManager) cancelNonce(nonce int64) {
 
 // consumeNonce removes a nonce from the reserved pool
 func (r *RedisBackedNonceManager) consumeNonce(nonce int64) {
-	if err := r.client.ZRem(context.Background(), r.reservedKey(), nonce).Err(); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), RedisOperationTimeout)
+	defer cancel()
+
+	if err := r.client.ZRem(ctx, r.reservedKey(), nonce).Err(); err != nil {
 		r.logger.Error("failed to remove consumed nonce from reserved set",
 			utils.NonceField(uint64(nonce)), zap.Error(err))
 	}

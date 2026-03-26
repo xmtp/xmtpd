@@ -379,6 +379,55 @@ func TestPublishWorkerContextCancellation(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestPublishWorkerPollAndPublishExitsOnCancel verifies that pollAndPublish
+// returns promptly when the context is cancelled, rather than continuing to
+// retry in the inner loop.
+func TestPublishWorkerPollAndPublishExitsOnCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+
+	// Cancel the context before calling pollAndPublish
+	cancel()
+
+	worker := &publishWorker{
+		ctx:                ctx,
+		logger:             testutils.NewLog(t),
+		sleepOnFailureTime: 10 * time.Millisecond,
+		notifier:           make(chan bool, 1),
+	}
+
+	// pollAndPublish should return immediately instead of looping
+	done := make(chan struct{})
+	go func() {
+		worker.pollAndPublish()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Success: pollAndPublish exited promptly
+	case <-time.After(2 * time.Second):
+		t.Fatal("pollAndPublish did not exit after context cancellation")
+	}
+}
+
+// TestPublishWorkerProcessBatchWithRetryExitsOnCancel verifies that
+// processBatchWithRetry returns promptly when the context is cancelled.
+func TestPublishWorkerProcessBatchWithRetryExitsOnCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+
+	cancel()
+
+	worker := &publishWorker{
+		ctx:                ctx,
+		logger:             testutils.NewLog(t),
+		sleepOnFailureTime: 10 * time.Millisecond,
+	}
+
+	count, err := worker.processBatchWithRetry()
+	require.Equal(t, int32(0), count)
+	require.ErrorIs(t, err, context.Canceled)
+}
+
 // TestPublishWorkerReservedTopicNoFees verifies that envelopes on reserved topics
 // (e.g., payer reports) are processed with zero base fee and zero congestion fee.
 func TestPublishWorkerReservedTopicNoFees(t *testing.T) {

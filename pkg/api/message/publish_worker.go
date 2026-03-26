@@ -134,6 +134,9 @@ func (p *publishWorker) start() {
 // pollAndPublish processes batches in a loop until no more rows are available.
 func (p *publishWorker) pollAndPublish() {
 	for {
+		if p.ctx.Err() != nil {
+			return
+		}
 		count, err := p.processBatchWithRetry()
 		if err != nil {
 			p.logger.Error("failed to process batch", zap.Error(err))
@@ -149,6 +152,9 @@ func (p *publishWorker) pollAndPublish() {
 // processBatchWithRetry retries the batch on transient database errors such as deadlocks.
 func (p *publishWorker) processBatchWithRetry() (int32, error) {
 	for attempt := range maxDeadlockRetries {
+		if p.ctx.Err() != nil {
+			return 0, p.ctx.Err()
+		}
 		count, err := p.processBatch()
 		if err != nil && retryerrors.IsRetryableSQLError(err) && attempt < maxDeadlockRetries-1 {
 			p.logger.Warn("retrying batch after transient error",

@@ -72,6 +72,16 @@ func TestTryExtractProtocolError_UnknownSelector(t *testing.T) {
 	assert.ErrorIs(t, err, ErrCodeNotInDic)
 }
 
+func TestTryExtractProtocolError_SelectorWithABIParams(t *testing.T) {
+	// Raw trace output: selector (8 hex) + one ABI-encoded uint64 parameter (64 hex)
+	msg, err := tryExtractProtocolError(errors.New(
+		"0x84e23433" +
+			"0000000000000000000000000000000000000000000000000000000000000001",
+	))
+	require.NoError(t, err)
+	assert.Equal(t, ErrInvalidStartSequenceID, msg)
+}
+
 func TestBlockchainError_IsNoChange(t *testing.T) {
 	be := NewBlockchainError(errors.New("execution reverted: 0xa88ee577"))
 	assert.True(t, be.IsNoChange())

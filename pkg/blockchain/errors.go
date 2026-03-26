@@ -210,12 +210,11 @@ var (
 	ErrCodeNotFound = errors.New("error message does not contain a valid error code")
 	ErrCodeNotInDic = errors.New("code not found in protocol errors dictionary")
 
-	// protocolErrorCodeRegex matches a 4-byte hex error selector (0x + 8 hex chars)
-	// only when it is NOT part of a longer hex string (e.g., an address or hash).
-	// The negative boundary ensures the match ends at a non-hex character or end of string.
-	protocolErrorCodeRegex = regexp.MustCompile(
-		`(0x[0-9a-fA-F]{8})(?:[^0-9a-fA-F]|$)`,
-	)
+	// hexValueRegex matches any 0x-prefixed hex string. We then inspect the length
+	// to determine if it could be a valid error selector (8 hex chars) or ABI-encoded
+	// revert data (8 + n*64 hex chars), rejecting common false positives like
+	// Ethereum addresses (40 hex chars) and transaction hashes (64 hex chars).
+	hexValueRegex = regexp.MustCompile(`0x([0-9a-fA-F]+)`)
 )
 
 type ProtocolError interface {
@@ -285,18 +284,32 @@ func (e BlockchainError) IsErrPayerReportAlreadySubmitted() bool {
 
 // tryExtractProtocolError tries to extract the protocol error from the error message.
 // Error codes are 4 bytes hex strings, in example: 0x31f1a313.
-// The regex ensures the selector is not part of a longer hex string (e.g., an address).
+//
+// The function finds all 0x-prefixed hex values and only considers those whose length
+// is consistent with ABI-encoded revert data: exactly 8 hex chars (selector only) or
+// 8 + n*64 hex chars (selector + ABI-encoded parameters). This rejects false positives
+// from Ethereum addresses (40 hex chars) and transaction hashes (64 hex chars).
 func tryExtractProtocolError(e error) (message, err error) {
-	matches := protocolErrorCodeRegex.FindStringSubmatch(e.Error())
-	if len(matches) != 2 {
+	matches := hexValueRegex.FindAllStringSubmatch(e.Error(), -1)
+	if len(matches) == 0 {
 		return nil, ErrCodeNotFound
 	}
 
-	selector := strings.ToLower(matches[1])
-	protocolError, exists := protocolErrorsDictionary[selector]
-	if !exists {
-		return nil, ErrCodeNotInDic
+	for _, match := range matches {
+		hexChars := match[1]
+		n := len(hexChars)
+
+		// A valid error selector is exactly 8 hex chars, optionally followed by
+		// ABI-encoded parameters in 32-byte (64 hex char) chunks.
+		if n < 8 || (n-8)%64 != 0 {
+			continue
+		}
+
+		selector := "0x" + strings.ToLower(hexChars[:8])
+		if protocolError, exists := protocolErrorsDictionary[selector]; exists {
+			return protocolError, nil
+		}
 	}
 
-	return protocolError, nil
+	return nil, ErrCodeNotInDic
 }

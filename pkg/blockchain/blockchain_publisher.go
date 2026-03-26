@@ -511,8 +511,7 @@ func withNonce[T any](ctx context.Context,
 				strings.Contains(
 					err.Error(),
 					"nonce too low",
-				) ||
-				strings.Contains(err.Error(), "replacement transaction underpriced") {
+				) {
 				logger.Debug(
 					"nonce already used, consume and move on",
 					utils.NonceField(nonce.Uint64()),
@@ -524,6 +523,17 @@ func withNonce[T any](ctx context.Context,
 					nonceContext.Cancel()
 					return nil, err
 				}
+				continue
+			}
+
+			if strings.Contains(err.Error(), "replacement transaction underpriced") {
+				logger.Debug(
+					"replacement transaction underpriced, cancel and back off",
+					utils.NonceField(nonce.Uint64()),
+					zap.Error(err),
+				)
+				nonceContext.Cancel()
+				utils.RandomSleep(ctx, 500*time.Millisecond)
 				continue
 			}
 

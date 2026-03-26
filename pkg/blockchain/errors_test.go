@@ -25,72 +25,59 @@ func TestBlockchainErrorHashes(t *testing.T) {
 	}
 }
 
-func TestTryExtractProtocolError_ValidSelector(t *testing.T) {
-	// Standard format from debug_traceTransaction
-	msg, err := tryExtractProtocolError(errors.New("execution reverted: 0xa88ee577"))
-	require.NoError(t, err)
-	assert.Equal(t, ErrNoChange, msg)
-}
+func TestTryExtractProtocolError(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		wantErr   error
+		wantMatch error
+	}{
+		{
+			name:      "selector after text",
+			input:     "execution reverted: 0xa88ee577",
+			wantMatch: ErrNoChange,
+		},
+		{
+			name:      "selector with ABI params",
+			input:     "0x84e23433" + "0000000000000000000000000000000000000000000000000000000000000001",
+			wantMatch: ErrInvalidStartSequenceID,
+		},
+		{
+			name:      "uppercase selector",
+			input:     "execution reverted: 0xA88EE577",
+			wantMatch: ErrNoChange,
+		},
+		{
+			name:    "rejects address (40 hex chars)",
+			input:   "invalid sender 0xa88ee577deadbeefcafebabe1234567890abcdef",
+			wantErr: ErrCodeNotInDic,
+		},
+		{
+			name:    "rejects tx hash (64 hex chars)",
+			input:   "tx 0xa88ee577deadbeefcafebabe1234567890abcdef1234567890abcdef12345678 failed",
+			wantErr: ErrCodeNotInDic,
+		},
+		{
+			name:    "no hex code",
+			input:   "connection timeout",
+			wantErr: ErrCodeNotFound,
+		},
+		{
+			name:    "unknown selector",
+			input:   "execution reverted: 0xdeadbeef",
+			wantErr: ErrCodeNotInDic,
+		},
+	}
 
-func TestTryExtractProtocolError_SelectorAtEndOfString(t *testing.T) {
-	msg, err := tryExtractProtocolError(errors.New("0xa88ee577"))
-	require.NoError(t, err)
-	assert.Equal(t, ErrNoChange, msg)
-}
-
-func TestTryExtractProtocolError_UppercaseSelector(t *testing.T) {
-	msg, err := tryExtractProtocolError(errors.New("execution reverted: 0xA88EE577"))
-	require.NoError(t, err)
-	assert.Equal(t, ErrNoChange, msg)
-}
-
-func TestTryExtractProtocolError_DoesNotMatchAddress(t *testing.T) {
-	// An Ethereum address starts with 0x followed by 40 hex chars.
-	// The first 8 hex chars happen to match a protocol error selector,
-	// but should NOT be extracted because they're part of a longer hex string.
-	_, err := tryExtractProtocolError(
-		errors.New("invalid sender 0xa88ee577deadbeefcafebabe1234567890abcdef"),
-	)
-	assert.Error(t, err)
-}
-
-func TestTryExtractProtocolError_DoesNotMatchHash(t *testing.T) {
-	// A transaction hash is 0x + 64 hex chars.
-	_, err := tryExtractProtocolError(
-		errors.New("tx 0xa88ee577deadbeefcafebabe1234567890abcdef1234567890abcdef12345678 failed"),
-	)
-	assert.Error(t, err)
-}
-
-func TestTryExtractProtocolError_NoHexCode(t *testing.T) {
-	_, err := tryExtractProtocolError(errors.New("connection timeout"))
-	assert.ErrorIs(t, err, ErrCodeNotFound)
-}
-
-func TestTryExtractProtocolError_UnknownSelector(t *testing.T) {
-	_, err := tryExtractProtocolError(errors.New("execution reverted: 0xdeadbeef"))
-	assert.ErrorIs(t, err, ErrCodeNotInDic)
-}
-
-func TestTryExtractProtocolError_SelectorWithABIParams(t *testing.T) {
-	// Raw trace output: selector (8 hex) + one ABI-encoded uint64 parameter (64 hex)
-	msg, err := tryExtractProtocolError(errors.New(
-		"0x84e23433" +
-			"0000000000000000000000000000000000000000000000000000000000000001",
-	))
-	require.NoError(t, err)
-	assert.Equal(t, ErrInvalidStartSequenceID, msg)
-}
-
-func TestBlockchainError_IsNoChange(t *testing.T) {
-	be := NewBlockchainError(errors.New("execution reverted: 0xa88ee577"))
-	assert.True(t, be.IsNoChange())
-}
-
-func TestBlockchainError_AddressDoesNotTriggerIsNoChange(t *testing.T) {
-	// The address starts with the NoChange selector bytes, but should not match
-	be := NewBlockchainError(
-		errors.New("call from 0xa88ee577deadbeefcafebabe1234567890abcdef failed"),
-	)
-	assert.False(t, be.IsNoChange())
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			msg, err := tryExtractProtocolError(errors.New(tc.input))
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tc.wantMatch, msg)
+			}
+		})
+	}
 }

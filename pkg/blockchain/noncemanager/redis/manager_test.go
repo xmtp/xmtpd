@@ -291,3 +291,41 @@ func TestNewRedisBackedNonceManager_NilChecks(t *testing.T) {
 	// Should return first error (client)
 	require.Contains(t, err.Error(), "redis client cannot be nil")
 }
+
+func TestRedisGetNonce_ReplenishOverflow(t *testing.T) {
+	client, keyPrefix := redistestutils.NewRedisForTest(t)
+
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err)
+
+	nonceManager, err := redismanager.NewRedisBackedNonceManager(client, logger, keyPrefix)
+	require.NoError(t, err)
+
+	// Test with a nonce value that exceeds MaxInt64
+	hugeNonce := new(big.Int).SetUint64(^uint64(0)) // MaxUint64
+	err = nonceManager.Replenish(t.Context(), *hugeNonce)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "out of int64 range")
+
+	// Test with a negative nonce
+	negativeNonce := big.NewInt(-1)
+	err = nonceManager.Replenish(t.Context(), *negativeNonce)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "out of int64 range")
+}
+
+func TestRedisGetNonce_FastForwardOverflow(t *testing.T) {
+	client, keyPrefix := redistestutils.NewRedisForTest(t)
+
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err)
+
+	nonceManager, err := redismanager.NewRedisBackedNonceManager(client, logger, keyPrefix)
+	require.NoError(t, err)
+
+	// Test with a nonce value that exceeds MaxInt64
+	hugeNonce := new(big.Int).SetUint64(^uint64(0))
+	err = nonceManager.FastForwardNonce(t.Context(), *hugeNonce)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "out of int64 range")
+}

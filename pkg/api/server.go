@@ -105,10 +105,12 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 		IdleTimeout: 5 * time.Minute,
 	})
 
-	// TODO: Do we need more timeouts?
 	svc.httpServer = &http.Server{
-		Handler:     handleCORS(h2cHandler),
-		IdleTimeout: 5 * time.Minute,
+		Handler:           handleCORS(h2cHandler),
+		IdleTimeout:       5 * time.Minute,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      5 * time.Minute,
 	}
 
 	svc.logger.Info("creating api server")

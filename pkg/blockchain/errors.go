@@ -3,6 +3,7 @@ package blockchain
 import (
 	"errors"
 	"regexp"
+	"strings"
 )
 
 var (
@@ -208,7 +209,13 @@ var (
 
 	ErrCodeNotFound = errors.New("error message does not contain a valid error code")
 	ErrCodeNotInDic = errors.New("code not found in protocol errors dictionary")
-	ErrCompileRegex = errors.New("error compiling regex")
+
+	// protocolErrorCodeRegex matches a 4-byte hex error selector (0x + 8 hex chars)
+	// only when it is NOT part of a longer hex string (e.g., an address or hash).
+	// The negative boundary ensures the match ends at a non-hex character or end of string.
+	protocolErrorCodeRegex = regexp.MustCompile(
+		`(0x[0-9a-fA-F]{8})(?:[^0-9a-fA-F]|$)`,
+	)
 )
 
 type ProtocolError interface {
@@ -242,8 +249,7 @@ func NewBlockchainError(originalErr error) *BlockchainError {
 
 func (e BlockchainError) Error() string {
 	if e.protocolErr == nil || errors.Is(e.protocolErr, ErrCodeNotFound) ||
-		errors.Is(e.protocolErr, ErrCodeNotInDic) ||
-		errors.Is(e.protocolErr, ErrCompileRegex) {
+		errors.Is(e.protocolErr, ErrCodeNotInDic) {
 		return e.originalErr.Error()
 	}
 
@@ -279,20 +285,15 @@ func (e BlockchainError) IsErrPayerReportAlreadySubmitted() bool {
 
 // tryExtractProtocolError tries to extract the protocol error from the error message.
 // Error codes are 4 bytes hex strings, in example: 0x31f1a313.
+// The regex ensures the selector is not part of a longer hex string (e.g., an address).
 func tryExtractProtocolError(e error) (message, err error) {
-	re, err := regexp.Compile(
-		`(0x[0-9a-fA-F]{8})`,
-	)
-	if err != nil {
-		return nil, ErrCompileRegex
-	}
-
-	matches := re.FindStringSubmatch(e.Error())
+	matches := protocolErrorCodeRegex.FindStringSubmatch(e.Error())
 	if len(matches) != 2 {
 		return nil, ErrCodeNotFound
 	}
 
-	protocolError, exists := protocolErrorsDictionary[matches[1]]
+	selector := strings.ToLower(matches[1])
+	protocolError, exists := protocolErrorsDictionary[selector]
 	if !exists {
 		return nil, ErrCodeNotInDic
 	}

@@ -38,13 +38,13 @@ var (
 	getPricesInWeiSelector = common.FromHex("0x41b247a8")
 )
 
-func isArbChain(ctx context.Context, client *ethclient.Client) bool {
+func isArbChain(ctx context.Context, client *ethclient.Client) (bool, error) {
 	code, err := client.CodeAt(ctx, arbGasInfoAddr, nil)
 	if err != nil {
-		return false
+		return false, err
 	}
 
-	return len(code) > 0
+	return len(code) > 0, nil
 }
 
 func getGasPrice(

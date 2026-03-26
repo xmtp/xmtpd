@@ -109,7 +109,14 @@ func New(
 		gasPriceDefaultWei = defaultEVMGasPrice
 	)
 
-	if isArbChain(ctx, ethClient) {
+	isArb, err := isArbChain(ctx, ethClient)
+	if err != nil {
+		ethClient.Close()
+		cancel()
+		return nil, err
+	}
+
+	if isArb {
 		gasPriceSource = gasPriceSourceArbMinimum
 		gasPriceDefaultWei = defaultArbGasPrice
 	}

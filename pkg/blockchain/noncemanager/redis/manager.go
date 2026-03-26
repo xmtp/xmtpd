@@ -27,6 +27,10 @@ const (
 	BatchSize = 10000
 	// RedisOperationTimeout bounds how long cancel/consume Redis calls can take
 	RedisOperationTimeout = 5 * time.Second
+	// maxRetries is the number of retry attempts for cancel/consume operations
+	maxRetries = 3
+	// initialBackoff is the starting delay between retries (doubles each attempt)
+	initialBackoff = 50 * time.Millisecond
 )
 
 // Lua scripts for atomic operations
@@ -36,32 +40,32 @@ var (
 		local reservedKey = KEYS[2]
 		local staleThreshold = ARGV[1]
 		local currentTime = ARGV[2]
-		
+
 		-- First, cleanup stale reservations
 		local staleNonces = redis.call('ZRANGEBYSCORE', reservedKey, '-inf', staleThreshold)
 		local cleanupCount = 0
-		
+
 		if #staleNonces > 0 then
 			-- Move each stale nonce back to available pool
 			for i, nonce in ipairs(staleNonces) do
 				redis.call('ZADD', availableKey, nonce, nonce)
 			end
-			
+
 			-- Remove from reserved set
 			redis.call('ZREMRANGEBYSCORE', reservedKey, '-inf', staleThreshold)
 			cleanupCount = #staleNonces
 		end
-		
+
 		-- Then, reserve the next available nonce
 		local result = redis.call('ZPOPMIN', availableKey, 1)
 		if #result == 0 then
 			return {nil, cleanupCount}
 		end
-		
+
 		local nonce = result[1]
 		-- Add it to the reserved set with current timestamp as score for cleanup
 		redis.call('ZADD', reservedKey, currentTime, nonce)
-		
+
 		return {nonce, cleanupCount}
 	`
 )
@@ -283,31 +287,66 @@ func (r *RedisBackedNonceManager) createNonceContext(nonce int64) *noncemanager.
 	}
 }
 
-// cancelNonce returns a nonce to the available pool
+// cancelNonce returns a nonce to the available pool with retry on transient failures
 func (r *RedisBackedNonceManager) cancelNonce(nonce int64) {
-	ctx, cancel := context.WithTimeout(context.Background(), RedisOperationTimeout)
-	defer cancel()
+	attempts, err := retryWithBackoff(func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), RedisOperationTimeout)
+		defer cancel()
 
-	pipe := r.client.Pipeline()
-	pipe.ZRem(ctx, r.reservedKey(), nonce)
-	pipe.ZAdd(ctx, r.availableKey(), redis.Z{
-		Score:  float64(nonce),
-		Member: nonce,
+		pipe := r.client.Pipeline()
+		pipe.ZRem(ctx, r.reservedKey(), nonce)
+		pipe.ZAdd(ctx, r.availableKey(), redis.Z{
+			Score:  float64(nonce),
+			Member: nonce,
+		})
+		_, err := pipe.Exec(ctx)
+		return err
 	})
-
-	if _, err := pipe.Exec(ctx); err != nil {
+	if err != nil {
 		r.logger.Error("failed to return cancelled nonce to Redis",
 			utils.NonceField(uint64(nonce)), zap.Error(err))
+		return
+	}
+	if attempts > 1 {
+		r.logger.Warn("cancelled nonce returned to Redis after retry",
+			utils.NonceField(uint64(nonce)), zap.Int("attempts", attempts))
 	}
 }
 
-// consumeNonce removes a nonce from the reserved pool
+// consumeNonce removes a nonce from the reserved pool with retry on transient failures
 func (r *RedisBackedNonceManager) consumeNonce(nonce int64) {
-	ctx, cancel := context.WithTimeout(context.Background(), RedisOperationTimeout)
-	defer cancel()
+	attempts, err := retryWithBackoff(func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), RedisOperationTimeout)
+		defer cancel()
 
-	if err := r.client.ZRem(ctx, r.reservedKey(), nonce).Err(); err != nil {
+		return r.client.ZRem(ctx, r.reservedKey(), nonce).Err()
+	})
+	if err != nil {
 		r.logger.Error("failed to remove consumed nonce from reserved set",
 			utils.NonceField(uint64(nonce)), zap.Error(err))
+		return
 	}
+	if attempts > 1 {
+		r.logger.Warn("consumed nonce removed from reserved set after retry",
+			utils.NonceField(uint64(nonce)), zap.Int("attempts", attempts))
+	}
+}
+
+// retryWithBackoff retries fn up to maxRetries times with exponential backoff.
+// Returns the number of attempts made and the last error (nil on success).
+func retryWithBackoff(fn func() error) (int, error) {
+	backoff := initialBackoff
+	for attempt := range maxRetries {
+		err := fn()
+		if err == nil {
+			return attempt + 1, nil
+		}
+		if attempt == maxRetries-1 {
+			return maxRetries, err
+		}
+		time.Sleep(backoff)
+		backoff *= 2
+	}
+	// unreachable, but satisfies the compiler
+	return maxRetries, nil
 }

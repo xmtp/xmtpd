@@ -2,11 +2,13 @@ package blockchain
 
 import (
 	"context"
+	"errors"
 	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xmtp/xmtpd/pkg/blockchain/noncemanager"
 	"github.com/xmtp/xmtpd/pkg/testutils"
@@ -40,7 +42,52 @@ func (s *stubNonceManager) Replenish(_ context.Context, _ big.Int) error {
 	return nil
 }
 
-func TestWithNonce_AlreadyKnown(t *testing.T) {
+func TestIsAlreadyKnownError(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{
+			name: "exact txpool.ErrAlreadyKnown",
+			err:  txpool.ErrAlreadyKnown,
+			want: true,
+		},
+		{
+			name: "wrapped txpool.ErrAlreadyKnown",
+			err:  errors.Join(errors.New("send failed"), txpool.ErrAlreadyKnown),
+			want: true,
+		},
+		{
+			name: "string match: already known",
+			err:  errors.New("transaction already known"),
+			want: true,
+		},
+		{
+			name: "string match: already known in middle",
+			err:  errors.New("rpc error: already known in txpool"),
+			want: true,
+		},
+		{
+			name: "unrelated error",
+			err:  errors.New("insufficient funds"),
+			want: false,
+		},
+		{
+			name: "nonce too low is not already known",
+			err:  errors.New("nonce too low"),
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isAlreadyKnownError(tt.err))
+		})
+	}
+}
+
+func TestWithNonce_AlreadyKnownProceedsToWait(t *testing.T) {
 	logger := testutils.NewLog(t)
 	nm := &stubNonceManager{nonce: 1}
 
@@ -49,7 +96,6 @@ func TestWithNonce_AlreadyKnown(t *testing.T) {
 		Gas:   21000,
 	})
 
-	createCalled := false
 	waitCalled := false
 
 	results, err := withNonce(
@@ -58,7 +104,6 @@ func TestWithNonce_AlreadyKnown(t *testing.T) {
 		nm,
 		"test_already_known",
 		func(_ context.Context, _ big.Int) (*types.Transaction, error) {
-			createCalled = true
 			return dummyTx, txpool.ErrAlreadyKnown
 		},
 		func(_ context.Context, tx *types.Transaction) ([]*int, error) {
@@ -70,101 +115,33 @@ func TestWithNonce_AlreadyKnown(t *testing.T) {
 	)
 
 	require.NoError(t, err)
-	require.True(t, createCalled, "create function should have been called")
 	require.True(t, waitCalled, "wait function should have been called for already known tx")
 	require.Len(t, results, 1)
 	require.Equal(t, 42, *results[0])
-	require.True(t, nm.consumed, "nonce should have been consumed, not canceled")
+	require.True(t, nm.consumed, "nonce should have been consumed")
 	require.False(t, nm.canceled, "nonce should not have been canceled")
 }
 
-func TestWithNonce_AlreadyKnownStringMatch(t *testing.T) {
+func TestWithNonce_NilTxAlreadyKnownCancels(t *testing.T) {
 	logger := testutils.NewLog(t)
 	nm := &stubNonceManager{nonce: 1}
 
-	dummyTx := types.NewTx(&types.LegacyTx{
-		Nonce: 1,
-		Gas:   21000,
-	})
-
-	waitCalled := false
-
-	results, err := withNonce(
+	_, err := withNonce(
 		context.Background(),
 		logger,
 		nm,
-		"test_already_known_string",
+		"test_nil_tx",
 		func(_ context.Context, _ big.Int) (*types.Transaction, error) {
-			return dummyTx, &rpcError{msg: "transaction already known"}
+			return nil, txpool.ErrAlreadyKnown
 		},
 		func(_ context.Context, _ *types.Transaction) ([]*int, error) {
-			waitCalled = true
-			val := 1
-			return []*int{&val}, nil
+			t.Fatal("wait should not be called when tx is nil")
+			return nil, nil
 		},
 	)
 
-	require.NoError(t, err)
-	require.True(t, waitCalled)
-	require.Len(t, results, 1)
-	require.True(t, nm.consumed)
-	require.False(t, nm.canceled)
-}
-
-// rpcError simulates an RPC error that contains "already known" in its message.
-type rpcError struct {
-	msg string
-}
-
-func (e *rpcError) Error() string {
-	return e.msg
-}
-
-func TestWithNonce_UnknownErrorStillCancels(t *testing.T) {
-	logger := testutils.NewLog(t)
-
-	t.Run("nil tx with already known still cancels", func(t *testing.T) {
-		nm := &stubNonceManager{nonce: 1}
-
-		_, err := withNonce(
-			context.Background(),
-			logger,
-			nm,
-			"test_nil_tx",
-			func(_ context.Context, _ big.Int) (*types.Transaction, error) {
-				return nil, txpool.ErrAlreadyKnown
-			},
-			func(_ context.Context, _ *types.Transaction) ([]*int, error) {
-				t.Fatal("wait should not be called when tx is nil")
-				return nil, nil
-			},
-		)
-
-		require.Error(t, err)
-		require.True(t, nm.canceled, "nonce should be canceled when tx is nil")
-	})
-
-	t.Run("unrelated error cancels nonce", func(t *testing.T) {
-		nm := &stubNonceManager{nonce: 1}
-
-		dummyTx := types.NewTx(&types.LegacyTx{Nonce: 1, Gas: 21000})
-		_, err := withNonce(
-			context.Background(),
-			logger,
-			nm,
-			"test_unrelated_error",
-			func(_ context.Context, _ big.Int) (*types.Transaction, error) {
-				return dummyTx, &rpcError{msg: "some other error"}
-			},
-			func(_ context.Context, _ *types.Transaction) ([]*int, error) {
-				t.Fatal("wait should not be called for unrelated errors")
-				return nil, nil
-			},
-		)
-
-		require.Error(t, err)
-		require.True(t, nm.canceled, "nonce should be canceled for unrelated errors")
-	})
+	require.Error(t, err)
+	require.True(t, nm.canceled, "nonce should be canceled when tx is nil")
 }
 
 func TestWithNonce_AlreadyKnownWaitFails(t *testing.T) {
@@ -182,7 +159,7 @@ func TestWithNonce_AlreadyKnownWaitFails(t *testing.T) {
 			return dummyTx, txpool.ErrAlreadyKnown
 		},
 		func(_ context.Context, _ *types.Transaction) ([]*int, error) {
-			return nil, &rpcError{msg: "wait timeout"}
+			return nil, errors.New("wait timeout")
 		},
 	)
 

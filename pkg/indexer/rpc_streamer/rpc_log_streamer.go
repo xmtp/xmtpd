@@ -212,7 +212,9 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 					case errors.Is(err, ErrEndOfBackfill):
 						if response.NextBlockNumber != nil {
 							backfillFromBlockNumber = *response.NextBlockNumber
-							backfillFromBlockHash = response.NextBlockHash
+							if response.NextBlockHash != nil {
+								backfillFromBlockHash = response.NextBlockHash
+							}
 						}
 						if len(response.Logs) > 0 {
 							for _, log := range response.Logs {
@@ -280,7 +282,9 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 					case errors.Is(err, ErrEndOfBackfill):
 						if response.NextBlockNumber != nil {
 							backfillFromBlockNumber = *response.NextBlockNumber
-							backfillFromBlockHash = response.NextBlockHash
+							if response.NextBlockHash != nil {
+								backfillFromBlockHash = response.NextBlockHash
+							}
 						}
 						if len(response.Logs) > 0 {
 							for _, log := range response.Logs {

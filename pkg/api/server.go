@@ -110,7 +110,6 @@ func NewAPIServer(opts ...APIServerOption) (*APIServer, error) {
 		IdleTimeout:       5 * time.Minute,
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
-		WriteTimeout:      5 * time.Minute,
 	}
 
 	svc.logger.Info("creating api server")

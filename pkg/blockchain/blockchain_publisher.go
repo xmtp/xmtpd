@@ -554,8 +554,7 @@ func withNonce[T any](ctx context.Context,
 				continue
 			}
 
-			if tx != nil && (errors.Is(err, txpool.ErrAlreadyKnown) ||
-				strings.Contains(err.Error(), "already known")) {
+			if tx != nil && isAlreadyKnownError(err) {
 				logger.Debug(
 					"transaction already known in mempool, waiting for confirmation",
 					utils.NonceField(nonce.Uint64()),
@@ -585,6 +584,11 @@ func withNonce[T any](ctx context.Context,
 	}
 
 	return val, nil
+}
+
+func isAlreadyKnownError(err error) bool {
+	return errors.Is(err, txpool.ErrAlreadyKnown) ||
+		strings.Contains(err.Error(), "already known")
 }
 
 func (m *BlockchainPublisher) Close() {

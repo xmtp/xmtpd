@@ -267,13 +267,6 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 
 		// Bridging backfill: cover any gap between HTTP head (where backfill ended) and
 		// the WS head (where the subscription starts delivering logs).
-		if backfillFromBlockNumber <= subFromBlock {
-			logger.Info(
-				"bridging backfill gap",
-				zap.Uint64("from_block", backfillFromBlockNumber),
-				zap.Uint64("sub_from_block", subFromBlock),
-			)
-		}
 	bridgingLoop:
 		for backfillFromBlockNumber <= subFromBlock {
 			select {
@@ -464,9 +457,10 @@ func (r *RPCLogStreamer) GetNextPage(
 	metrics.EmitIndexerLogBytesIndexed(cfg.Address.Hex(), dataSize)
 
 	if toBlock+1 > highestBlock {
+		nextBlock := toBlock + 1
 		return GetNextPageResponse{
 			Logs:            logs,
-			NextBlockNumber: nil,
+			NextBlockNumber: &nextBlock,
 			NextBlockHash:   nil,
 		}, ErrEndOfBackfill
 	}

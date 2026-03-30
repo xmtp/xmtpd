@@ -138,19 +138,24 @@ func TestBridgingBackfill(t *testing.T) {
 		Topics:    [][]common.Hash{{topic}},
 	}).Return([]types.Log{initialLog}, nil).Once()
 
-	// After initial backfill ends (ErrEndOfBackfill with nil NextBlockNumber),
-	// backfillFromBlockNumber stays at 1. The bridging loop re-fetches from block 1
-	// but now the HTTP client reports wsHead as the highest block.
+	// After initial backfill ends, backfillFromBlockNumber advances to httpHead+1 (11).
+	// The bridging loop fetches from block 11 to wsHead (15) to cover the gap.
 	httpClient.On("BlockNumber", mock.Anything).Return(wsHead, nil)
 
-	// Bridging backfill: re-fetches from block 1 to wsHead (15), returns both logs.
-	// The gapLog at block 12 would have been missed without bridging.
+	// Reorg check in bridging calls HeaderByNumber(fromBlockNumber+1) = HeaderByNumber(12).
+	mockBlock12 := types.NewBlockWithHeader(&types.Header{
+		Number: big.NewInt(12),
+	})
+	httpClient.On("HeaderByNumber", mock.Anything, big.NewInt(int64(httpHead+2))).
+		Return(mockBlock12.Header(), nil)
+
+	// Bridging backfill: fetches only the gap (blocks 11-15), returns gapLog.
 	httpClient.On("FilterLogs", mock.Anything, ethereum.FilterQuery{
-		FromBlock: big.NewInt(1),
+		FromBlock: big.NewInt(int64(httpHead + 1)),
 		ToBlock:   big.NewInt(int64(wsHead)),
 		Addresses: []common.Address{address},
 		Topics:    [][]common.Hash{{topic}},
-	}).Return([]types.Log{initialLog, gapLog}, nil)
+	}).Return([]types.Log{gapLog}, nil)
 
 	// WS client returns wsHead. Called multiple times: validate + watch.
 	wsClient := blockchainMocks.NewMockChainClient(t)
@@ -193,35 +198,19 @@ func TestBridgingBackfill(t *testing.T) {
 	ch := streamer.GetEventChannel("testContract")
 	require.NotNil(t, ch)
 
-	// Collect logs from the channel. We expect to see the gapLog, which proves
-	// that the bridging backfill fetched logs beyond the initial HTTP head.
-	var receivedLogs []types.Log
+	// Wait for the gap log, proving the bridging backfill covered the gap.
 	timeout := time.After(5 * time.Second)
-	for {
+	found := false
+	for !found {
 		select {
 		case log := <-ch:
-			if len(log.Data) > 0 {
-				receivedLogs = append(receivedLogs, log)
-				// Once we see the gap log, we know bridging worked.
-				if string(log.Data) == "gap" {
-					goto done
-				}
+			if string(log.Data) == "gap" {
+				found = true
 			}
 		case <-timeout:
-			t.Fatalf("timed out waiting for gap log, got %d logs", len(receivedLogs))
+			t.Fatal("timed out waiting for gap log from bridging backfill")
 		}
 	}
-done:
-
-	// The gap log must be present, proving the bridging backfill covered the gap.
-	var foundGap bool
-	for _, l := range receivedLogs {
-		if string(l.Data) == "gap" {
-			foundGap = true
-			break
-		}
-	}
-	require.True(t, foundGap, "expected gap log from bridging backfill")
 
 	cancel()
 	streamer.Stop()

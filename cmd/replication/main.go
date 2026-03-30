@@ -1,7 +1,6 @@
 package main
 
 import (
-	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -122,13 +121,7 @@ func main() {
 			options.MigrationServer.Enable ||
 			options.PayerReport.Enable {
 
-			namespace := cmp.Or(
-				options.DB.NameOverride,
-				utils.BuildNamespace(
-					options.Signer.PrivateKey,
-					options.Contracts.SettlementChain.NodeRegistryAddress,
-				),
-			)
+			namespace := options.DB.NameOverride
 
 			writeDB, err := db.NewNamespacedDB(
 				ctx,

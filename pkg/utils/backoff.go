@@ -20,3 +20,28 @@ func NewBackoff(
 		backoff.WithMaxElapsedTime(maxElapsedTime),
 	)
 }
+
+// RetryWithBackoff retries fn with exponential backoff using the given parameters.
+// Returns the number of attempts made and the last error (nil on success).
+func RetryWithBackoff(
+	fn func() error,
+	maxRetries int,
+	initialInterval time.Duration,
+) (int, error) {
+	attempts := 0
+	delay := initialInterval
+	for range maxRetries {
+		attempts++
+		err := fn()
+		if err == nil {
+			return attempts, nil
+		}
+		if attempts == maxRetries {
+			return attempts, err
+		}
+		time.Sleep(delay)
+		delay *= 2
+	}
+	// unreachable, but satisfies the compiler
+	return attempts, nil
+}

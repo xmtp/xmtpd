@@ -289,7 +289,7 @@ func (r *RedisBackedNonceManager) createNonceContext(nonce int64) *noncemanager.
 
 // cancelNonce returns a nonce to the available pool with retry on transient failures
 func (r *RedisBackedNonceManager) cancelNonce(nonce int64) {
-	attempts, err := retryWithBackoff(func() error {
+	attempts, err := utils.RetryWithBackoff(func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), RedisOperationTimeout)
 		defer cancel()
 
@@ -301,7 +301,7 @@ func (r *RedisBackedNonceManager) cancelNonce(nonce int64) {
 		})
 		_, err := pipe.Exec(ctx)
 		return err
-	})
+	}, maxRetries, initialBackoff)
 	if err != nil {
 		r.logger.Error("failed to return cancelled nonce to Redis",
 			utils.NonceField(uint64(nonce)), zap.Error(err))
@@ -315,12 +315,12 @@ func (r *RedisBackedNonceManager) cancelNonce(nonce int64) {
 
 // consumeNonce removes a nonce from the reserved pool with retry on transient failures
 func (r *RedisBackedNonceManager) consumeNonce(nonce int64) {
-	attempts, err := retryWithBackoff(func() error {
+	attempts, err := utils.RetryWithBackoff(func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), RedisOperationTimeout)
 		defer cancel()
 
 		return r.client.ZRem(ctx, r.reservedKey(), nonce).Err()
-	})
+	}, maxRetries, initialBackoff)
 	if err != nil {
 		r.logger.Error("failed to remove consumed nonce from reserved set",
 			utils.NonceField(uint64(nonce)), zap.Error(err))
@@ -330,23 +330,4 @@ func (r *RedisBackedNonceManager) consumeNonce(nonce int64) {
 		r.logger.Warn("consumed nonce removed from reserved set after retry",
 			utils.NonceField(uint64(nonce)), zap.Int("attempts", attempts))
 	}
-}
-
-// retryWithBackoff retries fn up to maxRetries times with exponential backoff.
-// Returns the number of attempts made and the last error (nil on success).
-func retryWithBackoff(fn func() error) (int, error) {
-	backoff := initialBackoff
-	for attempt := range maxRetries {
-		err := fn()
-		if err == nil {
-			return attempt + 1, nil
-		}
-		if attempt == maxRetries-1 {
-			return maxRetries, err
-		}
-		time.Sleep(backoff)
-		backoff *= 2
-	}
-	// unreachable, but satisfies the compiler
-	return maxRetries, nil
 }

@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"strconv"
 	"sync/atomic"
@@ -57,7 +58,7 @@ var (
 			return {nil, cleanupCount}
 		end
 		
-		local nonce = result[2]
+		local nonce = result[1]
 		-- Add it to the reserved set with current timestamp as score for cleanup
 		redis.call('ZADD', reservedKey, currentTime, nonce)
 		
@@ -143,7 +144,20 @@ func (r *RedisBackedNonceManager) GetNonce(
 // Replenish ensures a sufficient number of nonces are available starting from the given nonce.
 // It generates up to 10,000 nonces in a single batch operation using ZADD.
 func (r *RedisBackedNonceManager) Replenish(ctx context.Context, nonce big.Int) error {
+	if !nonce.IsInt64() || nonce.Sign() < 0 {
+		return fmt.Errorf(
+			"nonce value %s is out of int64 range, cannot replenish",
+			nonce.String(),
+		)
+	}
 	startNonce := nonce.Int64()
+	if startNonce > math.MaxInt64-int64(BatchSize) {
+		return fmt.Errorf(
+			"nonce value %d would overflow when generating batch of %d",
+			startNonce,
+			BatchSize,
+		)
+	}
 
 	// Prepare the nonces to add
 	members := make([]redis.Z, BatchSize)
@@ -175,6 +189,13 @@ func (r *RedisBackedNonceManager) Replenish(ctx context.Context, nonce big.Int) 
 // FastForwardNonce sets the nonce sequence to start from the given value and removes
 // all nonces below it. This is typically used when recovering from blockchain state issues.
 func (r *RedisBackedNonceManager) FastForwardNonce(ctx context.Context, nonce big.Int) error {
+	if !nonce.IsInt64() || nonce.Sign() < 0 {
+		return fmt.Errorf(
+			"nonce value %s is out of int64 range, cannot fast forward",
+			nonce.String(),
+		)
+	}
+
 	// First replenish nonces starting from the given value
 	err := r.Replenish(ctx, nonce)
 	if err != nil {
@@ -214,12 +235,12 @@ func (r *RedisBackedNonceManager) cleanupAndReserveNonce(ctx context.Context) (i
 
 	nonceStr, ok := resultArray[0].(string)
 	if !ok {
-		return 0, errors.New("invalid nonce format from Redis")
+		return 0, fmt.Errorf("unexpected nonce type %T from Redis", resultArray[0])
 	}
 
 	nonce, err := strconv.ParseInt(nonceStr, 10, 64)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to parse nonce from Redis: %w", err)
 	}
 
 	// Log cleanup count if any stale reservations were cleaned up

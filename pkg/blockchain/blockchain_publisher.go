@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	gm "github.com/xmtp/xmtpd/pkg/abi/groupmessagebroadcaster"
@@ -154,7 +155,7 @@ func (m *BlockchainPublisher) sendRawTransaction(
 
 	err = m.client.SendTransaction(ctx, signedTx)
 	if err != nil {
-		return nil, err
+		return signedTx, err
 	}
 
 	return signedTx, nil
@@ -551,6 +552,16 @@ func withNonce[T any](ctx context.Context,
 				utils.RandomSleep(ctx, 500*time.Millisecond)
 				nonceContext.Cancel()
 				continue
+			}
+
+			if tx != nil && (errors.Is(err, txpool.ErrAlreadyKnown) ||
+				strings.Contains(err.Error(), "already known")) {
+				logger.Debug(
+					"transaction already known in mempool, waiting for confirmation",
+					utils.NonceField(nonce.Uint64()),
+					zap.Error(err),
+				)
+				break
 			}
 
 			nonceContext.Cancel()

@@ -231,7 +231,12 @@ func (r *RedisBackedNonceManager) cleanupAndReserveNonce(ctx context.Context) (i
 		return 0, errors.New("no nonces available in Redis")
 	}
 
-	nonce, err := parseRedisNonce(resultArray[0])
+	nonceStr, ok := resultArray[0].(string)
+	if !ok {
+		return 0, fmt.Errorf("unexpected nonce type %T from Redis", resultArray[0])
+	}
+
+	nonce, err := strconv.ParseInt(nonceStr, 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse nonce from Redis: %w", err)
 	}
@@ -242,37 +247,6 @@ func (r *RedisBackedNonceManager) cleanupAndReserveNonce(ctx context.Context) (i
 	}
 
 	return nonce, nil
-}
-
-// parseRedisNonce flexibly parses a nonce value returned from Redis.
-// Redis EVAL may return the value as a string (plain integer or scientific notation),
-// an int64, or a float64 depending on the Redis server and protocol version.
-func parseRedisNonce(val any) (int64, error) {
-	switch v := val.(type) {
-	case int64:
-		return v, nil
-	case float64:
-		if v < 0 || v > float64(math.MaxInt64) || v != math.Trunc(v) {
-			return 0, fmt.Errorf("nonce float value %g is out of int64 range or not an integer", v)
-		}
-		return int64(v), nil
-	case string:
-		// Try plain integer first
-		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
-			return n, nil
-		}
-		// Fall back to float parsing (handles scientific notation like "1e16")
-		f, err := strconv.ParseFloat(v, 64)
-		if err != nil {
-			return 0, fmt.Errorf("cannot parse nonce string %q: %w", v, err)
-		}
-		if f < 0 || f > float64(math.MaxInt64) || f != math.Trunc(f) {
-			return 0, fmt.Errorf("nonce string value %q is out of int64 range or not an integer", v)
-		}
-		return int64(f), nil
-	default:
-		return 0, fmt.Errorf("unexpected nonce type %T from Redis", val)
-	}
 }
 
 // releaseLimiter releases the semaphore and decrements the wait group

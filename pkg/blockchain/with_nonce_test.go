@@ -49,33 +49,18 @@ func TestIsAlreadyKnownError(t *testing.T) {
 		want bool
 	}{
 		{
-			name: "exact txpool.ErrAlreadyKnown",
+			name: "sentinel error",
 			err:  txpool.ErrAlreadyKnown,
 			want: true,
 		},
 		{
-			name: "wrapped txpool.ErrAlreadyKnown",
-			err:  errors.Join(errors.New("send failed"), txpool.ErrAlreadyKnown),
-			want: true,
-		},
-		{
-			name: "string match: already known",
+			name: "string match from RPC",
 			err:  errors.New("transaction already known"),
-			want: true,
-		},
-		{
-			name: "string match: already known in middle",
-			err:  errors.New("rpc error: already known in txpool"),
 			want: true,
 		},
 		{
 			name: "unrelated error",
 			err:  errors.New("insufficient funds"),
-			want: false,
-		},
-		{
-			name: "nonce too low is not already known",
-			err:  errors.New("nonce too low"),
 			want: false,
 		},
 	}

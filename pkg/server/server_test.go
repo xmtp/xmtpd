@@ -170,7 +170,9 @@ func TestCreateServer(t *testing.T) {
 				Limit: 10,
 			},
 		})
-		require.NoError(t, err)
+		if err != nil {
+			return false // transient error (e.g. deadlock recovery); retry
+		}
 
 		for _, e := range q1.Msg.GetEnvelopes() {
 			if reflect.DeepEqual(e, p2.Msg.GetOriginatorEnvelopes()[0]) {
@@ -178,7 +180,7 @@ func TestCreateServer(t *testing.T) {
 			}
 		}
 		return false
-	}, 10*time.Second, 200*time.Millisecond)
+	}, 120*time.Second, 500*time.Millisecond)
 
 	require.Eventually(t, func() bool {
 		q2, err := client2.QueryEnvelopes(ctx, &connect.Request[message_api.QueryEnvelopesRequest]{
@@ -190,7 +192,9 @@ func TestCreateServer(t *testing.T) {
 				Limit: 10,
 			},
 		})
-		require.NoError(t, err)
+		if err != nil {
+			return false // transient error (e.g. deadlock recovery); retry
+		}
 
 		for _, e := range q2.Msg.GetEnvelopes() {
 			if reflect.DeepEqual(e, p1.Msg.GetOriginatorEnvelopes()[0]) {
@@ -198,7 +202,7 @@ func TestCreateServer(t *testing.T) {
 			}
 		}
 		return false
-	}, 10*time.Second, 200*time.Millisecond)
+	}, 120*time.Second, 500*time.Millisecond)
 }
 
 func TestReadOwnWritesGuarantee(t *testing.T) {

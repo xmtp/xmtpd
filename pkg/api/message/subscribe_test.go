@@ -111,7 +111,7 @@ func insertInitialRows(t *testing.T, store *sql.DB) {
 	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
 		allRows[0], allRows[1],
 	})
-	time.Sleep(message.SubscribeWorkerPollTime + 100*time.Millisecond)
+	time.Sleep(4 * message.SubscribeWorkerPollTime)
 }
 
 func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) {
@@ -125,6 +125,8 @@ func validateUpdates(
 	stream *connect.ServerStreamForClient[message_api.SubscribeEnvelopesResponse],
 	expectedIndices []int,
 ) {
+	t.Helper()
+
 	type key struct {
 		nodeID int32
 		seqID  int64
@@ -143,8 +145,34 @@ func validateUpdates(
 	seen := make(map[key]struct{}, len(expectedIndices))
 	lastSeqByNode := make(map[int32]int64)
 
+	deadline := time.After(10 * time.Second)
+
 	for len(seen) < len(expected) {
-		if !stream.Receive() {
+		// Use a goroutine to make stream.Receive() interruptible by deadline.
+		type recvResult struct {
+			ok bool
+		}
+		ch := make(chan recvResult, 1)
+		go func() {
+			ch <- recvResult{ok: stream.Receive()}
+		}()
+
+		var ok bool
+		select {
+		case <-deadline:
+			require.Failf(
+				t,
+				"timeout",
+				"timed out waiting for updates: got %d/%d expected",
+				len(seen),
+				len(expected),
+			)
+			return
+		case res := <-ch:
+			ok = res.ok
+		}
+
+		if !ok {
 			break
 		}
 

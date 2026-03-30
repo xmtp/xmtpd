@@ -5,25 +5,21 @@ import (
 )
 
 type funnel[T any] struct {
-	*sync.Mutex
-
+	mu     sync.Mutex
 	in     []<-chan T
 	out    chan T
-	wg     sync.WaitGroup
-	closer sync.Once
+	active int
 	closed bool
 }
 
 // Funnel many input channels into a single one. Output channel is closed once all input channels are.
-// Adding channels after the output channel has been closed is invalid.
+// Adding channels after the output channel has been closed is a no-op.
 func newFunnel[T any](ch ...<-chan T) *funnel[T] {
 	f := &funnel[T]{
-		Mutex: &sync.Mutex{},
-		in:    make([]<-chan T, 0, len(ch)),
-		out:   make(chan T),
+		in:  make([]<-chan T, 0, len(ch)),
+		out: make(chan T),
 	}
 
-	// Function will forward entries from its channel to the common channel.
 	for _, c := range ch {
 		f.addChannel(c)
 	}
@@ -32,41 +28,29 @@ func newFunnel[T any](ch ...<-chan T) *funnel[T] {
 }
 
 func (f *funnel[T]) addChannel(ch <-chan T) {
-	f.Lock()
-	defer f.Unlock()
-
+	f.mu.Lock()
 	if f.closed {
+		f.mu.Unlock()
 		return
 	}
 
 	f.in = append(f.in, ch)
-
-	f.wg.Add(1)
-
-	f.startCloser()
+	f.active++
+	f.mu.Unlock()
 
 	go func() {
-		defer f.wg.Done()
 		for e := range ch {
 			f.out <- e
 		}
-	}()
-}
 
-func (f *funnel[T]) startCloser() {
-	// Start closer goroutine (once).
-	f.closer.Do(func() {
-		go func() {
-			// When all input channels are closed, close our channel too.
-			f.wg.Wait()
-
-			f.Lock()
-			defer f.Unlock()
-
+		f.mu.Lock()
+		f.active--
+		if f.active == 0 {
 			close(f.out)
 			f.closed = true
-		}()
-	})
+		}
+		f.mu.Unlock()
+	}()
 }
 
 func (f *funnel[T]) output() <-chan T {

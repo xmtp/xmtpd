@@ -180,7 +180,7 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 
 	defer close(cfg.eventChannel)
 
-	sub, err := r.buildSubscription(cfg, innerSubCh)
+	sub, subFromBlock, err := r.buildSubscription(cfg, innerSubCh)
 	if err != nil {
 		logger.Error("failed to subscribe to contract", zap.Error(err))
 		return
@@ -200,7 +200,7 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 				}
 
 				logger.Warn("subscription error, rebuilding", zap.Error(err))
-				sub, err = r.buildSubscriptionWithBackoff(cfg, innerSubCh)
+				sub, subFromBlock, err = r.buildSubscriptionWithBackoff(cfg, innerSubCh)
 				if err != nil {
 					logger.Fatal("failed rebuilding subscription after max disconnect time", zap.Error(err), zap.String("max_disconnect_time", cfg.MaxDisconnectTime.String()))
 				}
@@ -265,6 +265,58 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 			}
 		}
 
+		// Bridging backfill: cover any gap between HTTP head (where backfill ended) and
+		// the WS head (where the subscription starts delivering logs).
+		if backfillFromBlockNumber <= subFromBlock {
+			logger.Info(
+				"bridging backfill gap",
+				zap.Uint64("from_block", backfillFromBlockNumber),
+				zap.Uint64("sub_from_block", subFromBlock),
+			)
+		}
+	bridgingLoop:
+		for backfillFromBlockNumber <= subFromBlock {
+			select {
+			case <-r.ctx.Done():
+				logger.Info("context cancelled during bridging backfill")
+				return
+			default:
+				response, err := r.GetNextPage(r.ctx, cfg, backfillFromBlockNumber, backfillFromBlockHash)
+				if err != nil {
+					switch {
+					case errors.Is(err, ErrEndOfBackfill):
+						if response.NextBlockNumber != nil {
+							backfillFromBlockNumber = *response.NextBlockNumber
+							backfillFromBlockHash = response.NextBlockHash
+						}
+						if len(response.Logs) > 0 {
+							for _, log := range response.Logs {
+								cfg.eventChannel <- log
+							}
+						} else {
+							cfg.eventChannel <- c.NewUpdateProgressLog(backfillFromBlockNumber, backfillFromBlockHash)
+						}
+						break bridgingLoop
+					case errors.Is(err, ErrReorg):
+						logger.Warn("reorg detected during bridging backfill", utils.BlockNumberField(*response.NextBlockNumber))
+					default:
+						logger.Error("error during bridging backfill", utils.BlockNumberField(backfillFromBlockNumber), zap.Error(err))
+						time.Sleep(sleepTimeOnError)
+						continue
+					}
+				}
+
+				if response.NextBlockNumber != nil {
+					backfillFromBlockNumber = *response.NextBlockNumber
+					backfillFromBlockHash = response.NextBlockHash
+				}
+
+				for _, log := range response.Logs {
+					cfg.eventChannel <- log
+				}
+			}
+		}
+
 		// From now on we are operating on the subscription, and we no longer check what the highest block is.
 		metrics.EmitIndexerCurrentBlockLag(cfg.Address.Hex(), 0)
 
@@ -281,7 +333,7 @@ func (r *RPCLogStreamer) watchContract(cfg *ContractConfig) {
 				}
 
 				logger.Warn("subscription error, rebuilding", zap.Error(err))
-				sub, err = r.buildSubscriptionWithBackoff(cfg, innerSubCh)
+				sub, subFromBlock, err = r.buildSubscriptionWithBackoff(cfg, innerSubCh)
 				if err != nil {
 					logger.Fatal("failed rebuilding subscription after max disconnect time", zap.Error(err), zap.String("max_disconnect_time", cfg.MaxDisconnectTime.String()))
 				}
@@ -435,12 +487,12 @@ func (r *RPCLogStreamer) GetNextPage(
 func (r *RPCLogStreamer) buildSubscription(
 	cfg *ContractConfig,
 	innerSubCh chan types.Log,
-) (sub ethereum.Subscription, err error) {
+) (sub ethereum.Subscription, fromBlock uint64, err error) {
 	query := buildBaseFilterQuery(*cfg)
 
 	highestBlock, err := r.wsClient.BlockNumber(r.ctx)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	// In most implementations, FromBlock is ignored by the RPC nodes when subscribing to logs.
@@ -455,10 +507,10 @@ func (r *RPCLogStreamer) buildSubscription(
 		innerSubCh,
 	)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return sub, nil
+	return sub, highestBlock, nil
 }
 
 // buildSubscriptionWithBackoff builds a subscription with backoff.
@@ -467,16 +519,21 @@ func (r *RPCLogStreamer) buildSubscription(
 func (r *RPCLogStreamer) buildSubscriptionWithBackoff(
 	cfg *ContractConfig,
 	innerSubCh chan types.Log,
-) (sub ethereum.Subscription, err error) {
-	rebuildOperation := func() (ethereum.Subscription, error) {
-		sub, err = r.buildSubscription(cfg, innerSubCh)
-		return sub, err
+) (sub ethereum.Subscription, fromBlock uint64, err error) {
+	type subResult struct {
+		sub       ethereum.Subscription
+		fromBlock uint64
+	}
+
+	rebuildOperation := func() (subResult, error) {
+		sub, fromBlock, err := r.buildSubscription(cfg, innerSubCh)
+		return subResult{sub: sub, fromBlock: fromBlock}, err
 	}
 
 	expBackoff := backoff.NewExponentialBackOff()
 	expBackoff.InitialInterval = 1 * time.Second
 
-	sub, err = backoff.Retry(
+	result, err := backoff.Retry(
 		r.ctx,
 		rebuildOperation,
 		backoff.WithBackOff(expBackoff),
@@ -488,12 +545,12 @@ func (r *RPCLogStreamer) buildSubscriptionWithBackoff(
 			"failed to rebuild subscription, closing",
 			zap.Error(err),
 		)
-		return nil, err
+		return nil, 0, err
 	}
 
 	r.logger.Info("subscription rebuilt")
 
-	return sub, nil
+	return result.sub, result.fromBlock, nil
 }
 
 func (r *RPCLogStreamer) validateWatcher(cfg *ContractConfig) error {
@@ -508,7 +565,7 @@ func (r *RPCLogStreamer) validateWatcher(cfg *ContractConfig) error {
 	testCh := make(chan types.Log, 100)
 	defer close(testCh)
 
-	sub, err := r.buildSubscription(cfg, testCh)
+	sub, _, err := r.buildSubscription(cfg, testCh)
 	if err != nil {
 		return fmt.Errorf("failed to validate watcher %s: %w", cfg.Address.Hex(), err)
 	}

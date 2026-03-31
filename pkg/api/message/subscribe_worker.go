@@ -3,6 +3,7 @@ package message
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
 	"go.uber.org/zap"
@@ -68,6 +69,10 @@ func (s *subscribeWorker) getOriginatorNodeIds() ([]uint32, error) {
 				"skipping non-canonical node",
 				utils.OriginatorIDField(node.NodeID),
 			)
+			continue
+		}
+
+		if slices.Contains(nodeIDs, node.NodeID) {
 			continue
 		}
 
@@ -176,14 +181,12 @@ func (s *subscribeWorker) monitorNodeChanges() {
 			return
 
 		case nodes, ok := <-newNodes:
-
 			if !ok {
 				s.logger.Info("registry notifier for new nodes closed")
 				return
 			}
 
 			for _, node := range nodes {
-
 				if !node.IsCanonical {
 					s.logger.Debug(
 						"skipping non-canonical node",

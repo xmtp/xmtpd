@@ -288,22 +288,26 @@ func connectToDB(
 		return nil, fmt.Errorf("%s: %w", parseDSNErrorMessage, err)
 	}
 
+	// When no explicit namespace is given, use the database name from the DSN.
+	effectiveNamespace := namespace
+	if effectiveNamespace == "" {
+		effectiveNamespace = poolcfg.ConnConfig.Database
+	}
+
 	if cfg.createNamespace {
-		err := createNamespace(ctx, poolcfg, namespace, cfg.pingTimeout)
+		err := createNamespace(ctx, poolcfg, effectiveNamespace, cfg.pingTimeout)
 		if err != nil {
-			return nil, fmt.Errorf("could not create namespace (name: %v): %w", namespace, err)
+			return nil, fmt.Errorf(
+				"could not create namespace (name: %v): %w",
+				effectiveNamespace,
+				err,
+			)
 		}
 	}
 
-	if namespace != "" {
-		poolcfg.ConnConfig.Database = namespace
-	}
+	poolcfg.ConnConfig.Database = effectiveNamespace
 
-	// Determine service name for APM spans
-	serviceName := "xmtpd-db"
-	if namespace != "" {
-		serviceName = "xmtpd-db-" + namespace
-	}
+	serviceName := "xmtpd-db-" + effectiveNamespace
 
 	// Default role to "writer" if not specified
 	role := cfg.role
@@ -336,7 +340,7 @@ func connectToDB(
 		return nil, err
 	}
 
-	logger.Info(connectSuccessMessage, zap.String("namespace", namespace))
+	logger.Info(connectSuccessMessage, zap.String("namespace", effectiveNamespace))
 
 	if cfg.prometheusRegistry != nil {
 		mp, err := bindOTelToProm(cfg.prometheusRegistry)

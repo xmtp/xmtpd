@@ -57,12 +57,6 @@ func main() {
 	ctx := context.Background()
 
 	namespace := options.DB.NameOverride
-	if namespace == "" {
-		namespace = utils.BuildNamespace(
-			options.Signer.PrivateKey,
-			options.Contracts.SettlementChain.NodeRegistryAddress,
-		)
-	}
 
 	dbInstance, err := db.ConnectToDB(ctx, logger,
 		options.DB.WriterConnectionString,

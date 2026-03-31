@@ -22,7 +22,7 @@ FROM gateway_envelopes_meta ge
                    ON ge.originator_node_id = mp.originator_node_id
 WHERE ge.expiry IS NOT NULL
   AND ge.expiry < EXTRACT(EPOCH FROM now())::bigint
-  AND ge.originator_sequence_id <= COALESCE(mp.max_end_sequence_id, 0)
+  AND ge.originator_sequence_id < COALESCE(mp.max_end_sequence_id, 0)
 `
 
 func (q *Queries) CountExpiredEnvelopes(ctx context.Context) (int64, error) {

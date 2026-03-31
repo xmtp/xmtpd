@@ -597,6 +597,33 @@ func TestExecutor_DryRun_NoMigratedPrune(t *testing.T) {
 	)
 }
 
+func TestExecutor_PreservesBoundaryEnvelope(t *testing.T) {
+	ctx := context.Background()
+	dbs := testutils.NewDBs(t, ctx, 1)
+	db := dbs[0]
+
+	// Create 10 expired envelopes (sequence IDs 1..10) with NO valid envelopes.
+	// Set the payer report end_sequence_id to 10 — the boundary envelope.
+	setupTestData(t, ctx, db, DefaultOriginatorID, DefaultExpiredCnt, 0, 0)
+	createPrunableReport(t, ctx, db, DefaultOriginatorID, DefaultExpiredCnt)
+
+	exec := makeTestExecutor(t, ctx, db, &config.PruneConfig{
+		DryRun:    false,
+		MaxCycles: 5,
+	})
+
+	err := exec.Run()
+	require.NoError(t, err)
+
+	remainingIDs := getRemainingSequenceIds(t, ctx, db)
+	assert.Equal(
+		t,
+		[]int64{int64(DefaultExpiredCnt)},
+		remainingIDs,
+		"Only the boundary envelope (at end_sequence_id) should survive pruning",
+	)
+}
+
 func TestExecutor_PrunesExpiredMetaAndBlobs(t *testing.T) {
 	ctx := context.Background()
 	dbs := testutils.NewDBs(t, ctx, 1)

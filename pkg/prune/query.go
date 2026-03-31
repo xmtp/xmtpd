@@ -16,7 +16,7 @@ WITH to_delete AS (
   SELECT ctid
   FROM %s
   WHERE expiry < EXTRACT(EPOCH FROM now())::bigint
-    AND originator_sequence_id <= %d
+    AND originator_sequence_id < %d
   ORDER BY expiry
   LIMIT %d
   FOR UPDATE SKIP LOCKED

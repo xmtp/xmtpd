@@ -48,9 +48,15 @@ func (s *Service) SubscribeOriginators(
 		)
 	}
 
-	query := &message_api.EnvelopesQuery{
-		OriginatorNodeIds: filter.GetOriginatorNodeIds(),
-		LastSeen:          filter.GetLastSeen(),
+	mode := catchUpNone
+	if filter.GetLastSeen() != nil {
+		mode = catchUpFromCursor
+	}
+
+	query := &subscribeFilter{
+		originatorNodeIDs: filter.GetOriginatorNodeIds(),
+		catchUpMode:       mode,
+		cursor:            cursorFromProto(filter.GetLastSeen()),
 	}
 
 	if err := s.validateQuery(query, false); err != nil {
@@ -71,7 +77,7 @@ func (s *Service) SubscribeOriginators(
 	ch := s.subscribeWorker.listen(ctx, query)
 
 	sendFn := func(envs []*envelopes.OriginatorEnvelope) error {
-		return s.sendOriginatorEnvelopes(stream, query, envs)
+		return s.sendOriginatorsResponse(stream, query.cursor, envs)
 	}
 
 	if err := s.catchUpWithSendFn(ctx, query, logger, sendFn); err != nil {
@@ -99,7 +105,7 @@ func (s *Service) SubscribeOriginators(
 				return nil
 			}
 
-			if err := sendFn(envs); err != nil {
+			if err := s.sendOriginatorsResponse(stream, query.cursor, envs); err != nil {
 				return connect.NewError(
 					connect.CodeInternal,
 					fmt.Errorf("error sending envelope: %w", err),
@@ -117,13 +123,13 @@ func (s *Service) SubscribeOriginators(
 	}
 }
 
-func (s *Service) sendOriginatorEnvelopes(
+func (s *Service) sendOriginatorsResponse(
 	stream *connect.ServerStream[message_api.SubscribeOriginatorsResponse],
-	query *message_api.EnvelopesQuery,
+	cursor map[uint32]uint64,
 	envs []*envelopes.OriginatorEnvelope,
 ) error {
 	return batchAndSendEnvelopes(
-		query,
+		cursor,
 		envs,
 		func(batch []*envelopesProto.OriginatorEnvelope) error {
 			if err := stream.Send(&message_api.SubscribeOriginatorsResponse{

@@ -9,31 +9,46 @@ import (
 	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 )
 
+type catchUpMode int
+
+const (
+	catchUpNone       catchUpMode = iota // stream new envelopes only
+	catchUpFromStart                     // catch up from the very beginning
+	catchUpFromCursor                    // catch up from specified cursor position
+)
+
+// subscribeFilter is the internal representation of a subscription filter,
+// decoupled from the deprecated message_api.EnvelopesQuery proto.
+type subscribeFilter struct {
+	topics            [][]byte
+	originatorNodeIDs []uint32
+	catchUpMode       catchUpMode
+	cursor            map[uint32]uint64 // always initialized; starting position + progress tracker
+}
+
+func cursorFromProto(c *envelopesProto.Cursor) map[uint32]uint64 {
+	if c == nil || c.GetNodeIdToSequenceId() == nil {
+		return make(map[uint32]uint64)
+	}
+	return c.GetNodeIdToSequenceId()
+}
+
 // batchAndSendEnvelopes handles cursor-based deduplication, batching by gRPC
 // payload size, and sending via the provided flushFn callback. It advances the
-// query's LastSeen cursor as envelopes are processed.
+// cursor as envelopes are processed.
 //
 // This is the shared core used by both sendEnvelopes (SubscribeEnvelopes) and
-// sendOriginatorEnvelopes (SubscribeOriginators).
+// sendOriginatorsResponse (SubscribeOriginators).
 func batchAndSendEnvelopes(
-	query *message_api.EnvelopesQuery,
+	cursor map[uint32]uint64,
 	envs []*envelopes.OriginatorEnvelope,
 	flushFn func(batch []*envelopesProto.OriginatorEnvelope) error,
 ) error {
-	cursor := query.GetLastSeen().GetNodeIdToSequenceId()
-	if cursor == nil {
-		cursor = make(map[uint32]uint64)
-		query.LastSeen = &envelopesProto.Cursor{
-			NodeIdToSequenceId: cursor,
-		}
-	}
-
 	var (
 		batch          = make([]*envelopesProto.OriginatorEnvelope, 0, len(envs))
 		batchWireBytes = 0
@@ -88,23 +103,20 @@ func batchAndSendEnvelopes(
 // (SubscribeOriginators).
 func (s *Service) catchUpWithSendFn(
 	ctx context.Context,
-	query *message_api.EnvelopesQuery,
+	query *subscribeFilter,
 	logger *zap.Logger,
 	sendFn func(envs []*envelopes.OriginatorEnvelope) error,
 ) error {
-	if query.GetLastSeen() == nil {
+	switch query.catchUpMode {
+	case catchUpNone:
 		logger.Debug("skipping catch up")
 		return nil
-	}
-
-	cursor := query.GetLastSeen().GetNodeIdToSequenceId()
-	if cursor == nil {
-		cursor = make(map[uint32]uint64)
-		query.LastSeen.NodeIdToSequenceId = cursor
+	case catchUpFromStart, catchUpFromCursor:
+		// fall through to perform catch-up
 	}
 
 	if s.logger.Core().Enabled(zap.DebugLevel) {
-		logger.Debug("catching up from cursor", utils.BodyField(cursor))
+		logger.Debug("catching up from cursor", utils.BodyField(query.cursor))
 	}
 
 	for {

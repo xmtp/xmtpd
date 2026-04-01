@@ -102,14 +102,6 @@ func (v *OptionsValidator) ValidatePruneOptions(options PruneOptions) error {
 		missingSet["--DB.WriterConnectionString"] = struct{}{}
 	}
 
-	if options.Contracts.SettlementChain.NodeRegistryAddress == "" {
-		missingSet["--contracts.settlement-chain.node-registry-address"] = struct{}{}
-	}
-
-	if options.Signer.PrivateKey == "" {
-		missingSet["--signer.private-key"] = struct{}{}
-	}
-
 	if len(missingSet) > 0 {
 		var errorMessages []string
 		for err := range missingSet {
@@ -144,11 +136,6 @@ func (v *OptionsValidator) validateMigrationOptions(
 		v.validateField(
 			opts.MigrationServer.NodeSigningKey,
 			"migration-server.node-signing-key",
-			missingSet,
-		)
-		v.validateField(
-			opts.Signer.PrivateKey,
-			"signer.private-key",
 			missingSet,
 		)
 		v.validateField(

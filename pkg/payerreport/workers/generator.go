@@ -185,7 +185,7 @@ func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
 	// report is past the minimum generation threshold.
 	// Otherwise, wait until on going report resolution is complete.
 	if lastSubmittedReport != nil && !w.isPastGenerationThreshold(lastSubmittedReport) {
-		w.logger.Debug(
+		w.logger.Info(
 			"skipping report generation for node because the last submitted report is within the generation interval",
 			utils.OriginatorIDField(nodeID),
 		)
@@ -248,7 +248,7 @@ func (w *GeneratorWorker) maybeGenerateReport(nodeID uint32) error {
 	}
 
 	if len(validReports) > 0 {
-		w.logger.Debug(
+		w.logger.Info(
 			"skipping report generation for node because there are existing valid reports pending",
 			utils.OriginatorIDField(nodeID),
 			utils.LastSequenceIDField(int64(existingReportEndSequenceID)),

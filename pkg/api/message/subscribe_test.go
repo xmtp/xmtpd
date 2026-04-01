@@ -21,7 +21,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
-	message_apiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	testUtilsApi "github.com/xmtp/xmtpd/pkg/testutils/api"
@@ -37,9 +36,7 @@ var (
 	allRows = make([]queries.InsertGatewayEnvelopeParams, 0)
 )
 
-func setupTest(
-	t *testing.T,
-) (message_apiconnect.ReplicationApiClient, *sql.DB, testUtilsApi.APIServerMocks) {
+func setupTest(t *testing.T) *testUtilsApi.APIServerTestSuite {
 	var (
 		nodes = []registry.Node{
 			{NodeID: 100, IsCanonical: true},
@@ -104,14 +101,19 @@ func setupTest(
 		},
 	}
 
-	return suite.ClientReplication, suite.DB, suite.APIServerMocks
+	return suite
 }
 
-func insertInitialRows(t *testing.T, store *sql.DB) {
-	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
+func insertInitialRows(t *testing.T, suite *testUtilsApi.APIServerTestSuite) {
+	t.Helper()
+	testutils.InsertGatewayEnvelopes(t, suite.DB, []queries.InsertGatewayEnvelopeParams{
 		allRows[0], allRows[1],
 	})
-	time.Sleep(message.SubscribeWorkerPollTime + 100*time.Millisecond)
+	// Wait until the subscribe worker has polled past the inserted rows so that
+	// a subsequent subscription with LastSeen=nil won't see them.
+	ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
+	defer cancel()
+	require.NoError(t, suite.MessageService.AwaitCursor(ctx, db.VectorClock{100: 1, 200: 1}))
 }
 
 func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) {
@@ -203,11 +205,11 @@ func validateUpdates(
 }
 
 func TestSubscribeEnvelopesByTopic(t *testing.T) {
-	client, store, _ := setupTest(t)
-	insertInitialRows(t, store)
+	suite := setupTest(t)
+	insertInitialRows(t, suite)
 
 	ctx := t.Context()
-	stream, err := client.SubscribeEnvelopes(
+	stream, err := suite.ClientReplication.SubscribeEnvelopes(
 		ctx,
 		connect.NewRequest(&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
@@ -218,16 +220,16 @@ func TestSubscribeEnvelopesByTopic(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	insertAdditionalRows(t, store)
+	insertAdditionalRows(t, suite.DB)
 	validateUpdates(t, stream, []int{4})
 }
 
 func TestSubscribeEnvelopesByOriginator(t *testing.T) {
-	client, db, _ := setupTest(t)
-	insertInitialRows(t, db)
+	suite := setupTest(t)
+	insertInitialRows(t, suite)
 
 	ctx := t.Context()
-	stream, err := client.SubscribeEnvelopes(
+	stream, err := suite.ClientReplication.SubscribeEnvelopes(
 		ctx,
 		connect.NewRequest(&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
@@ -238,16 +240,16 @@ func TestSubscribeEnvelopesByOriginator(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	insertAdditionalRows(t, db)
+	insertAdditionalRows(t, suite.DB)
 	validateUpdates(t, stream, []int{2, 4})
 }
 
 func TestSimultaneousSubscriptions(t *testing.T) {
-	client, store, _ := setupTest(t)
-	insertInitialRows(t, store)
+	suite := setupTest(t)
+	insertInitialRows(t, suite)
 
 	ctx := t.Context()
-	stream1, err := client.SubscribeEnvelopes(
+	stream1, err := suite.ClientReplication.SubscribeEnvelopes(
 		ctx,
 		connect.NewRequest(&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{},
@@ -255,7 +257,7 @@ func TestSimultaneousSubscriptions(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	stream2, err := client.SubscribeEnvelopes(
+	stream2, err := suite.ClientReplication.SubscribeEnvelopes(
 		ctx,
 		connect.NewRequest(&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
@@ -266,7 +268,7 @@ func TestSimultaneousSubscriptions(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	stream3, err := client.SubscribeEnvelopes(
+	stream3, err := suite.ClientReplication.SubscribeEnvelopes(
 		ctx,
 		connect.NewRequest(&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
@@ -277,18 +279,18 @@ func TestSimultaneousSubscriptions(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	insertAdditionalRows(t, store)
+	insertAdditionalRows(t, suite.DB)
 	validateUpdates(t, stream1, []int{})
 	validateUpdates(t, stream2, []int{2, 3})
 	validateUpdates(t, stream3, []int{3})
 }
 
 func TestSubscribeEnvelopesFromCursor(t *testing.T) {
-	client, store, _ := setupTest(t)
-	insertInitialRows(t, store)
+	suite := setupTest(t)
+	insertInitialRows(t, suite)
 
 	ctx := t.Context()
-	stream, err := client.SubscribeEnvelopes(
+	stream, err := suite.ClientReplication.SubscribeEnvelopes(
 		ctx,
 		connect.NewRequest(&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
@@ -299,16 +301,16 @@ func TestSubscribeEnvelopesFromCursor(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	insertAdditionalRows(t, store)
+	insertAdditionalRows(t, suite.DB)
 	validateUpdates(t, stream, []int{1, 4})
 }
 
 func TestSubscribeEnvelopesFromEmptyCursor(t *testing.T) {
-	client, store, _ := setupTest(t)
-	insertInitialRows(t, store)
+	suite := setupTest(t)
+	insertInitialRows(t, suite)
 
 	ctx := t.Context()
-	stream, err := client.SubscribeEnvelopes(
+	stream, err := suite.ClientReplication.SubscribeEnvelopes(
 		ctx,
 		connect.NewRequest(&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
@@ -319,15 +321,15 @@ func TestSubscribeEnvelopesFromEmptyCursor(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	insertAdditionalRows(t, store)
+	insertAdditionalRows(t, suite.DB)
 	validateUpdates(t, stream, []int{0, 1, 4})
 }
 
 func TestSubscribeEnvelopesInvalidRequest(t *testing.T) {
 	var (
-		client, _, _ = setupTest(t)
-		ctx          = t.Context()
-		tests        = []struct {
+		suite = setupTest(t)
+		ctx   = t.Context()
+		tests = []struct {
 			name  string
 			query *message_api.EnvelopesQuery
 		}{
@@ -352,7 +354,7 @@ func TestSubscribeEnvelopesInvalidRequest(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stream, err := client.SubscribeEnvelopes(
+			stream, err := suite.ClientReplication.SubscribeEnvelopes(
 				ctx,
 				connect.NewRequest(&message_api.SubscribeEnvelopesRequest{
 					Query: test.query,

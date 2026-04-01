@@ -711,7 +711,7 @@ func TestSubscribeAll(t *testing.T) {
 
 	// Start a subscriber stream.
 	req := &message_api.SubscribeAllEnvelopesRequest{}
-	stream, err := server.ClientReplication.SubscribeAllEnvelopes(ctx, connect.NewRequest(req))
+	stream, err := server.ClientNotification.SubscribeAllEnvelopes(ctx, connect.NewRequest(req))
 	require.NoError(t, err)
 
 	var (
@@ -746,6 +746,128 @@ func TestSubscribeAll(t *testing.T) {
 	streamWG.Wait()
 
 	require.Equal(t, total, received)
+}
+
+func readOriginatorsStream(
+	t *testing.T,
+	stream *connect.ServerStreamForClient[message_api.SubscribeOriginatorsResponse],
+	n int,
+) []*envelopes.OriginatorEnvelope {
+	t.Helper()
+	var received []*envelopes.OriginatorEnvelope
+	for len(received) < n {
+		if !stream.Receive() {
+			break
+		}
+		received = append(received, stream.Msg().GetEnvelopes().GetEnvelopes()...)
+	}
+	require.NoError(t, stream.Err())
+	return received
+}
+
+func TestSubscribeOriginators(t *testing.T) {
+	suite := setupTest(t)
+	insertInitialRows(t, suite)
+
+	ctx := t.Context()
+	stream, err := suite.ClientReplication.SubscribeOriginators(
+		ctx,
+		connect.NewRequest(&message_api.SubscribeOriginatorsRequest{
+			Filter: &message_api.SubscribeOriginatorsRequest_OriginatorFilter{
+				OriginatorNodeIds: []uint32{100},
+				LastSeen:          nil,
+			},
+		}),
+	)
+	require.NoError(t, err)
+
+	// Expect initial keepalive.
+	ok := stream.Receive()
+	require.True(t, ok, "expected initial keepalive")
+	require.Empty(t, stream.Msg().GetEnvelopes().GetEnvelopes())
+
+	insertAdditionalRows(t, suite.DB)
+
+	received := readOriginatorsStream(t, stream, 2)
+	require.Len(t, received, 2)
+	for _, env := range received {
+		decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
+			t,
+			env.GetUnsignedOriginatorEnvelope(),
+		)
+		require.EqualValues(t, 100, decoded.GetOriginatorNodeId())
+	}
+}
+
+func TestSubscribeOriginators_NilFilter(t *testing.T) {
+	suite := setupTest(t)
+	ctx := t.Context()
+
+	stream, err := suite.ClientReplication.SubscribeOriginators(
+		ctx,
+		connect.NewRequest(&message_api.SubscribeOriginatorsRequest{
+			Filter: nil,
+		}),
+	)
+	require.NoError(t, err)
+
+	_ = stream.Receive()
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(stream.Err()))
+}
+
+func TestSubscribeOriginators_EmptyOriginatorIds(t *testing.T) {
+	suite := setupTest(t)
+	ctx := t.Context()
+
+	stream, err := suite.ClientReplication.SubscribeOriginators(
+		ctx,
+		connect.NewRequest(&message_api.SubscribeOriginatorsRequest{
+			Filter: &message_api.SubscribeOriginatorsRequest_OriginatorFilter{
+				OriginatorNodeIds: []uint32{},
+			},
+		}),
+	)
+	require.NoError(t, err)
+
+	_ = stream.Receive()
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(stream.Err()))
+}
+
+func TestSubscribeOriginators_FromCursor(t *testing.T) {
+	suite := setupTest(t)
+	insertInitialRows(t, suite)
+
+	ctx := t.Context()
+	stream, err := suite.ClientReplication.SubscribeOriginators(
+		ctx,
+		connect.NewRequest(&message_api.SubscribeOriginatorsRequest{
+			Filter: &message_api.SubscribeOriginatorsRequest_OriginatorFilter{
+				OriginatorNodeIds: []uint32{100},
+				LastSeen: &envelopes.Cursor{
+					NodeIdToSequenceId: map[uint32]uint64{100: 1},
+				},
+			},
+		}),
+	)
+	require.NoError(t, err)
+
+	// Expect initial keepalive.
+	ok := stream.Receive()
+	require.True(t, ok, "expected initial keepalive")
+
+	insertAdditionalRows(t, suite.DB)
+
+	// allRows[2] = originator 100 seq 2, allRows[4] = originator 100 seq 3 (both past cursor 1).
+	received := readOriginatorsStream(t, stream, 2)
+	require.Len(t, received, 2)
+	for _, env := range received {
+		decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
+			t,
+			env.GetUnsignedOriginatorEnvelope(),
+		)
+		require.EqualValues(t, 100, decoded.GetOriginatorNodeId())
+		require.Greater(t, decoded.GetOriginatorSequenceId(), uint64(1))
+	}
 }
 
 func TestSubscribeAll_StreamsOnlyNewMessages(t *testing.T) {
@@ -795,7 +917,7 @@ func TestSubscribeAll_StreamsOnlyNewMessages(t *testing.T) {
 
 	// Start a subscriber stream.
 	req := &message_api.SubscribeAllEnvelopesRequest{}
-	stream, err := server.ClientReplication.SubscribeAllEnvelopes(ctx, connect.NewRequest(req))
+	stream, err := server.ClientNotification.SubscribeAllEnvelopes(ctx, connect.NewRequest(req))
 	require.NoError(t, err)
 
 	var (

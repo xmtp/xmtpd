@@ -63,6 +63,26 @@ func NewTestGRPCReplicationAPIClient(
 	return client
 }
 
+func NewTestGRPCNotificationAPIClient(
+	t *testing.T,
+	addr string,
+	extraDialOpts ...connect.ClientOption,
+) message_apiconnect.NotificationApiClient {
+	_, port, err := net.SplitHostPort(addr)
+	require.NoError(t, err)
+
+	client, err := utils.NewConnectGRPCNotificationAPIClient(
+		t.Context(),
+		"http://localhost:"+port,
+		extraDialOpts...,
+	)
+	if err != nil {
+		t.Fatalf("failed to create notification API client: %v", err)
+	}
+
+	return client
+}
+
 func NewTestGRPCGatewayAPIClient(
 	t *testing.T,
 	addr string,
@@ -114,13 +134,14 @@ type APIServerMocks struct {
 }
 
 type APIServerTestSuite struct {
-	APIServer         *api.APIServer
-	ClientReplication message_apiconnect.ReplicationApiClient
-	ClientPayer       payer_apiconnect.PayerApiClient
-	ClientMetadata    metadata_apiconnect.MetadataApiClient
-	DB                *sql.DB
-	APIServerMocks    APIServerMocks
-	MessageService    *message.Service
+	APIServer          *api.APIServer
+	ClientReplication  message_apiconnect.ReplicationApiClient
+	ClientNotification message_apiconnect.NotificationApiClient
+	ClientPayer        payer_apiconnect.PayerApiClient
+	ClientMetadata     metadata_apiconnect.MetadataApiClient
+	DB                 *sql.DB
+	APIServerMocks     APIServerMocks
+	MessageService     *message.Service
 }
 
 // APIServerTestConfig allows explicitly setting some components used for tests.
@@ -268,12 +289,19 @@ func NewTestAPIServer(
 			connect.WithInterceptors(interceptors...),
 		)
 
+		notificationPath, notificationHandler := message_apiconnect.NewNotificationApiHandler(
+			replicationService,
+			connect.WithInterceptors(interceptors...),
+		)
+
 		mux.Handle(replicationPath, replicationHandler)
+		mux.Handle(notificationPath, notificationHandler)
 		mux.Handle(payerPath, payerHandler)
 		mux.Handle(metadataPath, metadataHandler)
 
 		return []string{
 			message_apiconnect.ReplicationApiName,
+			message_apiconnect.NotificationApiName,
 			payer_apiconnect.PayerApiName,
 			metadata_apiconnect.MetadataApiName,
 		}, nil
@@ -307,16 +335,18 @@ func NewTestAPIServer(
 	})
 
 	clientReplication := NewTestGRPCReplicationAPIClient(t, svr.Addr())
+	clientNotification := NewTestGRPCNotificationAPIClient(t, svr.Addr())
 	clientPayer := NewTestGRPCGatewayAPIClient(t, svr.Addr())
 	clientMetadata := NewTestGRPCMetadataAPIClient(t, svr.Addr())
 
 	return &APIServerTestSuite{
-		APIServer:         svr,
-		APIServerMocks:    allMocks,
-		ClientReplication: clientReplication,
-		ClientPayer:       clientPayer,
-		ClientMetadata:    clientMetadata,
-		DB:                db.DB(),
-		MessageService:    replicationService,
+		APIServer:          svr,
+		APIServerMocks:     allMocks,
+		ClientReplication:  clientReplication,
+		ClientNotification: clientNotification,
+		ClientPayer:        clientPayer,
+		ClientMetadata:     clientMetadata,
+		DB:                 db.DB(),
+		MessageService:     replicationService,
 	}
 }

@@ -65,10 +65,12 @@ type Service struct {
 	ledger            ledger.ILedger
 }
 
-var _ message_apiconnect.ReplicationApiHandler  = (*Service)(nil)
-var _ message_apiconnect.QueryApiHandler        = (*Service)(nil)
-var _ message_apiconnect.PublishApiHandler      = (*Service)(nil)
-var _ message_apiconnect.NotificationApiHandler = (*Service)(nil)
+var (
+	_ message_apiconnect.ReplicationApiHandler  = (*Service)(nil)
+	_ message_apiconnect.QueryApiHandler        = (*Service)(nil)
+	_ message_apiconnect.PublishApiHandler      = (*Service)(nil)
+	_ message_apiconnect.NotificationApiHandler = (*Service)(nil)
+)
 
 func NewReplicationAPIService(
 	ctx context.Context,

@@ -155,6 +155,27 @@ func NewConnectMetadataAPIClient(
 
 /* Native gRPC clients */
 
+// NewConnectGRPCNotificationAPIClient builds a Connect-based client for the NotificationApi configured to speak classic gRPC.
+func NewConnectGRPCNotificationAPIClient(
+	ctx context.Context,
+	httpAddress string,
+	extraDialOpts ...connect.ClientOption,
+) (message_apiconnect.NotificationApiClient, error) {
+	target, isTLS, err := HTTPAddressToConnectProtocolTarget(httpAddress)
+	if err != nil {
+		return nil, fmt.Errorf("invalid http address: %w", err)
+	}
+
+	httpClient, err := BuildHTTP2Client(ctx, isTLS)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build http client: %w", err)
+	}
+
+	opts := BuildGRPCDialOptions(extraDialOpts...)
+
+	return message_apiconnect.NewNotificationApiClient(httpClient, target, opts...), nil
+}
+
 // NewGRPCConn builds a native grpc-go client for the given HTTP address.
 //   - Uses the standard grpc-go library (not connect-go).
 //   - Requires a schemeful base URL (http:// or https://).

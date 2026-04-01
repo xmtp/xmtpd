@@ -83,6 +83,46 @@ func NewTestGRPCNotificationAPIClient(
 	return client
 }
 
+func NewTestGRPCQueryAPIClient(
+	t *testing.T,
+	addr string,
+	extraDialOpts ...connect.ClientOption,
+) message_apiconnect.QueryApiClient {
+	_, port, err := net.SplitHostPort(addr)
+	require.NoError(t, err)
+
+	client, err := utils.NewConnectGRPCQueryAPIClient(
+		t.Context(),
+		"http://localhost:"+port,
+		extraDialOpts...,
+	)
+	if err != nil {
+		t.Fatalf("failed to create query API client: %v", err)
+	}
+
+	return client
+}
+
+func NewTestGRPCPublishAPIClient(
+	t *testing.T,
+	addr string,
+	extraDialOpts ...connect.ClientOption,
+) message_apiconnect.PublishApiClient {
+	_, port, err := net.SplitHostPort(addr)
+	require.NoError(t, err)
+
+	client, err := utils.NewConnectGRPCPublishAPIClient(
+		t.Context(),
+		"http://localhost:"+port,
+		extraDialOpts...,
+	)
+	if err != nil {
+		t.Fatalf("failed to create publish API client: %v", err)
+	}
+
+	return client
+}
+
 func NewTestGRPCGatewayAPIClient(
 	t *testing.T,
 	addr string,
@@ -137,6 +177,8 @@ type APIServerTestSuite struct {
 	APIServer          *api.APIServer
 	ClientReplication  message_apiconnect.ReplicationApiClient
 	ClientNotification message_apiconnect.NotificationApiClient
+	ClientQuery        message_apiconnect.QueryApiClient
+	ClientPublish      message_apiconnect.PublishApiClient
 	ClientPayer        payer_apiconnect.PayerApiClient
 	ClientMetadata     metadata_apiconnect.MetadataApiClient
 	DB                 *sql.DB
@@ -294,14 +336,27 @@ func NewTestAPIServer(
 			connect.WithInterceptors(interceptors...),
 		)
 
+		queryPath, queryHandler := message_apiconnect.NewQueryApiHandler(
+			replicationService,
+			connect.WithInterceptors(interceptors...),
+		)
+		publishPath, publishHandler := message_apiconnect.NewPublishApiHandler(
+			replicationService,
+			connect.WithInterceptors(interceptors...),
+		)
+
 		mux.Handle(replicationPath, replicationHandler)
 		mux.Handle(notificationPath, notificationHandler)
+		mux.Handle(queryPath, queryHandler)
+		mux.Handle(publishPath, publishHandler)
 		mux.Handle(payerPath, payerHandler)
 		mux.Handle(metadataPath, metadataHandler)
 
 		return []string{
 			message_apiconnect.ReplicationApiName,
 			message_apiconnect.NotificationApiName,
+			message_apiconnect.QueryApiName,
+			message_apiconnect.PublishApiName,
 			payer_apiconnect.PayerApiName,
 			metadata_apiconnect.MetadataApiName,
 		}, nil
@@ -336,6 +391,8 @@ func NewTestAPIServer(
 
 	clientReplication := NewTestGRPCReplicationAPIClient(t, svr.Addr())
 	clientNotification := NewTestGRPCNotificationAPIClient(t, svr.Addr())
+	clientQuery := NewTestGRPCQueryAPIClient(t, svr.Addr())
+	clientPublish := NewTestGRPCPublishAPIClient(t, svr.Addr())
 	clientPayer := NewTestGRPCGatewayAPIClient(t, svr.Addr())
 	clientMetadata := NewTestGRPCMetadataAPIClient(t, svr.Addr())
 
@@ -344,6 +401,8 @@ func NewTestAPIServer(
 		APIServerMocks:     allMocks,
 		ClientReplication:  clientReplication,
 		ClientNotification: clientNotification,
+		ClientQuery:        clientQuery,
+		ClientPublish:      clientPublish,
 		ClientPayer:        clientPayer,
 		ClientMetadata:     clientMetadata,
 		DB:                 db.DB(),

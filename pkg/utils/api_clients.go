@@ -176,6 +176,48 @@ func NewConnectGRPCNotificationAPIClient(
 	return message_apiconnect.NewNotificationApiClient(httpClient, target, opts...), nil
 }
 
+// NewConnectGRPCQueryAPIClient builds a Connect-based client for the QueryApi configured to speak classic gRPC.
+func NewConnectGRPCQueryAPIClient(
+	ctx context.Context,
+	httpAddress string,
+	extraDialOpts ...connect.ClientOption,
+) (message_apiconnect.QueryApiClient, error) {
+	target, isTLS, err := HTTPAddressToConnectProtocolTarget(httpAddress)
+	if err != nil {
+		return nil, fmt.Errorf("invalid http address: %w", err)
+	}
+
+	httpClient, err := BuildHTTP2Client(ctx, isTLS)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build http client: %w", err)
+	}
+
+	opts := BuildGRPCDialOptions(extraDialOpts...)
+
+	return message_apiconnect.NewQueryApiClient(httpClient, target, opts...), nil
+}
+
+// NewConnectGRPCPublishAPIClient builds a Connect-based client for the PublishApi configured to speak classic gRPC.
+func NewConnectGRPCPublishAPIClient(
+	ctx context.Context,
+	httpAddress string,
+	extraDialOpts ...connect.ClientOption,
+) (message_apiconnect.PublishApiClient, error) {
+	target, isTLS, err := HTTPAddressToConnectProtocolTarget(httpAddress)
+	if err != nil {
+		return nil, fmt.Errorf("invalid http address: %w", err)
+	}
+
+	httpClient, err := BuildHTTP2Client(ctx, isTLS)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build http client: %w", err)
+	}
+
+	opts := BuildGRPCDialOptions(extraDialOpts...)
+
+	return message_apiconnect.NewPublishApiClient(httpClient, target, opts...), nil
+}
+
 // NewGRPCConn builds a native grpc-go client for the given HTTP address.
 //   - Uses the standard grpc-go library (not connect-go).
 //   - Requires a schemeful base URL (http:// or https://).

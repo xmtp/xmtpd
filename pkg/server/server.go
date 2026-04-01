@@ -532,6 +532,35 @@ func startAPIServer(
 
 		svc.logger.Info("replication api registered")
 
+		// Register query API.
+		queryPath, queryHandler := message_apiconnect.NewQueryApiHandler(
+			replicationService,
+			connect.WithReadMaxBytes(constants.GRPCPayloadLimit),
+			connect.WithSendMaxBytes(constants.GRPCPayloadLimit),
+			connect.WithInterceptors(interceptors...),
+		)
+		mux.Handle(queryPath, queryHandler)
+
+		// Register publish API.
+		publishPath, publishHandler := message_apiconnect.NewPublishApiHandler(
+			replicationService,
+			connect.WithReadMaxBytes(constants.GRPCPayloadLimit),
+			connect.WithSendMaxBytes(constants.GRPCPayloadLimit),
+			connect.WithInterceptors(interceptors...),
+		)
+		mux.Handle(publishPath, publishHandler)
+
+		// Register notification API.
+		notificationPath, notificationHandler := message_apiconnect.NewNotificationApiHandler(
+			replicationService,
+			connect.WithReadMaxBytes(constants.GRPCPayloadLimit),
+			connect.WithSendMaxBytes(constants.GRPCPayloadLimit),
+			connect.WithInterceptors(interceptors...),
+		)
+		mux.Handle(notificationPath, notificationHandler)
+
+		svc.logger.Info("new api services registered (query, publish, notification)")
+
 		// Register metadata API.
 		metadataService, err := metadata.NewMetadataAPIService(
 			svc.ctx,
@@ -563,6 +592,9 @@ func startAPIServer(
 		return []string{
 			metadata_apiconnect.MetadataApiName,
 			message_apiconnect.ReplicationApiName,
+			message_apiconnect.QueryApiName,
+			message_apiconnect.PublishApiName,
+			message_apiconnect.NotificationApiName,
 		}, nil
 	}
 

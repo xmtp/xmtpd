@@ -120,6 +120,7 @@ type APIServerTestSuite struct {
 	ClientMetadata    metadata_apiconnect.MetadataApiClient
 	DB                *sql.DB
 	APIServerMocks    APIServerMocks
+	MessageService    *message.Service
 }
 
 // APIServerTestConfig allows explicitly setting some components used for tests.
@@ -207,10 +208,11 @@ func NewTestAPIServer(
 
 	authInterceptor := server.NewServerAuthInterceptor(jwtVerifier, log)
 
+	var replicationService *message.Service
 	serviceRegistrationFunc := func(mux *http.ServeMux, interceptors ...connect.Interceptor) (servicePaths []string, err error) {
 		interceptors = append(interceptors, authInterceptor)
 
-		replicationService, err := message.NewReplicationAPIService(
+		replicationService, err = message.NewReplicationAPIService(
 			ctx,
 			log,
 			registrant,
@@ -315,5 +317,6 @@ func NewTestAPIServer(
 		ClientPayer:       clientPayer,
 		ClientMetadata:    clientMetadata,
 		DB:                db.DB(),
+		MessageService:    replicationService,
 	}
 }

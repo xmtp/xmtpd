@@ -13,11 +13,20 @@ import (
 )
 
 type subscriptionHandler struct {
-	mu         sync.Mutex
+	sync.Mutex
 	logger     *zap.Logger
 	store      *db.Handler
 	mergedSubs *funnel[[]queries.SelectGatewayEnvelopesBySingleOriginatorRow]
 	cursor     db.VectorClock
+	subs       map[uint32]*envelopePoller
+}
+
+type envelopePoller struct {
+	cancel context.CancelFunc
+	// TODO: Check - queries.GatewayEnvelopesView and queries.SelectGatewayEnvelopesByOriginatorsRow
+	// models are identical and they're overly verbose.
+	ch  <-chan []queries.SelectGatewayEnvelopesBySingleOriginatorRow
+	sub *db.DBSubscription[queries.SelectGatewayEnvelopesBySingleOriginatorRow, int64]
 }
 
 func newSubscriptionHandler(
@@ -30,6 +39,7 @@ func newSubscriptionHandler(
 		store:      store,
 		cursor:     cursor,
 		mergedSubs: newFunnel[[]queries.SelectGatewayEnvelopesBySingleOriginatorRow](),
+		subs:       make(map[uint32]*envelopePoller),
 	}
 }
 
@@ -99,10 +109,18 @@ func (s *subscriptionHandler) newSubscription(ctx context.Context, id uint32) (r
 		return fmt.Errorf("could not start subscription (id: %v): %w", id, err)
 	}
 
-	// Save the poller in the subscription handler.
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	// Per node/originator poller and cancellation.
+	e := &envelopePoller{
+		cancel: cancel,
+		ch:     ch,
+		sub:    sub,
+	}
 
+	// Save the poller in the subscription handler.
+	s.Lock()
+	defer s.Unlock()
+
+	s.subs[id] = e
 	s.mergedSubs.addChannel(ch)
 
 	return nil
@@ -110,7 +128,7 @@ func (s *subscriptionHandler) newSubscription(ctx context.Context, id uint32) (r
 
 // allSubscriptions returns a channel merging all individual subscription channels.
 func (s *subscriptionHandler) allSubscriptions() <-chan []queries.SelectGatewayEnvelopesBySingleOriginatorRow {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.Lock()
+	defer s.Unlock()
 	return s.mergedSubs.output()
 }

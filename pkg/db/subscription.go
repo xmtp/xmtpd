@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/xmtp/xmtpd/pkg/tracing"
@@ -30,10 +31,18 @@ type PollingOptions struct {
 type DBSubscription[ValueType any, CursorType any] struct {
 	ctx      context.Context
 	logger   *zap.Logger
+	mu       sync.RWMutex
 	lastSeen CursorType
 	options  PollingOptions
 	query    PollableDBQuery[ValueType, CursorType]
 	updates  chan<- []ValueType
+}
+
+// LastSeen returns the cursor position last successfully processed by the subscription.
+func (s *DBSubscription[ValueType, CursorType]) LastSeen() CursorType {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.lastSeen
 }
 
 func NewDBSubscription[ValueType any, CursorType any](
@@ -127,7 +136,9 @@ func (s *DBSubscription[ValueType, CursorType]) poll(trigger string) {
 		}
 
 		totalResults += len(results)
+		s.mu.Lock()
 		s.lastSeen = lastID
+		s.mu.Unlock()
 		s.updates <- results
 
 		// If we have less results than allowed, it means there's currently no more items to retrieve.

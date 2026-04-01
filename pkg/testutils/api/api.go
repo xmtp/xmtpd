@@ -124,7 +124,7 @@ func NewTestGRPCPublishAPIClient(
 	return client
 }
 
-func NewTestGRPCGatewayAPIClient(
+func NewTestGRPCPayerAPIClient(
 	t *testing.T,
 	addr string,
 	extraDialOpts ...connect.ClientOption,
@@ -144,7 +144,7 @@ func NewTestGRPCGatewayAPIClient(
 	return client
 }
 
-func NewTestGRPCGatewayApiServiceClient(
+func NewTestGRPCGatewayAPIClient(
 	t *testing.T,
 	addr string,
 	extraDialOpts ...connect.ClientOption,
@@ -422,8 +422,8 @@ func NewTestAPIServer(
 	clientNotification := NewTestGRPCNotificationAPIClient(t, svr.Addr())
 	clientQuery := NewTestGRPCQueryAPIClient(t, svr.Addr())
 	clientPublish := NewTestGRPCPublishAPIClient(t, svr.Addr())
-	clientPayer := NewTestGRPCGatewayAPIClient(t, svr.Addr())
-	clientGateway := NewTestGRPCGatewayApiServiceClient(t, svr.Addr())
+	clientPayer := NewTestGRPCPayerAPIClient(t, svr.Addr())
+	clientGateway := NewTestGRPCGatewayAPIClient(t, svr.Addr())
 	clientMetadata := NewTestGRPCMetadataAPIClient(t, svr.Addr())
 
 	return &APIServerTestSuite{

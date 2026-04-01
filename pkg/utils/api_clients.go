@@ -110,9 +110,7 @@ func NewConnectGRPCWebReplicationAPIClient(
 	return message_apiconnect.NewReplicationApiClient(httpClient, target, opts...), nil
 }
 
-// NewConnectGatewayAPIClient builds a Connect-based Gateway API client.
-// The consumer is responsible of passing any extra dial options, to make the
-// connection gRPC or gRPC-Web.
+// NewConnectGatewayAPIClient builds a Connect-based Gateway API client configured to speak classic gRPC.
 func NewConnectGatewayAPIClient(
 	ctx context.Context,
 	httpAddress string,
@@ -128,7 +126,7 @@ func NewConnectGatewayAPIClient(
 		return nil, fmt.Errorf("failed to build http client: %w", err)
 	}
 
-	opts := BuildConnectProtocolDialOptions(extraDialOpts...)
+	opts := BuildGRPCDialOptions(extraDialOpts...)
 
 	return payer_apiconnect.NewPayerApiClient(httpClient, target, opts...), nil
 }

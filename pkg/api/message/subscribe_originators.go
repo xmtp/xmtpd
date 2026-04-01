@@ -7,14 +7,12 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 )
 
 func (s *Service) SubscribeOriginators(
@@ -72,7 +70,11 @@ func (s *Service) SubscribeOriginators(
 
 	ch := s.subscribeWorker.listen(ctx, query)
 
-	if err := s.catchUpOriginators(ctx, stream, query, logger); err != nil {
+	sendFn := func(envs []*envelopes.OriginatorEnvelope) error {
+		return s.sendOriginatorEnvelopes(stream, query, envs)
+	}
+
+	if err := s.catchUpWithSendFn(ctx, query, logger, sendFn); err != nil {
 		return err
 	}
 
@@ -97,7 +99,7 @@ func (s *Service) SubscribeOriginators(
 				return nil
 			}
 
-			if err := s.sendOriginatorEnvelopes(stream, query, envs); err != nil {
+			if err := sendFn(envs); err != nil {
 				return connect.NewError(
 					connect.CodeInternal,
 					fmt.Errorf("error sending envelope: %w", err),
@@ -115,128 +117,29 @@ func (s *Service) SubscribeOriginators(
 	}
 }
 
-func (s *Service) catchUpOriginators(
-	ctx context.Context,
-	stream *connect.ServerStream[message_api.SubscribeOriginatorsResponse],
-	query *message_api.EnvelopesQuery,
-	logger *zap.Logger,
-) error {
-	if query.GetLastSeen() == nil {
-		logger.Debug("skipping catch up")
-		return nil
-	}
-
-	cursor := query.GetLastSeen().GetNodeIdToSequenceId()
-	if cursor == nil {
-		cursor = make(map[uint32]uint64)
-		query.LastSeen.NodeIdToSequenceId = cursor
-	}
-
-	if s.logger.Core().Enabled(zap.DebugLevel) {
-		logger.Debug("catching up from cursor", utils.BodyField(cursor))
-	}
-
-	for {
-		rows, err := s.fetchEnvelopesWithRetry(ctx, query, maxRequestedRows)
-		if err != nil {
-			return err
-		}
-
-		if s.logger.Core().Enabled(zap.DebugLevel) {
-			logger.Debug("fetched envelopes", utils.CountField(int64(len(rows))))
-		}
-
-		envs := unmarshalEnvelopes(rows, s.logger)
-
-		if err := s.sendOriginatorEnvelopes(stream, query, envs); err != nil {
-			return connect.NewError(
-				connect.CodeInternal,
-				fmt.Errorf("error sending envelopes: %w", err),
-			)
-		}
-
-		if len(rows) < int(maxRequestedRows) {
-			break
-		}
-
-		time.Sleep(pagingInterval)
-	}
-
-	return nil
-}
-
 func (s *Service) sendOriginatorEnvelopes(
 	stream *connect.ServerStream[message_api.SubscribeOriginatorsResponse],
 	query *message_api.EnvelopesQuery,
 	envs []*envelopes.OriginatorEnvelope,
 ) error {
-	cursor := query.GetLastSeen().GetNodeIdToSequenceId()
-	if cursor == nil {
-		cursor = make(map[uint32]uint64)
-		query.LastSeen = &envelopesProto.Cursor{
-			NodeIdToSequenceId: cursor,
-		}
-	}
-
-	var (
-		batch          = make([]*envelopesProto.OriginatorEnvelope, 0, len(envs))
-		batchWireBytes = 0
-	)
-
-	flush := func() error {
-		if len(batch) == 0 {
-			return nil
-		}
-
-		if err := stream.Send(&message_api.SubscribeOriginatorsResponse{
-			Response: &message_api.SubscribeOriginatorsResponse_Envelopes_{
-				Envelopes: &message_api.SubscribeOriginatorsResponse_Envelopes{
-					Envelopes: batch,
+	return batchAndSendEnvelopes(
+		query,
+		envs,
+		func(batch []*envelopesProto.OriginatorEnvelope) error {
+			if err := stream.Send(&message_api.SubscribeOriginatorsResponse{
+				Response: &message_api.SubscribeOriginatorsResponse_Envelopes_{
+					Envelopes: &message_api.SubscribeOriginatorsResponse_Envelopes{
+						Envelopes: batch,
+					},
 				},
-			},
-		}); err != nil {
-			return connect.NewError(
-				connect.CodeInternal,
-				fmt.Errorf("error sending envelopes: %w", err),
-			)
-		}
-
-		metrics.EmitAPIOutgoingEnvelopes(stream.Conn().Spec().Procedure, len(batch))
-
-		batchWireBytes = 0
-		batch = batch[:0]
-
-		return nil
-	}
-
-	for _, env := range envs {
-		var (
-			origID = env.OriginatorNodeID()
-			seqID  = env.OriginatorSequenceID()
-		)
-
-		// Skip if we've already seen this envelope.
-		if cursor[origID] >= seqID {
-			continue
-		}
-
-		var (
-			envProto     = env.Proto()
-			envProtoSize = proto.Size(envProto)
-			envWireSize  = envProtoSize + envelopeOverhead(uint64(envProtoSize))
-		)
-
-		// If the batch is not empty and the total bytes would exceed the limit, flush first.
-		if len(batch) > 0 && batchWireBytes+envWireSize > constants.GRPCPayloadLimit {
-			if err := flush(); err != nil {
-				return err
+			}); err != nil {
+				return connect.NewError(
+					connect.CodeInternal,
+					fmt.Errorf("error sending envelopes: %w", err),
+				)
 			}
-		}
-
-		batch = append(batch, envProto)
-		batchWireBytes += envWireSize
-		cursor[origID] = seqID
-	}
-
-	return flush()
+			metrics.EmitAPIOutgoingEnvelopes(stream.Conn().Spec().Procedure, len(batch))
+			return nil
+		},
+	)
 }

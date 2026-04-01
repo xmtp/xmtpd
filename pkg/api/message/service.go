@@ -14,7 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
 	"github.com/xmtp/xmtpd/pkg/config"
-	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -264,50 +263,14 @@ func (s *Service) catchUpFromCursor(
 	query *message_api.EnvelopesQuery,
 	logger *zap.Logger,
 ) error {
-	if query.GetLastSeen() == nil {
-		logger.Debug("skipping catch up")
-		// Requester only wants new envelopes
-		return nil
-	}
-
-	cursor := query.GetLastSeen().GetNodeIdToSequenceId()
-	// GRPC does not distinguish between empty map and nil
-	if cursor == nil {
-		cursor = make(map[uint32]uint64)
-		query.LastSeen.NodeIdToSequenceId = cursor
-	}
-
-	if s.logger.Core().Enabled(zap.DebugLevel) {
-		logger.Debug("catching up from cursor", utils.BodyField(cursor))
-	}
-
-	for {
-		rows, err := s.fetchEnvelopesWithRetry(ctx, query, maxRequestedRows)
-		if err != nil {
-			return err
-		}
-
-		if s.logger.Core().Enabled(zap.DebugLevel) {
-			logger.Debug("fetched envelopes", utils.CountField(int64(len(rows))))
-		}
-
-		envs := unmarshalEnvelopes(rows, s.logger)
-
-		err = s.sendEnvelopes(stream, query, envs)
-		if err != nil {
-			return connect.NewError(
-				connect.CodeInternal,
-				fmt.Errorf("error sending envelopes: %w", err),
-			)
-		}
-		if len(rows) < int(maxRequestedRows) {
-			// There were no more envelopes in DB at time of fetch
-			break
-		}
-		time.Sleep(pagingInterval)
-	}
-
-	return nil
+	return s.catchUpWithSendFn(
+		ctx,
+		query,
+		logger,
+		func(envs []*envelopes.OriginatorEnvelope) error {
+			return s.sendEnvelopes(stream, query, envs)
+		},
+	)
 }
 
 func (s *Service) sendEnvelopes(
@@ -315,71 +278,22 @@ func (s *Service) sendEnvelopes(
 	query *message_api.EnvelopesQuery,
 	envs []*envelopes.OriginatorEnvelope,
 ) error {
-	cursor := query.GetLastSeen().GetNodeIdToSequenceId()
-	if cursor == nil {
-		cursor = make(map[uint32]uint64)
-		query.LastSeen = &envelopesProto.Cursor{
-			NodeIdToSequenceId: cursor,
-		}
-	}
-
-	var (
-		batch          = make([]*envelopesProto.OriginatorEnvelope, 0, len(envs))
-		batchWireBytes = 0
-	)
-
-	flush := func() error {
-		if len(batch) == 0 {
-			return nil
-		}
-
-		if err := stream.Send(&message_api.SubscribeEnvelopesResponse{
-			Envelopes: batch,
-		}); err != nil {
-			return connect.NewError(
-				connect.CodeInternal,
-				fmt.Errorf("error sending envelopes: %w", err),
-			)
-		}
-
-		metrics.EmitAPIOutgoingEnvelopes(stream.Conn().Spec().Procedure, len(batch))
-
-		batchWireBytes = 0
-		batch = batch[:0]
-
-		return nil
-	}
-
-	for _, env := range envs {
-		var (
-			origID = env.OriginatorNodeID()
-			seqID  = env.OriginatorSequenceID()
-		)
-
-		// Skip if we've already seen this envelope.
-		if cursor[origID] >= seqID {
-			continue
-		}
-
-		var (
-			envProto     = env.Proto()
-			envProtoSize = proto.Size(envProto)
-			envWireSize  = envProtoSize + envelopeOverhead(uint64(envProtoSize))
-		)
-
-		// If the batch is not empty and the total bytes exceeds the limit, flush current batch.
-		if len(batch) > 0 && batchWireBytes+envWireSize > constants.GRPCPayloadLimit {
-			if err := flush(); err != nil {
-				return err
+	return batchAndSendEnvelopes(
+		query,
+		envs,
+		func(batch []*envelopesProto.OriginatorEnvelope) error {
+			if err := stream.Send(&message_api.SubscribeEnvelopesResponse{
+				Envelopes: batch,
+			}); err != nil {
+				return connect.NewError(
+					connect.CodeInternal,
+					fmt.Errorf("error sending envelopes: %w", err),
+				)
 			}
-		}
-
-		batch = append(batch, envProto)
-		batchWireBytes += envWireSize
-		cursor[origID] = seqID
-	}
-
-	return flush()
+			metrics.EmitAPIOutgoingEnvelopes(stream.Conn().Spec().Procedure, len(batch))
+			return nil
+		},
+	)
 }
 
 // https://protobuf.dev/programming-guides/encoding/

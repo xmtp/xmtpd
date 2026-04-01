@@ -138,7 +138,7 @@ func NewTestGRPCPayerAPIClient(
 		extraDialOpts...,
 	)
 	if err != nil {
-		t.Fatalf("failed to create gateway API client: %v", err)
+		t.Fatalf("failed to create payer API client: %v", err)
 	}
 
 	return client

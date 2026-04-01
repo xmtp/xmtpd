@@ -13,22 +13,11 @@ import (
 )
 
 type subscriptionHandler struct {
-	*sync.Mutex
-
-	logger *zap.Logger
-	store  *db.Handler
-
-	subs       map[uint32]*envelopePoller
+	mu         sync.Mutex
+	logger     *zap.Logger
+	store      *db.Handler
 	mergedSubs *funnel[[]queries.SelectGatewayEnvelopesBySingleOriginatorRow]
-
-	cursor db.VectorClock
-}
-
-type envelopePoller struct {
-	cancel context.CancelFunc
-	// TODO: Check - queries.GatewayEnvelopesView and queries.SelectGatewayEnvelopesByOriginatorsRow
-	// models are identical and they're overly verbose.
-	ch <-chan []queries.SelectGatewayEnvelopesBySingleOriginatorRow
+	cursor     db.VectorClock
 }
 
 func newSubscriptionHandler(
@@ -36,16 +25,12 @@ func newSubscriptionHandler(
 	store *db.Handler,
 	cursor db.VectorClock,
 ) *subscriptionHandler {
-	s := &subscriptionHandler{
-		Mutex:      &sync.Mutex{},
-		subs:       make(map[uint32]*envelopePoller),
+	return &subscriptionHandler{
 		logger:     logger,
 		store:      store,
 		cursor:     cursor,
 		mergedSubs: newFunnel[[]queries.SelectGatewayEnvelopesBySingleOriginatorRow](),
 	}
-
-	return s
 }
 
 func (s *subscriptionHandler) newSubscription(ctx context.Context, id uint32) (retErr error) {
@@ -114,16 +99,9 @@ func (s *subscriptionHandler) newSubscription(ctx context.Context, id uint32) (r
 		return fmt.Errorf("could not start subscription (id: %v): %w", id, err)
 	}
 
-	// Per node/originator poller and cancellation.
-	e := &envelopePoller{
-		cancel: cancel,
-		ch:     ch,
-	}
-
 	// Save the poller in the subscription handler.
-	s.Lock()
-	defer s.Unlock()
-	s.subs[id] = e
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	s.mergedSubs.addChannel(ch)
 
@@ -132,8 +110,7 @@ func (s *subscriptionHandler) newSubscription(ctx context.Context, id uint32) (r
 
 // allSubscriptions returns a channel merging all individual subscription channels.
 func (s *subscriptionHandler) allSubscriptions() <-chan []queries.SelectGatewayEnvelopesBySingleOriginatorRow {
-	s.Lock()
-	defer s.Unlock()
-
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.mergedSubs.output()
 }

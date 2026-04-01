@@ -44,11 +44,6 @@ func main() {
 
 	validator := config.NewOptionsValidator(logger)
 
-	err = validator.ParseJSONConfig(&options.Contracts)
-	if err != nil {
-		fatal("could not parse JSON contracts config: %s", err)
-	}
-
 	err = validator.ValidatePruneOptions(options)
 	if err != nil {
 		fatal("could not validate options: %s", err)

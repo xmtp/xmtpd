@@ -15,72 +15,7 @@
   "produces": [
     "application/json"
   ],
-  "paths": {
-    "/mls/v2/query-misbehavior-reports": {
-      "post": {
-        "operationId": "MisbehaviorApi_QueryMisbehaviorReports",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/message_apiQueryMisbehaviorReportsResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/message_apiQueryMisbehaviorReportsRequest"
-            }
-          }
-        ],
-        "tags": [
-          "MisbehaviorApi"
-        ]
-      }
-    },
-    "/mls/v2/submit-misbehavior-report": {
-      "post": {
-        "operationId": "MisbehaviorApi_SubmitMisbehaviorReport",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/message_apiSubmitMisbehaviorReportResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/message_apiSubmitMisbehaviorReportRequest"
-            }
-          }
-        ],
-        "tags": [
-          "MisbehaviorApi"
-        ]
-      }
-    }
-  },
+  "paths": {},
   "definitions": {
     "associationsRecoverableEcdsaSignature": {
       "type": "object",
@@ -243,15 +178,6 @@
       },
       "title": "Query envelopes request"
     },
-    "message_apiQueryMisbehaviorReportsRequest": {
-      "type": "object",
-      "properties": {
-        "afterNs": {
-          "type": "string",
-          "format": "uint64"
-        }
-      }
-    },
     "message_apiQueryMisbehaviorReportsResponse": {
       "type": "object",
       "properties": {
@@ -273,14 +199,6 @@
             "type": "object",
             "$ref": "#/definitions/envelopesOriginatorEnvelope"
           }
-        }
-      }
-    },
-    "message_apiSubmitMisbehaviorReportRequest": {
-      "type": "object",
-      "properties": {
-        "report": {
-          "$ref": "#/definitions/message_apiUnsignedMisbehaviorReport"
         }
       }
     },

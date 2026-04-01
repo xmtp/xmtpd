@@ -15,145 +15,7 @@
   "produces": [
     "application/json"
   ],
-  "paths": {
-    "/mls/v2/metadata/get-payer-info": {
-      "post": {
-        "operationId": "MetadataApi_GetPayerInfo",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/metadata_apiGetPayerInfoResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/metadata_apiGetPayerInfoRequest"
-            }
-          }
-        ],
-        "tags": [
-          "MetadataApi"
-        ]
-      }
-    },
-    "/mls/v2/metadata/get-sync-cursor": {
-      "post": {
-        "operationId": "MetadataApi_GetSyncCursor",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/metadata_apiGetSyncCursorResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/metadata_apiGetSyncCursorRequest"
-            }
-          }
-        ],
-        "tags": [
-          "MetadataApi"
-        ]
-      }
-    },
-    "/mls/v2/metadata/subscribe-sync-cursor": {
-      "post": {
-        "operationId": "MetadataApi_SubscribeSyncCursor",
-        "responses": {
-          "200": {
-            "description": "A successful response.(streaming responses)",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "result": {
-                  "$ref": "#/definitions/metadata_apiGetSyncCursorResponse"
-                },
-                "error": {
-                  "$ref": "#/definitions/rpcStatus"
-                }
-              },
-              "title": "Stream result of metadata_apiGetSyncCursorResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/metadata_apiGetSyncCursorRequest"
-            }
-          }
-        ],
-        "tags": [
-          "MetadataApi"
-        ]
-      }
-    },
-    "/mls/v2/metadata/version": {
-      "post": {
-        "operationId": "MetadataApi_GetVersion",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/metadata_apiGetVersionResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/metadata_apiGetVersionRequest"
-            }
-          }
-        ],
-        "tags": [
-          "MetadataApi"
-        ]
-      }
-    }
-  },
+  "paths": {},
   "definitions": {
     "GetPayerInfoResponsePayerInfo": {
       "type": "object",
@@ -184,21 +46,6 @@
         }
       }
     },
-    "metadata_apiGetPayerInfoRequest": {
-      "type": "object",
-      "properties": {
-        "payerAddresses": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "granularity": {
-          "$ref": "#/definitions/metadata_apiPayerInfoGranularity"
-        }
-      },
-      "title": "Get information about payer spend and message counts for a given time period"
-    },
     "metadata_apiGetPayerInfoResponse": {
       "type": "object",
       "properties": {
@@ -212,9 +59,6 @@
       },
       "title": "Response to GetPayerInfoRequest"
     },
-    "metadata_apiGetSyncCursorRequest": {
-      "type": "object"
-    },
     "metadata_apiGetSyncCursorResponse": {
       "type": "object",
       "properties": {
@@ -222,9 +66,6 @@
           "$ref": "#/definitions/xmtpv4envelopesCursor"
         }
       }
-    },
-    "metadata_apiGetVersionRequest": {
-      "type": "object"
     },
     "metadata_apiGetVersionResponse": {
       "type": "object",

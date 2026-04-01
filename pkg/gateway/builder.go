@@ -24,6 +24,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/blockchain/oracle"
 	"github.com/xmtp/xmtpd/pkg/config"
 	"github.com/xmtp/xmtpd/pkg/metrics"
+	gateway_apiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/gateway_api/gateway_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api/payer_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -301,7 +302,14 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 
 		mux.Handle(gatewayPath, gatewayHandler)
 
-		return []string{payer_apiconnect.PayerApiName}, nil
+		gatewayApiPath, gatewayApiHandler := gateway_apiconnect.NewGatewayApiHandler(
+			gatewayAPIService,
+			connect.WithInterceptors(interceptors...),
+		)
+
+		mux.Handle(gatewayApiPath, gatewayApiHandler)
+
+		return []string{payer_apiconnect.PayerApiName, gateway_apiconnect.GatewayApiName}, nil
 	}
 
 	apiServer, err := api.NewAPIServer(

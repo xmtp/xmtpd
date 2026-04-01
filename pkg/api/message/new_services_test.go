@@ -9,6 +9,7 @@ import (
 	dbPkg "github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	payer_api "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	apiTestUtils "github.com/xmtp/xmtpd/pkg/testutils/api"
 	envelopeTestUtils "github.com/xmtp/xmtpd/pkg/testutils/envelopes"
@@ -60,6 +61,30 @@ func TestQueryApi_GetInboxIds(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
+}
+
+// TestGatewayApi_GetNodes verifies that GetNodes is reachable via the GatewayApi client
+// and returns the same response as the PayerApi client.
+func TestGatewayApi_GetNodes(t *testing.T) {
+	suite := apiTestUtils.NewTestAPIServer(t)
+
+	ctx := context.Background()
+
+	respGateway, err := suite.ClientGateway.GetNodes(
+		ctx,
+		connect.NewRequest(&payer_api.GetNodesRequest{}),
+	)
+	require.NoError(t, err)
+	require.NotNil(t, respGateway)
+
+	respPayer, err := suite.ClientPayer.GetNodes(
+		ctx,
+		connect.NewRequest(&payer_api.GetNodesRequest{}),
+	)
+	require.NoError(t, err)
+	require.NotNil(t, respPayer)
+
+	require.Equal(t, respPayer.Msg.GetNodes(), respGateway.Msg.GetNodes())
 }
 
 // TestPublishApi_PublishPayerEnvelopes verifies that PublishPayerEnvelopes is reachable via the

@@ -13,6 +13,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/xmtp/xmtpd/pkg/constants"
+	gateway_apiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/gateway_api/gateway_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api/payer_apiconnect"
@@ -109,9 +110,7 @@ func NewConnectGRPCWebReplicationAPIClient(
 	return message_apiconnect.NewReplicationApiClient(httpClient, target, opts...), nil
 }
 
-// NewConnectGatewayAPIClient builds a Connect-based Gateway API client.
-// The consumer is responsible of passing any extra dial options, to make the
-// connection gRPC or gRPC-Web.
+// NewConnectGatewayAPIClient builds a Connect-based Gateway (PayerApi) client configured to speak classic gRPC.
 func NewConnectGatewayAPIClient(
 	ctx context.Context,
 	httpAddress string,
@@ -127,9 +126,30 @@ func NewConnectGatewayAPIClient(
 		return nil, fmt.Errorf("failed to build http client: %w", err)
 	}
 
-	opts := BuildConnectProtocolDialOptions(extraDialOpts...)
+	opts := BuildGRPCDialOptions(extraDialOpts...)
 
 	return payer_apiconnect.NewPayerApiClient(httpClient, target, opts...), nil
+}
+
+// NewConnectGRPCGatewayAPIClient builds a Connect-based client for the GatewayApi configured to speak classic gRPC.
+func NewConnectGRPCGatewayAPIClient(
+	ctx context.Context,
+	httpAddress string,
+	extraDialOpts ...connect.ClientOption,
+) (gateway_apiconnect.GatewayApiClient, error) {
+	target, isTLS, err := HTTPAddressToConnectProtocolTarget(httpAddress)
+	if err != nil {
+		return nil, fmt.Errorf("invalid http address: %w", err)
+	}
+
+	httpClient, err := BuildHTTP2Client(ctx, isTLS)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build http client: %w", err)
+	}
+
+	opts := BuildGRPCDialOptions(extraDialOpts...)
+
+	return gateway_apiconnect.NewGatewayApiClient(httpClient, target, opts...), nil
 }
 
 // NewConnectMetadataAPIClient builds a Connect-based Metadata API client.

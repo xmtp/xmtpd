@@ -25,6 +25,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/authn"
 	blockchainMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/blockchain"
 
+	gateway_apiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/gateway_api/gateway_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api/payer_apiconnect"
@@ -143,6 +144,26 @@ func NewTestGRPCGatewayAPIClient(
 	return client
 }
 
+func NewTestGRPCGatewayApiServiceClient(
+	t *testing.T,
+	addr string,
+	extraDialOpts ...connect.ClientOption,
+) gateway_apiconnect.GatewayApiClient {
+	_, port, err := net.SplitHostPort(addr)
+	require.NoError(t, err)
+
+	client, err := utils.NewConnectGRPCGatewayAPIClient(
+		t.Context(),
+		"http://localhost:"+port,
+		extraDialOpts...,
+	)
+	if err != nil {
+		t.Fatalf("failed to create gateway API client: %v", err)
+	}
+
+	return client
+}
+
 func NewTestGRPCMetadataAPIClient(
 	t *testing.T,
 	addr string,
@@ -180,6 +201,7 @@ type APIServerTestSuite struct {
 	ClientQuery        message_apiconnect.QueryApiClient
 	ClientPublish      message_apiconnect.PublishApiClient
 	ClientPayer        payer_apiconnect.PayerApiClient
+	ClientGateway      gateway_apiconnect.GatewayApiClient
 	ClientMetadata     metadata_apiconnect.MetadataApiClient
 	DB                 *sql.DB
 	APIServerMocks     APIServerMocks
@@ -345,12 +367,18 @@ func NewTestAPIServer(
 			connect.WithInterceptors(interceptors...),
 		)
 
+		gatewayApiPath, gatewayApiHandler := gateway_apiconnect.NewGatewayApiHandler(
+			payerService,
+			connect.WithInterceptors(interceptors...),
+		)
+
 		mux.Handle(replicationPath, replicationHandler)
 		mux.Handle(notificationPath, notificationHandler)
 		mux.Handle(queryPath, queryHandler)
 		mux.Handle(publishPath, publishHandler)
 		mux.Handle(payerPath, payerHandler)
 		mux.Handle(metadataPath, metadataHandler)
+		mux.Handle(gatewayApiPath, gatewayApiHandler)
 
 		return []string{
 			message_apiconnect.ReplicationApiName,
@@ -359,6 +387,7 @@ func NewTestAPIServer(
 			message_apiconnect.PublishApiName,
 			payer_apiconnect.PayerApiName,
 			metadata_apiconnect.MetadataApiName,
+			gateway_apiconnect.GatewayApiName,
 		}, nil
 	}
 
@@ -394,6 +423,7 @@ func NewTestAPIServer(
 	clientQuery := NewTestGRPCQueryAPIClient(t, svr.Addr())
 	clientPublish := NewTestGRPCPublishAPIClient(t, svr.Addr())
 	clientPayer := NewTestGRPCGatewayAPIClient(t, svr.Addr())
+	clientGateway := NewTestGRPCGatewayApiServiceClient(t, svr.Addr())
 	clientMetadata := NewTestGRPCMetadataAPIClient(t, svr.Addr())
 
 	return &APIServerTestSuite{
@@ -404,6 +434,7 @@ func NewTestAPIServer(
 		ClientQuery:        clientQuery,
 		ClientPublish:      clientPublish,
 		ClientPayer:        clientPayer,
+		ClientGateway:      clientGateway,
 		ClientMetadata:     clientMetadata,
 		DB:                 db.DB(),
 		MessageService:     replicationService,

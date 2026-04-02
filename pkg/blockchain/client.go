@@ -188,14 +188,14 @@ func executeTransaction(
 		if isUnderpricedError(err) {
 			backoff := executeTxInitialWait * (1 << attempt)
 
-			logger.Warn(
-				"retryable transaction error, backing off",
-				zap.Error(err),
-				zap.Int("attempt", attempt+1),
-				zap.Duration("backoff", backoff),
-			)
-
 			if attempt < executeTxMaxRetries {
+				logger.Warn(
+					"retryable transaction error, backing off",
+					zap.Error(err),
+					zap.Int("attempt", attempt+1),
+					zap.Duration("backoff", backoff),
+				)
+
 				utils.RandomSleep(ctx, backoff)
 			}
 

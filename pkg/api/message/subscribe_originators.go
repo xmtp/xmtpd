@@ -34,28 +34,13 @@ func (s *Service) SubscribeOriginators(
 	}
 
 	filter := req.Msg.GetFilter()
-	if filter == nil {
-		return connect.NewError(
-			connect.CodeInvalidArgument,
-			errors.New("filter must not be nil"),
-		)
-	}
-
-	if len(filter.GetOriginatorNodeIds()) == 0 {
-		return connect.NewError(
-			connect.CodeInvalidArgument,
-			errors.New("filter must contain at least one originator node id"),
-		)
-	}
-
-	mode := catchUpNone
-	if filter.GetLastSeen() != nil {
-		mode = catchUpFromCursor
+	if err := validateOriginatorFilter(filter); err != nil {
+		return connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
 	query := &subscribeFilter{
 		originatorNodeIDs: filter.GetOriginatorNodeIds(),
-		catchUpMode:       mode,
+		catchUpMode:       catchUpFromCursor,
 		cursor:            cursorFromProto(filter.GetLastSeen()),
 	}
 
@@ -123,14 +108,33 @@ func (s *Service) SubscribeOriginators(
 	}
 }
 
+// validateOriginatorFilter validates the filter for SubscribeOriginators.
+// Returns a plain error (caller wraps with connect.CodeInvalidArgument).
+func validateOriginatorFilter(
+	filter *message_api.SubscribeOriginatorsRequest_OriginatorFilter,
+) error {
+	if filter == nil {
+		return errors.New("filter must not be nil")
+	}
+	if len(filter.GetOriginatorNodeIds()) == 0 {
+		return errors.New("filter must contain at least one originator node id")
+	}
+	if filter.GetLastSeen() == nil {
+		return errors.New("last_seen cursor is required")
+	}
+	return nil
+}
+
 func (s *Service) sendOriginatorsResponse(
 	stream *connect.ServerStream[message_api.SubscribeOriginatorsResponse],
 	cursor map[uint32]uint64,
 	envs []*envelopes.OriginatorEnvelope,
 ) error {
 	return batchAndSendEnvelopes(
+		s.logger,
 		cursor,
 		envs,
+		originatorResponseOverhead,
 		func(batch []*envelopesProto.OriginatorEnvelope) error {
 			if err := stream.Send(&message_api.SubscribeOriginatorsResponse{
 				Response: &message_api.SubscribeOriginatorsResponse_Envelopes_{

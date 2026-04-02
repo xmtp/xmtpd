@@ -166,7 +166,6 @@ func (s *Service) SubscribeEnvelopes(
 		cursor:            cursorFromProto(protoQuery.GetLastSeen()),
 	}
 
-	// Validate query and ensure either topics or originators are specified.
 	err := s.validateQuery(query, false)
 	if err != nil {
 		return connect.NewError(
@@ -295,8 +294,10 @@ func (s *Service) sendEnvelopes(
 	envs []*envelopes.OriginatorEnvelope,
 ) error {
 	return batchAndSendEnvelopes(
+		s.logger,
 		query.cursor,
 		envs,
+		0, // no wrapper overhead for SubscribeEnvelopesResponse
 		func(batch []*envelopesProto.OriginatorEnvelope) error {
 			if err := stream.Send(&message_api.SubscribeEnvelopesResponse{
 				Envelopes: batch,
@@ -526,9 +527,6 @@ func (s *Service) fetchEnvelopes(
 		}
 
 		vc := query.cursor
-		if vc == nil {
-			vc = make(db.VectorClock)
-		}
 		allOriginators, err := s.originatorList.GetOriginatorNodeIDs(ctx)
 		if err != nil {
 			return nil, connect.NewError(

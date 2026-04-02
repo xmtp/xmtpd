@@ -110,8 +110,10 @@ func NewConnectGRPCWebReplicationAPIClient(
 	return message_apiconnect.NewReplicationApiClient(httpClient, target, opts...), nil
 }
 
-// NewConnectGatewayAPIClient builds a Connect-based Gateway API client configured to speak classic gRPC.
-func NewConnectGatewayAPIClient(
+// NewConnectGRPCPayerAPIClient builds a Connect-based Payer API client configured to speak classic gRPC.
+//
+// Deprecated: Use NewConnectGRPCGatewayAPIClient for the new GatewayApi.
+func NewConnectGRPCPayerAPIClient(
 	ctx context.Context,
 	httpAddress string,
 	extraDialOpts ...connect.ClientOption,
@@ -173,7 +175,7 @@ func NewConnectMetadataAPIClient(
 	return metadata_apiconnect.NewMetadataApiClient(httpClient, target, extraDialOpts...), nil
 }
 
-/* Native gRPC clients */
+/* Connect-based gRPC clients for new d14n services */
 
 // NewConnectGRPCNotificationAPIClient builds a Connect-based client for the NotificationApi configured to speak classic gRPC.
 func NewConnectGRPCNotificationAPIClient(

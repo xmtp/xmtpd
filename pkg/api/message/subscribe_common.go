@@ -3,6 +3,7 @@ package message
 import (
 	"context"
 	"fmt"
+	"maps"
 	"time"
 
 	"connectrpc.com/connect"
@@ -18,7 +19,6 @@ type catchUpMode int
 
 const (
 	catchUpNone       catchUpMode = iota // stream new envelopes only
-	catchUpFromStart                     // catch up from the very beginning
 	catchUpFromCursor                    // catch up from specified cursor position
 )
 
@@ -32,26 +32,37 @@ type subscribeFilter struct {
 }
 
 func cursorFromProto(c *envelopesProto.Cursor) map[uint32]uint64 {
-	if c == nil || c.GetNodeIdToSequenceId() == nil {
+	src := c.GetNodeIdToSequenceId()
+	if src == nil {
 		return make(map[uint32]uint64)
 	}
-	return c.GetNodeIdToSequenceId()
+	// Clone to avoid mutating the proto's internal map.
+	m := make(map[uint32]uint64, len(src))
+	maps.Copy(m, src)
+	return m
 }
+
+// originatorResponseOverhead is the fixed per-batch wire overhead from the
+// SubscribeOriginatorsResponse wrapper. The oneof + nested message adds ~10
+// bytes per batch (2 tag+length pairs with varints). SubscribeEnvelopesResponse
+// has envelopes directly on the message (0 overhead).
+const originatorResponseOverhead = 10
 
 // batchAndSendEnvelopes handles cursor-based deduplication, batching by gRPC
 // payload size, and sending via the provided flushFn callback. It advances the
 // cursor as envelopes are processed.
-//
-// This is the shared core used by both sendEnvelopes (SubscribeEnvelopes) and
-// sendOriginatorsResponse (SubscribeOriginators).
 func batchAndSendEnvelopes(
+	logger *zap.Logger,
 	cursor map[uint32]uint64,
 	envs []*envelopes.OriginatorEnvelope,
+	wrapperOverhead int,
 	flushFn func(batch []*envelopesProto.OriginatorEnvelope) error,
 ) error {
+	maxEnvelopeSize := constants.GRPCPayloadLimit - wrapperOverhead
+
 	var (
 		batch          = make([]*envelopesProto.OriginatorEnvelope, 0, len(envs))
-		batchWireBytes = 0
+		batchWireBytes = wrapperOverhead
 	)
 
 	flush := func() error {
@@ -61,7 +72,7 @@ func batchAndSendEnvelopes(
 		if err := flushFn(batch); err != nil {
 			return err
 		}
-		batchWireBytes = 0
+		batchWireBytes = wrapperOverhead
 		batch = batch[:0]
 		return nil
 	}
@@ -72,7 +83,6 @@ func batchAndSendEnvelopes(
 			seqID  = env.OriginatorSequenceID()
 		)
 
-		// Skip if we've already seen this envelope.
 		if cursor[origID] >= seqID {
 			continue
 		}
@@ -82,6 +92,20 @@ func batchAndSendEnvelopes(
 			envProtoSize = proto.Size(envProto)
 			envWireSize  = envProtoSize + envelopeOverhead(uint64(envProtoSize))
 		)
+
+		// A single envelope that exceeds the gRPC payload limit cannot be sent.
+		// Skip it and advance the cursor so pagination doesn't get stuck.
+		if envWireSize > maxEnvelopeSize {
+			logger.Warn(
+				"skipping oversized envelope",
+				zap.Uint32("originator_node_id", origID),
+				zap.Uint64("originator_sequence_id", seqID),
+				zap.Int("wire_bytes", envWireSize),
+				zap.Int("limit", maxEnvelopeSize),
+			)
+			cursor[origID] = seqID
+			continue
+		}
 
 		if len(batch) > 0 && batchWireBytes+envWireSize > constants.GRPCPayloadLimit {
 			if err := flush(); err != nil {
@@ -111,8 +135,7 @@ func (s *Service) catchUpWithSendFn(
 	case catchUpNone:
 		logger.Debug("skipping catch up")
 		return nil
-	case catchUpFromStart, catchUpFromCursor:
-		// fall through to perform catch-up
+	case catchUpFromCursor:
 	}
 
 	if s.logger.Core().Enabled(zap.DebugLevel) {

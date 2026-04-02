@@ -21,6 +21,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/testutils"
 	testUtilsApi "github.com/xmtp/xmtpd/pkg/testutils/api"
@@ -775,7 +776,7 @@ func TestSubscribeOriginators(t *testing.T) {
 		connect.NewRequest(&message_api.SubscribeOriginatorsRequest{
 			Filter: &message_api.SubscribeOriginatorsRequest_OriginatorFilter{
 				OriginatorNodeIds: []uint32{100},
-				LastSeen:          nil,
+				LastSeen:          &envelopes.Cursor{NodeIdToSequenceId: map[uint32]uint64{}},
 			},
 		}),
 	)
@@ -786,8 +787,13 @@ func TestSubscribeOriginators(t *testing.T) {
 	require.True(t, ok, "expected initial keepalive")
 	require.Empty(t, stream.Msg().GetEnvelopes().GetEnvelopes())
 
+	// Catch-up: the initial rows for originator 100 (seq 1) should arrive.
+	catchUp := readOriginatorsStream(t, stream, 1)
+	require.Len(t, catchUp, 1)
+
 	insertAdditionalRows(t, suite.DB)
 
+	// Live: new rows for originator 100 (seq 2, seq 3) should arrive.
 	received := readOriginatorsStream(t, stream, 2)
 	require.Len(t, received, 2)
 	for _, env := range received {
@@ -797,6 +803,25 @@ func TestSubscribeOriginators(t *testing.T) {
 		)
 		require.EqualValues(t, 100, decoded.GetOriginatorNodeId())
 	}
+}
+
+func TestSubscribeOriginators_NilLastSeen(t *testing.T) {
+	suite := setupTest(t)
+	ctx := t.Context()
+
+	stream, err := suite.ClientReplication.SubscribeOriginators(
+		ctx,
+		connect.NewRequest(&message_api.SubscribeOriginatorsRequest{
+			Filter: &message_api.SubscribeOriginatorsRequest_OriginatorFilter{
+				OriginatorNodeIds: []uint32{100},
+				LastSeen:          nil,
+			},
+		}),
+	)
+	require.NoError(t, err)
+
+	_ = stream.Receive()
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(stream.Err()))
 }
 
 func TestSubscribeOriginators_NilFilter(t *testing.T) {
@@ -867,6 +892,435 @@ func TestSubscribeOriginators_FromCursor(t *testing.T) {
 		)
 		require.EqualValues(t, 100, decoded.GetOriginatorNodeId())
 		require.Greater(t, decoded.GetOriginatorSequenceId(), uint64(1))
+	}
+}
+
+func TestSubscribeOriginators_MultipleOriginators(t *testing.T) {
+	suite := setupTest(t)
+	insertInitialRows(t, suite)
+
+	ctx := t.Context()
+	stream, err := suite.ClientReplication.SubscribeOriginators(
+		ctx,
+		connect.NewRequest(&message_api.SubscribeOriginatorsRequest{
+			Filter: &message_api.SubscribeOriginatorsRequest_OriginatorFilter{
+				OriginatorNodeIds: []uint32{100, 200},
+				LastSeen:          &envelopes.Cursor{NodeIdToSequenceId: map[uint32]uint64{}},
+			},
+		}),
+	)
+	require.NoError(t, err)
+
+	// Expect initial keepalive.
+	ok := stream.Receive()
+	require.True(t, ok, "expected initial keepalive")
+
+	// Catch-up: initial rows for both originators (100 seq 1, 200 seq 1).
+	catchUp := readOriginatorsStream(t, stream, 2)
+	require.Len(t, catchUp, 2)
+
+	seenOriginators := make(map[uint32]bool)
+	for _, env := range catchUp {
+		decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
+			t,
+			env.GetUnsignedOriginatorEnvelope(),
+		)
+		seenOriginators[decoded.GetOriginatorNodeId()] = true
+	}
+	require.True(t, seenOriginators[100], "expected envelope from originator 100")
+	require.True(t, seenOriginators[200], "expected envelope from originator 200")
+
+	insertAdditionalRows(t, suite.DB)
+
+	// Live: new rows for both originators (100 seq 2+3, 200 seq 2) = 3 envelopes.
+	received := readOriginatorsStream(t, stream, 3)
+	require.Len(t, received, 3)
+
+	seenOriginators = make(map[uint32]bool)
+	for _, env := range received {
+		decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
+			t,
+			env.GetUnsignedOriginatorEnvelope(),
+		)
+		seenOriginators[decoded.GetOriginatorNodeId()] = true
+	}
+	require.True(t, seenOriginators[100], "expected live envelope from originator 100")
+	require.True(t, seenOriginators[200], "expected live envelope from originator 200")
+}
+
+// ---------------------------------------------------------------------------
+// Parity tests: run identical scenarios against both SubscribeEnvelopes
+// (originator filter) and SubscribeOriginators to verify behavioral equivalence.
+// ---------------------------------------------------------------------------
+
+// envelopeStreamAdapter abstracts over SubscribeEnvelopes and SubscribeOriginators
+// stream types so the same test logic can drive both.
+type envelopeStreamAdapter struct {
+	receiveFn   func() bool
+	envelopesFn func() []*envelopes.OriginatorEnvelope
+	errFn       func() error
+}
+
+func (a *envelopeStreamAdapter) Receive() bool { return a.receiveFn() }
+
+func (a *envelopeStreamAdapter) Envelopes() []*envelopes.OriginatorEnvelope { return a.envelopesFn() }
+func (a *envelopeStreamAdapter) Err() error                                 { return a.errFn() }
+
+// subscribeByOriginatorsFn creates a subscription stream filtered by originator IDs
+// with a non-nil cursor (empty map = catch up from the beginning).
+type subscribeByOriginatorsFn func(
+	ctx context.Context,
+	client message_apiconnect.ReplicationApiClient,
+	originatorIDs []uint32,
+	cursor map[uint32]uint64,
+) (*envelopeStreamAdapter, error)
+
+func subscribeEnvelopesAdapter(
+	ctx context.Context,
+	client message_apiconnect.ReplicationApiClient,
+	originatorIDs []uint32,
+	cursor map[uint32]uint64,
+) (*envelopeStreamAdapter, error) {
+	stream, err := client.SubscribeEnvelopes(
+		ctx,
+		connect.NewRequest(&message_api.SubscribeEnvelopesRequest{
+			Query: &message_api.EnvelopesQuery{
+				OriginatorNodeIds: originatorIDs,
+				LastSeen:          &envelopes.Cursor{NodeIdToSequenceId: cursor},
+			},
+		}),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &envelopeStreamAdapter{
+		receiveFn:   stream.Receive,
+		envelopesFn: func() []*envelopes.OriginatorEnvelope { return stream.Msg().GetEnvelopes() },
+		errFn:       stream.Err,
+	}, nil
+}
+
+func subscribeOriginatorsAdapter(
+	ctx context.Context,
+	client message_apiconnect.ReplicationApiClient,
+	originatorIDs []uint32,
+	cursor map[uint32]uint64,
+) (*envelopeStreamAdapter, error) {
+	stream, err := client.SubscribeOriginators(
+		ctx,
+		connect.NewRequest(&message_api.SubscribeOriginatorsRequest{
+			Filter: &message_api.SubscribeOriginatorsRequest_OriginatorFilter{
+				OriginatorNodeIds: originatorIDs,
+				LastSeen:          &envelopes.Cursor{NodeIdToSequenceId: cursor},
+			},
+		}),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &envelopeStreamAdapter{
+		receiveFn:   stream.Receive,
+		envelopesFn: func() []*envelopes.OriginatorEnvelope { return stream.Msg().GetEnvelopes().GetEnvelopes() },
+		errFn:       stream.Err,
+	}, nil
+}
+
+var originatorSubscribeBackends = []struct {
+	name      string
+	subscribe subscribeByOriginatorsFn
+}{
+	{"SubscribeEnvelopes", subscribeEnvelopesAdapter},
+	{"SubscribeOriginators", subscribeOriginatorsAdapter},
+}
+
+func readAdaptedStream(
+	t *testing.T,
+	stream *envelopeStreamAdapter,
+	n int,
+) []*envelopes.OriginatorEnvelope {
+	t.Helper()
+	var received []*envelopes.OriginatorEnvelope
+	for len(received) < n {
+		if !stream.Receive() {
+			break
+		}
+		received = append(received, stream.Envelopes()...)
+	}
+	require.NoError(t, stream.Err())
+	return received
+}
+
+// consumeKeepalive reads and discards the initial keepalive message that both
+// SubscribeEnvelopes and SubscribeOriginators send on stream open.
+func consumeKeepalive(t *testing.T, stream *envelopeStreamAdapter) {
+	t.Helper()
+	ok := stream.Receive()
+	require.True(t, ok, "expected initial keepalive")
+}
+
+// Test 1: Catch-up pagination with >maxRequestedRows envelopes on a single
+// originator. Verifies the pagination loop delivers every envelope.
+func TestOriginatorParity_SkewedPagination(t *testing.T) {
+	for _, backend := range originatorSubscribeBackends {
+		t.Run(backend.name, func(t *testing.T) {
+			var (
+				heavyMsgCount     = 1001 // just above maxRequestedRows (1000)
+				heavyOriginatorID = uint32(100)
+				server            = testUtilsApi.NewTestAPIServer(t)
+				payerID           = testutils.CreatePayer(t, server.DB)
+				subTopic          = topic.NewTopic(
+					topic.TopicKindGroupMessagesV1,
+					fmt.Appendf(nil, "skewed-parity-%v", rand.Int()),
+				)
+			)
+
+			sourceEnvelopes := generateEnvelopes(
+				t, []uint32{heavyOriginatorID},
+				heavyMsgCount, heavyMsgCount+1, payerID, subTopic,
+			)
+			saveEnvelopes(t, server.DB, sourceEnvelopes)
+
+			awaitCtx, awaitCancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer awaitCancel()
+			require.NoError(t, server.MessageService.AwaitCursor(
+				awaitCtx, db.VectorClock{heavyOriginatorID: uint64(heavyMsgCount)},
+			))
+
+			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+			defer cancel()
+
+			stream, err := backend.subscribe(
+				ctx, server.ClientReplication,
+				[]uint32{heavyOriginatorID},
+				map[uint32]uint64{},
+			)
+			require.NoError(t, err)
+			consumeKeepalive(t, stream)
+
+			total := len(sourceEnvelopes[int32(heavyOriginatorID)])
+			received := make(map[uint64]struct{}, total)
+
+			for len(received) < total {
+				if !stream.Receive() {
+					break
+				}
+				for _, env := range stream.Envelopes() {
+					decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
+						t, env.GetUnsignedOriginatorEnvelope(),
+					)
+					require.Equal(t, heavyOriginatorID, decoded.GetOriginatorNodeId())
+					received[decoded.GetOriginatorSequenceId()] = struct{}{}
+				}
+			}
+
+			cancel()
+
+			err = stream.Err()
+			require.Truef(
+				t,
+				err == nil || errors.Is(err, context.Canceled) ||
+					errors.Is(err, context.DeadlineExceeded),
+				"unexpected stream error: %s, received %v/%v envelopes",
+				err,
+				len(received),
+				total,
+			)
+			require.Lenf(t, received, total,
+				"catch-up must deliver all %d envelopes", total,
+			)
+		})
+	}
+}
+
+// Test 2: Per-originator ordering. Sequence IDs within each originator must
+// arrive in strictly increasing order across both catch-up and live phases.
+func TestOriginatorParity_Ordering(t *testing.T) {
+	for _, backend := range originatorSubscribeBackends {
+		t.Run(backend.name, func(t *testing.T) {
+			suite := setupTest(t)
+			insertInitialRows(t, suite)
+
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+
+			stream, err := backend.subscribe(
+				ctx, suite.ClientReplication,
+				[]uint32{100, 200},
+				map[uint32]uint64{},
+			)
+			require.NoError(t, err)
+			consumeKeepalive(t, stream)
+
+			insertAdditionalRows(t, suite.DB)
+
+			// Expect all 5 rows: catch-up (100:1, 200:1) + live (100:2, 200:2, 100:3).
+			const total = 5
+			lastSeqByNode := make(map[uint32]uint64)
+			seen := make(map[string]struct{}, total)
+
+			for len(seen) < total {
+				if !stream.Receive() {
+					break
+				}
+				for _, env := range stream.Envelopes() {
+					decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
+						t, env.GetUnsignedOriginatorEnvelope(),
+					)
+					origID := decoded.GetOriginatorNodeId()
+					seqID := decoded.GetOriginatorSequenceId()
+
+					if last, ok := lastSeqByNode[origID]; ok {
+						require.Greater(t, seqID, last,
+							"sequence ID must be strictly increasing for originator %d", origID,
+						)
+					}
+					lastSeqByNode[origID] = seqID
+
+					key := fmt.Sprintf("%d-%d", origID, seqID)
+					require.NotContains(t, seen, key, "duplicate envelope %s", key)
+					seen[key] = struct{}{}
+				}
+			}
+
+			require.NoError(t, stream.Err())
+			require.Len(t, seen, total)
+		})
+	}
+}
+
+// Test 3: Two concurrent streams with different originator filters must be
+// fully isolated — each receives only its filtered originator's envelopes.
+func TestOriginatorParity_SimultaneousStreams(t *testing.T) {
+	for _, backend := range originatorSubscribeBackends {
+		t.Run(backend.name, func(t *testing.T) {
+			suite := setupTest(t)
+			insertInitialRows(t, suite)
+
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+
+			stream100, err := backend.subscribe(
+				ctx, suite.ClientReplication,
+				[]uint32{100},
+				map[uint32]uint64{},
+			)
+			require.NoError(t, err)
+			consumeKeepalive(t, stream100)
+
+			stream200, err := backend.subscribe(
+				ctx, suite.ClientReplication,
+				[]uint32{200},
+				map[uint32]uint64{},
+			)
+			require.NoError(t, err)
+			consumeKeepalive(t, stream200)
+
+			insertAdditionalRows(t, suite.DB)
+
+			// stream100: catch-up (100:1) + live (100:2, 100:3) = 3 envelopes.
+			received100 := readAdaptedStream(t, stream100, 3)
+			require.Len(t, received100, 3)
+			for _, env := range received100 {
+				decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
+					t, env.GetUnsignedOriginatorEnvelope(),
+				)
+				require.EqualValues(t, 100, decoded.GetOriginatorNodeId(),
+					"stream100 must only contain originator 100",
+				)
+			}
+
+			// stream200: catch-up (200:1) + live (200:2) = 2 envelopes.
+			received200 := readAdaptedStream(t, stream200, 2)
+			require.Len(t, received200, 2)
+			for _, env := range received200 {
+				decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
+					t, env.GetUnsignedOriginatorEnvelope(),
+				)
+				require.EqualValues(t, 200, decoded.GetOriginatorNodeId(),
+					"stream200 must only contain originator 200",
+				)
+			}
+		})
+	}
+}
+
+// Test 4: Multiple originators with random envelope counts (10-30 each).
+// Verifies every envelope is delivered exactly once.
+func TestOriginatorParity_VariableVolume(t *testing.T) {
+	for _, backend := range originatorSubscribeBackends {
+		t.Run(backend.name, func(t *testing.T) {
+			var (
+				nodes   = generateNodes(t, 4)
+				ids     = nodeIDs(nodes)
+				server  = testUtilsApi.NewTestAPIServer(t, testUtilsApi.WithRegistryNodes(nodes))
+				payerID = testutils.CreatePayer(t, server.DB)
+				sub     = topic.NewTopic(
+					topic.TopicKindGroupMessagesV1,
+					fmt.Appendf(nil, "variable-parity-%v", rand.Int()),
+				)
+				sourceEnvelopes = generateEnvelopes(t, ids, 10, 30, payerID, sub)
+			)
+
+			total := 0
+			for id, envs := range sourceEnvelopes {
+				t.Logf("generated %d envelopes for originator %d", len(envs), id)
+				total += len(envs)
+			}
+
+			saveEnvelopes(t, server.DB, sourceEnvelopes)
+
+			expectedVC := make(db.VectorClock, len(sourceEnvelopes))
+			for nodeID, envs := range sourceEnvelopes {
+				expectedVC[uint32(nodeID)] = uint64(len(envs))
+			}
+			awaitCtx, awaitCancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer awaitCancel()
+			require.NoError(t, server.MessageService.AwaitCursor(awaitCtx, expectedVC))
+
+			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+			defer cancel()
+
+			stream, err := backend.subscribe(
+				ctx, server.ClientReplication, ids, map[uint32]uint64{},
+			)
+			require.NoError(t, err)
+			consumeKeepalive(t, stream)
+
+			keyID := func(nodeID uint32, seqID uint64) string {
+				return fmt.Sprintf("%d-%d", nodeID, seqID)
+			}
+
+			received := make(map[string]struct{}, total)
+			for len(received) < total {
+				if !stream.Receive() {
+					break
+				}
+				for _, env := range stream.Envelopes() {
+					decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
+						t, env.GetUnsignedOriginatorEnvelope(),
+					)
+					k := keyID(decoded.GetOriginatorNodeId(), decoded.GetOriginatorSequenceId())
+					require.NotContains(t, received, k, "duplicate envelope %s", k)
+					received[k] = struct{}{}
+				}
+			}
+
+			cancel()
+
+			err = stream.Err()
+			require.Truef(t,
+				err == nil || errors.Is(err, context.Canceled),
+				"unexpected stream error: %s, received %v/%v", err, len(received), total,
+			)
+
+			sent := make(map[string]struct{}, total)
+			for _, envs := range sourceEnvelopes {
+				for _, env := range envs {
+					sent[keyID(uint32(env.OriginatorNodeID), uint64(env.OriginatorSequenceID))] = struct{}{}
+				}
+			}
+			require.Equal(t, sent, received)
+		})
 	}
 }
 

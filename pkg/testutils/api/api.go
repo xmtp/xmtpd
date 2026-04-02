@@ -132,7 +132,7 @@ func NewTestGRPCPayerAPIClient(
 	_, port, err := net.SplitHostPort(addr)
 	require.NoError(t, err)
 
-	client, err := utils.NewConnectGatewayAPIClient(
+	client, err := utils.NewConnectGRPCPayerAPIClient(
 		t.Context(),
 		"http://localhost:"+port,
 		extraDialOpts...,

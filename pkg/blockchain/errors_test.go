@@ -25,6 +25,57 @@ func TestBlockchainErrorHashes(t *testing.T) {
 	}
 }
 
+func TestLookupSelector(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  error
+	}{
+		{
+			name:  "known selector only",
+			input: "0xa88ee577",
+			want:  ErrNoChange,
+		},
+		{
+			name:  "known selector with ABI params",
+			input: "0x84e234330000000000000000000000000000000000000000000000000000000000000001",
+			want:  ErrInvalidStartSequenceID,
+		},
+		{
+			name:  "uppercase selector",
+			input: "0xA88EE577",
+			want:  ErrNoChange,
+		},
+		{
+			name:  "unknown selector",
+			input: "0xdeadbeef",
+			want:  nil,
+		},
+		{
+			name:  "too short",
+			input: "0xdead",
+			want:  nil,
+		},
+		{
+			name:  "empty string",
+			input: "",
+			want:  nil,
+		},
+		{
+			name:  "no 0x prefix",
+			input: "a88ee577",
+			want:  ErrNoChange,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := lookupSelector(tc.input)
+			assert.Equal(t, tc.want, result)
+		})
+	}
+}
+
 func TestTryExtractProtocolError(t *testing.T) {
 	tests := []struct {
 		name      string

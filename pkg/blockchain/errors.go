@@ -282,6 +282,21 @@ func (e BlockchainError) IsErrPayerReportAlreadySubmitted() bool {
 	return e.protocolErr != nil && errors.Is(e.protocolErr, ErrPayerReportAlreadySubmitted)
 }
 
+// lookupSelector takes a hex string (e.g. "0xa88ee577" or "0xa88ee577000...")
+// and looks up the 4-byte selector in protocolErrorsDictionary.
+// Returns nil if no match is found.
+func lookupSelector(hexData string) error {
+	hexData = strings.TrimPrefix(hexData, "0x")
+	if len(hexData) < 8 {
+		return nil
+	}
+	selector := "0x" + strings.ToLower(hexData[:8])
+	if protocolError, exists := protocolErrorsDictionary[selector]; exists {
+		return protocolError
+	}
+	return nil
+}
+
 // tryExtractProtocolError tries to extract the protocol error from the error message.
 // Error codes are 4 bytes hex strings, in example: 0x31f1a313.
 //

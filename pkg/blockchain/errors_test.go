@@ -76,6 +76,84 @@ func TestLookupSelector(t *testing.T) {
 	}
 }
 
+// mockDataError implements rpc.DataError for testing.
+type mockDataError struct {
+	msg  string
+	data any
+}
+
+func (e *mockDataError) Error() string  { return e.msg }
+func (e *mockDataError) ErrorData() any { return e.data }
+
+func TestNewBlockchainErrorWithDataError(t *testing.T) {
+	tests := []struct {
+		name        string
+		err         error
+		wantIs      error
+		wantMessage string
+	}{
+		{
+			name: "extracts known selector from DataError",
+			err: &mockDataError{
+				msg:  "execution reverted",
+				data: "0xa88ee577",
+			},
+			wantIs: ErrNoChange,
+		},
+		{
+			name: "extracts selector with ABI params from DataError",
+			err: &mockDataError{
+				msg:  "execution reverted",
+				data: "0x84e234330000000000000000000000000000000000000000000000000000000000000001",
+			},
+			wantIs: ErrInvalidStartSequenceID,
+		},
+		{
+			name: "falls back to regex when DataError has unknown selector",
+			err: &mockDataError{
+				msg:  "execution reverted: 0xa88ee577",
+				data: "0xdeadbeef",
+			},
+			wantIs: ErrNoChange,
+		},
+		{
+			name: "falls back to regex when DataError data is not string",
+			err: &mockDataError{
+				msg:  "execution reverted: 0xa88ee577",
+				data: 12345,
+			},
+			wantIs: ErrNoChange,
+		},
+		{
+			name:        "falls back to regex for plain errors",
+			err:         errors.New("execution reverted: 0xa88ee577"),
+			wantIs:      ErrNoChange,
+			wantMessage: "NoChange()",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			blockErr := NewBlockchainError(tc.err)
+			require.NotNil(t, blockErr)
+			assert.ErrorIs(t, blockErr, tc.wantIs)
+		})
+	}
+}
+
+func TestNewBlockchainErrorDataErrorTakesPrecedence(t *testing.T) {
+	// DataError carries ErrInvalidStartSequenceID in data field,
+	// but error message string contains ErrNoChange selector.
+	// DataError path should win.
+	err := &mockDataError{
+		msg:  "execution reverted: 0xa88ee577", // ErrNoChange in message
+		data: "0x84e23433",                     // ErrInvalidStartSequenceID in data
+	}
+	blockErr := NewBlockchainError(err)
+	require.NotNil(t, blockErr)
+	assert.ErrorIs(t, blockErr, ErrInvalidStartSequenceID)
+}
+
 func TestTryExtractProtocolError(t *testing.T) {
 	tests := []struct {
 		name      string

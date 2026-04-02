@@ -4,6 +4,8 @@ import (
 	"errors"
 	"regexp"
 	"strings"
+
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 var (
@@ -235,6 +237,17 @@ func NewBlockchainError(originalErr error) *BlockchainError {
 		return nil
 	}
 
+	// Try structured rpc.DataError first (from eth_estimateGas / eth_call).
+	var dataErr rpc.DataError
+	if errors.As(originalErr, &dataErr) {
+		if hexData, ok := dataErr.ErrorData().(string); ok {
+			if protocolErr := lookupSelector(hexData); protocolErr != nil {
+				return &BlockchainError{protocolErr: protocolErr, originalErr: originalErr}
+			}
+		}
+	}
+
+	// Fall back to regex extraction from error string.
 	protocolErr, err := tryExtractProtocolError(originalErr)
 	if err != nil {
 		return &BlockchainError{

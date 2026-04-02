@@ -131,10 +131,9 @@ func ExecuteTransaction(
 	)
 
 	opts := &bind.TransactOpts{
-		Context:  ctx,
-		From:     from,
-		Signer:   signer.SignerFunc(),
-		GasLimit: 5_000_000,
+		Context: ctx,
+		From:    from,
+		Signer:  signer.SignerFunc(),
 	}
 
 	tx, protocolErr := executeTransaction(ctx, logger, opts, txFunc)

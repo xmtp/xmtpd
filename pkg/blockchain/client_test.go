@@ -101,10 +101,9 @@ func TestExecuteWithRetry(t *testing.T) {
 			}
 
 			opts := &bind.TransactOpts{
-				Context:  ctx,
-				From:     signer.FromAddress(),
-				Signer:   signer.SignerFunc(),
-				GasLimit: 5_000_000,
+				Context: ctx,
+				From:    signer.FromAddress(),
+				Signer:  signer.SignerFunc(),
 			}
 
 			_, err := executeTransaction(ctx, logger, opts, txFunc)

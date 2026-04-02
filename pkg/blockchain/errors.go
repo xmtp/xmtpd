@@ -303,10 +303,12 @@ func lookupSelector(hexData string) error {
 	if len(hexData) < 8 {
 		return nil
 	}
+
 	selector := "0x" + strings.ToLower(hexData[:8])
 	if protocolError, exists := protocolErrorsDictionary[selector]; exists {
 		return protocolError
 	}
+
 	return nil
 }
 

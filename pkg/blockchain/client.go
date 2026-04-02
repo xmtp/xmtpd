@@ -88,9 +88,9 @@ func NewRPCClient(ctx context.Context, rpcURL string) (*ethclient.Client, error)
 	return ethclient.DialContext(ctx, rpcURL)
 }
 
-// isRetryableError checks if an error is a transient "underpriced" error
+// isUnderpricedError checks if an error is a transient "underpriced" error
 // from load-balanced RPCs that should be retried.
-func isRetryableError(err error) bool {
+func isUnderpricedError(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "underpriced")
 }
 
@@ -185,7 +185,7 @@ func executeTransaction(
 			return tx, nil
 		}
 
-		if isRetryableError(err) {
+		if isUnderpricedError(err) {
 			backoff := executeTxInitialWait * (1 << attempt)
 
 			logger.Warn(

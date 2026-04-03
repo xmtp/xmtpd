@@ -306,6 +306,18 @@ func (w *Watcher) processPayerRegistryEvents(
 	}
 }
 
+func (w *Watcher) blockTimeForLog(log types.Log) time.Time {
+	header, err := w.rpcClient.HeaderByNumber(w.ctx, new(big.Int).SetUint64(log.BlockNumber))
+	if err != nil {
+		w.logger.Warn("failed to fetch block header, falling back to wall clock",
+			zap.Uint64("block_number", log.BlockNumber),
+			zap.Error(err),
+		)
+		return time.Now()
+	}
+	return time.Unix(int64(header.Time), 0)
+}
+
 func (w *Watcher) handlePayerReportSubmitted(log types.Log) {
 	parsed, err := w.payerReportManagerContract.ParsePayerReportSubmitted(log)
 	if err != nil {
@@ -316,6 +328,7 @@ func (w *Watcher) handlePayerReportSubmitted(log types.Log) {
 	nodeID := parsed.OriginatorNodeId
 	nodeLabel := nodeIDLabel(nodeID)
 	now := time.Now()
+	blockTime := w.blockTimeForLog(log)
 
 	// Core counter
 	reportSubmittedTotal.WithLabelValues(nodeLabel).Inc()
@@ -340,13 +353,14 @@ func (w *Watcher) handlePayerReportSubmitted(log types.Log) {
 	}
 	w.lastEndSeqByNode[nodeID] = parsed.EndSequenceId
 
-	// Track submission time for settlement latency
+	// Track submission time for settlement latency (wall clock for relative timing).
 	key := submissionKey(nodeID, parsed.PayerReportIndex)
 	w.submissionTimeByKey[key] = now
 
-	// Active originator tracking
+	// Active originator tracking (wall clock for sliding window comparisons).
 	w.activeOriginators[nodeID] = now
-	w.lastSubmissionTime = now
+	// Block timestamp so the lag metric reflects actual on-chain time, not restart time.
+	w.lastSubmissionTime = blockTime
 	w.mu.Unlock()
 
 	// Attesting node count

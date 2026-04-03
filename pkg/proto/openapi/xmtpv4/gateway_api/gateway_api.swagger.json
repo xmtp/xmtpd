@@ -1,12 +1,12 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "xmtpv4/payer_api/payer_api.proto",
+    "title": "xmtpv4/gateway_api/gateway_api.proto",
     "version": "version not set"
   },
   "tags": [
     {
-      "name": "PayerApi"
+      "name": "GatewayApi"
     }
   ],
   "consumes": [

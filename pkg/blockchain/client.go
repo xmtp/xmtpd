@@ -24,6 +24,13 @@ import (
 
 var ErrTxFailed = errors.New("transaction failed")
 
+const (
+	executeTxMaxRetries  = 3
+	executeTxInitialWait = 250 * time.Millisecond
+	waitTxTimeout        = 20 * time.Second
+	waitTxPollSleep      = 250 * time.Millisecond
+)
+
 type WebsocketClientOption func(*websocketClientConfig)
 
 type websocketClientConfig struct {
@@ -81,9 +88,15 @@ func NewRPCClient(ctx context.Context, rpcURL string) (*ethclient.Client, error)
 	return ethclient.DialContext(ctx, rpcURL)
 }
 
+// isUnderpricedError checks if an error is a transient "underpriced" error
+// from load-balanced RPCs that should be retried.
+func isUnderpricedError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "underpriced")
+}
+
 // ExecuteTransaction is a helper function that:
 // - checks if the sender has enough balance.
-// - executes a transaction.
+// - executes a transaction with retry on transient underpriced errors.
 // - waits for it to be mined.
 // - if the transaction fails, it tries to get the error code from the transaction receipt.
 // - processes the event logs.
@@ -106,6 +119,7 @@ func ExecuteTransaction(
 	if err != nil {
 		return NewBlockchainError(fmt.Errorf("failed to check balance: %w", err))
 	}
+
 	if balance.Cmp(big.NewInt(0)) == 0 {
 		return NewBlockchainError(fmt.Errorf("account %s has zero balance", from.Hex()))
 	}
@@ -117,55 +131,94 @@ func ExecuteTransaction(
 	)
 
 	opts := &bind.TransactOpts{
-		Context:  ctx,
-		From:     from,
-		Signer:   signer.SignerFunc(),
-		GasLimit: 5_000_000,
+		Context: ctx,
+		From:    from,
+		Signer:  signer.SignerFunc(),
 	}
 
-	// transactions that are not simulated will always return a tx.Hash().
-	// The error will be returned if the transaction fails to be mined.
-	tx, err := txFunc(opts)
-	if err != nil {
-		return NewBlockchainError(err)
+	tx, protocolErr := executeTransaction(ctx, logger, opts, txFunc)
+	if protocolErr != nil {
+		return protocolErr
 	}
 
-	receipt, protocolErr := WaitForTransaction(
+	receipt, protocolErr := waitForTransaction(
 		ctx,
 		logger,
 		client,
-		20*time.Second,
-		250*time.Millisecond,
 		tx.Hash(),
 	)
 	if protocolErr != nil {
 		return protocolErr
 	}
 
-	for _, log := range receipt.Logs {
-		event, err := eventParser(log)
-		if err != nil {
-			continue
+	if eventParser != nil && logHandler != nil {
+		for _, log := range receipt.Logs {
+			event, err := eventParser(log)
+			if err != nil {
+				continue
+			}
+			logHandler(event)
 		}
-		logHandler(event)
 	}
 
 	return nil
 }
 
-// WaitForTransaction waits for the given transaction hash to have been submitted to the chain and soft confirmed.
-func WaitForTransaction(
+func executeTransaction(
+	ctx context.Context,
+	logger *zap.Logger,
+	opts *bind.TransactOpts,
+	txFunc func(*bind.TransactOpts) (*types.Transaction, error),
+) (*types.Transaction, ProtocolError) {
+	var (
+		tx  *types.Transaction
+		err error
+	)
+
+	for attempt := 0; attempt <= executeTxMaxRetries; attempt++ {
+		if ctx.Err() != nil {
+			return nil, NewBlockchainError(ctx.Err())
+		}
+
+		tx, err = txFunc(opts)
+		if err == nil {
+			return tx, nil
+		}
+
+		if isUnderpricedError(err) {
+			backoff := executeTxInitialWait * (1 << attempt)
+
+			if attempt < executeTxMaxRetries {
+				logger.Warn(
+					"retryable transaction error, backing off",
+					zap.Error(err),
+					zap.Int("attempt", attempt+1),
+					zap.Duration("backoff", backoff),
+				)
+
+				utils.RandomSleep(ctx, backoff)
+			}
+
+			continue
+		}
+
+		return nil, NewBlockchainError(err)
+	}
+
+	return nil, NewBlockchainError(fmt.Errorf("max retries reached executing transaction: %w", err))
+}
+
+// waitForTransaction waits for the given transaction hash to have been submitted to the chain and soft confirmed.
+func waitForTransaction(
 	ctx context.Context,
 	logger *zap.Logger,
 	client *ethclient.Client,
-	timeout time.Duration,
-	pollSleep time.Duration,
 	hash common.Hash,
 ) (*types.Receipt, ProtocolError) {
-	ctx, cancel := context.WithDeadline(ctx, time.Now().Add(timeout))
+	ctx, cancel := context.WithDeadline(ctx, time.Now().Add(waitTxTimeout))
 	defer cancel()
 
-	ticker := time.NewTicker(pollSleep)
+	ticker := time.NewTicker(waitTxPollSleep)
 	defer ticker.Stop()
 
 	var (

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"regexp"
 	"strings"
+
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 var (
@@ -282,34 +284,60 @@ func (e BlockchainError) IsErrPayerReportAlreadySubmitted() bool {
 	return e.protocolErr != nil && errors.Is(e.protocolErr, ErrPayerReportAlreadySubmitted)
 }
 
-// tryExtractProtocolError tries to extract the protocol error from the error message.
-// Error codes are 4 bytes hex strings, in example: 0x31f1a313.
+// tryExtractProtocolError tries to extract the protocol error from the given error.
 //
-// The function finds all 0x-prefixed hex values and only considers those whose length
+// It first checks for structured rpc.DataError (from eth_estimateGas / eth_call),
+// which carries the revert data directly. If that fails or is not available, it falls
+// back to regex extraction from the error string.
+//
+// Error codes are 4 bytes hex strings, in example: 0x31f1a313.
+// The regex path finds all 0x-prefixed hex values and only considers those whose length
 // is consistent with ABI-encoded revert data: exactly 8 hex chars (selector only) or
 // 8 + n*64 hex chars (selector + ABI-encoded parameters). This rejects false positives
 // from Ethereum addresses (40 hex chars) and transaction hashes (64 hex chars).
 func tryExtractProtocolError(e error) (message, err error) {
-	matches := hexValueRegex.FindAllStringSubmatch(e.Error(), -1)
-	if len(matches) == 0 {
+	// Try structured rpc.DataError first (from eth_estimateGas / eth_call).
+	if dataErr, ok := errors.AsType[rpc.DataError](e); ok {
+		if hexData, ok := dataErr.ErrorData().(string); ok {
+			if protocolErr := lookupSelector(hexData); protocolErr != nil {
+				return protocolErr, nil
+			}
+		}
+	}
+
+	// Fall back to regex extraction from error string.
+	match := hexValueRegex.FindString(e.Error())
+	if match == "" {
 		return nil, ErrCodeNotFound
 	}
 
-	for _, match := range matches {
-		hexChars := match[1]
-		n := len(hexChars)
-
-		// A valid error selector is exactly 8 hex chars, optionally followed by
-		// ABI-encoded parameters in 32-byte (64 hex char) chunks.
-		if n < 8 || (n-8)%64 != 0 {
-			continue
-		}
-
-		selector := "0x" + strings.ToLower(hexChars[:8])
-		if protocolError, exists := protocolErrorsDictionary[selector]; exists {
-			return protocolError, nil
-		}
+	if protocolErr := lookupSelector(match); protocolErr != nil {
+		return protocolErr, nil
 	}
 
 	return nil, ErrCodeNotInDic
+}
+
+// lookupSelector takes a hex string (e.g. "0xa88ee577" or "0xa88ee577000...")
+// and looks up the 4-byte selector in protocolErrorsDictionary.
+//
+// It validates that the hex data length is consistent with ABI-encoded revert data:
+// exactly 8 hex chars (selector only) or 8 + n*64 hex chars (selector + ABI params).
+// This rejects false positives like Ethereum addresses (40 hex chars) and transaction
+// hashes (64 hex chars).
+//
+// Returns nil if no match is found or the input is invalid.
+func lookupSelector(hexData string) error {
+	hexData = strings.TrimPrefix(hexData, "0x")
+	n := len(hexData)
+	if n < 8 || (n-8)%64 != 0 {
+		return nil
+	}
+
+	selector := "0x" + strings.ToLower(hexData[:8])
+	if protocolError, exists := protocolErrorsDictionary[selector]; exists {
+		return protocolError
+	}
+
+	return nil
 }

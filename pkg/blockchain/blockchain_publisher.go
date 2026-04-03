@@ -184,12 +184,10 @@ func (m *BlockchainPublisher) PublishGroupMessage(
 			return m.sendRawTransaction(ctx, m.groupMessageAddress, data, &nonce)
 		},
 		func(ctx context.Context, transaction *types.Transaction) ([]*gm.GroupMessageBroadcasterMessageSent, error) {
-			receipt, err := WaitForTransaction(
+			receipt, err := waitForTransaction(
 				ctx,
 				m.logger,
 				m.client,
-				2*time.Second,
-				250*time.Millisecond,
 				transaction.Hash(),
 			)
 			if err != nil {
@@ -243,12 +241,10 @@ func (m *BlockchainPublisher) BootstrapGroupMessages(
 			return m.sendRawTransaction(ctx, m.groupMessageAddress, data, &nonce)
 		},
 		func(ctx context.Context, transaction *types.Transaction) ([]*gm.GroupMessageBroadcasterMessageSent, error) {
-			receipt, err := WaitForTransaction(
+			receipt, err := waitForTransaction(
 				ctx,
 				m.logger,
 				m.client,
-				2*time.Second,
-				250*time.Millisecond,
 				transaction.Hash(),
 			)
 			if err != nil {
@@ -287,12 +283,10 @@ func (m *BlockchainPublisher) PublishIdentityUpdate(
 			return m.sendRawTransaction(ctx, m.identityUpdateAddress, data, &nonce)
 		},
 		func(ctx context.Context, transaction *types.Transaction) ([]*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
-			receipt, err := WaitForTransaction(
+			receipt, err := waitForTransaction(
 				ctx,
 				m.logger,
 				m.client,
-				2*time.Second,
-				250*time.Millisecond,
 				transaction.Hash(),
 			)
 			if err != nil {
@@ -348,12 +342,10 @@ func (m *BlockchainPublisher) BootstrapIdentityUpdates(
 			return m.sendRawTransaction(ctx, m.identityUpdateAddress, data, &nonce)
 		},
 		func(ctx context.Context, transaction *types.Transaction) ([]*iu.IdentityUpdateBroadcasterIdentityUpdateCreated, error) {
-			receipt, err := WaitForTransaction(
+			receipt, err := waitForTransaction(
 				ctx,
 				m.logger,
 				m.client,
-				2*time.Second,
-				250*time.Millisecond,
 				transaction.Hash(),
 			)
 			if err != nil {

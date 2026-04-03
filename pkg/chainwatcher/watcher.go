@@ -327,7 +327,8 @@ func (w *Watcher) handlePayerReportSubmitted(log types.Log) {
 
 	nodeID := parsed.OriginatorNodeId
 	nodeLabel := nodeIDLabel(nodeID)
-	now := w.blockTimeForLog(log)
+	now := time.Now()
+	blockTime := w.blockTimeForLog(log)
 
 	// Core counter
 	reportSubmittedTotal.WithLabelValues(nodeLabel).Inc()
@@ -352,13 +353,14 @@ func (w *Watcher) handlePayerReportSubmitted(log types.Log) {
 	}
 	w.lastEndSeqByNode[nodeID] = parsed.EndSequenceId
 
-	// Track submission time for settlement latency
+	// Track submission time for settlement latency (wall clock for relative timing).
 	key := submissionKey(nodeID, parsed.PayerReportIndex)
 	w.submissionTimeByKey[key] = now
 
-	// Active originator tracking
+	// Active originator tracking (wall clock for sliding window comparisons).
 	w.activeOriginators[nodeID] = now
-	w.lastSubmissionTime = now
+	// Block timestamp so the lag metric reflects actual on-chain time, not restart time.
+	w.lastSubmissionTime = blockTime
 	w.mu.Unlock()
 
 	// Attesting node count

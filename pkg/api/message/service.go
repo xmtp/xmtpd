@@ -38,11 +38,12 @@ import (
 )
 
 const (
-	maxRequestedRows     int32         = 1000
-	maxQueriesPerRequest int           = 10000
-	maxTopicLength       int           = 128
-	maxVectorClockLength int           = 100
-	pagingInterval       time.Duration = 100 * time.Millisecond
+	maxRequestedRows      int32         = 1000
+	maxInboxIdsPerRequest int           = 1000
+	maxQueriesPerRequest  int           = 10000
+	maxTopicLength        int           = 128
+	maxVectorClockLength  int           = 100
+	pagingInterval        time.Duration = 100 * time.Millisecond
 
 	requestMissingMessageError = "missing request message"
 )
@@ -1011,9 +1012,19 @@ func (s *Service) GetInboxIds(
 		logger.Debug("received request", utils.BodyField(req))
 	}
 
-	addresses := []string{}
+	if len(req.Msg.GetRequests()) > maxInboxIdsPerRequest {
+		return nil, connect.NewError(
+			connect.CodeInvalidArgument,
+			errors.New("too many requests"),
+		)
+	}
 
-	for _, request := range req.Msg.GetRequests() {
+	var (
+		requests  = req.Msg.GetRequests()
+		addresses = make([]string, 0, len(requests))
+	)
+
+	for _, request := range requests {
 		addresses = append(addresses, request.GetIdentifier())
 	}
 

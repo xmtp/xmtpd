@@ -73,8 +73,9 @@ func (s *Service) SubscribeTopics(
 
 	cursors, topics, topicKeys := buildTopicCursors(filters, knownOriginators)
 
-	envelopesCh := s.subscribeWorker.listen(ctx, &message_api.EnvelopesQuery{
-		Topics: topics,
+	envelopesCh := s.subscribeWorker.listen(ctx, &subscribeFilter{
+		topics: topics,
+		cursor: make(map[uint32]uint64),
 	})
 
 	err = s.catchUpTopics(ctx, stream, cursors, topicKeys, logger)

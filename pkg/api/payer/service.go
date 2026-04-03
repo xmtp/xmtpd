@@ -24,6 +24,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
+	gateway_apiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/gateway_api/gateway_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api/payer_apiconnect"
@@ -40,6 +41,7 @@ const requestMissingMessageError = "missing request message"
 
 type Service struct {
 	payer_apiconnect.UnimplementedPayerApiHandler
+	gateway_apiconnect.UnimplementedGatewayApiHandler
 
 	cfg                 Config
 	ctx                 context.Context
@@ -52,7 +54,10 @@ type Service struct {
 	maxPayerMessageSize uint64
 }
 
-var _ payer_apiconnect.PayerApiHandler = (*Service)(nil)
+var (
+	_ payer_apiconnect.PayerApiHandler     = (*Service)(nil)
+	_ gateway_apiconnect.GatewayApiHandler = (*Service)(nil)
+)
 
 func NewPayerAPIService(
 	ctx context.Context,

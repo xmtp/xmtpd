@@ -7,7 +7,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/xmtp/xmtpd/pkg/envelopes"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
@@ -23,7 +22,7 @@ type listener struct {
 func newListener(
 	ctx context.Context,
 	logger *zap.Logger,
-	query *message_api.EnvelopesQuery,
+	query *subscribeFilter,
 	ch chan<- []*envelopes.OriginatorEnvelope,
 ) *listener {
 	l := &listener{
@@ -33,8 +32,8 @@ func newListener(
 		originators: make(map[uint32]struct{}),
 		isGlobal:    false,
 	}
-	topics := query.GetTopics()
-	originators := query.GetOriginatorNodeIds()
+	topics := query.topics
+	originators := query.originatorNodeIDs
 
 	if len(topics) == 0 && len(originators) == 0 {
 		l.isGlobal = true

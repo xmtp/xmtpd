@@ -1,12 +1,12 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "xmtpv4/message_api/message_api.proto",
+    "title": "xmtpv4/message_api/query_api.proto",
     "version": "version not set"
   },
   "tags": [
     {
-      "name": "ReplicationApi"
+      "name": "QueryApi"
     }
   ],
   "consumes": [
@@ -17,21 +17,6 @@
   ],
   "paths": {},
   "definitions": {
-    "SubscribeOriginatorsRequestOriginatorFilter": {
-      "type": "object",
-      "properties": {
-        "originatorNodeIds": {
-          "type": "array",
-          "items": {
-            "type": "integer",
-            "format": "int64"
-          }
-        },
-        "lastSeen": {
-          "$ref": "#/definitions/xmtpv4envelopesCursor"
-        }
-      }
-    },
     "SubscribeTopicsRequestTopicFilter": {
       "type": "object",
       "properties": {
@@ -111,28 +96,6 @@
       },
       "title": "Signed originator envelope"
     },
-    "envelopesPayerEnvelope": {
-      "type": "object",
-      "properties": {
-        "unsignedClientEnvelope": {
-          "type": "string",
-          "format": "byte",
-          "title": "Protobuf serialized"
-        },
-        "payerSignature": {
-          "$ref": "#/definitions/associationsRecoverableEcdsaSignature"
-        },
-        "targetOriginator": {
-          "type": "integer",
-          "format": "int64"
-        },
-        "messageRetentionDays": {
-          "type": "integer",
-          "format": "int64"
-        }
-      },
-      "title": "Wraps client envelope with payer signature"
-    },
     "message_apiEnvelopesQuery": {
       "type": "object",
       "properties": {
@@ -180,18 +143,6 @@
         }
       }
     },
-    "message_apiPublishPayerEnvelopesResponse": {
-      "type": "object",
-      "properties": {
-        "originatorEnvelopes": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/envelopesOriginatorEnvelope"
-          }
-        }
-      }
-    },
     "message_apiQueryEnvelopesResponse": {
       "type": "object",
       "properties": {
@@ -204,40 +155,6 @@
         }
       },
       "title": "Query envelopes response"
-    },
-    "message_apiSubscribeEnvelopesResponse": {
-      "type": "object",
-      "properties": {
-        "envelopes": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/envelopesOriginatorEnvelope"
-          }
-        }
-      },
-      "title": "Streamed response for batch subscribe - can be multiple envelopes at once"
-    },
-    "message_apiSubscribeOriginatorsResponse": {
-      "type": "object",
-      "properties": {
-        "envelopes": {
-          "$ref": "#/definitions/message_apiSubscribeOriginatorsResponseEnvelopes"
-        }
-      },
-      "title": "Response for SubscribeOriginators"
-    },
-    "message_apiSubscribeOriginatorsResponseEnvelopes": {
-      "type": "object",
-      "properties": {
-        "envelopes": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/envelopesOriginatorEnvelope"
-          }
-        }
-      }
     },
     "message_apiSubscribeTopicsResponse": {
       "type": "object",

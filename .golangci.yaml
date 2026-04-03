@@ -21,6 +21,12 @@ linters:
     - protogetter
   exclusions:
     generated: lax
+    rules:
+      # Suppress deprecated-usage warnings for PayerApi/ReplicationApi types.
+      # These will be removed in Phase 2 of d14n service restructuring.
+      - linters: [staticcheck]
+        text: "SA1019:"
+        path: "(pkg/testutils/|pkg/utils/api_clients\\.go|pkg/sync/|pkg/gateway/|pkg/api/payer/|pkg/stress/|_test\\.go)"
 
 formatters:
   enable:

@@ -11,7 +11,6 @@ package message_api
 import (
 	associations "github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	envelopes "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
-	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -764,6 +763,118 @@ func (x *GetNewestEnvelopeResponse) GetResults() []*GetNewestEnvelopeResponse_Re
 	return nil
 }
 
+// Subscribe to envelopes from specific originator nodes
+type SubscribeOriginatorsRequest struct {
+	state         protoimpl.MessageState                        `protogen:"open.v1"`
+	Filter        *SubscribeOriginatorsRequest_OriginatorFilter `protobuf:"bytes,1,opt,name=filter,proto3" json:"filter,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubscribeOriginatorsRequest) Reset() {
+	*x = SubscribeOriginatorsRequest{}
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubscribeOriginatorsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubscribeOriginatorsRequest) ProtoMessage() {}
+
+func (x *SubscribeOriginatorsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubscribeOriginatorsRequest.ProtoReflect.Descriptor instead.
+func (*SubscribeOriginatorsRequest) Descriptor() ([]byte, []int) {
+	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *SubscribeOriginatorsRequest) GetFilter() *SubscribeOriginatorsRequest_OriginatorFilter {
+	if x != nil {
+		return x.Filter
+	}
+	return nil
+}
+
+// Response for SubscribeOriginators
+type SubscribeOriginatorsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Response:
+	//
+	//	*SubscribeOriginatorsResponse_Envelopes_
+	Response      isSubscribeOriginatorsResponse_Response `protobuf_oneof:"response"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubscribeOriginatorsResponse) Reset() {
+	*x = SubscribeOriginatorsResponse{}
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubscribeOriginatorsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubscribeOriginatorsResponse) ProtoMessage() {}
+
+func (x *SubscribeOriginatorsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubscribeOriginatorsResponse.ProtoReflect.Descriptor instead.
+func (*SubscribeOriginatorsResponse) Descriptor() ([]byte, []int) {
+	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *SubscribeOriginatorsResponse) GetResponse() isSubscribeOriginatorsResponse_Response {
+	if x != nil {
+		return x.Response
+	}
+	return nil
+}
+
+func (x *SubscribeOriginatorsResponse) GetEnvelopes() *SubscribeOriginatorsResponse_Envelopes {
+	if x != nil {
+		if x, ok := x.Response.(*SubscribeOriginatorsResponse_Envelopes_); ok {
+			return x.Envelopes
+		}
+	}
+	return nil
+}
+
+type isSubscribeOriginatorsResponse_Response interface {
+	isSubscribeOriginatorsResponse_Response()
+}
+
+type SubscribeOriginatorsResponse_Envelopes_ struct {
+	Envelopes *SubscribeOriginatorsResponse_Envelopes `protobuf:"bytes,1,opt,name=envelopes,proto3,oneof"`
+}
+
+func (*SubscribeOriginatorsResponse_Envelopes_) isSubscribeOriginatorsResponse_Response() {}
+
 type SubscribeTopicsRequest_TopicFilter struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Topic         []byte                 `protobuf:"bytes,1,opt,name=topic,proto3" json:"topic,omitempty"`
@@ -774,7 +885,7 @@ type SubscribeTopicsRequest_TopicFilter struct {
 
 func (x *SubscribeTopicsRequest_TopicFilter) Reset() {
 	*x = SubscribeTopicsRequest_TopicFilter{}
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[14]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -786,7 +897,7 @@ func (x *SubscribeTopicsRequest_TopicFilter) String() string {
 func (*SubscribeTopicsRequest_TopicFilter) ProtoMessage() {}
 
 func (x *SubscribeTopicsRequest_TopicFilter) ProtoReflect() protoreflect.Message {
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[14]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -825,7 +936,7 @@ type SubscribeTopicsResponse_StatusUpdate struct {
 
 func (x *SubscribeTopicsResponse_StatusUpdate) Reset() {
 	*x = SubscribeTopicsResponse_StatusUpdate{}
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[15]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -837,7 +948,7 @@ func (x *SubscribeTopicsResponse_StatusUpdate) String() string {
 func (*SubscribeTopicsResponse_StatusUpdate) ProtoMessage() {}
 
 func (x *SubscribeTopicsResponse_StatusUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[15]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -869,7 +980,7 @@ type SubscribeTopicsResponse_Envelopes struct {
 
 func (x *SubscribeTopicsResponse_Envelopes) Reset() {
 	*x = SubscribeTopicsResponse_Envelopes{}
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[16]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -881,7 +992,7 @@ func (x *SubscribeTopicsResponse_Envelopes) String() string {
 func (*SubscribeTopicsResponse_Envelopes) ProtoMessage() {}
 
 func (x *SubscribeTopicsResponse_Envelopes) ProtoReflect() protoreflect.Message {
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[16]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -915,7 +1026,7 @@ type GetInboxIdsRequest_Request struct {
 
 func (x *GetInboxIdsRequest_Request) Reset() {
 	*x = GetInboxIdsRequest_Request{}
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[17]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -927,7 +1038,7 @@ func (x *GetInboxIdsRequest_Request) String() string {
 func (*GetInboxIdsRequest_Request) ProtoMessage() {}
 
 func (x *GetInboxIdsRequest_Request) ProtoReflect() protoreflect.Message {
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[17]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -969,7 +1080,7 @@ type GetInboxIdsResponse_Response struct {
 
 func (x *GetInboxIdsResponse_Response) Reset() {
 	*x = GetInboxIdsResponse_Response{}
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[18]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -981,7 +1092,7 @@ func (x *GetInboxIdsResponse_Response) String() string {
 func (*GetInboxIdsResponse_Response) ProtoMessage() {}
 
 func (x *GetInboxIdsResponse_Response) ProtoReflect() protoreflect.Message {
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[18]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1027,7 +1138,7 @@ type GetNewestEnvelopeResponse_Response struct {
 
 func (x *GetNewestEnvelopeResponse_Response) Reset() {
 	*x = GetNewestEnvelopeResponse_Response{}
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[19]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1039,7 +1150,7 @@ func (x *GetNewestEnvelopeResponse_Response) String() string {
 func (*GetNewestEnvelopeResponse_Response) ProtoMessage() {}
 
 func (x *GetNewestEnvelopeResponse_Response) ProtoReflect() protoreflect.Message {
-	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[19]
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1062,11 +1173,107 @@ func (x *GetNewestEnvelopeResponse_Response) GetOriginatorEnvelope() *envelopes.
 	return nil
 }
 
+type SubscribeOriginatorsRequest_OriginatorFilter struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	OriginatorNodeIds []uint32               `protobuf:"varint,1,rep,packed,name=originator_node_ids,json=originatorNodeIds,proto3" json:"originator_node_ids,omitempty"`
+	LastSeen          *envelopes.Cursor      `protobuf:"bytes,2,opt,name=last_seen,json=lastSeen,proto3" json:"last_seen,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *SubscribeOriginatorsRequest_OriginatorFilter) Reset() {
+	*x = SubscribeOriginatorsRequest_OriginatorFilter{}
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubscribeOriginatorsRequest_OriginatorFilter) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubscribeOriginatorsRequest_OriginatorFilter) ProtoMessage() {}
+
+func (x *SubscribeOriginatorsRequest_OriginatorFilter) ProtoReflect() protoreflect.Message {
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubscribeOriginatorsRequest_OriginatorFilter.ProtoReflect.Descriptor instead.
+func (*SubscribeOriginatorsRequest_OriginatorFilter) Descriptor() ([]byte, []int) {
+	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{14, 0}
+}
+
+func (x *SubscribeOriginatorsRequest_OriginatorFilter) GetOriginatorNodeIds() []uint32 {
+	if x != nil {
+		return x.OriginatorNodeIds
+	}
+	return nil
+}
+
+func (x *SubscribeOriginatorsRequest_OriginatorFilter) GetLastSeen() *envelopes.Cursor {
+	if x != nil {
+		return x.LastSeen
+	}
+	return nil
+}
+
+type SubscribeOriginatorsResponse_Envelopes struct {
+	state         protoimpl.MessageState          `protogen:"open.v1"`
+	Envelopes     []*envelopes.OriginatorEnvelope `protobuf:"bytes,1,rep,name=envelopes,proto3" json:"envelopes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubscribeOriginatorsResponse_Envelopes) Reset() {
+	*x = SubscribeOriginatorsResponse_Envelopes{}
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubscribeOriginatorsResponse_Envelopes) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubscribeOriginatorsResponse_Envelopes) ProtoMessage() {}
+
+func (x *SubscribeOriginatorsResponse_Envelopes) ProtoReflect() protoreflect.Message {
+	mi := &file_xmtpv4_message_api_message_api_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubscribeOriginatorsResponse_Envelopes.ProtoReflect.Descriptor instead.
+func (*SubscribeOriginatorsResponse_Envelopes) Descriptor() ([]byte, []int) {
+	return file_xmtpv4_message_api_message_api_proto_rawDescGZIP(), []int{15, 0}
+}
+
+func (x *SubscribeOriginatorsResponse_Envelopes) GetEnvelopes() []*envelopes.OriginatorEnvelope {
+	if x != nil {
+		return x.Envelopes
+	}
+	return nil
+}
+
 var File_xmtpv4_message_api_message_api_proto protoreflect.FileDescriptor
 
 const file_xmtpv4_message_api_message_api_proto_rawDesc = "" +
 	"\n" +
-	"$xmtpv4/message_api/message_api.proto\x12\x17xmtp.xmtpv4.message_api\x1a\x1cgoogle/api/annotations.proto\x1a'identity/associations/association.proto\x1a xmtpv4/envelopes/envelopes.proto\"\x94\x01\n" +
+	"$xmtpv4/message_api/message_api.proto\x12\x17xmtp.xmtpv4.message_api\x1a'identity/associations/association.proto\x1a xmtpv4/envelopes/envelopes.proto\"\x94\x01\n" +
 	"\x0eEnvelopesQuery\x12\x16\n" +
 	"\x06topics\x18\x01 \x03(\fR\x06topics\x12.\n" +
 	"\x13originator_node_ids\x18\x02 \x03(\rR\x11originatorNodeIds\x12:\n" +
@@ -1126,15 +1333,26 @@ const file_xmtpv4_message_api_message_api_proto_rawDesc = "" +
 	"\aresults\x18\x01 \x03(\v2;.xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse.ResponseR\aresults\x1a\x83\x01\n" +
 	"\bResponse\x12_\n" +
 	"\x13originator_envelope\x18\x01 \x01(\v2).xmtp.xmtpv4.envelopes.OriginatorEnvelopeH\x00R\x12originatorEnvelope\x88\x01\x01B\x16\n" +
-	"\x14_originator_envelope2\x82\a\n" +
-	"\x0eReplicationApi\x12\x81\x01\n" +
-	"\x12SubscribeEnvelopes\x122.xmtp.xmtpv4.message_api.SubscribeEnvelopesRequest\x1a3.xmtp.xmtpv4.message_api.SubscribeEnvelopesResponse\"\x000\x01\x12\x87\x01\n" +
-	"\x15SubscribeAllEnvelopes\x125.xmtp.xmtpv4.message_api.SubscribeAllEnvelopesRequest\x1a3.xmtp.xmtpv4.message_api.SubscribeEnvelopesResponse\"\x000\x01\x12x\n" +
-	"\x0fSubscribeTopics\x12/.xmtp.xmtpv4.message_api.SubscribeTopicsRequest\x1a0.xmtp.xmtpv4.message_api.SubscribeTopicsResponse\"\x000\x01\x12s\n" +
-	"\x0eQueryEnvelopes\x12..xmtp.xmtpv4.message_api.QueryEnvelopesRequest\x1a/.xmtp.xmtpv4.message_api.QueryEnvelopesResponse\"\x00\x12\x88\x01\n" +
-	"\x15PublishPayerEnvelopes\x125.xmtp.xmtpv4.message_api.PublishPayerEnvelopesRequest\x1a6.xmtp.xmtpv4.message_api.PublishPayerEnvelopesResponse\"\x00\x12j\n" +
-	"\vGetInboxIds\x12+.xmtp.xmtpv4.message_api.GetInboxIdsRequest\x1a,.xmtp.xmtpv4.message_api.GetInboxIdsResponse\"\x00\x12|\n" +
-	"\x11GetNewestEnvelope\x121.xmtp.xmtpv4.message_api.GetNewestEnvelopeRequest\x1a2.xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse\"\x00B\xdc\x01\n" +
+	"\x14_originator_envelope\"\xfc\x01\n" +
+	"\x1bSubscribeOriginatorsRequest\x12]\n" +
+	"\x06filter\x18\x01 \x01(\v2E.xmtp.xmtpv4.message_api.SubscribeOriginatorsRequest.OriginatorFilterR\x06filter\x1a~\n" +
+	"\x10OriginatorFilter\x12.\n" +
+	"\x13originator_node_ids\x18\x01 \x03(\rR\x11originatorNodeIds\x12:\n" +
+	"\tlast_seen\x18\x02 \x01(\v2\x1d.xmtp.xmtpv4.envelopes.CursorR\blastSeen\"\xe1\x01\n" +
+	"\x1cSubscribeOriginatorsResponse\x12_\n" +
+	"\tenvelopes\x18\x01 \x01(\v2?.xmtp.xmtpv4.message_api.SubscribeOriginatorsResponse.EnvelopesH\x00R\tenvelopes\x1aT\n" +
+	"\tEnvelopes\x12G\n" +
+	"\tenvelopes\x18\x01 \x03(\v2).xmtp.xmtpv4.envelopes.OriginatorEnvelopeR\tenvelopesB\n" +
+	"\n" +
+	"\bresponse2\x94\a\n" +
+	"\x0eReplicationApi\x12\x87\x01\n" +
+	"\x14SubscribeOriginators\x124.xmtp.xmtpv4.message_api.SubscribeOriginatorsRequest\x1a5.xmtp.xmtpv4.message_api.SubscribeOriginatorsResponse\"\x000\x01\x12\x84\x01\n" +
+	"\x12SubscribeEnvelopes\x122.xmtp.xmtpv4.message_api.SubscribeEnvelopesRequest\x1a3.xmtp.xmtpv4.message_api.SubscribeEnvelopesResponse\"\x03\x88\x02\x010\x01\x12{\n" +
+	"\x0fSubscribeTopics\x12/.xmtp.xmtpv4.message_api.SubscribeTopicsRequest\x1a0.xmtp.xmtpv4.message_api.SubscribeTopicsResponse\"\x03\x88\x02\x010\x01\x12v\n" +
+	"\x0eQueryEnvelopes\x12..xmtp.xmtpv4.message_api.QueryEnvelopesRequest\x1a/.xmtp.xmtpv4.message_api.QueryEnvelopesResponse\"\x03\x88\x02\x01\x12\x8b\x01\n" +
+	"\x15PublishPayerEnvelopes\x125.xmtp.xmtpv4.message_api.PublishPayerEnvelopesRequest\x1a6.xmtp.xmtpv4.message_api.PublishPayerEnvelopesResponse\"\x03\x88\x02\x01\x12m\n" +
+	"\vGetInboxIds\x12+.xmtp.xmtpv4.message_api.GetInboxIdsRequest\x1a,.xmtp.xmtpv4.message_api.GetInboxIdsResponse\"\x03\x88\x02\x01\x12\x7f\n" +
+	"\x11GetNewestEnvelope\x121.xmtp.xmtpv4.message_api.GetNewestEnvelopeRequest\x1a2.xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse\"\x03\x88\x02\x01B\xdc\x01\n" +
 	"\x1bcom.xmtp.xmtpv4.message_apiB\x0fMessageApiProtoP\x01Z2github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api\xa2\x02\x03XXM\xaa\x02\x16Xmtp.Xmtpv4.MessageApi\xca\x02\x16Xmtp\\Xmtpv4\\MessageApi\xe2\x02\"Xmtp\\Xmtpv4\\MessageApi\\GPBMetadata\xea\x02\x18Xmtp::Xmtpv4::MessageApib\x06proto3"
 
 var (
@@ -1150,73 +1368,81 @@ func file_xmtpv4_message_api_message_api_proto_rawDescGZIP() []byte {
 }
 
 var file_xmtpv4_message_api_message_api_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_xmtpv4_message_api_message_api_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_xmtpv4_message_api_message_api_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_xmtpv4_message_api_message_api_proto_goTypes = []any{
-	(SubscribeTopicsResponse_SubscriptionStatus)(0), // 0: xmtp.xmtpv4.message_api.SubscribeTopicsResponse.SubscriptionStatus
-	(*EnvelopesQuery)(nil),                          // 1: xmtp.xmtpv4.message_api.EnvelopesQuery
-	(*SubscribeEnvelopesRequest)(nil),               // 2: xmtp.xmtpv4.message_api.SubscribeEnvelopesRequest
-	(*SubscribeTopicsRequest)(nil),                  // 3: xmtp.xmtpv4.message_api.SubscribeTopicsRequest
-	(*SubscribeTopicsResponse)(nil),                 // 4: xmtp.xmtpv4.message_api.SubscribeTopicsResponse
-	(*SubscribeEnvelopesResponse)(nil),              // 5: xmtp.xmtpv4.message_api.SubscribeEnvelopesResponse
-	(*SubscribeAllEnvelopesRequest)(nil),            // 6: xmtp.xmtpv4.message_api.SubscribeAllEnvelopesRequest
-	(*QueryEnvelopesRequest)(nil),                   // 7: xmtp.xmtpv4.message_api.QueryEnvelopesRequest
-	(*QueryEnvelopesResponse)(nil),                  // 8: xmtp.xmtpv4.message_api.QueryEnvelopesResponse
-	(*PublishPayerEnvelopesRequest)(nil),            // 9: xmtp.xmtpv4.message_api.PublishPayerEnvelopesRequest
-	(*PublishPayerEnvelopesResponse)(nil),           // 10: xmtp.xmtpv4.message_api.PublishPayerEnvelopesResponse
-	(*GetInboxIdsRequest)(nil),                      // 11: xmtp.xmtpv4.message_api.GetInboxIdsRequest
-	(*GetInboxIdsResponse)(nil),                     // 12: xmtp.xmtpv4.message_api.GetInboxIdsResponse
-	(*GetNewestEnvelopeRequest)(nil),                // 13: xmtp.xmtpv4.message_api.GetNewestEnvelopeRequest
-	(*GetNewestEnvelopeResponse)(nil),               // 14: xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse
-	(*SubscribeTopicsRequest_TopicFilter)(nil),      // 15: xmtp.xmtpv4.message_api.SubscribeTopicsRequest.TopicFilter
-	(*SubscribeTopicsResponse_StatusUpdate)(nil),    // 16: xmtp.xmtpv4.message_api.SubscribeTopicsResponse.StatusUpdate
-	(*SubscribeTopicsResponse_Envelopes)(nil),       // 17: xmtp.xmtpv4.message_api.SubscribeTopicsResponse.Envelopes
-	(*GetInboxIdsRequest_Request)(nil),              // 18: xmtp.xmtpv4.message_api.GetInboxIdsRequest.Request
-	(*GetInboxIdsResponse_Response)(nil),            // 19: xmtp.xmtpv4.message_api.GetInboxIdsResponse.Response
-	(*GetNewestEnvelopeResponse_Response)(nil),      // 20: xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse.Response
-	(*envelopes.Cursor)(nil),                        // 21: xmtp.xmtpv4.envelopes.Cursor
-	(*envelopes.OriginatorEnvelope)(nil),            // 22: xmtp.xmtpv4.envelopes.OriginatorEnvelope
-	(*envelopes.PayerEnvelope)(nil),                 // 23: xmtp.xmtpv4.envelopes.PayerEnvelope
-	(associations.IdentifierKind)(0),                // 24: xmtp.identity.associations.IdentifierKind
+	(SubscribeTopicsResponse_SubscriptionStatus)(0),      // 0: xmtp.xmtpv4.message_api.SubscribeTopicsResponse.SubscriptionStatus
+	(*EnvelopesQuery)(nil),                               // 1: xmtp.xmtpv4.message_api.EnvelopesQuery
+	(*SubscribeEnvelopesRequest)(nil),                    // 2: xmtp.xmtpv4.message_api.SubscribeEnvelopesRequest
+	(*SubscribeTopicsRequest)(nil),                       // 3: xmtp.xmtpv4.message_api.SubscribeTopicsRequest
+	(*SubscribeTopicsResponse)(nil),                      // 4: xmtp.xmtpv4.message_api.SubscribeTopicsResponse
+	(*SubscribeEnvelopesResponse)(nil),                   // 5: xmtp.xmtpv4.message_api.SubscribeEnvelopesResponse
+	(*SubscribeAllEnvelopesRequest)(nil),                 // 6: xmtp.xmtpv4.message_api.SubscribeAllEnvelopesRequest
+	(*QueryEnvelopesRequest)(nil),                        // 7: xmtp.xmtpv4.message_api.QueryEnvelopesRequest
+	(*QueryEnvelopesResponse)(nil),                       // 8: xmtp.xmtpv4.message_api.QueryEnvelopesResponse
+	(*PublishPayerEnvelopesRequest)(nil),                 // 9: xmtp.xmtpv4.message_api.PublishPayerEnvelopesRequest
+	(*PublishPayerEnvelopesResponse)(nil),                // 10: xmtp.xmtpv4.message_api.PublishPayerEnvelopesResponse
+	(*GetInboxIdsRequest)(nil),                           // 11: xmtp.xmtpv4.message_api.GetInboxIdsRequest
+	(*GetInboxIdsResponse)(nil),                          // 12: xmtp.xmtpv4.message_api.GetInboxIdsResponse
+	(*GetNewestEnvelopeRequest)(nil),                     // 13: xmtp.xmtpv4.message_api.GetNewestEnvelopeRequest
+	(*GetNewestEnvelopeResponse)(nil),                    // 14: xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse
+	(*SubscribeOriginatorsRequest)(nil),                  // 15: xmtp.xmtpv4.message_api.SubscribeOriginatorsRequest
+	(*SubscribeOriginatorsResponse)(nil),                 // 16: xmtp.xmtpv4.message_api.SubscribeOriginatorsResponse
+	(*SubscribeTopicsRequest_TopicFilter)(nil),           // 17: xmtp.xmtpv4.message_api.SubscribeTopicsRequest.TopicFilter
+	(*SubscribeTopicsResponse_StatusUpdate)(nil),         // 18: xmtp.xmtpv4.message_api.SubscribeTopicsResponse.StatusUpdate
+	(*SubscribeTopicsResponse_Envelopes)(nil),            // 19: xmtp.xmtpv4.message_api.SubscribeTopicsResponse.Envelopes
+	(*GetInboxIdsRequest_Request)(nil),                   // 20: xmtp.xmtpv4.message_api.GetInboxIdsRequest.Request
+	(*GetInboxIdsResponse_Response)(nil),                 // 21: xmtp.xmtpv4.message_api.GetInboxIdsResponse.Response
+	(*GetNewestEnvelopeResponse_Response)(nil),           // 22: xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse.Response
+	(*SubscribeOriginatorsRequest_OriginatorFilter)(nil), // 23: xmtp.xmtpv4.message_api.SubscribeOriginatorsRequest.OriginatorFilter
+	(*SubscribeOriginatorsResponse_Envelopes)(nil),       // 24: xmtp.xmtpv4.message_api.SubscribeOriginatorsResponse.Envelopes
+	(*envelopes.Cursor)(nil),                             // 25: xmtp.xmtpv4.envelopes.Cursor
+	(*envelopes.OriginatorEnvelope)(nil),                 // 26: xmtp.xmtpv4.envelopes.OriginatorEnvelope
+	(*envelopes.PayerEnvelope)(nil),                      // 27: xmtp.xmtpv4.envelopes.PayerEnvelope
+	(associations.IdentifierKind)(0),                     // 28: xmtp.identity.associations.IdentifierKind
 }
 var file_xmtpv4_message_api_message_api_proto_depIdxs = []int32{
-	21, // 0: xmtp.xmtpv4.message_api.EnvelopesQuery.last_seen:type_name -> xmtp.xmtpv4.envelopes.Cursor
+	25, // 0: xmtp.xmtpv4.message_api.EnvelopesQuery.last_seen:type_name -> xmtp.xmtpv4.envelopes.Cursor
 	1,  // 1: xmtp.xmtpv4.message_api.SubscribeEnvelopesRequest.query:type_name -> xmtp.xmtpv4.message_api.EnvelopesQuery
-	15, // 2: xmtp.xmtpv4.message_api.SubscribeTopicsRequest.filters:type_name -> xmtp.xmtpv4.message_api.SubscribeTopicsRequest.TopicFilter
-	17, // 3: xmtp.xmtpv4.message_api.SubscribeTopicsResponse.envelopes:type_name -> xmtp.xmtpv4.message_api.SubscribeTopicsResponse.Envelopes
-	16, // 4: xmtp.xmtpv4.message_api.SubscribeTopicsResponse.status_update:type_name -> xmtp.xmtpv4.message_api.SubscribeTopicsResponse.StatusUpdate
-	22, // 5: xmtp.xmtpv4.message_api.SubscribeEnvelopesResponse.envelopes:type_name -> xmtp.xmtpv4.envelopes.OriginatorEnvelope
+	17, // 2: xmtp.xmtpv4.message_api.SubscribeTopicsRequest.filters:type_name -> xmtp.xmtpv4.message_api.SubscribeTopicsRequest.TopicFilter
+	19, // 3: xmtp.xmtpv4.message_api.SubscribeTopicsResponse.envelopes:type_name -> xmtp.xmtpv4.message_api.SubscribeTopicsResponse.Envelopes
+	18, // 4: xmtp.xmtpv4.message_api.SubscribeTopicsResponse.status_update:type_name -> xmtp.xmtpv4.message_api.SubscribeTopicsResponse.StatusUpdate
+	26, // 5: xmtp.xmtpv4.message_api.SubscribeEnvelopesResponse.envelopes:type_name -> xmtp.xmtpv4.envelopes.OriginatorEnvelope
 	1,  // 6: xmtp.xmtpv4.message_api.QueryEnvelopesRequest.query:type_name -> xmtp.xmtpv4.message_api.EnvelopesQuery
-	22, // 7: xmtp.xmtpv4.message_api.QueryEnvelopesResponse.envelopes:type_name -> xmtp.xmtpv4.envelopes.OriginatorEnvelope
-	23, // 8: xmtp.xmtpv4.message_api.PublishPayerEnvelopesRequest.payer_envelopes:type_name -> xmtp.xmtpv4.envelopes.PayerEnvelope
-	22, // 9: xmtp.xmtpv4.message_api.PublishPayerEnvelopesResponse.originator_envelopes:type_name -> xmtp.xmtpv4.envelopes.OriginatorEnvelope
-	18, // 10: xmtp.xmtpv4.message_api.GetInboxIdsRequest.requests:type_name -> xmtp.xmtpv4.message_api.GetInboxIdsRequest.Request
-	19, // 11: xmtp.xmtpv4.message_api.GetInboxIdsResponse.responses:type_name -> xmtp.xmtpv4.message_api.GetInboxIdsResponse.Response
-	20, // 12: xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse.results:type_name -> xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse.Response
-	21, // 13: xmtp.xmtpv4.message_api.SubscribeTopicsRequest.TopicFilter.last_seen:type_name -> xmtp.xmtpv4.envelopes.Cursor
-	0,  // 14: xmtp.xmtpv4.message_api.SubscribeTopicsResponse.StatusUpdate.status:type_name -> xmtp.xmtpv4.message_api.SubscribeTopicsResponse.SubscriptionStatus
-	22, // 15: xmtp.xmtpv4.message_api.SubscribeTopicsResponse.Envelopes.envelopes:type_name -> xmtp.xmtpv4.envelopes.OriginatorEnvelope
-	24, // 16: xmtp.xmtpv4.message_api.GetInboxIdsRequest.Request.identifier_kind:type_name -> xmtp.identity.associations.IdentifierKind
-	24, // 17: xmtp.xmtpv4.message_api.GetInboxIdsResponse.Response.identifier_kind:type_name -> xmtp.identity.associations.IdentifierKind
-	22, // 18: xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse.Response.originator_envelope:type_name -> xmtp.xmtpv4.envelopes.OriginatorEnvelope
-	2,  // 19: xmtp.xmtpv4.message_api.ReplicationApi.SubscribeEnvelopes:input_type -> xmtp.xmtpv4.message_api.SubscribeEnvelopesRequest
-	6,  // 20: xmtp.xmtpv4.message_api.ReplicationApi.SubscribeAllEnvelopes:input_type -> xmtp.xmtpv4.message_api.SubscribeAllEnvelopesRequest
-	3,  // 21: xmtp.xmtpv4.message_api.ReplicationApi.SubscribeTopics:input_type -> xmtp.xmtpv4.message_api.SubscribeTopicsRequest
-	7,  // 22: xmtp.xmtpv4.message_api.ReplicationApi.QueryEnvelopes:input_type -> xmtp.xmtpv4.message_api.QueryEnvelopesRequest
-	9,  // 23: xmtp.xmtpv4.message_api.ReplicationApi.PublishPayerEnvelopes:input_type -> xmtp.xmtpv4.message_api.PublishPayerEnvelopesRequest
-	11, // 24: xmtp.xmtpv4.message_api.ReplicationApi.GetInboxIds:input_type -> xmtp.xmtpv4.message_api.GetInboxIdsRequest
-	13, // 25: xmtp.xmtpv4.message_api.ReplicationApi.GetNewestEnvelope:input_type -> xmtp.xmtpv4.message_api.GetNewestEnvelopeRequest
-	5,  // 26: xmtp.xmtpv4.message_api.ReplicationApi.SubscribeEnvelopes:output_type -> xmtp.xmtpv4.message_api.SubscribeEnvelopesResponse
-	5,  // 27: xmtp.xmtpv4.message_api.ReplicationApi.SubscribeAllEnvelopes:output_type -> xmtp.xmtpv4.message_api.SubscribeEnvelopesResponse
-	4,  // 28: xmtp.xmtpv4.message_api.ReplicationApi.SubscribeTopics:output_type -> xmtp.xmtpv4.message_api.SubscribeTopicsResponse
-	8,  // 29: xmtp.xmtpv4.message_api.ReplicationApi.QueryEnvelopes:output_type -> xmtp.xmtpv4.message_api.QueryEnvelopesResponse
-	10, // 30: xmtp.xmtpv4.message_api.ReplicationApi.PublishPayerEnvelopes:output_type -> xmtp.xmtpv4.message_api.PublishPayerEnvelopesResponse
-	12, // 31: xmtp.xmtpv4.message_api.ReplicationApi.GetInboxIds:output_type -> xmtp.xmtpv4.message_api.GetInboxIdsResponse
-	14, // 32: xmtp.xmtpv4.message_api.ReplicationApi.GetNewestEnvelope:output_type -> xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse
-	26, // [26:33] is the sub-list for method output_type
-	19, // [19:26] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	26, // 7: xmtp.xmtpv4.message_api.QueryEnvelopesResponse.envelopes:type_name -> xmtp.xmtpv4.envelopes.OriginatorEnvelope
+	27, // 8: xmtp.xmtpv4.message_api.PublishPayerEnvelopesRequest.payer_envelopes:type_name -> xmtp.xmtpv4.envelopes.PayerEnvelope
+	26, // 9: xmtp.xmtpv4.message_api.PublishPayerEnvelopesResponse.originator_envelopes:type_name -> xmtp.xmtpv4.envelopes.OriginatorEnvelope
+	20, // 10: xmtp.xmtpv4.message_api.GetInboxIdsRequest.requests:type_name -> xmtp.xmtpv4.message_api.GetInboxIdsRequest.Request
+	21, // 11: xmtp.xmtpv4.message_api.GetInboxIdsResponse.responses:type_name -> xmtp.xmtpv4.message_api.GetInboxIdsResponse.Response
+	22, // 12: xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse.results:type_name -> xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse.Response
+	23, // 13: xmtp.xmtpv4.message_api.SubscribeOriginatorsRequest.filter:type_name -> xmtp.xmtpv4.message_api.SubscribeOriginatorsRequest.OriginatorFilter
+	24, // 14: xmtp.xmtpv4.message_api.SubscribeOriginatorsResponse.envelopes:type_name -> xmtp.xmtpv4.message_api.SubscribeOriginatorsResponse.Envelopes
+	25, // 15: xmtp.xmtpv4.message_api.SubscribeTopicsRequest.TopicFilter.last_seen:type_name -> xmtp.xmtpv4.envelopes.Cursor
+	0,  // 16: xmtp.xmtpv4.message_api.SubscribeTopicsResponse.StatusUpdate.status:type_name -> xmtp.xmtpv4.message_api.SubscribeTopicsResponse.SubscriptionStatus
+	26, // 17: xmtp.xmtpv4.message_api.SubscribeTopicsResponse.Envelopes.envelopes:type_name -> xmtp.xmtpv4.envelopes.OriginatorEnvelope
+	28, // 18: xmtp.xmtpv4.message_api.GetInboxIdsRequest.Request.identifier_kind:type_name -> xmtp.identity.associations.IdentifierKind
+	28, // 19: xmtp.xmtpv4.message_api.GetInboxIdsResponse.Response.identifier_kind:type_name -> xmtp.identity.associations.IdentifierKind
+	26, // 20: xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse.Response.originator_envelope:type_name -> xmtp.xmtpv4.envelopes.OriginatorEnvelope
+	25, // 21: xmtp.xmtpv4.message_api.SubscribeOriginatorsRequest.OriginatorFilter.last_seen:type_name -> xmtp.xmtpv4.envelopes.Cursor
+	26, // 22: xmtp.xmtpv4.message_api.SubscribeOriginatorsResponse.Envelopes.envelopes:type_name -> xmtp.xmtpv4.envelopes.OriginatorEnvelope
+	15, // 23: xmtp.xmtpv4.message_api.ReplicationApi.SubscribeOriginators:input_type -> xmtp.xmtpv4.message_api.SubscribeOriginatorsRequest
+	2,  // 24: xmtp.xmtpv4.message_api.ReplicationApi.SubscribeEnvelopes:input_type -> xmtp.xmtpv4.message_api.SubscribeEnvelopesRequest
+	3,  // 25: xmtp.xmtpv4.message_api.ReplicationApi.SubscribeTopics:input_type -> xmtp.xmtpv4.message_api.SubscribeTopicsRequest
+	7,  // 26: xmtp.xmtpv4.message_api.ReplicationApi.QueryEnvelopes:input_type -> xmtp.xmtpv4.message_api.QueryEnvelopesRequest
+	9,  // 27: xmtp.xmtpv4.message_api.ReplicationApi.PublishPayerEnvelopes:input_type -> xmtp.xmtpv4.message_api.PublishPayerEnvelopesRequest
+	11, // 28: xmtp.xmtpv4.message_api.ReplicationApi.GetInboxIds:input_type -> xmtp.xmtpv4.message_api.GetInboxIdsRequest
+	13, // 29: xmtp.xmtpv4.message_api.ReplicationApi.GetNewestEnvelope:input_type -> xmtp.xmtpv4.message_api.GetNewestEnvelopeRequest
+	16, // 30: xmtp.xmtpv4.message_api.ReplicationApi.SubscribeOriginators:output_type -> xmtp.xmtpv4.message_api.SubscribeOriginatorsResponse
+	5,  // 31: xmtp.xmtpv4.message_api.ReplicationApi.SubscribeEnvelopes:output_type -> xmtp.xmtpv4.message_api.SubscribeEnvelopesResponse
+	4,  // 32: xmtp.xmtpv4.message_api.ReplicationApi.SubscribeTopics:output_type -> xmtp.xmtpv4.message_api.SubscribeTopicsResponse
+	8,  // 33: xmtp.xmtpv4.message_api.ReplicationApi.QueryEnvelopes:output_type -> xmtp.xmtpv4.message_api.QueryEnvelopesResponse
+	10, // 34: xmtp.xmtpv4.message_api.ReplicationApi.PublishPayerEnvelopes:output_type -> xmtp.xmtpv4.message_api.PublishPayerEnvelopesResponse
+	12, // 35: xmtp.xmtpv4.message_api.ReplicationApi.GetInboxIds:output_type -> xmtp.xmtpv4.message_api.GetInboxIdsResponse
+	14, // 36: xmtp.xmtpv4.message_api.ReplicationApi.GetNewestEnvelope:output_type -> xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse
+	30, // [30:37] is the sub-list for method output_type
+	23, // [23:30] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_xmtpv4_message_api_message_api_proto_init() }
@@ -1228,15 +1454,18 @@ func file_xmtpv4_message_api_message_api_proto_init() {
 		(*SubscribeTopicsResponse_Envelopes_)(nil),
 		(*SubscribeTopicsResponse_StatusUpdate_)(nil),
 	}
-	file_xmtpv4_message_api_message_api_proto_msgTypes[18].OneofWrappers = []any{}
-	file_xmtpv4_message_api_message_api_proto_msgTypes[19].OneofWrappers = []any{}
+	file_xmtpv4_message_api_message_api_proto_msgTypes[15].OneofWrappers = []any{
+		(*SubscribeOriginatorsResponse_Envelopes_)(nil),
+	}
+	file_xmtpv4_message_api_message_api_proto_msgTypes[20].OneofWrappers = []any{}
+	file_xmtpv4_message_api_message_api_proto_msgTypes[21].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_xmtpv4_message_api_message_api_proto_rawDesc), len(file_xmtpv4_message_api_message_api_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   20,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

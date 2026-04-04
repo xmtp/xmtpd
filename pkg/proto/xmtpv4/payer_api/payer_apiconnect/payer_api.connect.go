@@ -43,8 +43,9 @@ const (
 )
 
 // PayerApiClient is a client for the xmtp.xmtpv4.payer_api.PayerApi service.
+//
+// Deprecated: do not use.
 type PayerApiClient interface {
-	// Publish envelope
 	PublishClientEnvelopes(context.Context, *connect.Request[payer_api.PublishClientEnvelopesRequest]) (*connect.Response[payer_api.PublishClientEnvelopesResponse], error)
 	GetNodes(context.Context, *connect.Request[payer_api.GetNodesRequest]) (*connect.Response[payer_api.GetNodesResponse], error)
 }
@@ -56,6 +57,8 @@ type PayerApiClient interface {
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
+//
+// Deprecated: do not use.
 func NewPayerApiClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) PayerApiClient {
 	baseURL = strings.TrimRight(baseURL, "/")
 	payerApiMethods := payer_api.File_xmtpv4_payer_api_payer_api_proto.Services().ByName("PayerApi").Methods()
@@ -92,8 +95,9 @@ func (c *payerApiClient) GetNodes(ctx context.Context, req *connect.Request[paye
 }
 
 // PayerApiHandler is an implementation of the xmtp.xmtpv4.payer_api.PayerApi service.
+//
+// Deprecated: do not use.
 type PayerApiHandler interface {
-	// Publish envelope
 	PublishClientEnvelopes(context.Context, *connect.Request[payer_api.PublishClientEnvelopesRequest]) (*connect.Response[payer_api.PublishClientEnvelopesResponse], error)
 	GetNodes(context.Context, *connect.Request[payer_api.GetNodesRequest]) (*connect.Response[payer_api.GetNodesResponse], error)
 }
@@ -103,6 +107,8 @@ type PayerApiHandler interface {
 //
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
+//
+// Deprecated: do not use.
 func NewPayerApiHandler(svc PayerApiHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	payerApiMethods := payer_api.File_xmtpv4_payer_api_payer_api_proto.Services().ByName("PayerApi").Methods()
 	payerApiPublishClientEnvelopesHandler := connect.NewUnaryHandler(

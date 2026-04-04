@@ -11,7 +11,6 @@ package message_api
 import (
 	associations "github.com/xmtp/xmtpd/pkg/proto/identity/associations"
 	envelopes "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
-	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -593,7 +592,7 @@ var File_xmtpv4_message_api_misbehavior_api_proto protoreflect.FileDescriptor
 
 const file_xmtpv4_message_api_misbehavior_api_proto_rawDesc = "" +
 	"\n" +
-	"(xmtpv4/message_api/misbehavior_api.proto\x12\x17xmtp.xmtpv4.message_api\x1a\x1cgoogle/api/annotations.proto\x1a%identity/associations/signature.proto\x1a xmtpv4/envelopes/envelopes.proto\x1a$xmtpv4/message_api/message_api.proto\"\xb5\x02\n" +
+	"(xmtpv4/message_api/misbehavior_api.proto\x12\x17xmtp.xmtpv4.message_api\x1a%identity/associations/signature.proto\x1a xmtpv4/envelopes/envelopes.proto\x1a$xmtpv4/message_api/message_api.proto\"\xb5\x02\n" +
 	"\x0fLivenessFailure\x12(\n" +
 	"\x10response_time_ns\x18\x01 \x01(\rR\x0eresponseTimeNs\x12R\n" +
 	"\tsubscribe\x18\x02 \x01(\v22.xmtp.xmtpv4.message_api.SubscribeEnvelopesRequestH\x00R\tsubscribe\x12F\n" +
@@ -630,10 +629,10 @@ const file_xmtpv4_message_api_misbehavior_api_proto_rawDesc = "" +
 	"!MISBEHAVIOR_DUPLICATE_SEQUENCE_ID\x10\x05\x12\x1f\n" +
 	"\x1bMISBEHAVIOR_CAUSAL_ORDERING\x10\x06\x12\x1f\n" +
 	"\x1bMISBEHAVIOR_INVALID_PAYLOAD\x10\a\x12(\n" +
-	"$MISBEHAVIOR_BLOCKCHAIN_INCONSISTENCY\x10\b2\x8a\x03\n" +
-	"\x0eMisbehaviorApi\x12\xba\x01\n" +
-	"\x17SubmitMisbehaviorReport\x127.xmtp.xmtpv4.message_api.SubmitMisbehaviorReportRequest\x1a8.xmtp.xmtpv4.message_api.SubmitMisbehaviorReportResponse\",\x82\xd3\xe4\x93\x02&:\x01*\"!/mls/v2/submit-misbehavior-report\x12\xba\x01\n" +
-	"\x17QueryMisbehaviorReports\x127.xmtp.xmtpv4.message_api.QueryMisbehaviorReportsRequest\x1a8.xmtp.xmtpv4.message_api.QueryMisbehaviorReportsResponse\",\x82\xd3\xe4\x93\x02&:\x01*\"!/mls/v2/query-misbehavior-reportsB\xe0\x01\n" +
+	"$MISBEHAVIOR_BLOCKCHAIN_INCONSISTENCY\x10\b2\xb2\x02\n" +
+	"\x0eMisbehaviorApi\x12\x8e\x01\n" +
+	"\x17SubmitMisbehaviorReport\x127.xmtp.xmtpv4.message_api.SubmitMisbehaviorReportRequest\x1a8.xmtp.xmtpv4.message_api.SubmitMisbehaviorReportResponse\"\x00\x12\x8e\x01\n" +
+	"\x17QueryMisbehaviorReports\x127.xmtp.xmtpv4.message_api.QueryMisbehaviorReportsRequest\x1a8.xmtp.xmtpv4.message_api.QueryMisbehaviorReportsResponse\"\x00B\xe0\x01\n" +
 	"\x1bcom.xmtp.xmtpv4.message_apiB\x13MisbehaviorApiProtoP\x01Z2github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api\xa2\x02\x03XXM\xaa\x02\x16Xmtp.Xmtpv4.MessageApi\xca\x02\x16Xmtp\\Xmtpv4\\MessageApi\xe2\x02\"Xmtp\\Xmtpv4\\MessageApi\\GPBMetadata\xea\x02\x18Xmtp::Xmtpv4::MessageApib\x06proto3"
 
 var (

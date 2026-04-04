@@ -1,0 +1,100 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "xmtpv4/message_api/notification_api.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "NotificationApi"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {},
+  "definitions": {
+    "associationsRecoverableEcdsaSignature": {
+      "type": "object",
+      "properties": {
+        "bytes": {
+          "type": "string",
+          "format": "byte",
+          "title": "65-bytes [ R || S || V ], with recovery id as the last byte"
+        }
+      },
+      "title": "RecoverableEcdsaSignature for EIP-191 and V2 signatures"
+    },
+    "envelopesBlockchainProof": {
+      "type": "object",
+      "properties": {
+        "transactionHash": {
+          "type": "string",
+          "format": "byte"
+        }
+      },
+      "title": "An alternative to a signature for blockchain payloads"
+    },
+    "envelopesOriginatorEnvelope": {
+      "type": "object",
+      "properties": {
+        "unsignedOriginatorEnvelope": {
+          "type": "string",
+          "format": "byte",
+          "title": "Protobuf serialized"
+        },
+        "originatorSignature": {
+          "$ref": "#/definitions/associationsRecoverableEcdsaSignature"
+        },
+        "blockchainProof": {
+          "$ref": "#/definitions/envelopesBlockchainProof"
+        }
+      },
+      "title": "Signed originator envelope"
+    },
+    "message_apiSubscribeEnvelopesResponse": {
+      "type": "object",
+      "properties": {
+        "envelopes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/envelopesOriginatorEnvelope"
+          }
+        }
+      },
+      "title": "Streamed response for batch subscribe - can be multiple envelopes at once"
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    }
+  }
+}

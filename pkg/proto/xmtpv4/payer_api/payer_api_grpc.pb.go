@@ -29,9 +29,10 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// A narrowly scoped API for publishing messages through a payer
+// Deprecated: use gateway_api.GatewayApi
+//
+// Deprecated: Do not use.
 type PayerApiClient interface {
-	// Publish envelope
 	PublishClientEnvelopes(ctx context.Context, in *PublishClientEnvelopesRequest, opts ...grpc.CallOption) (*PublishClientEnvelopesResponse, error)
 	GetNodes(ctx context.Context, in *GetNodesRequest, opts ...grpc.CallOption) (*GetNodesResponse, error)
 }
@@ -40,6 +41,7 @@ type payerApiClient struct {
 	cc grpc.ClientConnInterface
 }
 
+// Deprecated: Do not use.
 func NewPayerApiClient(cc grpc.ClientConnInterface) PayerApiClient {
 	return &payerApiClient{cc}
 }
@@ -68,9 +70,10 @@ func (c *payerApiClient) GetNodes(ctx context.Context, in *GetNodesRequest, opts
 // All implementations should embed UnimplementedPayerApiServer
 // for forward compatibility.
 //
-// A narrowly scoped API for publishing messages through a payer
+// Deprecated: use gateway_api.GatewayApi
+//
+// Deprecated: Do not use.
 type PayerApiServer interface {
-	// Publish envelope
 	PublishClientEnvelopes(context.Context, *PublishClientEnvelopesRequest) (*PublishClientEnvelopesResponse, error)
 	GetNodes(context.Context, *GetNodesRequest) (*GetNodesResponse, error)
 }
@@ -97,6 +100,7 @@ type UnsafePayerApiServer interface {
 	mustEmbedUnimplementedPayerApiServer()
 }
 
+// Deprecated: Do not use.
 func RegisterPayerApiServer(s grpc.ServiceRegistrar, srv PayerApiServer) {
 	// If the following call pancis, it indicates UnimplementedPayerApiServer was
 	// embedded by pointer and is nil.  This will cause panics if an

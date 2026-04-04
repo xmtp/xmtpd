@@ -10,7 +10,6 @@ package payer_api
 
 import (
 	envelopes "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
-	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -197,7 +196,7 @@ var File_xmtpv4_payer_api_payer_api_proto protoreflect.FileDescriptor
 
 const file_xmtpv4_payer_api_payer_api_proto_rawDesc = "" +
 	"\n" +
-	" xmtpv4/payer_api/payer_api.proto\x12\x15xmtp.xmtpv4.payer_api\x1a\x1cgoogle/api/annotations.proto\x1a xmtpv4/envelopes/envelopes.proto\"d\n" +
+	" xmtpv4/payer_api/payer_api.proto\x12\x15xmtp.xmtpv4.payer_api\x1a xmtpv4/envelopes/envelopes.proto\"d\n" +
 	"\x1dPublishClientEnvelopesRequest\x12C\n" +
 	"\tenvelopes\x18\x01 \x03(\v2%.xmtp.xmtpv4.envelopes.ClientEnvelopeR\tenvelopes\"~\n" +
 	"\x1ePublishClientEnvelopesResponse\x12\\\n" +
@@ -208,10 +207,10 @@ const file_xmtpv4_payer_api_payer_api_proto_rawDesc = "" +
 	"\n" +
 	"NodesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\rR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x012\xc6\x02\n" +
-	"\bPayerApi\x12\xb8\x01\n" +
-	"\x16PublishClientEnvelopes\x124.xmtp.xmtpv4.payer_api.PublishClientEnvelopesRequest\x1a5.xmtp.xmtpv4.payer_api.PublishClientEnvelopesResponse\"1\x82\xd3\xe4\x93\x02+:\x01*\"&/mls/v2/payer/publish-client-envelopes\x12\x7f\n" +
-	"\bGetNodes\x12&.xmtp.xmtpv4.payer_api.GetNodesRequest\x1a'.xmtp.xmtpv4.payer_api.GetNodesResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/mls/v2/payer/get-nodesB\xce\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x012\xf8\x01\n" +
+	"\bPayerApi\x12\x87\x01\n" +
+	"\x16PublishClientEnvelopes\x124.xmtp.xmtpv4.payer_api.PublishClientEnvelopesRequest\x1a5.xmtp.xmtpv4.payer_api.PublishClientEnvelopesResponse\"\x00\x12]\n" +
+	"\bGetNodes\x12&.xmtp.xmtpv4.payer_api.GetNodesRequest\x1a'.xmtp.xmtpv4.payer_api.GetNodesResponse\"\x00\x1a\x03\x88\x02\x01B\xce\x01\n" +
 	"\x19com.xmtp.xmtpv4.payer_apiB\rPayerApiProtoP\x01Z0github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api\xa2\x02\x03XXP\xaa\x02\x14Xmtp.Xmtpv4.PayerApi\xca\x02\x14Xmtp\\Xmtpv4\\PayerApi\xe2\x02 Xmtp\\Xmtpv4\\PayerApi\\GPBMetadata\xea\x02\x16Xmtp::Xmtpv4::PayerApib\x06proto3"
 
 var (

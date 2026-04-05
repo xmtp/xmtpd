@@ -38,7 +38,7 @@ func TestUpdateActiveOriginatorCount_ExcludesExpiredNodes(t *testing.T) {
 	// With block timestamps, only the 3 recent nodes should be counted.
 	// The old bug (using time.Now()) would have shown 6.
 	got := gaugeValue(activeOriginatorNodes)
-	assert.Equal(t, float64(3), got, "expected 3 active originators, got %v", got)
+	assert.InDelta(t, 3, got, 0, "expected 3 active originators, got %v", got)
 }
 
 func TestUpdateActiveOriginatorCount_AllExpired(t *testing.T) {
@@ -53,7 +53,7 @@ func TestUpdateActiveOriginatorCount_AllExpired(t *testing.T) {
 	w.updateActiveOriginatorCount()
 
 	got := gaugeValue(activeOriginatorNodes)
-	assert.Equal(t, float64(0), got, "expected 0 active originators when all expired")
+	assert.InDelta(t, 0, got, 0, "expected 0 active originators when all expired")
 }
 
 func TestUpdateActiveOriginatorCount_AllActive(t *testing.T) {
@@ -68,20 +68,20 @@ func TestUpdateActiveOriginatorCount_AllActive(t *testing.T) {
 	w.updateActiveOriginatorCount()
 
 	got := gaugeValue(activeOriginatorNodes)
-	assert.Equal(t, float64(2), got, "expected 2 active originators")
+	assert.InDelta(t, 2, got, 0, "expected 2 active originators")
 }
 
 func TestCleanupStaleEntries_RemovesExpiredOriginators(t *testing.T) {
 	w := &Watcher{
 		activeOriginatorWindow: 150 * time.Minute,
 		activeOriginators: map[uint32]time.Time{
-			100: time.Now().Add(-10 * time.Minute),  // fresh
-			10:  time.Now().Add(-24 * time.Hour),     // stale
+			100: time.Now().Add(-10 * time.Minute), // fresh
+			10:  time.Now().Add(-24 * time.Hour),   // stale
 		},
 		submissionTimeByKey: make(map[string]time.Time),
 		blockTimestampCache: map[uint64]time.Time{
-			1000: time.Now().Add(-10 * time.Minute),  // recent block
-			50:   time.Now().Add(-24 * time.Hour),     // old block
+			1000: time.Now().Add(-10 * time.Minute), // recent block
+			50:   time.Now().Add(-24 * time.Hour),   // old block
 		},
 	}
 

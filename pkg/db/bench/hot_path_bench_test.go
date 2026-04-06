@@ -115,7 +115,7 @@ func BenchmarkHotPathSelectStaged(b *testing.B) {
 
 // BenchmarkHotPathInsertGatewayWithUsage measures the atomic transaction that
 // the publish worker executes after signing a staged envelope:
-//   - INSERT into gateway_envelopes_meta + gateway_envelope_blobs
+//   - INSERT into gateway_envelopes_meta + gateway_envelopes_blobs
 //   - UPSERT unsettled_usage
 //   - UPSERT originator_congestion
 func BenchmarkHotPathInsertGatewayWithUsage(b *testing.B) {

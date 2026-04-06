@@ -644,7 +644,7 @@ func TestBatchInsertV2_Basic(t *testing.T) {
 	require.Equal(t, batchSize, metaCount)
 
 	err = db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM gateway_envelope_blobs WHERE originator_node_id = $1`,
+		`SELECT COUNT(*) FROM gateway_envelopes_blobs WHERE originator_node_id = $1`,
 		originatorID,
 	).Scan(&blobCount)
 	require.NoError(t, err)
@@ -795,7 +795,7 @@ func TestBatchInsertV2_AllReservedNoSideEffects(t *testing.T) {
 	require.Equal(t, batchSize, metaCount, "all meta rows should be inserted")
 
 	err = db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM gateway_envelope_blobs WHERE originator_node_id = $1`,
+		`SELECT COUNT(*) FROM gateway_envelopes_blobs WHERE originator_node_id = $1`,
 		originatorID,
 	).Scan(&blobCount)
 	require.NoError(t, err)

@@ -32,7 +32,7 @@ WITH m AS (
         ON CONFLICT DO NOTHING
         RETURNING 1),
      b AS (
-         INSERT INTO gateway_envelope_blobs (
+         INSERT INTO gateway_envelopes_blobs (
                                              originator_node_id,
                                              originator_sequence_id,
                                              originator_envelope
@@ -184,7 +184,7 @@ CROSS JOIN LATERAL (
            f.topic,
            b.originator_envelope
     FROM filtered AS f
-    JOIN gateway_envelope_blobs AS b
+    JOIN gateway_envelopes_blobs AS b
         ON b.originator_node_id = oi.originator_node_id
        AND b.originator_sequence_id = f.originator_sequence_id
     WHERE f.originator_node_id = oi.originator_node_id
@@ -281,7 +281,7 @@ CROSS JOIN LATERAL (
            f.topic,
            b.originator_envelope
     FROM filtered AS f
-    JOIN gateway_envelope_blobs AS b
+    JOIN gateway_envelopes_blobs AS b
         ON b.originator_node_id = oi.originator_node_id
        AND b.originator_sequence_id = f.originator_sequence_id
     WHERE f.originator_node_id = oi.originator_node_id
@@ -350,7 +350,7 @@ SELECT m.originator_node_id,
        m.topic,
        b.originator_envelope
 FROM gateway_envelopes_meta AS m
-JOIN gateway_envelope_blobs AS b
+JOIN gateway_envelopes_blobs AS b
     ON b.originator_node_id = m.originator_node_id
    AND b.originator_sequence_id = m.originator_sequence_id
    AND b.originator_node_id = $1::INT
@@ -453,7 +453,7 @@ CROSS JOIN LATERAL (
 	       f.topic,
 	       b.originator_envelope
 	FROM filtered AS f
-	JOIN gateway_envelope_blobs AS b
+	JOIN gateway_envelopes_blobs AS b
 	    ON b.originator_node_id = oi.originator_node_id
 	   AND b.originator_sequence_id = f.originator_sequence_id
 	WHERE f.originator_node_id = oi.originator_node_id
@@ -582,7 +582,7 @@ SELECT l.originator_node_id,
        l.topic,
        b.originator_envelope
 FROM latest l
-         JOIN gateway_envelope_blobs b
+         JOIN gateway_envelopes_blobs b
               ON b.originator_node_id = l.originator_node_id
                   AND b.originator_sequence_id = l.originator_sequence_id
 ORDER BY l.topic

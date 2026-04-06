@@ -658,7 +658,7 @@ func TestExecutor_PrunesExpiredMetaAndBlobs(t *testing.T) {
 	require.NoError(t, err)
 	assert.EqualValues(t, 0, total, "Only non-expired envelopes should remain")
 
-	row = db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelope_blobs`)
+	row = db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_blobs`)
 	err = row.Scan(&total)
 	require.NoError(t, err)
 	assert.EqualValues(t, 0, total, "Only non-expired envelopes should remain")

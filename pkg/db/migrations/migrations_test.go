@@ -14,7 +14,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
-const currentMigration int64 = 22
+const currentMigration int64 = 23
 
 var (
 	originatorIDs = []int32{100, 200, 300}
@@ -239,7 +239,7 @@ func checkInitSchemaMigration(t *testing.T, database *sql.DB) {
 		"address_log",
 		"payers",
 		"gateway_envelopes_meta",
-		"gateway_envelope_blobs",
+		"gateway_envelopes_blobs",
 	}
 	for _, tbl := range tables {
 		tableExists(t, database, tbl)

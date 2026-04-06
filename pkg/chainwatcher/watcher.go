@@ -75,6 +75,7 @@ type Watcher struct {
 	lastEndSeqByNode    map[uint32]uint64    // track envelope gaps
 	submissionTimeByKey map[string]time.Time // track submission→settlement latency
 	activeOriginators   map[uint32]time.Time // sliding window
+	blockTimestampCache map[uint64]time.Time // block number → timestamp
 }
 
 // New creates a new chain watcher.
@@ -206,6 +207,7 @@ func New(
 		lastEndSeqByNode:           make(map[uint32]uint64),
 		submissionTimeByKey:        make(map[string]time.Time),
 		activeOriginators:          make(map[uint32]time.Time),
+		blockTimestampCache:        make(map[uint64]time.Time),
 	}, nil
 }
 
@@ -306,7 +308,16 @@ func (w *Watcher) processPayerRegistryEvents(
 	}
 }
 
+// blockTimeForLog returns the on-chain timestamp for an event's block.
+// Results are cached because many events during backfill share the same block.
 func (w *Watcher) blockTimeForLog(log types.Log) time.Time {
+	w.mu.RLock()
+	if ts, ok := w.blockTimestampCache[log.BlockNumber]; ok {
+		w.mu.RUnlock()
+		return ts
+	}
+	w.mu.RUnlock()
+
 	header, err := w.rpcClient.HeaderByNumber(w.ctx, new(big.Int).SetUint64(log.BlockNumber))
 	if err != nil {
 		w.logger.Warn("failed to fetch block header, falling back to wall clock",
@@ -315,7 +326,13 @@ func (w *Watcher) blockTimeForLog(log types.Log) time.Time {
 		)
 		return time.Now()
 	}
-	return time.Unix(int64(header.Time), 0)
+
+	ts := time.Unix(int64(header.Time), 0)
+	w.mu.Lock()
+	w.blockTimestampCache[log.BlockNumber] = ts
+	w.mu.Unlock()
+
+	return ts
 }
 
 func (w *Watcher) handlePayerReportSubmitted(log types.Log) {
@@ -357,8 +374,9 @@ func (w *Watcher) handlePayerReportSubmitted(log types.Log) {
 	key := submissionKey(nodeID, parsed.PayerReportIndex)
 	w.submissionTimeByKey[key] = now
 
-	// Active originator tracking (wall clock for sliding window comparisons).
-	w.activeOriginators[nodeID] = now
+	// Active originator tracking — use block timestamp so that historical
+	// events replayed during backfill don't make decommissioned nodes appear active.
+	w.activeOriginators[nodeID] = blockTime
 	// Block timestamp so the lag metric reflects actual on-chain time, not restart time.
 	w.lastSubmissionTime = blockTime
 	w.mu.Unlock()
@@ -507,6 +525,14 @@ func (w *Watcher) cleanupStaleEntries() {
 	for nodeID, lastSeen := range w.activeOriginators {
 		if lastSeen.Before(cutoff) {
 			delete(w.activeOriginators, nodeID)
+		}
+	}
+
+	// Trim block timestamp cache — keep only recent entries.
+	blockCutoff := now.Add(-w.activeOriginatorWindow)
+	for blockNum, ts := range w.blockTimestampCache {
+		if ts.Before(blockCutoff) {
+			delete(w.blockTimestampCache, blockNum)
 		}
 	}
 }

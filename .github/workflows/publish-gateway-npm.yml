@@ -81,9 +81,6 @@ jobs:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
 
-      - name: Update npm to latest
-        run: npm install -g npm@latest
-
       - name: Download binaries
         uses: actions/download-artifact@v4
         with:

@@ -27,7 +27,7 @@ func TestQueryApi_QueryEnvelopes(t *testing.T) {
 		t,
 		envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(t, 100, 1, topicBytes),
 	)
-	testutils.InsertGatewayEnvelopes(t, suite.DB, []queries.InsertGatewayEnvelopeParams{
+	testutils.InsertGatewayEnvelopes(t, suite.DB, []queries.InsertGatewayEnvelopeV3Params{
 		{
 			OriginatorNodeID:     100,
 			OriginatorSequenceID: 1,

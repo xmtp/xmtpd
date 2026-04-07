@@ -111,7 +111,6 @@ BEGIN
             CONSTRAINT seq_id_check CHECK ( originator_sequence_id >= %s AND originator_sequence_id < %s )
         )',
         subname,
-        _oid::text,
         _start::text,
         _end::text
     );

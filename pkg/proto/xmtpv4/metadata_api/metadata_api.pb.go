@@ -10,7 +10,6 @@ package metadata_api
 
 import (
 	envelopes "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
-	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -442,7 +441,7 @@ var File_xmtpv4_metadata_api_metadata_api_proto protoreflect.FileDescriptor
 
 const file_xmtpv4_metadata_api_metadata_api_proto_rawDesc = "" +
 	"\n" +
-	"&xmtpv4/metadata_api/metadata_api.proto\x12\x18xmtp.xmtpv4.metadata_api\x1a\x1cgoogle/api/annotations.proto\x1a xmtpv4/envelopes/envelopes.proto\"\x16\n" +
+	"&xmtpv4/metadata_api/metadata_api.proto\x12\x18xmtp.xmtpv4.metadata_api\x1a xmtpv4/envelopes/envelopes.proto\"\x16\n" +
 	"\x14GetSyncCursorRequest\"W\n" +
 	"\x15GetSyncCursorResponse\x12>\n" +
 	"\vlatest_sync\x18\x01 \x01(\v2\x1d.xmtp.xmtpv4.envelopes.CursorR\n" +
@@ -468,13 +467,13 @@ const file_xmtpv4_metadata_api_metadata_api_proto_rawDesc = "" +
 	"\x14PayerInfoGranularity\x12&\n" +
 	"\"PAYER_INFO_GRANULARITY_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bPAYER_INFO_GRANULARITY_HOUR\x10\x01\x12\x1e\n" +
-	"\x1aPAYER_INFO_GRANULARITY_DAY\x10\x022\x86\x05\n" +
-	"\vMetadataApi\x12\x9d\x01\n" +
-	"\rGetSyncCursor\x12..xmtp.xmtpv4.metadata_api.GetSyncCursorRequest\x1a/.xmtp.xmtpv4.metadata_api.GetSyncCursorResponse\"+\x82\xd3\xe4\x93\x02%:\x01*\" /mls/v2/metadata/get-sync-cursor\x12\xab\x01\n" +
-	"\x13SubscribeSyncCursor\x12..xmtp.xmtpv4.metadata_api.GetSyncCursorRequest\x1a/.xmtp.xmtpv4.metadata_api.GetSyncCursorResponse\"1\x82\xd3\xe4\x93\x02+:\x01*\"&/mls/v2/metadata/subscribe-sync-cursor0\x01\x12\x8c\x01\n" +
+	"\x1aPAYER_INFO_GRANULARITY_DAY\x10\x022\xd9\x03\n" +
+	"\vMetadataApi\x12r\n" +
+	"\rGetSyncCursor\x12..xmtp.xmtpv4.metadata_api.GetSyncCursorRequest\x1a/.xmtp.xmtpv4.metadata_api.GetSyncCursorResponse\"\x00\x12z\n" +
+	"\x13SubscribeSyncCursor\x12..xmtp.xmtpv4.metadata_api.GetSyncCursorRequest\x1a/.xmtp.xmtpv4.metadata_api.GetSyncCursorResponse\"\x000\x01\x12i\n" +
 	"\n" +
-	"GetVersion\x12+.xmtp.xmtpv4.metadata_api.GetVersionRequest\x1a,.xmtp.xmtpv4.metadata_api.GetVersionResponse\"#\x82\xd3\xe4\x93\x02\x1d:\x01*\"\x18/mls/v2/metadata/version\x12\x99\x01\n" +
-	"\fGetPayerInfo\x12-.xmtp.xmtpv4.metadata_api.GetPayerInfoRequest\x1a..xmtp.xmtpv4.metadata_api.GetPayerInfoResponse\"*\x82\xd3\xe4\x93\x02$:\x01*\"\x1f/mls/v2/metadata/get-payer-infoB\xe3\x01\n" +
+	"GetVersion\x12+.xmtp.xmtpv4.metadata_api.GetVersionRequest\x1a,.xmtp.xmtpv4.metadata_api.GetVersionResponse\"\x00\x12o\n" +
+	"\fGetPayerInfo\x12-.xmtp.xmtpv4.metadata_api.GetPayerInfoRequest\x1a..xmtp.xmtpv4.metadata_api.GetPayerInfoResponse\"\x00B\xe3\x01\n" +
 	"\x1ccom.xmtp.xmtpv4.metadata_apiB\x10MetadataApiProtoP\x01Z3github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api\xa2\x02\x03XXM\xaa\x02\x17Xmtp.Xmtpv4.MetadataApi\xca\x02\x17Xmtp\\Xmtpv4\\MetadataApi\xe2\x02#Xmtp\\Xmtpv4\\MetadataApi\\GPBMetadata\xea\x02\x19Xmtp::Xmtpv4::MetadataApib\x06proto3"
 
 var (

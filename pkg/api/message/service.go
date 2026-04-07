@@ -14,7 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/xmtp/xmtpd/pkg/api/metadata"
 	"github.com/xmtp/xmtpd/pkg/config"
-	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/currency"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -66,7 +65,12 @@ type Service struct {
 	ledger            ledger.ILedger
 }
 
-var _ message_apiconnect.ReplicationApiHandler = (*Service)(nil)
+var (
+	_ message_apiconnect.ReplicationApiHandler  = (*Service)(nil)
+	_ message_apiconnect.QueryApiHandler        = (*Service)(nil)
+	_ message_apiconnect.PublishApiHandler      = (*Service)(nil)
+	_ message_apiconnect.NotificationApiHandler = (*Service)(nil)
+)
 
 func NewReplicationAPIService(
 	ctx context.Context,
@@ -151,8 +155,19 @@ func (s *Service) SubscribeEnvelopes(
 		)
 	}
 
-	// Validate query and ensure either topics or originators are specified.
-	err := s.validateQuery(req.Msg.GetQuery(), false)
+	protoQuery := req.Msg.GetQuery()
+	mode := catchUpNone
+	if protoQuery.GetLastSeen() != nil {
+		mode = catchUpFromCursor
+	}
+	query := &subscribeFilter{
+		topics:            protoQuery.GetTopics(),
+		originatorNodeIDs: protoQuery.GetOriginatorNodeIds(),
+		catchUpMode:       mode,
+		cursor:            cursorFromProto(protoQuery.GetLastSeen()),
+	}
+
+	err := s.validateQuery(query, false)
 	if err != nil {
 		return connect.NewError(
 			connect.CodeInvalidArgument,
@@ -160,7 +175,7 @@ func (s *Service) SubscribeEnvelopes(
 		)
 	}
 
-	return s.doSubscribe(ctx, req.Msg.GetQuery(), stream, logger)
+	return s.doSubscribe(ctx, query, stream, logger)
 }
 
 func (s *Service) SubscribeAllEnvelopes(
@@ -183,12 +198,16 @@ func (s *Service) SubscribeAllEnvelopes(
 		)
 	}
 
-	return s.doSubscribe(ctx, &message_api.EnvelopesQuery{}, stream, logger)
+	query := &subscribeFilter{
+		catchUpMode: catchUpNone,
+		cursor:      make(map[uint32]uint64),
+	}
+	return s.doSubscribe(ctx, query, stream, logger)
 }
 
 func (s *Service) doSubscribe(
 	ctx context.Context,
-	query *message_api.EnvelopesQuery,
+	query *subscribeFilter,
 	stream *connect.ServerStream[message_api.SubscribeEnvelopesResponse],
 	logger *zap.Logger,
 ) error {
@@ -257,125 +276,42 @@ func (s *Service) doSubscribe(
 func (s *Service) catchUpFromCursor(
 	ctx context.Context,
 	stream *connect.ServerStream[message_api.SubscribeEnvelopesResponse],
-	query *message_api.EnvelopesQuery,
+	query *subscribeFilter,
 	logger *zap.Logger,
 ) error {
-	if query.GetLastSeen() == nil {
-		logger.Debug("skipping catch up")
-		// Requester only wants new envelopes
-		return nil
-	}
-
-	cursor := query.GetLastSeen().GetNodeIdToSequenceId()
-	// GRPC does not distinguish between empty map and nil
-	if cursor == nil {
-		cursor = make(map[uint32]uint64)
-		query.LastSeen.NodeIdToSequenceId = cursor
-	}
-
-	if s.logger.Core().Enabled(zap.DebugLevel) {
-		logger.Debug("catching up from cursor", utils.BodyField(cursor))
-	}
-
-	for {
-		rows, err := s.fetchEnvelopesWithRetry(ctx, query, maxRequestedRows)
-		if err != nil {
-			return err
-		}
-
-		if s.logger.Core().Enabled(zap.DebugLevel) {
-			logger.Debug("fetched envelopes", utils.CountField(int64(len(rows))))
-		}
-
-		envs := unmarshalEnvelopes(rows, s.logger)
-
-		err = s.sendEnvelopes(stream, query, envs)
-		if err != nil {
-			return connect.NewError(
-				connect.CodeInternal,
-				fmt.Errorf("error sending envelopes: %w", err),
-			)
-		}
-		if len(rows) < int(maxRequestedRows) {
-			// There were no more envelopes in DB at time of fetch
-			break
-		}
-		time.Sleep(pagingInterval)
-	}
-
-	return nil
+	return s.catchUpWithSendFn(
+		ctx,
+		query,
+		logger,
+		func(envs []*envelopes.OriginatorEnvelope) error {
+			return s.sendEnvelopes(stream, query, envs)
+		},
+	)
 }
 
 func (s *Service) sendEnvelopes(
 	stream *connect.ServerStream[message_api.SubscribeEnvelopesResponse],
-	query *message_api.EnvelopesQuery,
+	query *subscribeFilter,
 	envs []*envelopes.OriginatorEnvelope,
 ) error {
-	cursor := query.GetLastSeen().GetNodeIdToSequenceId()
-	if cursor == nil {
-		cursor = make(map[uint32]uint64)
-		query.LastSeen = &envelopesProto.Cursor{
-			NodeIdToSequenceId: cursor,
-		}
-	}
-
-	var (
-		batch          = make([]*envelopesProto.OriginatorEnvelope, 0, len(envs))
-		batchWireBytes = 0
-	)
-
-	flush := func() error {
-		if len(batch) == 0 {
-			return nil
-		}
-
-		if err := stream.Send(&message_api.SubscribeEnvelopesResponse{
-			Envelopes: batch,
-		}); err != nil {
-			return connect.NewError(
-				connect.CodeInternal,
-				fmt.Errorf("error sending envelopes: %w", err),
-			)
-		}
-
-		metrics.EmitAPIOutgoingEnvelopes(stream.Conn().Spec().Procedure, len(batch))
-
-		batchWireBytes = 0
-		batch = batch[:0]
-
-		return nil
-	}
-
-	for _, env := range envs {
-		var (
-			origID = env.OriginatorNodeID()
-			seqID  = env.OriginatorSequenceID()
-		)
-
-		// Skip if we've already seen this envelope.
-		if cursor[origID] >= seqID {
-			continue
-		}
-
-		var (
-			envProto     = env.Proto()
-			envProtoSize = proto.Size(envProto)
-			envWireSize  = envProtoSize + envelopeOverhead(uint64(envProtoSize))
-		)
-
-		// If the batch is not empty and the total bytes exceeds the limit, flush current batch.
-		if len(batch) > 0 && batchWireBytes+envWireSize > constants.GRPCPayloadLimit {
-			if err := flush(); err != nil {
-				return err
+	return batchAndSendEnvelopes(
+		s.logger,
+		query.cursor,
+		envs,
+		0, // no wrapper overhead for SubscribeEnvelopesResponse
+		func(batch []*envelopesProto.OriginatorEnvelope) error {
+			if err := stream.Send(&message_api.SubscribeEnvelopesResponse{
+				Envelopes: batch,
+			}); err != nil {
+				return connect.NewError(
+					connect.CodeInternal,
+					fmt.Errorf("error sending envelopes: %w", err),
+				)
 			}
-		}
-
-		batch = append(batch, envProto)
-		batchWireBytes += envWireSize
-		cursor[origID] = seqID
-	}
-
-	return flush()
+			metrics.EmitAPIOutgoingEnvelopes(stream.Conn().Spec().Procedure, len(batch))
+			return nil
+		},
+	)
 }
 
 // https://protobuf.dev/programming-guides/encoding/
@@ -422,8 +358,16 @@ func (s *Service) QueryEnvelopes(
 		logger.Debug("received request", utils.BodyField(req))
 	}
 
+	protoQuery := req.Msg.GetQuery()
+	query := &subscribeFilter{
+		topics:            protoQuery.GetTopics(),
+		originatorNodeIDs: protoQuery.GetOriginatorNodeIds(),
+		catchUpMode:       catchUpFromCursor,
+		cursor:            cursorFromProto(protoQuery.GetLastSeen()),
+	}
+
 	// NOTE: Query accepts both topics and originators being empty, though it returns nothing in that case.
-	err := s.validateQuery(req.Msg.GetQuery(), true)
+	err := s.validateQuery(query, true)
 	if err != nil {
 		tracing.SpanTag(span, "error", err)
 		return nil, connect.NewError(
@@ -441,10 +385,10 @@ func (s *Service) QueryEnvelopes(
 
 	// Tag with query parameters for debugging
 	tracing.SpanTag(span, "limit", limit)
-	tracing.SpanTag(span, "num_originator_ids", len(req.Msg.GetQuery().GetOriginatorNodeIds()))
-	tracing.SpanTag(span, "num_topics", len(req.Msg.GetQuery().GetTopics()))
+	tracing.SpanTag(span, "num_originator_ids", len(query.originatorNodeIDs))
+	tracing.SpanTag(span, "num_topics", len(query.topics))
 
-	rows, err := s.fetchEnvelopesWithRetry(ctx, req.Msg.GetQuery(), limit)
+	rows, err := s.fetchEnvelopesWithRetry(ctx, query, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -495,15 +439,15 @@ func (s *Service) QueryEnvelopes(
 }
 
 func (s *Service) validateQuery(
-	query *message_api.EnvelopesQuery,
+	query *subscribeFilter,
 	allowEmpty bool,
 ) error {
 	if query == nil {
 		return errors.New("missing query")
 	}
 
-	topics := query.GetTopics()
-	originators := query.GetOriginatorNodeIds()
+	topics := query.topics
+	originators := query.originatorNodeIDs
 	if len(topics) != 0 && len(originators) != 0 {
 		return errors.New("cannot filter by both topic and originator in same subscription request")
 	}
@@ -525,8 +469,7 @@ func (s *Service) validateQuery(
 		}
 	}
 
-	vc := query.GetLastSeen().GetNodeIdToSequenceId()
-	if len(vc) > maxVectorClockLength {
+	if len(query.cursor) > maxVectorClockLength {
 		return fmt.Errorf(
 			"vector clock length exceeds maximum of %d",
 			maxVectorClockLength,
@@ -538,7 +481,7 @@ func (s *Service) validateQuery(
 
 func (s *Service) fetchEnvelopesWithRetry(
 	ctx context.Context,
-	query *message_api.EnvelopesQuery,
+	query *subscribeFilter,
 	rowLimit int32,
 ) ([]queries.GatewayEnvelopesView, error) {
 	boCtx := backoff.WithContext(
@@ -573,21 +516,18 @@ func (s *Service) fetchEnvelopesWithRetry(
 
 func (s *Service) fetchEnvelopes(
 	ctx context.Context,
-	query *message_api.EnvelopesQuery,
+	query *subscribeFilter,
 	rowLimit int32,
 ) ([]queries.GatewayEnvelopesView, error) {
-	if len(query.GetTopics()) != 0 {
+	if len(query.topics) != 0 {
 		params := queries.SelectGatewayEnvelopesByTopicsParams{
-			Topics:            query.GetTopics(),
+			Topics:            query.topics,
 			RowLimit:          rowLimit,
 			CursorNodeIds:     nil,
 			CursorSequenceIds: nil,
 		}
 
-		vc := query.GetLastSeen().GetNodeIdToSequenceId()
-		if vc == nil {
-			vc = make(db.VectorClock)
-		}
+		vc := query.cursor
 		allOriginators, err := s.originatorList.GetOriginatorNodeIDs(ctx)
 		if err != nil {
 			return nil, connect.NewError(
@@ -609,12 +549,10 @@ func (s *Service) fetchEnvelopes(
 		return db.TransformRowsByTopic(rows), nil
 	}
 
-	if len(query.GetOriginatorNodeIds()) == 1 {
+	if len(query.originatorNodeIDs) == 1 {
 		var (
-			originatorNodeID = int32(query.GetOriginatorNodeIds()[0])
-			cursorSequenceID = int64(
-				query.GetLastSeen().GetNodeIdToSequenceId()[uint32(originatorNodeID)],
-			)
+			originatorNodeID = int32(query.originatorNodeIDs[0])
+			cursorSequenceID = int64(query.cursor[uint32(originatorNodeID)])
 		)
 
 		params := queries.SelectGatewayEnvelopesBySingleOriginatorParams{
@@ -634,20 +572,20 @@ func (s *Service) fetchEnvelopes(
 		return db.TransformRowsByOriginator(rows), nil
 	}
 
-	if len(query.GetOriginatorNodeIds()) > 1 {
+	if len(query.originatorNodeIDs) > 1 {
 		params := queries.SelectGatewayEnvelopesByOriginatorsParams{
 			RowLimit: rowLimit,
 		}
 
-		originatorNodeIds := make([]int32, 0, len(query.GetOriginatorNodeIds()))
-		for _, o := range query.GetOriginatorNodeIds() {
+		originatorNodeIds := make([]int32, 0, len(query.originatorNodeIDs))
+		for _, o := range query.originatorNodeIDs {
 			originatorNodeIds = append(originatorNodeIds, int32(o))
 		}
 
 		db.SetVectorClockByOriginators(
 			&params,
 			originatorNodeIds,
-			query.GetLastSeen().GetNodeIdToSequenceId(),
+			query.cursor,
 		)
 
 		rows, err := s.store.ReadQuery().SelectGatewayEnvelopesByOriginators(ctx, params)

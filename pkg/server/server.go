@@ -521,16 +521,31 @@ func startAPIServer(
 			return nil, errors.New("replication service is nil")
 		}
 
-		replicationPath, replicationHandler := message_apiconnect.NewReplicationApiHandler(
-			replicationService,
+		handlerOpts := []connect.HandlerOption{
 			connect.WithReadMaxBytes(constants.GRPCPayloadLimit),
 			connect.WithSendMaxBytes(constants.GRPCPayloadLimit),
 			connect.WithInterceptors(interceptors...),
+		}
+
+		replicationPath, replicationHandler := message_apiconnect.NewReplicationApiHandler(
+			replicationService, handlerOpts...,
+		)
+		queryPath, queryHandler := message_apiconnect.NewQueryApiHandler(
+			replicationService, handlerOpts...,
+		)
+		publishPath, publishHandler := message_apiconnect.NewPublishApiHandler(
+			replicationService, handlerOpts...,
+		)
+		notificationPath, notificationHandler := message_apiconnect.NewNotificationApiHandler(
+			replicationService, handlerOpts...,
 		)
 
 		mux.Handle(replicationPath, replicationHandler)
+		mux.Handle(queryPath, queryHandler)
+		mux.Handle(publishPath, publishHandler)
+		mux.Handle(notificationPath, notificationHandler)
 
-		svc.logger.Info("replication api registered")
+		svc.logger.Info("message api services registered")
 
 		// Register metadata API.
 		metadataService, err := metadata.NewMetadataAPIService(
@@ -550,10 +565,7 @@ func startAPIServer(
 		}
 
 		metadataPath, metadataHandler := metadata_apiconnect.NewMetadataApiHandler(
-			metadataService,
-			connect.WithReadMaxBytes(constants.GRPCPayloadLimit),
-			connect.WithSendMaxBytes(constants.GRPCPayloadLimit),
-			connect.WithInterceptors(interceptors...),
+			metadataService, handlerOpts...,
 		)
 
 		mux.Handle(metadataPath, metadataHandler)
@@ -563,6 +575,9 @@ func startAPIServer(
 		return []string{
 			metadata_apiconnect.MetadataApiName,
 			message_apiconnect.ReplicationApiName,
+			message_apiconnect.QueryApiName,
+			message_apiconnect.PublishApiName,
+			message_apiconnect.NotificationApiName,
 		}, nil
 	}
 

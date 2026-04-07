@@ -25,6 +25,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/authn"
 	blockchainMocks "github.com/xmtp/xmtpd/pkg/testutils/mocks/blockchain"
 
+	gateway_apiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/gateway_api/gateway_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/payer_api/payer_apiconnect"
@@ -63,7 +64,67 @@ func NewTestGRPCReplicationAPIClient(
 	return client
 }
 
-func NewTestGRPCGatewayAPIClient(
+func NewTestGRPCNotificationAPIClient(
+	t *testing.T,
+	addr string,
+	extraDialOpts ...connect.ClientOption,
+) message_apiconnect.NotificationApiClient {
+	_, port, err := net.SplitHostPort(addr)
+	require.NoError(t, err)
+
+	client, err := utils.NewConnectGRPCNotificationAPIClient(
+		t.Context(),
+		"http://localhost:"+port,
+		extraDialOpts...,
+	)
+	if err != nil {
+		t.Fatalf("failed to create notification API client: %v", err)
+	}
+
+	return client
+}
+
+func NewTestGRPCQueryAPIClient(
+	t *testing.T,
+	addr string,
+	extraDialOpts ...connect.ClientOption,
+) message_apiconnect.QueryApiClient {
+	_, port, err := net.SplitHostPort(addr)
+	require.NoError(t, err)
+
+	client, err := utils.NewConnectGRPCQueryAPIClient(
+		t.Context(),
+		"http://localhost:"+port,
+		extraDialOpts...,
+	)
+	if err != nil {
+		t.Fatalf("failed to create query API client: %v", err)
+	}
+
+	return client
+}
+
+func NewTestGRPCPublishAPIClient(
+	t *testing.T,
+	addr string,
+	extraDialOpts ...connect.ClientOption,
+) message_apiconnect.PublishApiClient {
+	_, port, err := net.SplitHostPort(addr)
+	require.NoError(t, err)
+
+	client, err := utils.NewConnectGRPCPublishAPIClient(
+		t.Context(),
+		"http://localhost:"+port,
+		extraDialOpts...,
+	)
+	if err != nil {
+		t.Fatalf("failed to create publish API client: %v", err)
+	}
+
+	return client
+}
+
+func NewTestGRPCPayerAPIClient(
 	t *testing.T,
 	addr string,
 	extraDialOpts ...connect.ClientOption,
@@ -71,7 +132,27 @@ func NewTestGRPCGatewayAPIClient(
 	_, port, err := net.SplitHostPort(addr)
 	require.NoError(t, err)
 
-	client, err := utils.NewConnectGatewayAPIClient(
+	client, err := utils.NewConnectGRPCPayerAPIClient(
+		t.Context(),
+		"http://localhost:"+port,
+		extraDialOpts...,
+	)
+	if err != nil {
+		t.Fatalf("failed to create payer API client: %v", err)
+	}
+
+	return client
+}
+
+func NewTestGRPCGatewayAPIClient(
+	t *testing.T,
+	addr string,
+	extraDialOpts ...connect.ClientOption,
+) gateway_apiconnect.GatewayApiClient {
+	_, port, err := net.SplitHostPort(addr)
+	require.NoError(t, err)
+
+	client, err := utils.NewConnectGRPCGatewayAPIClient(
 		t.Context(),
 		"http://localhost:"+port,
 		extraDialOpts...,
@@ -114,13 +195,17 @@ type APIServerMocks struct {
 }
 
 type APIServerTestSuite struct {
-	APIServer         *api.APIServer
-	ClientReplication message_apiconnect.ReplicationApiClient
-	ClientPayer       payer_apiconnect.PayerApiClient
-	ClientMetadata    metadata_apiconnect.MetadataApiClient
-	DB                *sql.DB
-	APIServerMocks    APIServerMocks
-	MessageService    *message.Service
+	APIServer          *api.APIServer
+	ClientReplication  message_apiconnect.ReplicationApiClient
+	ClientNotification message_apiconnect.NotificationApiClient
+	ClientQuery        message_apiconnect.QueryApiClient
+	ClientPublish      message_apiconnect.PublishApiClient
+	ClientPayer        payer_apiconnect.PayerApiClient
+	ClientGateway      gateway_apiconnect.GatewayApiClient
+	ClientMetadata     metadata_apiconnect.MetadataApiClient
+	DB                 *sql.DB
+	APIServerMocks     APIServerMocks
+	MessageService     *message.Service
 }
 
 // APIServerTestConfig allows explicitly setting some components used for tests.
@@ -268,14 +353,41 @@ func NewTestAPIServer(
 			connect.WithInterceptors(interceptors...),
 		)
 
+		notificationPath, notificationHandler := message_apiconnect.NewNotificationApiHandler(
+			replicationService,
+			connect.WithInterceptors(interceptors...),
+		)
+
+		queryPath, queryHandler := message_apiconnect.NewQueryApiHandler(
+			replicationService,
+			connect.WithInterceptors(interceptors...),
+		)
+		publishPath, publishHandler := message_apiconnect.NewPublishApiHandler(
+			replicationService,
+			connect.WithInterceptors(interceptors...),
+		)
+
+		gatewayApiPath, gatewayApiHandler := gateway_apiconnect.NewGatewayApiHandler(
+			payerService,
+			connect.WithInterceptors(interceptors...),
+		)
+
 		mux.Handle(replicationPath, replicationHandler)
+		mux.Handle(notificationPath, notificationHandler)
+		mux.Handle(queryPath, queryHandler)
+		mux.Handle(publishPath, publishHandler)
 		mux.Handle(payerPath, payerHandler)
 		mux.Handle(metadataPath, metadataHandler)
+		mux.Handle(gatewayApiPath, gatewayApiHandler)
 
 		return []string{
 			message_apiconnect.ReplicationApiName,
+			message_apiconnect.NotificationApiName,
+			message_apiconnect.QueryApiName,
+			message_apiconnect.PublishApiName,
 			payer_apiconnect.PayerApiName,
 			metadata_apiconnect.MetadataApiName,
+			gateway_apiconnect.GatewayApiName,
 		}, nil
 	}
 
@@ -307,16 +419,24 @@ func NewTestAPIServer(
 	})
 
 	clientReplication := NewTestGRPCReplicationAPIClient(t, svr.Addr())
-	clientPayer := NewTestGRPCGatewayAPIClient(t, svr.Addr())
+	clientNotification := NewTestGRPCNotificationAPIClient(t, svr.Addr())
+	clientQuery := NewTestGRPCQueryAPIClient(t, svr.Addr())
+	clientPublish := NewTestGRPCPublishAPIClient(t, svr.Addr())
+	clientPayer := NewTestGRPCPayerAPIClient(t, svr.Addr())
+	clientGateway := NewTestGRPCGatewayAPIClient(t, svr.Addr())
 	clientMetadata := NewTestGRPCMetadataAPIClient(t, svr.Addr())
 
 	return &APIServerTestSuite{
-		APIServer:         svr,
-		APIServerMocks:    allMocks,
-		ClientReplication: clientReplication,
-		ClientPayer:       clientPayer,
-		ClientMetadata:    clientMetadata,
-		DB:                db.DB(),
-		MessageService:    replicationService,
+		APIServer:          svr,
+		APIServerMocks:     allMocks,
+		ClientReplication:  clientReplication,
+		ClientNotification: clientNotification,
+		ClientQuery:        clientQuery,
+		ClientPublish:      clientPublish,
+		ClientPayer:        clientPayer,
+		ClientGateway:      clientGateway,
+		ClientMetadata:     clientMetadata,
+		DB:                 db.DB(),
+		MessageService:     replicationService,
 	}
 }

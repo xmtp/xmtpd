@@ -12,7 +12,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/migrator"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -310,7 +309,7 @@ func (s *subscribeWorker) closeListener(l *listener) {
 
 func (s *subscribeWorker) listen(
 	ctx context.Context,
-	query *message_api.EnvelopesQuery,
+	query *subscribeFilter,
 ) <-chan []*envelopes.OriginatorEnvelope {
 	ch := make(chan []*envelopes.OriginatorEnvelope, subscriptionBufferSize)
 	l := newListener(ctx, s.logger, query, ch)

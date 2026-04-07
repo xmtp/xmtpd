@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net"
 	"time"
 
 	"connectrpc.com/connect"
@@ -17,6 +18,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/ratelimiter"
 	"github.com/xmtp/xmtpd/pkg/utils"
 	"github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 )
@@ -40,6 +42,15 @@ func (s *Service) SubscribeTopics(
 		)
 	}
 
+	filters := req.Msg.GetFilters()
+
+	subject := subscribeSubjectFromRequest(req)
+	cleanup, err := applySubscribeAdmissionAndDrain(ctx, s.rateLimiter, s.rlConfig, subject, len(filters))
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
 	logger := s.logger.With(utils.MethodField(req.Spec().Procedure))
 
 	if s.logger.Core().Enabled(zap.DebugLevel) {
@@ -47,7 +58,7 @@ func (s *Service) SubscribeTopics(
 	}
 
 	// Send STARTED status so wasm-based clients maintain the connection open.
-	err := stream.Send(newSubscriptionStatusMessage(
+	err = stream.Send(newSubscriptionStatusMessage(
 		message_api.SubscribeTopicsResponse_SUBSCRIPTION_STATUS_STARTED,
 	))
 	if err != nil {
@@ -56,8 +67,6 @@ func (s *Service) SubscribeTopics(
 			fmt.Errorf("could not send status: %w", err),
 		)
 	}
-
-	filters := req.Msg.GetFilters()
 
 	knownOriginators, err := s.originatorList.GetOriginatorNodeIDs(ctx)
 	if err != nil {
@@ -97,6 +106,21 @@ func (s *Service) SubscribeTopics(
 	ticker := time.NewTicker(s.options.SendKeepAliveInterval)
 	defer ticker.Stop()
 
+	var idleTimer *time.Timer
+	var idleC <-chan time.Time
+	if s.rlConfig.StreamIdleTimeout > 0 {
+		idleTimer = time.NewTimer(s.rlConfig.StreamIdleTimeout)
+		defer idleTimer.Stop()
+		idleC = idleTimer.C
+	}
+
+	var maxC <-chan time.Time
+	if s.rlConfig.StreamMaxDuration > 0 {
+		maxTimer := time.NewTimer(s.rlConfig.StreamMaxDuration)
+		defer maxTimer.Stop()
+		maxC = maxTimer.C
+	}
+
 	for {
 		select {
 		case <-ticker.C:
@@ -112,6 +136,15 @@ func (s *Service) SubscribeTopics(
 
 		case envs, open := <-envelopesCh:
 			ticker.Reset(s.options.SendKeepAliveInterval)
+			if idleTimer != nil {
+				if !idleTimer.Stop() {
+					select {
+					case <-idleTimer.C:
+					default:
+					}
+				}
+				idleTimer.Reset(s.rlConfig.StreamIdleTimeout)
+			}
 
 			if !open {
 				logger.Debug("channel closed by worker")
@@ -124,6 +157,14 @@ func (s *Service) SubscribeTopics(
 			if err != nil {
 				return err
 			}
+
+		case <-idleC:
+			logger.Info("subscribe stream cancelled by idle timeout")
+			return connect.NewError(connect.CodeDeadlineExceeded, errors.New("stream idle timeout"))
+
+		case <-maxC:
+			logger.Info("subscribe stream cancelled by max duration")
+			return connect.NewError(connect.CodeDeadlineExceeded, errors.New("stream max duration reached"))
 
 		case <-ctx.Done():
 			logger.Debug("topic subscription stream closed")
@@ -223,6 +264,74 @@ func buildTopicCursors(
 	}
 
 	return cursors, topics, topicKeys
+}
+
+// subscribeTrustedCIDRs is configured at server startup and consumed by the
+// subscribe handler when extracting the client IP for rate-limit billing.
+var subscribeTrustedCIDRs []*net.IPNet
+
+// SetSubscribeTrustedCIDRs configures the trusted-proxy CIDRs used by the
+// subscribe handler for IP keying. Called once at server startup.
+func SetSubscribeTrustedCIDRs(cidrs []*net.IPNet) {
+	subscribeTrustedCIDRs = cidrs
+}
+
+func subscribeSubjectFromRequest(req *connect.Request[message_api.SubscribeTopicsRequest]) string {
+	return ratelimiter.ExtractClientIP(
+		req.Peer().Addr,
+		req.Header().Get("X-Forwarded-For"),
+		subscribeTrustedCIDRs,
+	)
+}
+
+// applySubscribeAdmissionAndDrain charges the admission cost for opening a
+// subscription and returns a cleanup func that retrospectively bills the drain
+// cost when the stream closes. The cleanup func should be invoked via defer.
+//
+// When rate limiting is disabled (cfg.Enabled == false) or the limiter is nil,
+// this is a no-op returning a no-op cleanup func.
+func applySubscribeAdmissionAndDrain(
+	ctx context.Context,
+	limiter ratelimiter.RateLimiter,
+	cfg RateLimitConfig,
+	subject string,
+	numFilters int,
+) (func(), error) {
+	if !cfg.Enabled || limiter == nil {
+		return func() {}, nil
+	}
+
+	cost := ratelimiter.CostQuery(numFilters)
+	res, err := limiter.Allow(ctx, subject, cost)
+	if err != nil {
+		// BreakerLimiter handles errors and fails open, so this should not
+		// happen in practice. Defensive: treat as failure-open and proceed.
+		return func() {}, nil
+	}
+	if !res.Allowed {
+		return nil, connect.NewError(
+			connect.CodeResourceExhausted,
+			fmt.Errorf("subscribe admission rate limit exceeded"),
+		)
+	}
+
+	startedAt := time.Now()
+	cleanup := func() {
+		// Use a fresh background context — the request context is cancelled
+		// at this point. Drain still needs to write to Redis.
+		drainCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+		drain := ratelimiter.CostSubscribeDrain(
+			time.Since(startedAt),
+			cfg.DrainIntervalMinutes,
+			cfg.DrainAmount,
+		)
+		if drain == 0 {
+			return
+		}
+		_, _ = limiter.ForceDebit(drainCtx, subject, drain)
+	}
+	return cleanup, nil
 }
 
 // fetchTopicEnvelopesWithRetry fetches envelopes using exponential backoff.

@@ -45,6 +45,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/interceptors/server"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/mlsvalidate"
+	"github.com/xmtp/xmtpd/pkg/ratelimiter"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 )
@@ -486,6 +487,25 @@ func startAPIServer(
 		}
 	}
 
+	built, err := ratelimiter.Build(svc.ctx, cfg.Logger, cfg.Options.Redis, cfg.Options.RateLimit)
+	if err != nil {
+		return fmt.Errorf("failed to build rate limiter: %w", err)
+	}
+
+	var msgRateLimiter ratelimiter.RateLimiter
+	rlConfig := message.RateLimitConfig{}
+	if built != nil {
+		msgRateLimiter = built.QueryLimiter
+		rlConfig = message.RateLimitConfig{
+			Enabled:              true,
+			DrainIntervalMinutes: cfg.Options.RateLimit.DrainIntervalMinutes,
+			DrainAmount:          cfg.Options.RateLimit.DrainAmount,
+			StreamIdleTimeout:    cfg.Options.RateLimit.StreamIdleTimeout,
+			StreamMaxDuration:    cfg.Options.RateLimit.StreamMaxDuration,
+		}
+		message.SetSubscribeTrustedCIDRs(built.TrustedCIDRs)
+	}
+
 	registrationFunc := func(mux *http.ServeMux, interceptors ...connect.Interceptor) (servicePaths []string, err error) {
 		if jwtVerifier != nil && authInterceptor != nil {
 			interceptors = append(
@@ -511,8 +531,8 @@ func startAPIServer(
 				cfg.DB.ReadQuery(), cfg.Options.API.OriginatorCacheTTL, cfg.Logger,
 			),
 			ledgerPkg.NewLedger(cfg.Logger, cfg.DB),
-			nil,
-			message.RateLimitConfig{},
+			msgRateLimiter,
+			rlConfig,
 		)
 		if err != nil {
 			return nil, err
@@ -529,11 +549,30 @@ func startAPIServer(
 			connect.WithInterceptors(interceptors...),
 		}
 
+		queryHandlerOpts := handlerOpts
+		if built != nil {
+			rlInterceptor := server.NewRateLimitInterceptor(
+				cfg.Logger,
+				built.QueryLimiter,
+				built.OpensLimiter,
+				built.TrustedCIDRs,
+				server.RateLimitInterceptorConfig{
+					DrainIntervalMinutes: cfg.Options.RateLimit.DrainIntervalMinutes,
+					DrainAmount:          cfg.Options.RateLimit.DrainAmount,
+				},
+			)
+			queryHandlerOpts = []connect.HandlerOption{
+				connect.WithReadMaxBytes(constants.GRPCPayloadLimit),
+				connect.WithSendMaxBytes(constants.GRPCPayloadLimit),
+				connect.WithInterceptors(append(interceptors, rlInterceptor)...),
+			}
+		}
+
 		replicationPath, replicationHandler := message_apiconnect.NewReplicationApiHandler(
 			replicationService, handlerOpts...,
 		)
 		queryPath, queryHandler := message_apiconnect.NewQueryApiHandler(
-			replicationService, handlerOpts...,
+			replicationService, queryHandlerOpts...,
 		)
 		publishPath, publishHandler := message_apiconnect.NewPublishApiHandler(
 			replicationService, handlerOpts...,

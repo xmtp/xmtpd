@@ -173,6 +173,7 @@ type ServerOptions struct {
 	MlsValidation   MlsValidationOptions   `group:"MLS Validation Options"   namespace:"mls-validation"`
 	Payer           PayerOptions           `group:"Payer Options"            namespace:"payer"`
 	PayerReport     PayerReportOptions     `group:"Payer Report Options"     namespace:"payer-report"`
+	Redis           RedisOptions           `group:"Redis Options"            namespace:"redis"`
 	RateLimit       RateLimitOptions       `group:"Rate Limit Options"       namespace:"rate-limit"`
 	Reflection      ReflectionOptions      `group:"Reflection Options"       namespace:"reflection"`
 	Replication     ReplicationOptions     `group:"API Options"              namespace:"replication"`

@@ -1,6 +1,7 @@
 package ratelimiter
 
 import (
+	"context"
 	"sync"
 	"time"
 )
@@ -106,4 +107,47 @@ func (cb *CircuitBreaker) RecordFailure() {
 		cb.state = BreakerOpen
 		cb.openedAt = time.Now()
 	}
+}
+
+// BreakerLimiter wraps a RateLimiter with a circuit breaker. On any error from
+// the inner limiter, the breaker counts a failure and the request fails open
+// (Allowed=true). When the breaker is OPEN, calls bypass the inner limiter
+// entirely and fail open. Denials from the inner limiter are not failures.
+type BreakerLimiter struct {
+	inner   RateLimiter
+	breaker *CircuitBreaker
+}
+
+// NewBreakerLimiter wraps inner with the provided CircuitBreaker.
+func NewBreakerLimiter(inner RateLimiter, breaker *CircuitBreaker) *BreakerLimiter {
+	return &BreakerLimiter{inner: inner, breaker: breaker}
+}
+
+// Allow implements RateLimiter. Errors from the inner limiter increment the
+// breaker and return a fail-open result. Denials are passed through as-is.
+func (b *BreakerLimiter) Allow(ctx context.Context, subject string, cost uint64) (*Result, error) {
+	if !b.breaker.Allow() {
+		return &Result{Allowed: true}, nil // fail open
+	}
+	res, err := b.inner.Allow(ctx, subject, cost)
+	if err != nil {
+		b.breaker.RecordFailure()
+		return &Result{Allowed: true}, nil
+	}
+	b.breaker.RecordSuccess()
+	return res, nil
+}
+
+// ForceDebit implements RateLimiter with the same fail-open semantics as Allow.
+func (b *BreakerLimiter) ForceDebit(ctx context.Context, subject string, cost uint64) (*Result, error) {
+	if !b.breaker.Allow() {
+		return &Result{Allowed: true}, nil
+	}
+	res, err := b.inner.ForceDebit(ctx, subject, cost)
+	if err != nil {
+		b.breaker.RecordFailure()
+		return &Result{Allowed: true}, nil
+	}
+	b.breaker.RecordSuccess()
+	return res, nil
 }

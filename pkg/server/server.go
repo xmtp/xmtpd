@@ -511,6 +511,8 @@ func startAPIServer(
 				cfg.DB.ReadQuery(), cfg.Options.API.OriginatorCacheTTL, cfg.Logger,
 			),
 			ledgerPkg.NewLedger(cfg.Logger, cfg.DB),
+			nil,
+			message.RateLimitConfig{},
 		)
 		if err != nil {
 			return nil, err

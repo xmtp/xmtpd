@@ -26,6 +26,7 @@ import (
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	message_apiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
+	"github.com/xmtp/xmtpd/pkg/ratelimiter"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/topic"
@@ -47,6 +48,16 @@ const (
 	requestMissingMessageError = "missing request message"
 )
 
+// RateLimitConfig is the subset of rate-limit options the message Service needs
+// at handler-time (drain params and stream lifetime caps).
+type RateLimitConfig struct {
+	Enabled              bool
+	DrainIntervalMinutes int
+	DrainAmount          int
+	StreamIdleTimeout    time.Duration
+	StreamMaxDuration    time.Duration
+}
+
 type Service struct {
 	message_apiconnect.UnimplementedReplicationApiHandler
 
@@ -63,6 +74,8 @@ type Service struct {
 	migrationEnabled  bool
 	originatorList    db.OriginatorLister
 	ledger            ledger.ILedger
+	rateLimiter       ratelimiter.RateLimiter // nil when rate limiting disabled
+	rlConfig          RateLimitConfig
 }
 
 var (
@@ -86,6 +99,8 @@ func NewReplicationAPIService(
 	sleepOnFailureTime time.Duration,
 	originatorList db.OriginatorLister,
 	ledger ledger.ILedger,
+	rateLimiter ratelimiter.RateLimiter,
+	rlConfig RateLimitConfig,
 ) (*Service, error) {
 	if validationService == nil {
 		return nil, errors.New("validation service must not be nil")
@@ -128,6 +143,8 @@ func NewReplicationAPIService(
 		migrationEnabled:  migrationEnabled,
 		originatorList:    originatorList,
 		ledger:            ledger,
+		rateLimiter:       rateLimiter,
+		rlConfig:          rlConfig,
 	}, nil
 }
 

@@ -609,6 +609,42 @@ func TestRedisLimiter_Errors(t *testing.T) {
 	}
 }
 
+func TestRedisLimiter_ForceDebit_AllowsNegativeBalance(t *testing.T) {
+	client, keyPrefix := redistestutils.NewRedisForTest(t)
+	limiter, err := ratelimiter.NewRedisLimiter(client, keyPrefix, []ratelimiter.Limit{
+		{Capacity: 10, RefillEvery: time.Minute},
+	})
+	require.NoError(t, err)
+
+	ctx := context.Background()
+
+	// Spend 8 tokens normally
+	res, err := limiter.Allow(ctx, "subj", 8)
+	require.NoError(t, err)
+	require.True(t, res.Allowed)
+
+	// Force-debit 20 tokens — should drive the bucket negative without rejection
+	res, err = limiter.ForceDebit(ctx, "subj", 20)
+	require.NoError(t, err)
+	require.True(t, res.Allowed)
+	require.Less(t, res.Balances[0].Remaining, 0.0)
+
+	// Subsequent normal Allow should be rejected
+	res, err = limiter.Allow(ctx, "subj", 1)
+	require.NoError(t, err)
+	require.False(t, res.Allowed)
+}
+
+func TestRedisLimiter_ForceDebit_ZeroCostIsError(t *testing.T) {
+	client, keyPrefix := redistestutils.NewRedisForTest(t)
+	limiter, err := ratelimiter.NewRedisLimiter(client, keyPrefix, []ratelimiter.Limit{
+		{Capacity: 10, RefillEvery: time.Minute},
+	})
+	require.NoError(t, err)
+	_, err = limiter.ForceDebit(context.Background(), "subj", 0)
+	require.ErrorIs(t, err, ratelimiter.ErrCostMustBeGreaterThanZero)
+}
+
 func TestRedisLimiter_SubjectIsolation(t *testing.T) {
 	client, keyPrefix := redistestutils.NewRedisForTest(t)
 	limiter, err := ratelimiter.NewRedisLimiter(client, keyPrefix,

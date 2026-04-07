@@ -45,6 +45,13 @@ local n         = tonumber(ARGV[2]) -- Number of limits to check
 local cost      = tonumber(ARGV[3]) -- Tokens to consume
 local mode      = ARGV[4]           -- "check" or "force"
 
+-- Validate mode loudly. An unrecognized value would otherwise silently fall
+-- through to the check path, hiding caller bugs. The Go layer should never
+-- pass anything other than "check" or "force".
+if mode ~= "check" and mode ~= "force" then
+    return redis.error_reply("invalid mode: " .. tostring(mode))
+end
+
 -- Initialize arrays to store limit configurations and current state
 local caps      = {} -- Maximum capacity for each limit (e.g., 100 tokens)
 local refill_ms = {} -- Time in ms to fully refill each limit (e.g., 60000 for 1 minute)

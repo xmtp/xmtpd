@@ -52,9 +52,9 @@ func (l *RedisLimiter) buildKeys(subject string) []string {
 	return keys
 }
 
-func (l *RedisLimiter) buildArgs(requestTime time.Time, cost uint64) []any {
-	args := make([]any, 0, 3+len(l.limits)*2)
-	args = append(args, requestTime.UnixMilli(), len(l.limits), cost)
+func (l *RedisLimiter) buildArgs(requestTime time.Time, cost uint64, mode string) []any {
+	args := make([]any, 0, 4+len(l.limits)*2)
+	args = append(args, requestTime.UnixMilli(), len(l.limits), cost, mode)
 	for _, lim := range l.limits {
 		args = append(args, lim.Capacity, lim.RefillEvery.Milliseconds())
 	}
@@ -68,7 +68,7 @@ func (l *RedisLimiter) Allow(ctx context.Context, subject string, cost uint64) (
 	}
 	now := time.Now()
 	keys := l.buildKeys(subject)
-	args := l.buildArgs(now, cost)
+	args := l.buildArgs(now, cost, "check")
 
 	raw, err := l.script.Run(ctx, l.client, keys, args...).Result()
 	if err != nil {
@@ -86,6 +86,35 @@ func (l *RedisLimiter) Allow(ctx context.Context, subject string, cost uint64) (
 	}
 
 	return res, nil
+}
+
+// ForceDebit unconditionally subtracts `cost` tokens from the bucket, allowing
+// the result to go negative. Used for retrospective subscription drain: when a
+// stream closes after holding resources, we bill for the held time even if the
+// client's bucket cannot absorb the full charge. The next normal Allow call
+// from that subject will be rejected until the bucket refills back to a
+// sufficient positive value.
+//
+// ForceDebit always returns Allowed=true (or an error if Redis fails).
+func (l *RedisLimiter) ForceDebit(ctx context.Context, subject string, cost uint64) (*Result, error) {
+	if cost == 0 {
+		return nil, ErrCostMustBeGreaterThanZero
+	}
+	now := time.Now()
+	keys := l.buildKeys(subject)
+	args := l.buildArgs(now, cost, "force")
+
+	raw, err := l.script.Run(ctx, l.client, keys, args...).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	arr, ok := raw.([]any)
+	if !ok || len(arr) < 1 {
+		return nil, ErrUnexpectedScriptResponse
+	}
+
+	return l.transformResult(arr, cost)
 }
 
 func (l *RedisLimiter) transformResult(arr []any, cost uint64) (*Result, error) {

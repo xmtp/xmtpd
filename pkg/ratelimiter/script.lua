@@ -10,7 +10,10 @@
 --   ARGV[1]           = now_ms - Current timestamp in milliseconds
 --   ARGV[2]           = num_limits (N) - Number of rate limits to enforce
 --   ARGV[3]           = cost - Number of tokens to consume for this request
---   ARGV[4..4+2N-1]   = Flattened array of limit configurations:
+--   ARGV[4]           = mode - "check" (default) or "force"
+--                       "check": enforce limits; deny if any bucket lacks sufficient tokens
+--                       "force": skip the check; deduct unconditionally (bucket may go negative)
+--   ARGV[5..5+2N-1]   = Flattened array of limit configurations:
 --                       [capacity_1, refill_ms_1, capacity_2, refill_ms_2, ..., capacity_N, refill_ms_N]
 --
 -- REDIS STORAGE:
@@ -20,15 +23,16 @@
 -- RETURN VALUES:
 --   On success: {1, remaining_1, remaining_2, ..., remaining_N}
 --     - 1 indicates the request is allowed
---     - remaining_i is the token count AFTER deduction for each limit
+--     - remaining_i is the token count AFTER deduction for each limit (may be negative in force mode)
 --   On failure: {0, failed_index, remaining_1, remaining_2, ..., remaining_N}
 --     - 0 indicates the request is denied
 --     - failed_index is the 1-based index of the first limit that failed
 --     - remaining_i is the CURRENT token count (no deduction) for each limit
 --
 -- BEHAVIOR:
---   - ALL limits must have sufficient tokens for the request to be allowed
---   - If ANY limit fails, NO tokens are deducted (atomic operation)
+--   - In "check" mode: ALL limits must have sufficient tokens for the request to be allowed
+--   - In "check" mode: If ANY limit fails, NO tokens are deducted (atomic operation)
+--   - In "force" mode: tokens are always deducted, result may be negative; always returns success
 --   - Tokens refill continuously based on elapsed time since last update
 --   - Each limit key expires independently when bucket is full for efficient cleanup
 --   - Timestamp key expires at max(refill_ms) to track last activity
@@ -39,6 +43,7 @@ local ts_key    = KEYS[1]           -- Timestamp key (shared across all limits)
 local now_ms    = tonumber(ARGV[1]) -- Current time in milliseconds
 local n         = tonumber(ARGV[2]) -- Number of limits to check
 local cost      = tonumber(ARGV[3]) -- Tokens to consume
+local mode      = ARGV[4]           -- "check" or "force"
 
 -- Initialize arrays to store limit configurations and current state
 local caps      = {} -- Maximum capacity for each limit (e.g., 100 tokens)
@@ -47,7 +52,7 @@ local tokens    = {} -- Current token count for each limit (after refill)
 
 -- Parse limit configurations from ARGV
 -- Arguments come in pairs: [capacity, refill_time, capacity, refill_time, ...]
-local idx       = 4 -- Start after the first 3 arguments
+local idx       = 5 -- Start after the first 4 arguments (now_ms, num_limits, cost, mode)
 for i = 1, n do
     caps[i] = tonumber(ARGV[idx])
     idx = idx + 1
@@ -106,13 +111,17 @@ end
 -- ============================================================================
 -- STEP 3: Check if all limits can satisfy the request
 -- ============================================================================
+-- Only run the check in "check" mode. In "force" mode, skip the check entirely
+-- so failed_index stays at 0 and the success path runs unconditionally.
 -- ALL limits must have enough tokens for the request to succeed.
 -- If any limit fails, we track which one failed first (for debugging/reporting).
 local failed_index = 0
-for i = 1, n do
-    if tokens[i] < cost then
-        failed_index = i -- Store the 1-based index of the failing limit
-        break
+if mode ~= "force" then
+    for i = 1, n do
+        if tokens[i] < cost then
+            failed_index = i -- Store the 1-based index of the failing limit
+            break
+        end
     end
 end
 
@@ -124,7 +133,7 @@ if failed_index == 0 then
     -- SUCCESS PATH: All limits passed - deduct tokens and persist state
     -- ========================================================================
 
-    -- Deduct tokens from each limit
+    -- Deduct tokens from each limit (may go negative in force mode)
     for i = 1, n do
         tokens[i] = tokens[i] - cost
     end
@@ -140,17 +149,23 @@ if failed_index == 0 then
 
     -- Set each limit key with its value and expiration in a single call
     -- When a bucket is full, it expires after its refill period
-    -- When not full, set TTL based on time to refill to capacity
+    -- When not full and non-negative, set TTL based on time to refill to capacity
+    -- When negative (force mode), set TTL capped at 2*refill to bound key lifetime
     for i = 1, n do
         local ttl
         if tokens[i] >= caps[i] then
             -- Bucket is full - expire after full refill period
             ttl = refill_ms[i]
-        else
+        elseif tokens[i] >= 0 then
             -- Bucket not full - calculate time to refill to capacity
             -- TTL = time needed to refill from current level to full capacity
             local time_to_fill = (caps[i] - tokens[i]) * refill_ms[i] / caps[i]
             ttl = math.ceil(time_to_fill)
+        else
+            -- Negative balance (force mode): extra time to climb back to zero,
+            -- capped at 2*refill to bound key lifetime
+            local time_to_fill = (caps[i] - tokens[i]) * refill_ms[i] / caps[i]
+            ttl = math.ceil(math.min(time_to_fill, refill_ms[i] * 2))
         end
 
         -- Use SET with PX to set value and expiration atomically
@@ -160,7 +175,7 @@ if failed_index == 0 then
     -- Return success response: {1, remaining_tokens_1, remaining_tokens_2, ...}
     local resp = { 1 }                -- 1 = allowed
     for i = 1, n do
-        table.insert(resp, tokens[i]) -- Remaining after deduction
+        table.insert(resp, tokens[i]) -- Remaining after deduction (may be negative)
     end
     return resp
 else

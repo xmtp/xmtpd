@@ -495,6 +495,7 @@ func startAPIServer(
 	var msgRateLimiter ratelimiter.RateLimiter
 	rlConfig := message.RateLimitConfig{}
 	if built != nil {
+		ratelimiter.Register(promReg)
 		msgRateLimiter = built.QueryLimiter
 		rlConfig = message.RateLimitConfig{
 			Enabled:              true,

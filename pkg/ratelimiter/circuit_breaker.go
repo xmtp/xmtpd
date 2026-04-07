@@ -76,6 +76,7 @@ func (cb *CircuitBreaker) Allow() bool {
 	case BreakerOpen:
 		if time.Since(cb.openedAt) >= cb.cooldown {
 			cb.state = BreakerHalfOpen
+			BreakerStateGauge.Set(1)
 			return true
 		}
 		return false
@@ -88,7 +89,10 @@ func (cb *CircuitBreaker) RecordSuccess() {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
 	cb.failureCount = 0
-	cb.state = BreakerClosed
+	if cb.state != BreakerClosed {
+		cb.state = BreakerClosed
+		BreakerStateGauge.Set(0)
+	}
 }
 
 // RecordFailure increments the consecutive failure count. If the count reaches
@@ -100,12 +104,16 @@ func (cb *CircuitBreaker) RecordFailure() {
 	if cb.state == BreakerHalfOpen {
 		cb.state = BreakerOpen
 		cb.openedAt = time.Now()
+		BreakerStateGauge.Set(2)
+		BreakerTripsTotal.Inc()
 		return
 	}
 	cb.failureCount++
 	if cb.failureCount >= cb.failureThreshold {
 		cb.state = BreakerOpen
 		cb.openedAt = time.Now()
+		BreakerStateGauge.Set(2)
+		BreakerTripsTotal.Inc()
 	}
 }
 

@@ -104,6 +104,9 @@ func (i *RateLimitInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFu
 		}
 
 		if ratelimiter.ClassifyTier(ctx) == ratelimiter.Tier0 {
+			ratelimiter.DecisionsTotal.WithLabelValues(
+				"QueryApi", string(method), "tier0", "bypassed",
+			).Inc()
 			return next(ctx, req)
 		}
 
@@ -122,13 +125,22 @@ func (i *RateLimitInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFu
 				zap.String("subject", subject),
 				zap.Error(err),
 			)
+			ratelimiter.DecisionsTotal.WithLabelValues(
+				"QueryApi", string(method), "tier2", "failed_open",
+			).Inc()
 			return next(ctx, req)
 		}
 
 		if !result.Allowed {
+			ratelimiter.DecisionsTotal.WithLabelValues(
+				"QueryApi", string(method), "tier2", "denied",
+			).Inc()
 			return nil, connect.NewError(connect.CodeResourceExhausted, fmt.Errorf("rate limit exceeded"))
 		}
 
+		ratelimiter.DecisionsTotal.WithLabelValues(
+			"QueryApi", string(method), "tier2", "allowed",
+		).Inc()
 		return next(ctx, req)
 	}
 }
@@ -153,6 +165,9 @@ func (i *RateLimitInterceptor) WrapStreamingHandler(
 		}
 
 		if ratelimiter.ClassifyTier(ctx) == ratelimiter.Tier0 {
+			ratelimiter.DecisionsTotal.WithLabelValues(
+				"QueryApi", string(method), "tier0", "bypassed",
+			).Inc()
 			return next(ctx, conn)
 		}
 
@@ -174,13 +189,22 @@ func (i *RateLimitInterceptor) WrapStreamingHandler(
 				zap.String("subject", opensSubject),
 				zap.Error(err),
 			)
+			ratelimiter.DecisionsTotal.WithLabelValues(
+				"QueryApi", "SubscribeTopics", "tier2", "failed_open",
+			).Inc()
 			return next(ctx, conn)
 		}
 
 		if !result.Allowed {
+			ratelimiter.DecisionsTotal.WithLabelValues(
+				"QueryApi", "SubscribeTopics", "tier2", "denied",
+			).Inc()
 			return connect.NewError(connect.CodeResourceExhausted, fmt.Errorf("subscribe rate limit exceeded"))
 		}
 
+		ratelimiter.DecisionsTotal.WithLabelValues(
+			"QueryApi", "SubscribeTopics", "tier2", "allowed",
+		).Inc()
 		return next(ctx, conn)
 	}
 }

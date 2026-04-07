@@ -160,18 +160,22 @@ func (s *Service) SubscribeTopics(
 
 		case <-idleC:
 			logger.Info("subscribe stream cancelled by idle timeout")
+			ratelimiter.StreamTerminationsTotal.WithLabelValues("idle").Inc()
 			return connect.NewError(connect.CodeDeadlineExceeded, errors.New("stream idle timeout"))
 
 		case <-maxC:
 			logger.Info("subscribe stream cancelled by max duration")
+			ratelimiter.StreamTerminationsTotal.WithLabelValues("max_duration").Inc()
 			return connect.NewError(connect.CodeDeadlineExceeded, errors.New("stream max duration reached"))
 
 		case <-ctx.Done():
 			logger.Debug("topic subscription stream closed")
+			ratelimiter.StreamTerminationsTotal.WithLabelValues("client_close").Inc()
 			return nil
 
 		case <-s.ctx.Done():
 			logger.Debug("message service closed")
+			ratelimiter.StreamTerminationsTotal.WithLabelValues("server_close").Inc()
 			return nil
 		}
 	}

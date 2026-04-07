@@ -10,12 +10,18 @@ import (
 )
 
 // Tier identifies which rate-limit policy applies to a request.
+//
+// Note: Tier1 (authenticated fan-out / app-operator clients) is intentionally
+// reserved for a future phase. v1 only distinguishes Tier 0 (node JWT bypass)
+// and Tier 2 (everyone else, IP-keyed). Do not introduce Tier1 without
+// updating the spec at tasks/rate-limiting-spec.md first.
 type Tier int
 
 const (
 	// Tier0 is authenticated node-to-node traffic. Bypasses all limits.
 	Tier0 Tier = iota
 	// Tier2 is unauthenticated edge-client traffic. Subject to limits.
+	// (Tier1 is reserved — see Tier doc comment.)
 	Tier2
 )
 
@@ -54,6 +60,13 @@ func ParseTrustedProxyCIDRs(s string) ([]*net.IPNet, error) {
 	return out, nil
 }
 
+// InvalidClientIPKey is the bucket key returned by ExtractClientIP when the
+// client IP cannot be parsed as a valid IP address. All clients with malformed
+// peer addresses or junk in X-Forwarded-For share this single bucket, which
+// rate-limits the aggregate of all malformed traffic without leaking arbitrary
+// strings into the Redis keyspace.
+const InvalidClientIPKey = "invalid"
+
 // ExtractClientIP returns the bucket-key IP for an incoming request.
 //
 // The algorithm:
@@ -62,6 +75,9 @@ func ParseTrustedProxyCIDRs(s string) ([]*net.IPNet, error) {
 //     entries, peel the rightmost XFF entry and treat it as the new peer.
 //  3. For IPv4, return the dotted-quad string. For IPv6, return the /64 prefix
 //     in CIDR notation (clients within a /64 share a bucket).
+//  4. If the resulting host is not a parseable IP (junk peer addr or malformed
+//     XFF entry), return the InvalidClientIPKey sentinel rather than leaking
+//     arbitrary strings into the Redis keyspace.
 func ExtractClientIP(peerAddr, xff string, trusted []*net.IPNet) string {
 	host, _, err := net.SplitHostPort(peerAddr)
 	if err != nil {
@@ -76,7 +92,7 @@ func ExtractClientIP(peerAddr, xff string, trusted []*net.IPNet) string {
 
 	parsed := net.ParseIP(host)
 	if parsed == nil {
-		return host
+		return InvalidClientIPKey
 	}
 	if v4 := parsed.To4(); v4 != nil {
 		return v4.String()

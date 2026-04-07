@@ -50,6 +50,17 @@ func TestExtractClientIP_IPv4NotNormalized(t *testing.T) {
 	require.Equal(t, "203.0.113.1", got)
 }
 
+func TestExtractClientIP_UnparseablePeerReturnsSentinel(t *testing.T) {
+	got := ExtractClientIP("not-an-ip", "", nil)
+	require.Equal(t, InvalidClientIPKey, got)
+}
+
+func TestExtractClientIP_UnparseableXFFEntryReturnsSentinel(t *testing.T) {
+	trusted := mustParseCIDRs(t, []string{"10.0.0.0/8"})
+	got := ExtractClientIP("10.0.0.5:5001", "evil-string", trusted)
+	require.Equal(t, InvalidClientIPKey, got)
+}
+
 func mustParseCIDRs(t *testing.T, cidrs []string) []*net.IPNet {
 	t.Helper()
 	out := make([]*net.IPNet, 0, len(cidrs))

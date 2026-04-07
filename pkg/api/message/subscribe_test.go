@@ -33,7 +33,7 @@ var (
 	topicA  = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicA")).Bytes()
 	topicB  = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicB")).Bytes()
 	topicC  = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicC")).Bytes()
-	allRows = make([]queries.InsertGatewayEnvelopeParams, 0)
+	allRows = make([]queries.InsertGatewayEnvelopeV3Params, 0)
 )
 
 func setupTest(t *testing.T) *testUtilsApi.APIServerTestSuite {
@@ -46,7 +46,7 @@ func setupTest(t *testing.T) *testUtilsApi.APIServerTestSuite {
 		payerID = db.NullInt32(testutils.CreatePayer(t, suite.DB))
 	)
 
-	allRows = []queries.InsertGatewayEnvelopeParams{
+	allRows = []queries.InsertGatewayEnvelopeV3Params{
 		// Initial rows
 		{
 			OriginatorNodeID:     100,
@@ -106,7 +106,7 @@ func setupTest(t *testing.T) *testUtilsApi.APIServerTestSuite {
 
 func insertInitialRows(t *testing.T, suite *testUtilsApi.APIServerTestSuite) {
 	t.Helper()
-	testutils.InsertGatewayEnvelopes(t, suite.DB, []queries.InsertGatewayEnvelopeParams{
+	testutils.InsertGatewayEnvelopes(t, suite.DB, []queries.InsertGatewayEnvelopeV3Params{
 		allRows[0], allRows[1],
 	})
 	// Wait until the subscribe worker has polled past the inserted rows so that
@@ -117,7 +117,7 @@ func insertInitialRows(t *testing.T, suite *testUtilsApi.APIServerTestSuite) {
 }
 
 func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) {
-	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
+	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeV3Params{
 		allRows[2], allRows[3], allRows[4],
 	}, notifyChan...)
 }
@@ -133,7 +133,7 @@ func validateUpdates(
 	}
 
 	// Build the set of expected (nodeID, seqID) we must observe.
-	expected := make(map[key]queries.InsertGatewayEnvelopeParams, len(expectedIndices))
+	expected := make(map[key]queries.InsertGatewayEnvelopeV3Params, len(expectedIndices))
 	for _, idx := range expectedIndices {
 		r := allRows[idx]
 		expected[key{
@@ -377,10 +377,10 @@ func generateEnvelopes(
 	high int,
 	payerID int32,
 	topic *topic.Topic,
-) map[int32][]queries.InsertGatewayEnvelopeParams {
+) map[int32][]queries.InsertGatewayEnvelopeV3Params {
 	t.Helper()
 
-	out := make(map[int32][]queries.InsertGatewayEnvelopeParams)
+	out := make(map[int32][]queries.InsertGatewayEnvelopeV3Params)
 
 	for _, id := range nodeIDs {
 
@@ -390,7 +390,7 @@ func generateEnvelopes(
 			n += rand.Intn(high - low)
 		}
 
-		envs := make([]queries.InsertGatewayEnvelopeParams, n)
+		envs := make([]queries.InsertGatewayEnvelopeV3Params, n)
 		for i := range n {
 			// Sequence IDs start at 1.
 			seqID := int64(i + 1)
@@ -405,7 +405,7 @@ func generateEnvelopes(
 				),
 			)
 
-			envs[i] = queries.InsertGatewayEnvelopeParams{
+			envs[i] = queries.InsertGatewayEnvelopeV3Params{
 				OriginatorNodeID:     int32(id),
 				OriginatorSequenceID: seqID,
 				Topic:                topic.Bytes(),
@@ -421,9 +421,9 @@ func generateEnvelopes(
 }
 
 func flattenEnvelopeMap(
-	m map[int32][]queries.InsertGatewayEnvelopeParams,
-) []queries.InsertGatewayEnvelopeParams {
-	var out []queries.InsertGatewayEnvelopeParams
+	m map[int32][]queries.InsertGatewayEnvelopeV3Params,
+) []queries.InsertGatewayEnvelopeV3Params {
+	var out []queries.InsertGatewayEnvelopeV3Params
 	for _, list := range m {
 		out = append(out, list...)
 	}
@@ -434,7 +434,7 @@ func flattenEnvelopeMap(
 func saveEnvelopes(
 	t *testing.T,
 	store *sql.DB,
-	envelopes map[int32][]queries.InsertGatewayEnvelopeParams,
+	envelopes map[int32][]queries.InsertGatewayEnvelopeV3Params,
 ) {
 	t.Helper()
 
@@ -739,7 +739,7 @@ func TestSubscribeAll(t *testing.T) {
 	time.Sleep(insertDelay)
 
 	for _, env := range envelopeList {
-		testutils.InsertGatewayEnvelopes(t, server.DB, []queries.InsertGatewayEnvelopeParams{env})
+		testutils.InsertGatewayEnvelopes(t, server.DB, []queries.InsertGatewayEnvelopeV3Params{env})
 		time.Sleep(insertDelay)
 	}
 
@@ -787,7 +787,7 @@ func TestSubscribeAll_StreamsOnlyNewMessages(t *testing.T) {
 	// Pre-seed envelopes in the DB.
 	// These should NOT get picked up by the stream.
 	for _, env := range initialBatch {
-		testutils.InsertGatewayEnvelopes(t, server.DB, []queries.InsertGatewayEnvelopeParams{env})
+		testutils.InsertGatewayEnvelopes(t, server.DB, []queries.InsertGatewayEnvelopeV3Params{env})
 	}
 
 	// Add a delay so the subscribe worker picks pre-seeded envelopes as known before the streaming started.
@@ -823,7 +823,7 @@ func TestSubscribeAll_StreamsOnlyNewMessages(t *testing.T) {
 	time.Sleep(insertDelay)
 
 	for _, env := range streamBatch {
-		testutils.InsertGatewayEnvelopes(t, server.DB, []queries.InsertGatewayEnvelopeParams{env})
+		testutils.InsertGatewayEnvelopes(t, server.DB, []queries.InsertGatewayEnvelopeV3Params{env})
 		time.Sleep(insertDelay)
 	}
 

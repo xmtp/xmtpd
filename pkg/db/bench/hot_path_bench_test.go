@@ -45,7 +45,7 @@ func seedHotPath(ctx context.Context) {
 
 	// Pre-create gateway partitions so write benchmarks never hit partition-creation overhead.
 	for seqID := int64(0); seqID < 50*db.GatewayEnvelopeBandWidth; seqID += db.GatewayEnvelopeBandWidth {
-		_ = hotPathQueries.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
+		_ = hotPathQueries.EnsureGatewayPartsV3(ctx, queries.EnsureGatewayPartsV3Params{
 			OriginatorNodeID:     hotPathOriginatorID,
 			OriginatorSequenceID: seqID,
 			BandWidth:            db.GatewayEnvelopeBandWidth,
@@ -115,7 +115,7 @@ func BenchmarkHotPathSelectStaged(b *testing.B) {
 
 // BenchmarkHotPathInsertGatewayWithUsage measures the atomic transaction that
 // the publish worker executes after signing a staged envelope:
-//   - INSERT into gateway_envelopes_meta + gateway_envelope_blobs
+//   - INSERT into gateway_envelopes_meta + gateway_envelopes_blob
 //   - UPSERT unsettled_usage
 //   - UPSERT originator_congestion
 func BenchmarkHotPathInsertGatewayWithUsage(b *testing.B) {
@@ -137,7 +137,7 @@ func BenchmarkHotPathInsertGatewayWithUsage(b *testing.B) {
 		_, err := db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 			benchCtx,
 			hotPathDB,
-			queries.InsertGatewayEnvelopeParams{
+			queries.InsertGatewayEnvelopeV3Params{
 				OriginatorNodeID:     hotPathOriginatorID,
 				OriginatorSequenceID: seqID,
 				Topic:                topic,
@@ -230,7 +230,7 @@ func BenchmarkHotPathFullCycle(b *testing.B) {
 		_, err = db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 			benchCtx,
 			hotPathDB,
-			queries.InsertGatewayEnvelopeParams{
+			queries.InsertGatewayEnvelopeV3Params{
 				OriginatorNodeID:     hotPathOriginatorID,
 				OriginatorSequenceID: seqID,
 				Topic:                topic,

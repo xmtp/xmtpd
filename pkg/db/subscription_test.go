@@ -28,7 +28,7 @@ func setup(t *testing.T) (*sql.DB, *zap.Logger) {
 }
 
 func insertInitialRows(t *testing.T, store *sql.DB) {
-	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
+	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeV3Params{
 		{
 			OriginatorNodeID:     100,
 			OriginatorSequenceID: 1,
@@ -63,7 +63,7 @@ func envelopesQuery(
 }
 
 func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) {
-	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
+	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeV3Params{
 		{
 			OriginatorNodeID:     100,
 			OriginatorSequenceID: 2,
@@ -124,12 +124,12 @@ func flakyEnvelopesQuery(
 	}
 }
 
-func createGatewayEnvelopes(t *testing.T, n int) []queries.InsertGatewayEnvelopeParams {
+func createGatewayEnvelopes(t *testing.T, n int) []queries.InsertGatewayEnvelopeV3Params {
 	t.Helper()
 
-	envelopes := make([]queries.InsertGatewayEnvelopeParams, n)
+	envelopes := make([]queries.InsertGatewayEnvelopeV3Params, n)
 	for i := range n {
-		e := queries.InsertGatewayEnvelopeParams{
+		e := queries.InsertGatewayEnvelopeV3Params{
 			OriginatorNodeID: 100,
 			Topic: topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicA")).
 				Bytes(),
@@ -296,7 +296,7 @@ func TestSubscriptionDeliversContiguousSequencesPerOriginator(t *testing.T) {
 	seq3Earlier := now.Add(-10 * time.Second)
 	seq2Later := now.Add(-5 * time.Second)
 
-	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
+	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeV3Params{
 		{
 			OriginatorNodeID:     100,
 			OriginatorSequenceID: 1,

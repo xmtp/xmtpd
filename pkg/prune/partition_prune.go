@@ -15,7 +15,7 @@ import (
 
 func constructBlobName(row queries.GetPrunableMetaPartitionsRow) string {
 	return fmt.Sprintf(
-		"gateway_envelope_blobs_o%d_s%d_%d",
+		"gateway_envelopes_blob_o%d_s%d_%d",
 		row.OriginatorNodeID,
 		row.BandStart,
 		row.BandEnd,

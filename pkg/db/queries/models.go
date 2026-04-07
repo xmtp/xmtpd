@@ -24,7 +24,7 @@ type BlockchainMessage struct {
 	IsCanonical          bool
 }
 
-type GatewayEnvelopeBlob struct {
+type GatewayEnvelopesBlob struct {
 	OriginatorNodeID     int32
 	OriginatorSequenceID int64
 	OriginatorEnvelope   []byte

@@ -159,7 +159,7 @@ func readPartitionSet(t *testing.T, db *db.Handler) map[string]struct{} {
 func generateEnvelopes(
 	t *testing.T,
 	seqIDs map[uint32]uint64,
-) []queries.InsertGatewayEnvelopeParams {
+) []queries.InsertGatewayEnvelopeV3Params {
 	t.Helper()
 
 	topic := topic.NewTopic(
@@ -167,7 +167,7 @@ func generateEnvelopes(
 		fmt.Appendf(nil, "generic-topic-%v", rand.Int()),
 	)
 
-	out := make([]queries.InsertGatewayEnvelopeParams, 0, len(seqIDs))
+	out := make([]queries.InsertGatewayEnvelopeV3Params, 0, len(seqIDs))
 
 	for nodeID, seqID := range seqIDs {
 
@@ -181,7 +181,7 @@ func generateEnvelopes(
 			),
 		)
 
-		out = append(out, queries.InsertGatewayEnvelopeParams{
+		out = append(out, queries.InsertGatewayEnvelopeV3Params{
 			OriginatorNodeID:     int32(nodeID),
 			OriginatorSequenceID: int64(seqID),
 			Topic:                topic.Bytes(),

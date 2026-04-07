@@ -23,7 +23,7 @@ import (
 var (
 	topicA  = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicA")).Bytes()
 	topicB  = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicB")).Bytes()
-	allRows []queries.InsertGatewayEnvelopeParams
+	allRows []queries.InsertGatewayEnvelopeV3Params
 )
 
 func setupTest(
@@ -34,7 +34,7 @@ func setupTest(
 		payerID = dbUtils.NullInt32(testutils.CreatePayer(t, suite.DB))
 	)
 
-	allRows = []queries.InsertGatewayEnvelopeParams{
+	allRows = []queries.InsertGatewayEnvelopeV3Params{
 		// Initial rows
 		{
 			OriginatorNodeID:     100,
@@ -93,14 +93,14 @@ func setupTest(
 }
 
 func insertInitialRows(t *testing.T, store *sql.DB) {
-	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
+	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeV3Params{
 		allRows[0], allRows[1],
 	})
 	time.Sleep(message.SubscribeWorkerPollTime + 100*time.Millisecond)
 }
 
 func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) {
-	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
+	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeV3Params{
 		allRows[2], allRows[3], allRows[4],
 	}, notifyChan...)
 }

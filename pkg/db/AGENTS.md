@@ -23,7 +23,7 @@ sqlc.yaml         # sqlc config (project root)
 | Table                         | Purpose                                                | Key Columns                                                                                                   |
 | ----------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
 | `gateway_envelopes_meta`      | Envelope metadata (hot path, partitioned)              | `originator_node_id`, `originator_sequence_id`, `topic`, `payer_id`, `expiry`, `gateway_time`                 |
-| `gateway_envelope_blobs`      | Envelope payloads (cold path, partitioned)             | `originator_node_id`, `originator_sequence_id`, `originator_envelope`                                         |
+| `gateway_envelopes_blob`      | Envelope payloads (cold path, partitioned)             | `originator_node_id`, `originator_sequence_id`, `originator_envelope`                                         |
 | `gateway_envelopes_view`      | View joining meta + blobs                              | —                                                                                                             |
 | `gateway_envelopes_latest`    | Latest sequence ID per originator (trigger-maintained) | `originator_node_id`, `originator_sequence_id`, `gateway_time`                                                |
 | `staged_originator_envelopes` | Publish queue before ordering                          | `id` (serial), `topic`, `payer_envelope`                                                                      |
@@ -43,7 +43,7 @@ sqlc.yaml         # sqlc config (project root)
 
 ## Partitioning
 
-`gateway_envelopes_meta` and `gateway_envelope_blobs` use two-level partitioning:
+`gateway_envelopes_meta` and `gateway_envelopes_blob` use two-level partitioning:
 
 1. **Level 1 — LIST** by `originator_node_id`: one child table per originator (e.g. `gateway_envelopes_meta_o100`)
 2. **Level 2 — RANGE** by `originator_sequence_id`: 1M-row bands (e.g. `gateway_envelopes_meta_o100_s0_1000000`)
@@ -62,7 +62,7 @@ RELEASE SAVEPOINT sp_part;
 ## Hot/Cold Path
 
 - **Meta table** (`gateway_envelopes_meta`): small rows, heavily indexed, used in all query filters
-- **Blob table** (`gateway_envelope_blobs`): large payloads, joined only when envelope content is needed
+- **Blob table** (`gateway_envelopes_blob`): large payloads, joined only when envelope content is needed
 - **View** (`gateway_envelopes_view`): convenience join of meta + blobs, FK with ON DELETE CASCADE
 
 ## Key Query Patterns

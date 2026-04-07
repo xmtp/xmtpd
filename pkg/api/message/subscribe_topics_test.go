@@ -48,12 +48,12 @@ func makeFilter(
 	return f
 }
 
-// makeEnvRow constructs an InsertGatewayEnvelopeParams from minimal inputs.
+// makeEnvRow constructs an InsertGatewayEnvelopeV3Params from minimal inputs.
 func makeEnvRow(
 	t *testing.T, nodeID uint32, seqID uint64, topicBytes []byte, payerID sql.NullInt32,
-) queries.InsertGatewayEnvelopeParams {
+) queries.InsertGatewayEnvelopeV3Params {
 	t.Helper()
-	return queries.InsertGatewayEnvelopeParams{
+	return queries.InsertGatewayEnvelopeV3Params{
 		OriginatorNodeID:     int32(nodeID),
 		OriginatorSequenceID: int64(seqID),
 		Topic:                topicBytes,
@@ -88,7 +88,7 @@ func subscribeTopics(
 }
 
 // insertAndWait inserts gateway envelopes and waits for the subscribe worker to poll them.
-func insertAndWait(t *testing.T, store *sql.DB, rows []queries.InsertGatewayEnvelopeParams) {
+func insertAndWait(t *testing.T, store *sql.DB, rows []queries.InsertGatewayEnvelopeV3Params) {
 	t.Helper()
 	testutils.InsertGatewayEnvelopes(t, store, rows)
 	time.Sleep(message.SubscribeWorkerPollTime + 100*time.Millisecond)
@@ -193,7 +193,7 @@ func TestSubscribeTopics_UnknownOriginatorInCursor(t *testing.T) {
 	client, store, _ := setupTopicTest(t)
 	payerID := db.NullInt32(testutils.CreatePayer(t, store))
 
-	insertAndWait(t, store, []queries.InsertGatewayEnvelopeParams{
+	insertAndWait(t, store, []queries.InsertGatewayEnvelopeV3Params{
 		makeEnvRow(t, 100, 1, topicA, payerID),
 	})
 
@@ -226,7 +226,7 @@ func TestSubscribeTopics_LiveOnly(t *testing.T) {
 	)
 
 	// Insert envelopes after subscribing.
-	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
+	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeV3Params{
 		makeEnvRow(t, 100, 1, topicA, payerID),
 	})
 
@@ -255,7 +255,7 @@ func TestSubscribeTopics_LiveOnlyFiltersByTopic(t *testing.T) {
 	)
 
 	// Insert to topicA, topicB, and topicC.
-	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
+	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeV3Params{
 		makeEnvRow(t, 100, 1, topicA, payerID),
 		makeEnvRow(t, 100, 2, topicB, payerID),
 		makeEnvRow(t, 100, 3, topicC, payerID),
@@ -272,7 +272,7 @@ func TestSubscribeTopics_CatchUpFromEmpty(t *testing.T) {
 	client, store, _ := setupTopicTest(t)
 	payerID := db.NullInt32(testutils.CreatePayer(t, store))
 
-	insertAndWait(t, store, []queries.InsertGatewayEnvelopeParams{
+	insertAndWait(t, store, []queries.InsertGatewayEnvelopeV3Params{
 		makeEnvRow(t, 100, 1, topicA, payerID),
 		makeEnvRow(t, 200, 1, topicA, payerID),
 	})
@@ -294,7 +294,7 @@ func TestSubscribeTopics_CatchUpFromCursor(t *testing.T) {
 	client, store, _ := setupTopicTest(t)
 	payerID := db.NullInt32(testutils.CreatePayer(t, store))
 
-	insertAndWait(t, store, []queries.InsertGatewayEnvelopeParams{
+	insertAndWait(t, store, []queries.InsertGatewayEnvelopeV3Params{
 		makeEnvRow(t, 100, 1, topicA, payerID),
 		makeEnvRow(t, 100, 2, topicA, payerID),
 		makeEnvRow(t, 100, 3, topicA, payerID),
@@ -327,7 +327,7 @@ func TestSubscribeTopics_DifferentCursorsPerTopic(t *testing.T) {
 
 	// topicA: seq 1, 2, 3 from node 100
 	// topicB: seq 4 from node 100
-	insertAndWait(t, store, []queries.InsertGatewayEnvelopeParams{
+	insertAndWait(t, store, []queries.InsertGatewayEnvelopeV3Params{
 		makeEnvRow(t, 100, 1, topicA, payerID),
 		makeEnvRow(t, 100, 2, topicA, payerID),
 		makeEnvRow(t, 100, 3, topicA, payerID),
@@ -363,7 +363,7 @@ func TestSubscribeTopics_CatchUpThenLive(t *testing.T) {
 	client, store, _ := setupTopicTest(t)
 	payerID := db.NullInt32(testutils.CreatePayer(t, store))
 
-	insertAndWait(t, store, []queries.InsertGatewayEnvelopeParams{
+	insertAndWait(t, store, []queries.InsertGatewayEnvelopeV3Params{
 		makeEnvRow(t, 100, 1, topicA, payerID),
 	})
 
@@ -386,7 +386,7 @@ func TestSubscribeTopics_CatchUpThenLive(t *testing.T) {
 	require.EqualValues(t, 1, decoded.GetOriginatorSequenceId())
 
 	// Now insert a new one for live delivery.
-	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
+	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeV3Params{
 		makeEnvRow(t, 100, 2, topicA, payerID),
 	})
 
@@ -403,7 +403,7 @@ func TestSubscribeTopics_NoDuplicatesBetweenCatchUpAndLive(t *testing.T) {
 	client, store, _ := setupTopicTest(t)
 	payerID := db.NullInt32(testutils.CreatePayer(t, store))
 
-	insertAndWait(t, store, []queries.InsertGatewayEnvelopeParams{
+	insertAndWait(t, store, []queries.InsertGatewayEnvelopeV3Params{
 		makeEnvRow(t, 100, 1, topicA, payerID),
 		makeEnvRow(t, 100, 2, topicA, payerID),
 	})
@@ -486,7 +486,7 @@ func TestSubscribeTopics_StatusLifecycle(t *testing.T) {
 	payerID := db.NullInt32(testutils.CreatePayer(t, store))
 
 	// Insert envelopes before subscribing so catch-up is triggered.
-	insertAndWait(t, store, []queries.InsertGatewayEnvelopeParams{
+	insertAndWait(t, store, []queries.InsertGatewayEnvelopeV3Params{
 		makeEnvRow(t, 100, 1, topicA, payerID),
 		makeEnvRow(t, 100, 2, topicA, payerID),
 	})
@@ -527,7 +527,7 @@ func TestSubscribeTopics_StatusLifecycle(t *testing.T) {
 	require.Len(t, catchUpEnvs, 2)
 
 	// 3. Insert a new envelope for live delivery.
-	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
+	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeV3Params{
 		makeEnvRow(t, 100, 3, topicA, payerID),
 	})
 
@@ -558,7 +558,7 @@ func TestSubscribeTopics_PerOriginatorOrdering(t *testing.T) {
 	payerID := db.NullInt32(testutils.CreatePayer(t, store))
 
 	// Insert multiple envelopes from two originators.
-	rows := make([]queries.InsertGatewayEnvelopeParams, 0, 10)
+	rows := make([]queries.InsertGatewayEnvelopeV3Params, 0, 10)
 	for seq := uint64(1); seq <= 5; seq++ {
 		rows = append(rows,
 			makeEnvRow(t, 100, seq, topicA, payerID),
@@ -593,7 +593,7 @@ func TestSubscribeTopics_MultiOriginatorMultiTopic(t *testing.T) {
 	topics := [][]byte{topicA, topicB, topicC}
 	nodeIDList := []uint32{100, 200, 300}
 
-	rows := make([]queries.InsertGatewayEnvelopeParams, 0)
+	rows := make([]queries.InsertGatewayEnvelopeV3Params, 0)
 	expectedTotal := 0
 	seq := uint64(1)
 	for _, tp := range topics {
@@ -628,7 +628,7 @@ func TestSubscribeTopics_LargeCatchUpMultiplePages(t *testing.T) {
 
 	// Insert >500 envelopes to trigger pagination.
 	total := 600
-	rows := make([]queries.InsertGatewayEnvelopeParams, total)
+	rows := make([]queries.InsertGatewayEnvelopeV3Params, total)
 	for i := range total {
 		rows[i] = makeEnvRow(t, 100, uint64(i+1), topicA, payerID)
 	}
@@ -654,7 +654,7 @@ func TestSubscribeTopics_ManyTopics(t *testing.T) {
 	numTopics := 1000
 	topics := make([][]byte, numTopics)
 	filters := make([]*message_api.SubscribeTopicsRequest_TopicFilter, numTopics)
-	rows := make([]queries.InsertGatewayEnvelopeParams, numTopics)
+	rows := make([]queries.InsertGatewayEnvelopeV3Params, numTopics)
 
 	for i := range numTopics {
 		tp := topic.NewTopic(topic.TopicKindGroupMessagesV1, fmt.Appendf(nil, "many-topic-%d", i)).
@@ -703,7 +703,7 @@ func TestSubscribeTopics_ContextCancelledDuringCatchUp(t *testing.T) {
 	payerID := db.NullInt32(testutils.CreatePayer(t, store))
 
 	// Insert a large amount of data to make catch-up take time.
-	rows := make([]queries.InsertGatewayEnvelopeParams, 200)
+	rows := make([]queries.InsertGatewayEnvelopeV3Params, 200)
 	for i := range 200 {
 		rows[i] = makeEnvRow(t, 100, uint64(i+1), topicA, payerID)
 	}
@@ -770,7 +770,7 @@ func TestSubscribeTopics_SimultaneousWithSubscribeEnvelopes(t *testing.T) {
 	require.True(t, envelopeStream.Receive())
 
 	// Insert an envelope.
-	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeParams{
+	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeV3Params{
 		makeEnvRow(t, 100, 1, topicA, payerID),
 	})
 

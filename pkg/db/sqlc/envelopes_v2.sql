@@ -1,4 +1,11 @@
--- name: InsertGatewayEnvelope :one
+-- name: InsertGatewayEnvelopeV3 :one
+-- Single-row envelope insert targeting the renamed gateway_envelopes_blob
+-- table. The pre-rename version (which referenced gateway_envelope_blobs in
+-- inline SQL) cannot survive at HEAD because sqlc validates inline-SQL
+-- query bodies against the live schema; the renamed table no longer exists
+-- under the old name. Migration-behavior tests instead use
+-- InsertGatewayEnvelopeBatchV2, which goes through the v2 stored function
+-- (whose body is opaque to sqlc validation).
 WITH m AS (
     INSERT INTO gateway_envelopes_meta (
                                         originator_node_id,
@@ -17,7 +24,7 @@ WITH m AS (
         ON CONFLICT DO NOTHING
         RETURNING 1),
      b AS (
-         INSERT INTO gateway_envelope_blobs (
+         INSERT INTO gateway_envelopes_blob (
                                              originator_node_id,
                                              originator_sequence_id,
                                              originator_envelope
@@ -47,7 +54,7 @@ SELECT l.originator_node_id,
        l.topic,
        b.originator_envelope
 FROM latest l
-         JOIN gateway_envelope_blobs b
+         JOIN gateway_envelopes_blob b
               ON b.originator_node_id = l.originator_node_id
                   AND b.originator_sequence_id = l.originator_sequence_id
 ORDER BY l.topic;
@@ -60,7 +67,7 @@ SELECT m.originator_node_id,
        m.topic,
        b.originator_envelope
 FROM gateway_envelopes_meta AS m
-JOIN gateway_envelope_blobs AS b
+JOIN gateway_envelopes_blob AS b
     ON b.originator_node_id = m.originator_node_id
    AND b.originator_sequence_id = m.originator_sequence_id
    AND b.originator_node_id = @originator_node_id::INT
@@ -114,7 +121,7 @@ CROSS JOIN LATERAL (
            f.topic,
            b.originator_envelope
     FROM filtered AS f
-    JOIN gateway_envelope_blobs AS b
+    JOIN gateway_envelopes_blob AS b
         ON b.originator_node_id = oi.originator_node_id
        AND b.originator_sequence_id = f.originator_sequence_id
     WHERE f.originator_node_id = oi.originator_node_id
@@ -174,7 +181,7 @@ CROSS JOIN LATERAL (
 	       f.topic,
 	       b.originator_envelope
 	FROM filtered AS f
-	JOIN gateway_envelope_blobs AS b
+	JOIN gateway_envelopes_blob AS b
 	    ON b.originator_node_id = oi.originator_node_id
 	   AND b.originator_sequence_id = f.originator_sequence_id
 	WHERE f.originator_node_id = oi.originator_node_id
@@ -247,7 +254,7 @@ CROSS JOIN LATERAL (
            f.topic,
            b.originator_envelope
     FROM filtered AS f
-    JOIN gateway_envelope_blobs AS b
+    JOIN gateway_envelopes_blob AS b
         ON b.originator_node_id = oi.originator_node_id
        AND b.originator_sequence_id = f.originator_sequence_id
     WHERE f.originator_node_id = oi.originator_node_id
@@ -255,12 +262,39 @@ CROSS JOIN LATERAL (
 ORDER BY bl.originator_node_id, bl.originator_sequence_id;
 
 -- name: InsertGatewayEnvelopeBatchV2 :one
+-- Pre-rename batch insert. Calls the v2 stored function which still
+-- references the legacy gateway_envelope_blobs table. No production code
+-- uses this query — it survives only so migration-behavior tests can
+-- populate the database at the pre-rename schema version. Production code
+-- uses InsertGatewayEnvelopeBatchV3.
 SELECT
     inserted_meta_rows::bigint,
     inserted_blob_rows::bigint,
     affected_usage_rows::bigint,
     affected_congestion_rows::bigint
 FROM insert_gateway_envelope_batch_v2(
+    @originator_node_ids::int[],
+    @originator_sequence_ids::bigint[],
+    @topics::bytea[],
+    @payer_ids::int[],
+    @gateway_times::timestamp[],
+    @expiries::bigint[],
+    @originator_envelopes::bytea[],
+    @spend_picodollars::bigint[],
+    @count_usage::boolean[],
+    @count_congestion::boolean[]
+);
+
+-- name: InsertGatewayEnvelopeBatchV3 :one
+-- Batch envelope insert calling the renamed insert_gateway_envelope_batch_v3
+-- stored function (which targets gateway_envelopes_blob). This is the
+-- production version.
+SELECT
+    inserted_meta_rows::bigint,
+    inserted_blob_rows::bigint,
+    affected_usage_rows::bigint,
+    affected_congestion_rows::bigint
+FROM insert_gateway_envelope_batch_v3(
     @originator_node_ids::int[],
     @originator_sequence_ids::bigint[],
     @topics::bytea[],

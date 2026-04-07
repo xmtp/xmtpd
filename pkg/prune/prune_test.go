@@ -40,7 +40,7 @@ func setupTestData(
 ) {
 	// Insert expired envelopes
 	for i := range expired {
-		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{{
+		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeV3Params{{
 			OriginatorNodeID:     originatorID,
 			OriginatorSequenceID: int64(i + 1),
 			Topic:                []byte("topic"),
@@ -52,7 +52,7 @@ func setupTestData(
 
 	// Insert non-expired envelopes
 	for i := range valid {
-		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{{
+		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeV3Params{{
 			OriginatorNodeID:     originatorID,
 			OriginatorSequenceID: int64(i + expired + 1),
 			Topic:                []byte("topic"),
@@ -658,7 +658,7 @@ func TestExecutor_PrunesExpiredMetaAndBlobs(t *testing.T) {
 	require.NoError(t, err)
 	assert.EqualValues(t, 0, total, "Only non-expired envelopes should remain")
 
-	row = db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelope_blobs`)
+	row = db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gateway_envelopes_blob`)
 	err = row.Scan(&total)
 	require.NoError(t, err)
 	assert.EqualValues(t, 0, total, "Only non-expired envelopes should remain")

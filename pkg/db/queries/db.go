@@ -54,6 +54,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.ensureGatewayPartsStmt, err = db.PrepareContext(ctx, ensureGatewayParts); err != nil {
 		return nil, fmt.Errorf("error preparing query EnsureGatewayParts: %w", err)
 	}
+	if q.ensureGatewayPartsV3Stmt, err = db.PrepareContext(ctx, ensureGatewayPartsV3); err != nil {
+		return nil, fmt.Errorf("error preparing query EnsureGatewayPartsV3: %w", err)
+	}
 	if q.fetchPayerReportStmt, err = db.PrepareContext(ctx, fetchPayerReport); err != nil {
 		return nil, fmt.Errorf("error preparing query FetchPayerReport: %w", err)
 	}
@@ -132,11 +135,14 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.insertAddressLogsBatchStmt, err = db.PrepareContext(ctx, insertAddressLogsBatch); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertAddressLogsBatch: %w", err)
 	}
-	if q.insertGatewayEnvelopeStmt, err = db.PrepareContext(ctx, insertGatewayEnvelope); err != nil {
-		return nil, fmt.Errorf("error preparing query InsertGatewayEnvelope: %w", err)
-	}
 	if q.insertGatewayEnvelopeBatchV2Stmt, err = db.PrepareContext(ctx, insertGatewayEnvelopeBatchV2); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertGatewayEnvelopeBatchV2: %w", err)
+	}
+	if q.insertGatewayEnvelopeBatchV3Stmt, err = db.PrepareContext(ctx, insertGatewayEnvelopeBatchV3); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertGatewayEnvelopeBatchV3: %w", err)
+	}
+	if q.insertGatewayEnvelopeV3Stmt, err = db.PrepareContext(ctx, insertGatewayEnvelopeV3); err != nil {
+		return nil, fmt.Errorf("error preparing query InsertGatewayEnvelopeV3: %w", err)
 	}
 	if q.insertMigrationDeadLetterBoxStmt, err = db.PrepareContext(ctx, insertMigrationDeadLetterBox); err != nil {
 		return nil, fmt.Errorf("error preparing query InsertMigrationDeadLetterBox: %w", err)
@@ -171,8 +177,14 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.makeBlobOriginatorPartStmt, err = db.PrepareContext(ctx, makeBlobOriginatorPart); err != nil {
 		return nil, fmt.Errorf("error preparing query MakeBlobOriginatorPart: %w", err)
 	}
+	if q.makeBlobOriginatorPartV3Stmt, err = db.PrepareContext(ctx, makeBlobOriginatorPartV3); err != nil {
+		return nil, fmt.Errorf("error preparing query MakeBlobOriginatorPartV3: %w", err)
+	}
 	if q.makeBlobSeqBandStmt, err = db.PrepareContext(ctx, makeBlobSeqBand); err != nil {
 		return nil, fmt.Errorf("error preparing query MakeBlobSeqBand: %w", err)
+	}
+	if q.makeBlobSeqBandV3Stmt, err = db.PrepareContext(ctx, makeBlobSeqBandV3); err != nil {
+		return nil, fmt.Errorf("error preparing query MakeBlobSeqBandV3: %w", err)
 	}
 	if q.makeMetaOriginatorPartStmt, err = db.PrepareContext(ctx, makeMetaOriginatorPart); err != nil {
 		return nil, fmt.Errorf("error preparing query MakeMetaOriginatorPart: %w", err)
@@ -296,6 +308,11 @@ func (q *Queries) Close() error {
 	if q.ensureGatewayPartsStmt != nil {
 		if cerr := q.ensureGatewayPartsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing ensureGatewayPartsStmt: %w", cerr)
+		}
+	}
+	if q.ensureGatewayPartsV3Stmt != nil {
+		if cerr := q.ensureGatewayPartsV3Stmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing ensureGatewayPartsV3Stmt: %w", cerr)
 		}
 	}
 	if q.fetchPayerReportStmt != nil {
@@ -428,14 +445,19 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing insertAddressLogsBatchStmt: %w", cerr)
 		}
 	}
-	if q.insertGatewayEnvelopeStmt != nil {
-		if cerr := q.insertGatewayEnvelopeStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing insertGatewayEnvelopeStmt: %w", cerr)
-		}
-	}
 	if q.insertGatewayEnvelopeBatchV2Stmt != nil {
 		if cerr := q.insertGatewayEnvelopeBatchV2Stmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing insertGatewayEnvelopeBatchV2Stmt: %w", cerr)
+		}
+	}
+	if q.insertGatewayEnvelopeBatchV3Stmt != nil {
+		if cerr := q.insertGatewayEnvelopeBatchV3Stmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertGatewayEnvelopeBatchV3Stmt: %w", cerr)
+		}
+	}
+	if q.insertGatewayEnvelopeV3Stmt != nil {
+		if cerr := q.insertGatewayEnvelopeV3Stmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing insertGatewayEnvelopeV3Stmt: %w", cerr)
 		}
 	}
 	if q.insertMigrationDeadLetterBoxStmt != nil {
@@ -493,9 +515,19 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing makeBlobOriginatorPartStmt: %w", cerr)
 		}
 	}
+	if q.makeBlobOriginatorPartV3Stmt != nil {
+		if cerr := q.makeBlobOriginatorPartV3Stmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing makeBlobOriginatorPartV3Stmt: %w", cerr)
+		}
+	}
 	if q.makeBlobSeqBandStmt != nil {
 		if cerr := q.makeBlobSeqBandStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing makeBlobSeqBandStmt: %w", cerr)
+		}
+	}
+	if q.makeBlobSeqBandV3Stmt != nil {
+		if cerr := q.makeBlobSeqBandV3Stmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing makeBlobSeqBandV3Stmt: %w", cerr)
 		}
 	}
 	if q.makeMetaOriginatorPartStmt != nil {
@@ -662,6 +694,7 @@ type Queries struct {
 	deleteMigrationDeadLetterBoxStmt             *sql.Stmt
 	deleteObsoleteNoncesStmt                     *sql.Stmt
 	ensureGatewayPartsStmt                       *sql.Stmt
+	ensureGatewayPartsV3Stmt                     *sql.Stmt
 	fetchPayerReportStmt                         *sql.Stmt
 	fetchPayerReportLockedStmt                   *sql.Stmt
 	fetchPayerReportsStmt                        *sql.Stmt
@@ -688,8 +721,9 @@ type Queries struct {
 	incrementUnsettledUsageStmt                  *sql.Stmt
 	insertAddressLogStmt                         *sql.Stmt
 	insertAddressLogsBatchStmt                   *sql.Stmt
-	insertGatewayEnvelopeStmt                    *sql.Stmt
 	insertGatewayEnvelopeBatchV2Stmt             *sql.Stmt
+	insertGatewayEnvelopeBatchV3Stmt             *sql.Stmt
+	insertGatewayEnvelopeV3Stmt                  *sql.Stmt
 	insertMigrationDeadLetterBoxStmt             *sql.Stmt
 	insertNodeInfoStmt                           *sql.Stmt
 	insertOrIgnorePayerReportStmt                *sql.Stmt
@@ -701,7 +735,9 @@ type Queries struct {
 	insertStagedOriginatorEnvelopeStmt           *sql.Stmt
 	insertStagedOriginatorEnvelopeBatchStmt      *sql.Stmt
 	makeBlobOriginatorPartStmt                   *sql.Stmt
+	makeBlobOriginatorPartV3Stmt                 *sql.Stmt
 	makeBlobSeqBandStmt                          *sql.Stmt
+	makeBlobSeqBandV3Stmt                        *sql.Stmt
 	makeMetaOriginatorPartStmt                   *sql.Stmt
 	makeMetaSeqBandStmt                          *sql.Stmt
 	revokeAddressFromLogStmt                     *sql.Stmt
@@ -741,6 +777,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deleteMigrationDeadLetterBoxStmt:             q.deleteMigrationDeadLetterBoxStmt,
 		deleteObsoleteNoncesStmt:                     q.deleteObsoleteNoncesStmt,
 		ensureGatewayPartsStmt:                       q.ensureGatewayPartsStmt,
+		ensureGatewayPartsV3Stmt:                     q.ensureGatewayPartsV3Stmt,
 		fetchPayerReportStmt:                         q.fetchPayerReportStmt,
 		fetchPayerReportLockedStmt:                   q.fetchPayerReportLockedStmt,
 		fetchPayerReportsStmt:                        q.fetchPayerReportsStmt,
@@ -767,8 +804,9 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		incrementUnsettledUsageStmt:                  q.incrementUnsettledUsageStmt,
 		insertAddressLogStmt:                         q.insertAddressLogStmt,
 		insertAddressLogsBatchStmt:                   q.insertAddressLogsBatchStmt,
-		insertGatewayEnvelopeStmt:                    q.insertGatewayEnvelopeStmt,
 		insertGatewayEnvelopeBatchV2Stmt:             q.insertGatewayEnvelopeBatchV2Stmt,
+		insertGatewayEnvelopeBatchV3Stmt:             q.insertGatewayEnvelopeBatchV3Stmt,
+		insertGatewayEnvelopeV3Stmt:                  q.insertGatewayEnvelopeV3Stmt,
 		insertMigrationDeadLetterBoxStmt:             q.insertMigrationDeadLetterBoxStmt,
 		insertNodeInfoStmt:                           q.insertNodeInfoStmt,
 		insertOrIgnorePayerReportStmt:                q.insertOrIgnorePayerReportStmt,
@@ -780,7 +818,9 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		insertStagedOriginatorEnvelopeStmt:           q.insertStagedOriginatorEnvelopeStmt,
 		insertStagedOriginatorEnvelopeBatchStmt:      q.insertStagedOriginatorEnvelopeBatchStmt,
 		makeBlobOriginatorPartStmt:                   q.makeBlobOriginatorPartStmt,
+		makeBlobOriginatorPartV3Stmt:                 q.makeBlobOriginatorPartV3Stmt,
 		makeBlobSeqBandStmt:                          q.makeBlobSeqBandStmt,
+		makeBlobSeqBandV3Stmt:                        q.makeBlobSeqBandV3Stmt,
 		makeMetaOriginatorPartStmt:                   q.makeMetaOriginatorPartStmt,
 		makeMetaSeqBandStmt:                          q.makeMetaSeqBandStmt,
 		revokeAddressFromLogStmt:                     q.revokeAddressFromLogStmt,

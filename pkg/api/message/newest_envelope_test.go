@@ -34,7 +34,7 @@ func writeKeyPackage(
 	)
 	envBytes, err := proto.Marshal(env)
 	require.NoError(t, err)
-	testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{{
+	testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeV3Params{{
 		OriginatorNodeID:     int32(nodeID),
 		OriginatorSequenceID: int64(sequenceID),
 		OriginatorEnvelope:   envBytes,

@@ -41,14 +41,14 @@ func InsertGatewayEnvelopeBatchV2Transactional(
 		return 0, errors.New("empty input")
 	}
 
-	params := input.ToParamsV2()
+	params := input.ToParamsV3()
 
 	err := q.InsertSavePoint(ctx)
 	if err != nil {
 		return 0, err
 	}
 
-	result, err := q.InsertGatewayEnvelopeBatchV2(ctx, params)
+	result, err := q.InsertGatewayEnvelopeBatchV3(ctx, params)
 	if err == nil {
 		_ = q.InsertSavePointRelease(ctx)
 		return result.InsertedMetaRows, nil
@@ -66,7 +66,7 @@ func InsertGatewayEnvelopeBatchV2Transactional(
 	logger.Info("creating partitions for batch insert")
 
 	for _, envelope := range input.Envelopes {
-		err = q.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
+		err = q.EnsureGatewayPartsV3(ctx, queries.EnsureGatewayPartsV3Params{
 			OriginatorNodeID:     envelope.OriginatorNodeID,
 			OriginatorSequenceID: envelope.OriginatorSequenceID,
 			BandWidth:            GatewayEnvelopeBandWidth,
@@ -76,7 +76,7 @@ func InsertGatewayEnvelopeBatchV2Transactional(
 		}
 	}
 
-	result, err = q.InsertGatewayEnvelopeBatchV2(ctx, params)
+	result, err = q.InsertGatewayEnvelopeBatchV3(ctx, params)
 	if err != nil {
 		return 0, fmt.Errorf(
 			"insert gateway envelope batch v2 and increment unsettled usage: %w",

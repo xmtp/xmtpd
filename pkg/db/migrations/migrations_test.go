@@ -14,7 +14,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
-const currentMigration int64 = 22
+const currentMigration int64 = 23
 
 var (
 	originatorIDs = []int32{100, 200, 300}
@@ -82,10 +82,10 @@ func populateDatabase(t *testing.T, database *sql.DB) {
 	for _, originatorID := range originatorIDs {
 		for band := range 5 {
 			baseSeqID := int64(band) * db.GatewayEnvelopeBandWidth
-			var rows []queries.InsertGatewayEnvelopeParams
+			var rows []queries.InsertGatewayEnvelopeV3Params
 			for k, topic := range topics {
 				seqID := baseSeqID + int64(k)
-				rows = append(rows, queries.InsertGatewayEnvelopeParams{
+				rows = append(rows, queries.InsertGatewayEnvelopeV3Params{
 					OriginatorNodeID:     originatorID,
 					OriginatorSequenceID: seqID,
 					Topic:                topic,
@@ -208,6 +208,10 @@ func TestMigrations(t *testing.T) {
 		checkMetaPartitionSelect(t, database)
 	})
 
+	t.Run("00023_rename-envelope-blobs", func(t *testing.T) {
+		checkRenameEnvelopeBlobs(t, database)
+	})
+
 	t.Run("data_verification", func(t *testing.T) {
 		checkDataVerification(t, database)
 	})
@@ -239,7 +243,7 @@ func checkInitSchemaMigration(t *testing.T, database *sql.DB) {
 		"address_log",
 		"payers",
 		"gateway_envelopes_meta",
-		"gateway_envelope_blobs",
+		"gateway_envelopes_blob",
 	}
 	for _, tbl := range tables {
 		tableExists(t, database, tbl)
@@ -405,6 +409,24 @@ func checkStagedInsertBatchV2(t *testing.T, database *sql.DB) {
 
 func checkMetaPartitionSelect(t *testing.T, database *sql.DB) {
 	functionExists(t, database, "get_prunable_meta_partitions")
+}
+
+func checkRenameEnvelopeBlobs(t *testing.T, database *sql.DB) {
+	// Renamed parent table is in place; the legacy name is gone.
+	tableExists(t, database, "gateway_envelopes_blob")
+
+	// Migration 23 is append-only: it creates new _v3 functions targeting
+	// gateway_envelopes_blob without modifying the pre-existing v1/v2
+	// functions. Verify the new functions exist.
+	functions := []string{
+		"make_blob_originator_part_v3",
+		"make_blob_seq_subpart_v3",
+		"ensure_gateway_parts_v3",
+		"insert_gateway_envelope_batch_v3",
+	}
+	for _, fn := range functions {
+		functionExists(t, database, fn)
+	}
 }
 
 // --- Data verification after populateDatabase ---

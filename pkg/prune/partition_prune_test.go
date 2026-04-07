@@ -83,8 +83,8 @@ func TestExecutor_DropPrunablePartitions_DropsEmptyLowerMetaAndBlob(t *testing.T
 
 	upperMeta := "gateway_envelopes_meta_o100_s1000000_2000000"
 	lowerMeta := "gateway_envelopes_meta_o100_s0_1000000"
-	upperBlob := "gateway_envelopes_blobs_o100_s1000000_2000000"
-	lowerBlob := "gateway_envelopes_blobs_o100_s0_1000000"
+	upperBlob := "gateway_envelopes_blob_o100_s1000000_2000000"
+	lowerBlob := "gateway_envelopes_blob_o100_s0_1000000"
 
 	require.True(t, tableExists(t, ctx, db, lowerMeta))
 	require.True(t, tableExists(t, ctx, db, upperMeta))
@@ -119,8 +119,8 @@ func TestExecutor_DropPrunablePartitions_DoesNotDropCeilingEvenIfEmpty(t *testin
 
 	lowerMeta := "gateway_envelopes_meta_o100_s0_1000000"
 	upperMeta := "gateway_envelopes_meta_o100_s1000000_2000000"
-	lowerBlob := "gateway_envelopes_blobs_o100_s0_1000000"
-	upperBlob := "gateway_envelopes_blobs_o100_s1000000_2000000"
+	lowerBlob := "gateway_envelopes_blob_o100_s0_1000000"
+	upperBlob := "gateway_envelopes_blob_o100_s1000000_2000000"
 
 	exec := makeTestExecutor(t, ctx, db, &config.PruneConfig{
 		DryRun:    false,
@@ -149,8 +149,8 @@ func TestExecutor_DropPrunablePartitions_DryRun(t *testing.T) {
 
 	lowerMeta := "gateway_envelopes_meta_o100_s0_1000000"
 	upperMeta := "gateway_envelopes_meta_o100_s1000000_2000000"
-	lowerBlob := "gateway_envelopes_blobs_o100_s0_1000000"
-	upperBlob := "gateway_envelopes_blobs_o100_s1000000_2000000"
+	lowerBlob := "gateway_envelopes_blob_o100_s0_1000000"
+	upperBlob := "gateway_envelopes_blob_o100_s1000000_2000000"
 
 	exec := makeTestExecutor(t, ctx, db, &config.PruneConfig{
 		DryRun:    true,
@@ -178,8 +178,8 @@ func TestExecutor_DropPrunablePartitions_DoesNotDropNonEmptyLowerPartition(t *te
 
 	lowerMeta := "gateway_envelopes_meta_o100_s0_1000000"
 	upperMeta := "gateway_envelopes_meta_o100_s1000000_2000000"
-	lowerBlob := "gateway_envelopes_blobs_o100_s0_1000000"
-	upperBlob := "gateway_envelopes_blobs_o100_s1000000_2000000"
+	lowerBlob := "gateway_envelopes_blob_o100_s0_1000000"
+	upperBlob := "gateway_envelopes_blob_o100_s1000000_2000000"
 
 	// Make lower partition non-empty.
 	insertEnvelope(t, db, oid, 1)
@@ -221,12 +221,12 @@ func TestExecutor_DropPrunablePartitions_PerOriginatorCeiling(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.False(t, tableExists(t, ctx, db, "gateway_envelopes_meta_o100_s0_1000000"))
-	assert.False(t, tableExists(t, ctx, db, "gateway_envelopes_blobs_o100_s0_1000000"))
+	assert.False(t, tableExists(t, ctx, db, "gateway_envelopes_blob_o100_s0_1000000"))
 	assert.True(t, tableExists(t, ctx, db, "gateway_envelopes_meta_o100_s1000000_2000000"))
-	assert.True(t, tableExists(t, ctx, db, "gateway_envelopes_blobs_o100_s1000000_2000000"))
+	assert.True(t, tableExists(t, ctx, db, "gateway_envelopes_blob_o100_s1000000_2000000"))
 
 	assert.False(t, tableExists(t, ctx, db, "gateway_envelopes_meta_o101_s0_1000000"))
-	assert.False(t, tableExists(t, ctx, db, "gateway_envelopes_blobs_o101_s0_1000000"))
+	assert.False(t, tableExists(t, ctx, db, "gateway_envelopes_blob_o101_s0_1000000"))
 	assert.True(t, tableExists(t, ctx, db, "gateway_envelopes_meta_o101_s1000000_2000000"))
-	assert.True(t, tableExists(t, ctx, db, "gateway_envelopes_blobs_o101_s1000000_2000000"))
+	assert.True(t, tableExists(t, ctx, db, "gateway_envelopes_blob_o101_s1000000_2000000"))
 }

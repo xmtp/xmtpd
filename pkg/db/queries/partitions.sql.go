@@ -46,7 +46,7 @@ type EnsureGatewayPartsV3Params struct {
 }
 
 // Production partition ensure. Calls ensure_gateway_parts_v3, which targets
-// the renamed gateway_envelopes_blobs table.
+// the renamed gateway_envelopes_blob table.
 func (q *Queries) EnsureGatewayPartsV3(ctx context.Context, arg EnsureGatewayPartsV3Params) error {
 	_, err := q.exec(ctx, q.ensureGatewayPartsV3Stmt, ensureGatewayPartsV3, arg.OriginatorNodeID, arg.OriginatorSequenceID, arg.BandWidth)
 	return err

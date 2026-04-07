@@ -243,7 +243,7 @@ func checkInitSchemaMigration(t *testing.T, database *sql.DB) {
 		"address_log",
 		"payers",
 		"gateway_envelopes_meta",
-		"gateway_envelopes_blobs",
+		"gateway_envelopes_blob",
 	}
 	for _, tbl := range tables {
 		tableExists(t, database, tbl)
@@ -413,10 +413,10 @@ func checkMetaPartitionSelect(t *testing.T, database *sql.DB) {
 
 func checkRenameEnvelopeBlobs(t *testing.T, database *sql.DB) {
 	// Renamed parent table is in place; the legacy name is gone.
-	tableExists(t, database, "gateway_envelopes_blobs")
+	tableExists(t, database, "gateway_envelopes_blob")
 
 	// Migration 23 is append-only: it creates new _v3 functions targeting
-	// gateway_envelopes_blobs without modifying the pre-existing v1/v2
+	// gateway_envelopes_blob without modifying the pre-existing v1/v2
 	// functions. Verify the new functions exist.
 	functions := []string{
 		"make_blob_originator_part_v3",

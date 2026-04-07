@@ -122,7 +122,7 @@ type InsertGatewayEnvelopeBatchV3Row struct {
 }
 
 // Batch envelope insert calling the renamed insert_gateway_envelope_batch_v3
-// stored function (which targets gateway_envelopes_blobs). This is the
+// stored function (which targets gateway_envelopes_blob). This is the
 // production version.
 func (q *Queries) InsertGatewayEnvelopeBatchV3(ctx context.Context, arg InsertGatewayEnvelopeBatchV3Params) (InsertGatewayEnvelopeBatchV3Row, error) {
 	row := q.queryRow(ctx, q.insertGatewayEnvelopeBatchV3Stmt, insertGatewayEnvelopeBatchV3,
@@ -166,7 +166,7 @@ WITH m AS (
         ON CONFLICT DO NOTHING
         RETURNING 1),
      b AS (
-         INSERT INTO gateway_envelopes_blobs (
+         INSERT INTO gateway_envelopes_blob (
                                              originator_node_id,
                                              originator_sequence_id,
                                              originator_envelope
@@ -197,7 +197,7 @@ type InsertGatewayEnvelopeV3Row struct {
 	TotalInsertedRows int32
 }
 
-// Single-row envelope insert targeting the renamed gateway_envelopes_blobs
+// Single-row envelope insert targeting the renamed gateway_envelopes_blob
 // table. The pre-rename version (which referenced gateway_envelope_blobs in
 // inline SQL) cannot survive at HEAD because sqlc validates inline-SQL
 // query bodies against the live schema; the renamed table no longer exists
@@ -262,7 +262,7 @@ CROSS JOIN LATERAL (
            f.topic,
            b.originator_envelope
     FROM filtered AS f
-    JOIN gateway_envelopes_blobs AS b
+    JOIN gateway_envelopes_blob AS b
         ON b.originator_node_id = oi.originator_node_id
        AND b.originator_sequence_id = f.originator_sequence_id
     WHERE f.originator_node_id = oi.originator_node_id
@@ -359,7 +359,7 @@ CROSS JOIN LATERAL (
            f.topic,
            b.originator_envelope
     FROM filtered AS f
-    JOIN gateway_envelopes_blobs AS b
+    JOIN gateway_envelopes_blob AS b
         ON b.originator_node_id = oi.originator_node_id
        AND b.originator_sequence_id = f.originator_sequence_id
     WHERE f.originator_node_id = oi.originator_node_id
@@ -428,7 +428,7 @@ SELECT m.originator_node_id,
        m.topic,
        b.originator_envelope
 FROM gateway_envelopes_meta AS m
-JOIN gateway_envelopes_blobs AS b
+JOIN gateway_envelopes_blob AS b
     ON b.originator_node_id = m.originator_node_id
    AND b.originator_sequence_id = m.originator_sequence_id
    AND b.originator_node_id = $1::INT
@@ -531,7 +531,7 @@ CROSS JOIN LATERAL (
 	       f.topic,
 	       b.originator_envelope
 	FROM filtered AS f
-	JOIN gateway_envelopes_blobs AS b
+	JOIN gateway_envelopes_blob AS b
 	    ON b.originator_node_id = oi.originator_node_id
 	   AND b.originator_sequence_id = f.originator_sequence_id
 	WHERE f.originator_node_id = oi.originator_node_id
@@ -660,7 +660,7 @@ SELECT l.originator_node_id,
        l.topic,
        b.originator_envelope
 FROM latest l
-         JOIN gateway_envelopes_blobs b
+         JOIN gateway_envelopes_blob b
               ON b.originator_node_id = l.originator_node_id
                   AND b.originator_sequence_id = l.originator_sequence_id
 ORDER BY l.topic

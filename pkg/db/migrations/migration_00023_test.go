@@ -17,7 +17,7 @@ import (
 )
 
 // TestMigration23_RenamesExistingPartitionsSafely verifies that migration 00023
-// (rename gateway_envelope_blobs -> gateway_envelopes_blobs) can be applied
+// (rename gateway_envelope_blobs -> gateway_envelopes_blob) can be applied
 // safely to a database that already contains data and child partitions.
 //
 // The test stands up a database at schema version 22 (one step before the
@@ -37,7 +37,7 @@ func TestMigration23_RenamesExistingPartitionsSafely(t *testing.T) {
 
 	// Sanity: at version 22 the table still has the old name.
 	tableExists(t, database, "gateway_envelope_blobs")
-	assertTableAbsent(t, database, "gateway_envelopes_blobs")
+	assertTableAbsent(t, database, "gateway_envelopes_blob")
 
 	// Populate using the v2 sqlc query path against the pre-rename schema.
 	populateDatabaseAtV22(t, database)
@@ -59,11 +59,11 @@ func TestMigration23_RenamesExistingPartitionsSafely(t *testing.T) {
 	)
 
 	// Parent table is under the new name; old name is gone.
-	tableExists(t, database, "gateway_envelopes_blobs")
+	tableExists(t, database, "gateway_envelopes_blob")
 	assertTableAbsent(t, database, "gateway_envelope_blobs")
 
 	// Every child partition was renamed 1:1.
-	newNameChildCount := countTablesLike(t, database, "gateway_envelopes_blobs\\_%")
+	newNameChildCount := countTablesLike(t, database, "gateway_envelopes_blob\\_%")
 	assert.Equal(
 		t,
 		oldNameChildCount,
@@ -78,7 +78,7 @@ func TestMigration23_RenamesExistingPartitionsSafely(t *testing.T) {
 
 	// Verify each expected L1 + L2 partition exists explicitly.
 	for _, oid := range originatorIDs {
-		l1 := "gateway_envelopes_blobs_o" + strconv.Itoa(int(oid))
+		l1 := "gateway_envelopes_blob_o" + strconv.Itoa(int(oid))
 		tableExists(t, database, l1)
 		for band := range 5 {
 			start := int64(band) * 1_000_000
@@ -89,7 +89,7 @@ func TestMigration23_RenamesExistingPartitionsSafely(t *testing.T) {
 	}
 
 	// Data is fully intact via both the renamed blob table and the recreated view.
-	blobsAfter := snapshotEnvelopeKeys(t, database, "gateway_envelopes_blobs")
+	blobsAfter := snapshotEnvelopeKeys(t, database, "gateway_envelopes_blob")
 	viewAfter := snapshotEnvelopeKeys(t, database, "gateway_envelopes_view")
 	assert.Equal(t, blobsBefore, blobsAfter, "blob rows lost across migration")
 	assert.Equal(t, viewBefore, viewAfter, "view rows lost across migration")

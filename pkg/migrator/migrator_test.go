@@ -513,7 +513,7 @@ func getDestinationEnvelope(
 	query := `
 		SELECT b.originator_envelope 
 		FROM gateway_envelopes_meta m
-		JOIN gateway_envelopes_blobs b 
+		JOIN gateway_envelopes_blob b 
 			ON m.originator_node_id = b.originator_node_id 
 			AND m.originator_sequence_id = b.originator_sequence_id
 		WHERE m.originator_node_id = $1 

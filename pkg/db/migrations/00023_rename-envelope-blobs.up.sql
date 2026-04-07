@@ -1,4 +1,4 @@
--- Rename gateway_envelope_blobs -> gateway_envelopes_blobs for naming consistency.
+-- Rename gateway_envelope_blobs -> gateway_envelopes_blob for naming consistency.
 -- All other gateway_envelopes_* objects already use plural "envelopes".
 --
 -- Migration policy: this migration is APPEND-ONLY for stored functions. The
@@ -29,13 +29,13 @@ BEGIN
         ORDER BY length(c.relname) DESC  -- rename deepest partitions first
     LOOP
         old_name := r.relname;
-        new_name := 'gateway_envelopes_blobs' || substring(old_name FROM length('gateway_envelope_blobs') + 1);
+        new_name := 'gateway_envelopes_blob' || substring(old_name FROM length('gateway_envelope_blobs') + 1);
         EXECUTE format('ALTER TABLE %I RENAME TO %I', old_name, new_name);
     END LOOP;
 END$$;
 
 -- Step 2: Rename the parent table
-ALTER TABLE gateway_envelope_blobs RENAME TO gateway_envelopes_blobs;
+ALTER TABLE gateway_envelope_blobs RENAME TO gateway_envelopes_blob;
 
 -- Step 3: Recreate the view to reference the renamed table.
 -- (Views are projections, not versioned business logic — REPLACE is acceptable.)
@@ -47,7 +47,7 @@ SELECT
     m.topic,
     b.originator_envelope
 FROM gateway_envelopes_meta m
-         JOIN gateway_envelopes_blobs b
+         JOIN gateway_envelopes_blob b
               ON b.originator_node_id     = m.originator_node_id
                   AND b.originator_sequence_id = m.originator_sequence_id;
 
@@ -55,15 +55,15 @@ FROM gateway_envelopes_meta m
 CREATE FUNCTION make_blob_originator_part_v3(_oid int)
     RETURNS void AS $$
 DECLARE
-    -- gateway_envelopes_blobs_oXXX
+    -- gateway_envelopes_blob_oXXX
     subname text := format(
-        'gateway_envelopes_blobs_o%s', _oid
+        'gateway_envelopes_blob_o%s', _oid
     );
 BEGIN
     -- Since it's a standalone table - setup a constraint.
     EXECUTE format(
         'CREATE TABLE IF NOT EXISTS %I (
-            LIKE gateway_envelopes_blobs INCLUDING DEFAULTS INCLUDING CONSTRAINTS,
+            LIKE gateway_envelopes_blob INCLUDING DEFAULTS INCLUDING CONSTRAINTS,
             CONSTRAINT oid_check CHECK (originator_node_id = %s)
         ) PARTITION BY RANGE (originator_sequence_id);
         ',
@@ -72,7 +72,7 @@ BEGIN
     );
 
     EXECUTE format('
-        ALTER TABLE gateway_envelopes_blobs ATTACH PARTITION %I
+        ALTER TABLE gateway_envelopes_blob ATTACH PARTITION %I
             FOR VALUES IN (%s);
         ',
         subname,
@@ -99,15 +99,15 @@ $$ LANGUAGE plpgsql;
 CREATE FUNCTION make_blob_seq_subpart_v3(_oid int, _start bigint, _end bigint)
     RETURNS void AS $$
 DECLARE
-    -- gateway_envelopes_blobs_oXXX
-    parent text := format('gateway_envelopes_blobs_o%s', _oid);
-    -- gateway_envelopes_blobs_oXXX_sN0_N1
-    subname       text := format('gateway_envelopes_blobs_o%s_s%s_%s', _oid, _start, _end);
+    -- gateway_envelopes_blob_oXXX
+    parent text := format('gateway_envelopes_blob_o%s', _oid);
+    -- gateway_envelopes_blob_oXXX_sN0_N1
+    subname       text := format('gateway_envelopes_blob_o%s_s%s_%s', _oid, _start, _end);
 BEGIN
     -- Since it's a standalone table - setup a constraint.
     EXECUTE format(
         'CREATE TABLE IF NOT EXISTS %I (
-            LIKE gateway_envelopes_blobs INCLUDING DEFAULTS INCLUDING CONSTRAINTS,
+            LIKE gateway_envelopes_blob INCLUDING DEFAULTS INCLUDING CONSTRAINTS,
             CONSTRAINT seq_id_check CHECK ( originator_sequence_id >= %s AND originator_sequence_id < %s )
         )',
         subname,
@@ -159,7 +159,7 @@ BEGIN
 END$$;
 
 
--- Step 5: New v3 batch insert function targeting gateway_envelopes_blobs.
+-- Step 5: New v3 batch insert function targeting gateway_envelopes_blob.
 -- Same signature/body as v2, only the blob table reference is updated.
 CREATE FUNCTION insert_gateway_envelope_batch_v3(
     p_originator_node_ids     int[],
@@ -234,7 +234,7 @@ m AS (
 ),
 
 b AS (
-    INSERT INTO gateway_envelopes_blobs (
+    INSERT INTO gateway_envelopes_blob (
         originator_node_id,
         originator_sequence_id,
         originator_envelope

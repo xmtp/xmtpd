@@ -28,7 +28,7 @@ const (
 
 var envelopeOriginators = []int32{100, 200, 300}
 
-// seedEnvelopes populates gateway_envelopes_meta and gateway_envelopes_blobs.
+// seedEnvelopes populates gateway_envelopes_meta and gateway_envelopes_blob.
 func seedEnvelopes(ctx context.Context, tier *envelopeTier) {
 	tier.originators = envelopeOriginators
 

@@ -1,4 +1,4 @@
--- Revert the rename of gateway_envelopes_blobs back to gateway_envelope_blobs.
+-- Revert the rename of gateway_envelopes_blob back to gateway_envelope_blobs.
 -- The corresponding up migration is append-only: it did NOT modify the v1/v2
 -- partition or batch-insert functions, so this down migration only needs to
 -- (a) drop the new _v3 functions added by the up, and (b) rename the table
@@ -27,17 +27,17 @@ BEGIN
         JOIN pg_namespace n ON n.oid = c.relnamespace
         WHERE n.nspname = 'public'
           AND c.relkind IN ('r', 'p')
-          AND c.relname LIKE 'gateway_envelopes_blobs_%'
+          AND c.relname LIKE 'gateway_envelopes_blob_%'
         ORDER BY length(c.relname) DESC
     LOOP
         old_name := r.relname;
-        new_name := 'gateway_envelope_blobs' || substring(old_name FROM length('gateway_envelopes_blobs') + 1);
+        new_name := 'gateway_envelope_blobs' || substring(old_name FROM length('gateway_envelopes_blob') + 1);
         EXECUTE format('ALTER TABLE %I RENAME TO %I', old_name, new_name);
     END LOOP;
 END$$;
 
 -- Step 3: Rename the parent table back
-ALTER TABLE gateway_envelopes_blobs RENAME TO gateway_envelope_blobs;
+ALTER TABLE gateway_envelopes_blob RENAME TO gateway_envelope_blobs;
 
 -- Step 4: Recreate the view to reference the old table name.
 CREATE OR REPLACE VIEW gateway_envelopes_view AS

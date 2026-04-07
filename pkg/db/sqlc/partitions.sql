@@ -10,7 +10,7 @@ SELECT ensure_gateway_parts_v2(
 
 -- name: EnsureGatewayPartsV3 :exec
 -- Production partition ensure. Calls ensure_gateway_parts_v3, which targets
--- the renamed gateway_envelopes_blobs table.
+-- the renamed gateway_envelopes_blob table.
 SELECT ensure_gateway_parts_v3(
                @originator_node_id,
                @originator_sequence_id,

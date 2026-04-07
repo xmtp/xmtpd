@@ -176,7 +176,7 @@ func (s *EnvelopeSink) storeEnvelope(env *envUtils.OriginatorEnvelope) error {
 	inserted, err := db.InsertGatewayEnvelopeAndIncrementUnsettledUsage(
 		ctx,
 		s.db.Write(),
-		queries.InsertGatewayEnvelopeParams{
+		queries.InsertGatewayEnvelopeV3Params{
 			OriginatorNodeID:     int32(env.OriginatorNodeID()),
 			OriginatorSequenceID: int64(env.OriginatorSequenceID()),
 			Topic:                env.TargetTopic().Bytes(),

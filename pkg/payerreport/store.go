@@ -456,7 +456,7 @@ func (s *Store) StoreSyncedReport(
 		&sql.TxOptions{},
 		func(ctx context.Context, txQueries *queries.Queries) error {
 			_, err := db.InsertGatewayEnvelopeWithChecksTransactional(ctx, txQueries,
-				queries.InsertGatewayEnvelopeParams{
+				queries.InsertGatewayEnvelopeV3Params{
 					OriginatorNodeID:     int32(envelope.OriginatorNodeID()),
 					OriginatorSequenceID: int64(envelope.OriginatorSequenceID()),
 					Topic:                envelope.TargetTopic().Bytes(),
@@ -502,7 +502,7 @@ func (s *Store) StoreSyncedAttestation(
 		&sql.TxOptions{},
 		func(ctx context.Context, txQueries *queries.Queries) error {
 			_, err := db.InsertGatewayEnvelopeWithChecksTransactional(ctx, txQueries,
-				queries.InsertGatewayEnvelopeParams{
+				queries.InsertGatewayEnvelopeV3Params{
 					OriginatorNodeID:     int32(envelope.OriginatorNodeID()),
 					OriginatorSequenceID: int64(envelope.OriginatorSequenceID()),
 					Topic:                envelope.TargetTopic().Bytes(),

@@ -15,6 +15,25 @@ import (
 var migrationFs embed.FS
 
 func Migrate(ctx context.Context, db *sql.DB) error {
+	return withMigrator(ctx, db, func(m *migrate.Migrate) error {
+		return m.Up()
+	})
+}
+
+// MigrateTo migrates the database to the specified schema version. It can move
+// the schema either up or down depending on the current state. Useful for
+// testing migration behavior against pre-existing data.
+func MigrateTo(ctx context.Context, db *sql.DB, version uint) error {
+	return withMigrator(ctx, db, func(m *migrate.Migrate) error {
+		return m.Migrate(version)
+	})
+}
+
+func withMigrator(
+	ctx context.Context,
+	db *sql.DB,
+	fn func(*migrate.Migrate) error,
+) error {
 	migrationFs, err := iofs.New(migrationFs, ".")
 	if err != nil {
 		return err
@@ -47,10 +66,8 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 		_, _ = migrator.Close()
 	}()
 
-	err = migrator.Up()
-	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
+	if err := fn(migrator); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return err
 	}
-
 	return nil
 }

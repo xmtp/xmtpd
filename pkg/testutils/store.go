@@ -47,7 +47,7 @@ func newCtlDB(t testing.TB) (*sql.DB, string) {
 	return openDB(t, LocalTestDBDSNPrefix+LocalTestDBDSNSuffix)
 }
 
-func newInstanceDB(t testing.TB, ctx context.Context, ctlDB *sql.DB) (*sql.DB, string) {
+func newEmptyInstanceDB(t testing.TB, ctlDB *sql.DB) (*sql.DB, string) {
 	dbName := "test_" + GetCallerName(3) + "_" + RandomStringLower(12)
 	t.Logf("creating database %s ...", dbName)
 	_, err := ctlDB.Exec("CREATE DATABASE " + dbName)
@@ -58,9 +58,12 @@ func newInstanceDB(t testing.TB, ctx context.Context, ctlDB *sql.DB) (*sql.DB, s
 		require.NoError(t, err)
 	})
 
-	dbInstance, dsn := openDB(t, LocalTestDBDSNPrefix+"/"+dbName+LocalTestDBDSNSuffix)
-	require.NoError(t, migrations.Migrate(ctx, dbInstance))
+	return openDB(t, LocalTestDBDSNPrefix+"/"+dbName+LocalTestDBDSNSuffix)
+}
 
+func newInstanceDB(t testing.TB, ctx context.Context, ctlDB *sql.DB) (*sql.DB, string) {
+	dbInstance, dsn := newEmptyInstanceDB(t, ctlDB)
+	require.NoError(t, migrations.Migrate(ctx, dbInstance))
 	return dbInstance, dsn
 }
 
@@ -68,6 +71,20 @@ func NewRawDB(t *testing.T, ctx context.Context) (*sql.DB, string) {
 	ctlDB, _ := newCtlDB(t)
 	dbInstance, dsn := newInstanceDB(t, ctx, ctlDB)
 
+	return dbInstance, dsn
+}
+
+// NewRawDBAtVersion creates a fresh database and migrates it to the specified
+// schema version (instead of HEAD). Intended for migration-behavior tests that
+// need to observe the database in an intermediate schema state.
+func NewRawDBAtVersion(
+	t *testing.T,
+	ctx context.Context,
+	version uint,
+) (*sql.DB, string) {
+	ctlDB, _ := newCtlDB(t)
+	dbInstance, dsn := newEmptyInstanceDB(t, ctlDB)
+	require.NoError(t, migrations.MigrateTo(ctx, dbInstance, version))
 	return dbInstance, dsn
 }
 
@@ -93,7 +110,7 @@ func NewDBs(t *testing.T, ctx context.Context, count int) []*sql.DB {
 func InsertGatewayEnvelopes(
 	t *testing.T,
 	dbInstance *sql.DB,
-	rows []queries.InsertGatewayEnvelopeParams,
+	rows []queries.InsertGatewayEnvelopeV3Params,
 	notifyChan ...chan bool,
 ) {
 	ctx := t.Context()

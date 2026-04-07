@@ -42,7 +42,7 @@ func ensureBandExists(
 
 	_, err := db.ExecContext(
 		ctx,
-		`SELECT ensure_gateway_parts($1, $2, $3)`,
+		`SELECT ensure_gateway_parts_v3($1, $2, $3)`,
 		originatorID,
 		seqID,
 		int64(1000000),
@@ -58,7 +58,7 @@ func insertEnvelope(
 ) {
 	t.Helper()
 
-	testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{{
+	testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeV3Params{{
 		OriginatorNodeID:     originatorID,
 		OriginatorSequenceID: seqID,
 		Topic:                []byte("topic"),

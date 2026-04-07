@@ -28,19 +28,27 @@ func TestGetPrunableMetaPartitions_ReturnsOnlyTrulyEmptyNonCeiling(t *testing.T)
 
 	// Create two bands for the same originator.
 	// Lower band should become prunable if empty.
-	mustExec(t, ctx, db, `SELECT ensure_gateway_parts($1, $2, $3)`, oid, int64(1), int64(1000000))
 	mustExec(
 		t,
 		ctx,
 		db,
-		`SELECT ensure_gateway_parts($1, $2, $3)`,
+		`SELECT ensure_gateway_parts_v3($1, $2, $3)`,
+		oid,
+		int64(1),
+		int64(1000000),
+	)
+	mustExec(
+		t,
+		ctx,
+		db,
+		`SELECT ensure_gateway_parts_v3($1, $2, $3)`,
 		oid,
 		int64(1000001),
 		int64(1000000),
 	)
 
 	// Put one row in the upper band so it is definitely not empty.
-	testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{{
+	testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeV3Params{{
 		OriginatorNodeID:     oid,
 		OriginatorSequenceID: 1000001,
 		Topic:                []byte("topic"),
@@ -67,12 +75,20 @@ func TestGetPrunableMetaPartitions_DoesNotReturnCeilingEvenIfEmpty(t *testing.T)
 
 	const oid int32 = 100
 
-	mustExec(t, ctx, db, `SELECT ensure_gateway_parts($1, $2, $3)`, oid, int64(1), int64(1000000))
 	mustExec(
 		t,
 		ctx,
 		db,
-		`SELECT ensure_gateway_parts($1, $2, $3)`,
+		`SELECT ensure_gateway_parts_v3($1, $2, $3)`,
+		oid,
+		int64(1),
+		int64(1000000),
+	)
+	mustExec(
+		t,
+		ctx,
+		db,
+		`SELECT ensure_gateway_parts_v3($1, $2, $3)`,
 		oid,
 		int64(1000001),
 		int64(1000000),
@@ -99,19 +115,27 @@ func TestGetPrunableMetaPartitions_DoesNotReturnNonEmptyLowerPartition(t *testin
 
 	const oid int32 = 100
 
-	mustExec(t, ctx, db, `SELECT ensure_gateway_parts($1, $2, $3)`, oid, int64(1), int64(1000000))
 	mustExec(
 		t,
 		ctx,
 		db,
-		`SELECT ensure_gateway_parts($1, $2, $3)`,
+		`SELECT ensure_gateway_parts_v3($1, $2, $3)`,
+		oid,
+		int64(1),
+		int64(1000000),
+	)
+	mustExec(
+		t,
+		ctx,
+		db,
+		`SELECT ensure_gateway_parts_v3($1, $2, $3)`,
 		oid,
 		int64(1000001),
 		int64(1000000),
 	)
 
 	// Insert into the lower band, making it non-empty.
-	testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{{
+	testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeV3Params{{
 		OriginatorNodeID:     oid,
 		OriginatorSequenceID: 1,
 		Topic:                []byte("topic"),
@@ -140,7 +164,7 @@ func TestGetPrunableMetaPartitions_PerOriginatorCeiling(t *testing.T) {
 			t,
 			ctx,
 			db,
-			`SELECT ensure_gateway_parts($1, $2, $3)`,
+			`SELECT ensure_gateway_parts_v3($1, $2, $3)`,
 			oid,
 			int64(1),
 			int64(1000000),
@@ -149,7 +173,7 @@ func TestGetPrunableMetaPartitions_PerOriginatorCeiling(t *testing.T) {
 			t,
 			ctx,
 			db,
-			`SELECT ensure_gateway_parts($1, $2, $3)`,
+			`SELECT ensure_gateway_parts_v3($1, $2, $3)`,
 			oid,
 			int64(1000001),
 			int64(1000000),
@@ -158,7 +182,7 @@ func TestGetPrunableMetaPartitions_PerOriginatorCeiling(t *testing.T) {
 
 	// Put a row only in the top partition for each originator.
 	for _, oid := range []int32{oid1, oid2} {
-		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeParams{{
+		testutils.InsertGatewayEnvelopes(t, db, []queries.InsertGatewayEnvelopeV3Params{{
 			OriginatorNodeID:     oid,
 			OriginatorSequenceID: 1000001,
 			Topic:                []byte("topic"),

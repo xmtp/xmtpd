@@ -61,12 +61,12 @@ func (b *GatewayEnvelopeBatch) Reset() {
 	b.Envelopes = make([]GatewayEnvelopeRow, 0)
 }
 
-func (b *GatewayEnvelopeBatch) ToParamsV2() queries.InsertGatewayEnvelopeBatchV2Params {
+func (b *GatewayEnvelopeBatch) ToParamsV3() queries.InsertGatewayEnvelopeBatchV3Params {
 	n := b.Len()
 
 	b.ensureOrdered()
 
-	params := queries.InsertGatewayEnvelopeBatchV2Params{
+	params := queries.InsertGatewayEnvelopeBatchV3Params{
 		OriginatorNodeIds:     make([]int32, n),
 		OriginatorSequenceIds: make([]int64, n),
 		Topics:                make([][]byte, n),

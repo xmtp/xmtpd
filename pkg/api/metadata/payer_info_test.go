@@ -43,7 +43,7 @@ func (ts *testSetup) insertMessages(t *testing.T, messages []testMessage) {
 	for i, msg := range messages {
 		minutesSinceEpoch := utils.MinutesSinceEpoch(msg.timestamp)
 
-		insertParams := queries.InsertGatewayEnvelopeParams{
+		insertParams := queries.InsertGatewayEnvelopeV3Params{
 			OriginatorNodeID: msg.originatorID,
 			OriginatorSequenceID: int64(
 				minutesSinceEpoch,

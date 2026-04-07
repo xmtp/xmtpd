@@ -581,7 +581,7 @@ func TestBatchInsert_PreexistingPartitions(t *testing.T) {
 	)
 
 	// Pre-create partitions.
-	err := querier.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
+	err := querier.EnsureGatewayPartsV3(ctx, queries.EnsureGatewayPartsV3Params{
 		OriginatorNodeID:     originatorID,
 		OriginatorSequenceID: 1,
 		BandWidth:            xmtpd_db.GatewayEnvelopeBandWidth,

@@ -13,71 +13,6 @@ import (
 	"github.com/lib/pq"
 )
 
-const insertGatewayEnvelope = `-- name: InsertGatewayEnvelope :one
-WITH m AS (
-    INSERT INTO gateway_envelopes_meta (
-                                        originator_node_id,
-                                        originator_sequence_id,
-                                        topic,
-                                        payer_id,
-                                        gateway_time,
-                                        expiry
-        )
-        VALUES ($1,
-                $2,
-                $3,
-                $4,
-                COALESCE($5, NOW()),
-                $6)
-        ON CONFLICT DO NOTHING
-        RETURNING 1),
-     b AS (
-         INSERT INTO gateway_envelopes_blobs (
-                                             originator_node_id,
-                                             originator_sequence_id,
-                                             originator_envelope
-             )
-             VALUES ($1,
-                     $2,
-                     $7)
-             ON CONFLICT DO NOTHING
-             RETURNING 1)
-SELECT (SELECT COUNT(*) FROM m)                            AS inserted_meta_rows,
-       (SELECT COUNT(*) FROM b)                            AS inserted_blob_rows,
-       (SELECT COUNT(*) FROM m) + (SELECT COUNT(*) FROM b) AS total_inserted_rows
-`
-
-type InsertGatewayEnvelopeParams struct {
-	OriginatorNodeID     int32
-	OriginatorSequenceID int64
-	Topic                []byte
-	PayerID              sql.NullInt32
-	GatewayTime          interface{}
-	Expiry               int64
-	OriginatorEnvelope   []byte
-}
-
-type InsertGatewayEnvelopeRow struct {
-	InsertedMetaRows  int64
-	InsertedBlobRows  int64
-	TotalInsertedRows int32
-}
-
-func (q *Queries) InsertGatewayEnvelope(ctx context.Context, arg InsertGatewayEnvelopeParams) (InsertGatewayEnvelopeRow, error) {
-	row := q.queryRow(ctx, q.insertGatewayEnvelopeStmt, insertGatewayEnvelope,
-		arg.OriginatorNodeID,
-		arg.OriginatorSequenceID,
-		arg.Topic,
-		arg.PayerID,
-		arg.GatewayTime,
-		arg.Expiry,
-		arg.OriginatorEnvelope,
-	)
-	var i InsertGatewayEnvelopeRow
-	err := row.Scan(&i.InsertedMetaRows, &i.InsertedBlobRows, &i.TotalInsertedRows)
-	return i, err
-}
-
 const insertGatewayEnvelopeBatchV2 = `-- name: InsertGatewayEnvelopeBatchV2 :one
 SELECT
     inserted_meta_rows::bigint,
@@ -118,6 +53,11 @@ type InsertGatewayEnvelopeBatchV2Row struct {
 	AffectedCongestionRows int64
 }
 
+// Pre-rename batch insert. Calls the v2 stored function which still
+// references the legacy gateway_envelope_blobs table. No production code
+// uses this query — it survives only so migration-behavior tests can
+// populate the database at the pre-rename schema version. Production code
+// uses InsertGatewayEnvelopeBatchV3.
 func (q *Queries) InsertGatewayEnvelopeBatchV2(ctx context.Context, arg InsertGatewayEnvelopeBatchV2Params) (InsertGatewayEnvelopeBatchV2Row, error) {
 	row := q.queryRow(ctx, q.insertGatewayEnvelopeBatchV2Stmt, insertGatewayEnvelopeBatchV2,
 		pq.Array(arg.OriginatorNodeIds),
@@ -138,6 +78,144 @@ func (q *Queries) InsertGatewayEnvelopeBatchV2(ctx context.Context, arg InsertGa
 		&i.AffectedUsageRows,
 		&i.AffectedCongestionRows,
 	)
+	return i, err
+}
+
+const insertGatewayEnvelopeBatchV3 = `-- name: InsertGatewayEnvelopeBatchV3 :one
+SELECT
+    inserted_meta_rows::bigint,
+    inserted_blob_rows::bigint,
+    affected_usage_rows::bigint,
+    affected_congestion_rows::bigint
+FROM insert_gateway_envelope_batch_v3(
+    $1::int[],
+    $2::bigint[],
+    $3::bytea[],
+    $4::int[],
+    $5::timestamp[],
+    $6::bigint[],
+    $7::bytea[],
+    $8::bigint[],
+    $9::boolean[],
+    $10::boolean[]
+)
+`
+
+type InsertGatewayEnvelopeBatchV3Params struct {
+	OriginatorNodeIds     []int32
+	OriginatorSequenceIds []int64
+	Topics                [][]byte
+	PayerIds              []int32
+	GatewayTimes          []time.Time
+	Expiries              []int64
+	OriginatorEnvelopes   [][]byte
+	SpendPicodollars      []int64
+	CountUsage            []bool
+	CountCongestion       []bool
+}
+
+type InsertGatewayEnvelopeBatchV3Row struct {
+	InsertedMetaRows       int64
+	InsertedBlobRows       int64
+	AffectedUsageRows      int64
+	AffectedCongestionRows int64
+}
+
+// Batch envelope insert calling the renamed insert_gateway_envelope_batch_v3
+// stored function (which targets gateway_envelopes_blobs). This is the
+// production version.
+func (q *Queries) InsertGatewayEnvelopeBatchV3(ctx context.Context, arg InsertGatewayEnvelopeBatchV3Params) (InsertGatewayEnvelopeBatchV3Row, error) {
+	row := q.queryRow(ctx, q.insertGatewayEnvelopeBatchV3Stmt, insertGatewayEnvelopeBatchV3,
+		pq.Array(arg.OriginatorNodeIds),
+		pq.Array(arg.OriginatorSequenceIds),
+		pq.Array(arg.Topics),
+		pq.Array(arg.PayerIds),
+		pq.Array(arg.GatewayTimes),
+		pq.Array(arg.Expiries),
+		pq.Array(arg.OriginatorEnvelopes),
+		pq.Array(arg.SpendPicodollars),
+		pq.Array(arg.CountUsage),
+		pq.Array(arg.CountCongestion),
+	)
+	var i InsertGatewayEnvelopeBatchV3Row
+	err := row.Scan(
+		&i.InsertedMetaRows,
+		&i.InsertedBlobRows,
+		&i.AffectedUsageRows,
+		&i.AffectedCongestionRows,
+	)
+	return i, err
+}
+
+const insertGatewayEnvelopeV3 = `-- name: InsertGatewayEnvelopeV3 :one
+WITH m AS (
+    INSERT INTO gateway_envelopes_meta (
+                                        originator_node_id,
+                                        originator_sequence_id,
+                                        topic,
+                                        payer_id,
+                                        gateway_time,
+                                        expiry
+        )
+        VALUES ($1,
+                $2,
+                $3,
+                $4,
+                COALESCE($5, NOW()),
+                $6)
+        ON CONFLICT DO NOTHING
+        RETURNING 1),
+     b AS (
+         INSERT INTO gateway_envelopes_blobs (
+                                             originator_node_id,
+                                             originator_sequence_id,
+                                             originator_envelope
+             )
+             VALUES ($1,
+                     $2,
+                     $7)
+             ON CONFLICT DO NOTHING
+             RETURNING 1)
+SELECT (SELECT COUNT(*) FROM m)                            AS inserted_meta_rows,
+       (SELECT COUNT(*) FROM b)                            AS inserted_blob_rows,
+       (SELECT COUNT(*) FROM m) + (SELECT COUNT(*) FROM b) AS total_inserted_rows
+`
+
+type InsertGatewayEnvelopeV3Params struct {
+	OriginatorNodeID     int32
+	OriginatorSequenceID int64
+	Topic                []byte
+	PayerID              sql.NullInt32
+	GatewayTime          interface{}
+	Expiry               int64
+	OriginatorEnvelope   []byte
+}
+
+type InsertGatewayEnvelopeV3Row struct {
+	InsertedMetaRows  int64
+	InsertedBlobRows  int64
+	TotalInsertedRows int32
+}
+
+// Single-row envelope insert targeting the renamed gateway_envelopes_blobs
+// table. The pre-rename version (which referenced gateway_envelope_blobs in
+// inline SQL) cannot survive at HEAD because sqlc validates inline-SQL
+// query bodies against the live schema; the renamed table no longer exists
+// under the old name. Migration-behavior tests instead use
+// InsertGatewayEnvelopeBatchV2, which goes through the v2 stored function
+// (whose body is opaque to sqlc validation).
+func (q *Queries) InsertGatewayEnvelopeV3(ctx context.Context, arg InsertGatewayEnvelopeV3Params) (InsertGatewayEnvelopeV3Row, error) {
+	row := q.queryRow(ctx, q.insertGatewayEnvelopeV3Stmt, insertGatewayEnvelopeV3,
+		arg.OriginatorNodeID,
+		arg.OriginatorSequenceID,
+		arg.Topic,
+		arg.PayerID,
+		arg.GatewayTime,
+		arg.Expiry,
+		arg.OriginatorEnvelope,
+	)
+	var i InsertGatewayEnvelopeV3Row
+	err := row.Scan(&i.InsertedMetaRows, &i.InsertedBlobRows, &i.TotalInsertedRows)
 	return i, err
 }
 

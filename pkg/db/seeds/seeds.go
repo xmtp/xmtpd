@@ -84,7 +84,7 @@ func SeedEnvelopes(
 	perOriginator := cfg.NumEnvelopes / cfg.NumOriginators
 	for seqID := int64(0); seqID < int64(perOriginator)+db.GatewayEnvelopeBandWidth; seqID += db.GatewayEnvelopeBandWidth {
 		for _, origID := range originators {
-			_ = q.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
+			_ = q.EnsureGatewayPartsV3(ctx, queries.EnsureGatewayPartsV3Params{
 				OriginatorNodeID:     origID,
 				OriginatorSequenceID: seqID,
 				BandWidth:            db.GatewayEnvelopeBandWidth,
@@ -108,7 +108,7 @@ func SeedEnvelopes(
 		_, err := db.InsertGatewayEnvelopeWithChecksStandalone(
 			ctx,
 			q,
-			queries.InsertGatewayEnvelopeParams{
+			queries.InsertGatewayEnvelopeV3Params{
 				OriginatorNodeID:     origID,
 				OriginatorSequenceID: seqIDs[origIdx],
 				PayerID:              sql.NullInt32{Int32: payerIDs[i%cfg.NumPayers], Valid: true},

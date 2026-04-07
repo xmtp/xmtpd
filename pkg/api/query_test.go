@@ -23,9 +23,9 @@ var (
 	topicC = topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("topicC")).Bytes()
 )
 
-func setupQueryTest(t *testing.T, dbHandle *sql.DB) []queries.InsertGatewayEnvelopeParams {
+func setupQueryTest(t *testing.T, dbHandle *sql.DB) []queries.InsertGatewayEnvelopeV3Params {
 	payerID := db.NullInt32(testutils.CreatePayer(t, dbHandle))
-	dbRows := []queries.InsertGatewayEnvelopeParams{
+	dbRows := []queries.InsertGatewayEnvelopeV3Params{
 		{
 			OriginatorNodeID:     100,
 			OriginatorSequenceID: 1,
@@ -267,7 +267,7 @@ func TestInvalidQuery(t *testing.T) {
 
 func checkRowsMatchProtos(
 	t *testing.T,
-	allRows []queries.InsertGatewayEnvelopeParams,
+	allRows []queries.InsertGatewayEnvelopeV3Params,
 	matchingIndices []int,
 	protos []*envelopes.OriginatorEnvelope,
 ) {

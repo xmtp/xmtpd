@@ -53,7 +53,7 @@ func seedEnvelopes(ctx context.Context, tier *envelopeTier) {
 	perOriginator := tier.count / numOriginators
 	for seqID := int64(0); seqID < int64(perOriginator)+db.GatewayEnvelopeBandWidth; seqID += db.GatewayEnvelopeBandWidth {
 		for _, origID := range tier.originators {
-			_ = tier.queries.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
+			_ = tier.queries.EnsureGatewayPartsV3(ctx, queries.EnsureGatewayPartsV3Params{
 				OriginatorNodeID:     origID,
 				OriginatorSequenceID: seqID,
 				BandWidth:            db.GatewayEnvelopeBandWidth,
@@ -62,7 +62,7 @@ func seedEnvelopes(ctx context.Context, tier *envelopeTier) {
 	}
 	// Partitions for write benchmark originator
 	for seqID := int64(0); seqID < 10*db.GatewayEnvelopeBandWidth; seqID += db.GatewayEnvelopeBandWidth {
-		_ = tier.queries.EnsureGatewayParts(ctx, queries.EnsureGatewayPartsParams{
+		_ = tier.queries.EnsureGatewayPartsV3(ctx, queries.EnsureGatewayPartsV3Params{
 			OriginatorNodeID:     writeOriginatorID,
 			OriginatorSequenceID: seqID,
 			BandWidth:            db.GatewayEnvelopeBandWidth,
@@ -233,9 +233,9 @@ func BenchmarkInsertGatewayEnvelope(b *testing.B) {
 			counter.Store(1_000_000)
 			for b.Loop() {
 				seqID := counter.Add(1)
-				_, err := tier.queries.InsertGatewayEnvelope(
+				_, err := tier.queries.InsertGatewayEnvelopeV3(
 					benchCtx,
-					queries.InsertGatewayEnvelopeParams{
+					queries.InsertGatewayEnvelopeV3Params{
 						OriginatorNodeID:     writeOriginatorID,
 						OriginatorSequenceID: seqID,
 						Topic:                topic,
@@ -288,9 +288,9 @@ func BenchmarkInsertGatewayEnvelopeBatch(b *testing.B) {
 				for j := range batchLen {
 					countFlags[j] = true
 				}
-				_, err := tier.queries.InsertGatewayEnvelopeBatchV2(
+				_, err := tier.queries.InsertGatewayEnvelopeBatchV3(
 					benchCtx,
-					queries.InsertGatewayEnvelopeBatchV2Params{
+					queries.InsertGatewayEnvelopeBatchV3Params{
 						OriginatorNodeIds:     nodeIDs,
 						OriginatorSequenceIds: seqIDs,
 						Topics:                topics,

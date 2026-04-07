@@ -23,8 +23,32 @@ type EnsureGatewayPartsParams struct {
 	BandWidth            int64
 }
 
+// Pre-rename partition ensure. Calls ensure_gateway_parts_v2, which still
+// references the legacy gateway_envelope_blobs table. Surviving only for
+// migration-behavior tests; production code uses EnsureGatewayPartsV3.
 func (q *Queries) EnsureGatewayParts(ctx context.Context, arg EnsureGatewayPartsParams) error {
 	_, err := q.exec(ctx, q.ensureGatewayPartsStmt, ensureGatewayParts, arg.OriginatorNodeID, arg.OriginatorSequenceID, arg.BandWidth)
+	return err
+}
+
+const ensureGatewayPartsV3 = `-- name: EnsureGatewayPartsV3 :exec
+SELECT ensure_gateway_parts_v3(
+               $1,
+               $2,
+               $3
+       )
+`
+
+type EnsureGatewayPartsV3Params struct {
+	OriginatorNodeID     int32
+	OriginatorSequenceID int64
+	BandWidth            int64
+}
+
+// Production partition ensure. Calls ensure_gateway_parts_v3, which targets
+// the renamed gateway_envelopes_blobs table.
+func (q *Queries) EnsureGatewayPartsV3(ctx context.Context, arg EnsureGatewayPartsV3Params) error {
+	_, err := q.exec(ctx, q.ensureGatewayPartsV3Stmt, ensureGatewayPartsV3, arg.OriginatorNodeID, arg.OriginatorSequenceID, arg.BandWidth)
 	return err
 }
 
@@ -59,8 +83,18 @@ const makeBlobOriginatorPart = `-- name: MakeBlobOriginatorPart :exec
 SELECT make_blob_originator_part_v2($1)
 `
 
+// Pre-rename L1 blob partition maker. Kept for migration-behavior tests.
 func (q *Queries) MakeBlobOriginatorPart(ctx context.Context, originatorNodeID int32) error {
 	_, err := q.exec(ctx, q.makeBlobOriginatorPartStmt, makeBlobOriginatorPart, originatorNodeID)
+	return err
+}
+
+const makeBlobOriginatorPartV3 = `-- name: MakeBlobOriginatorPartV3 :exec
+SELECT make_blob_originator_part_v3($1)
+`
+
+func (q *Queries) MakeBlobOriginatorPartV3(ctx context.Context, originatorNodeID int32) error {
+	_, err := q.exec(ctx, q.makeBlobOriginatorPartV3Stmt, makeBlobOriginatorPartV3, originatorNodeID)
 	return err
 }
 
@@ -74,8 +108,24 @@ type MakeBlobSeqBandParams struct {
 	BandEnd          int64
 }
 
+// Pre-rename L2 blob subpartition maker. Kept for migration-behavior tests.
 func (q *Queries) MakeBlobSeqBand(ctx context.Context, arg MakeBlobSeqBandParams) error {
 	_, err := q.exec(ctx, q.makeBlobSeqBandStmt, makeBlobSeqBand, arg.OriginatorNodeID, arg.BandStart, arg.BandEnd)
+	return err
+}
+
+const makeBlobSeqBandV3 = `-- name: MakeBlobSeqBandV3 :exec
+SELECT make_blob_seq_subpart_v3($1, $2, $3)
+`
+
+type MakeBlobSeqBandV3Params struct {
+	OriginatorNodeID int32
+	BandStart        int64
+	BandEnd          int64
+}
+
+func (q *Queries) MakeBlobSeqBandV3(ctx context.Context, arg MakeBlobSeqBandV3Params) error {
+	_, err := q.exec(ctx, q.makeBlobSeqBandV3Stmt, makeBlobSeqBandV3, arg.OriginatorNodeID, arg.BandStart, arg.BandEnd)
 	return err
 }
 

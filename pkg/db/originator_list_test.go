@@ -23,7 +23,7 @@ func TestCachedOriginatorList_Basic(t *testing.T) {
 		_, err := db.InsertGatewayEnvelopeWithChecksStandalone(
 			ctx,
 			querier,
-			queries.InsertGatewayEnvelopeParams{
+			queries.InsertGatewayEnvelopeV3Params{
 				OriginatorNodeID:     nodeID,
 				OriginatorSequenceID: 1,
 				Topic:                testutils.RandomBytes(32),
@@ -48,7 +48,7 @@ func TestCachedOriginatorList_Caching(t *testing.T) {
 	_, err := db.InsertGatewayEnvelopeWithChecksStandalone(
 		ctx,
 		querier,
-		queries.InsertGatewayEnvelopeParams{
+		queries.InsertGatewayEnvelopeV3Params{
 			OriginatorNodeID:     100,
 			OriginatorSequenceID: 1,
 			Topic:                testutils.RandomBytes(32),
@@ -68,7 +68,7 @@ func TestCachedOriginatorList_Caching(t *testing.T) {
 	_, err = db.InsertGatewayEnvelopeWithChecksStandalone(
 		ctx,
 		querier,
-		queries.InsertGatewayEnvelopeParams{
+		queries.InsertGatewayEnvelopeV3Params{
 			OriginatorNodeID:     200,
 			OriginatorSequenceID: 1,
 			Topic:                testutils.RandomBytes(32),
@@ -91,7 +91,7 @@ func TestCachedOriginatorList_CacheExpiry(t *testing.T) {
 	_, err := db.InsertGatewayEnvelopeWithChecksStandalone(
 		ctx,
 		querier,
-		queries.InsertGatewayEnvelopeParams{
+		queries.InsertGatewayEnvelopeV3Params{
 			OriginatorNodeID:     100,
 			OriginatorSequenceID: 1,
 			Topic:                testutils.RandomBytes(32),
@@ -111,7 +111,7 @@ func TestCachedOriginatorList_CacheExpiry(t *testing.T) {
 	_, err = db.InsertGatewayEnvelopeWithChecksStandalone(
 		ctx,
 		querier,
-		queries.InsertGatewayEnvelopeParams{
+		queries.InsertGatewayEnvelopeV3Params{
 			OriginatorNodeID:     200,
 			OriginatorSequenceID: 1,
 			Topic:                testutils.RandomBytes(32),
@@ -136,7 +136,7 @@ func TestCachedOriginatorList_Concurrent(t *testing.T) {
 		_, err := db.InsertGatewayEnvelopeWithChecksStandalone(
 			ctx,
 			querier,
-			queries.InsertGatewayEnvelopeParams{
+			queries.InsertGatewayEnvelopeV3Params{
 				OriginatorNodeID:     nodeID,
 				OriginatorSequenceID: 1,
 				Topic:                testutils.RandomBytes(32),

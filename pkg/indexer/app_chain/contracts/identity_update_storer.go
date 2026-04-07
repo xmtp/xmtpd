@@ -288,7 +288,7 @@ func (s *IdentityUpdateStorer) StoreLog(
 			_, err = db.InsertGatewayEnvelopeWithChecksTransactional(
 				ctx,
 				querier,
-				queries.InsertGatewayEnvelopeParams{
+				queries.InsertGatewayEnvelopeV3Params{
 					OriginatorNodeID:     constants.IdentityUpdateOriginatorID,
 					OriginatorSequenceID: int64(msgSent.SequenceId),
 					Topic:                messageTopic.Bytes(),

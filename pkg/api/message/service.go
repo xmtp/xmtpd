@@ -48,14 +48,12 @@ const (
 	requestMissingMessageError = "missing request message"
 )
 
-// RateLimitConfig is the subset of rate-limit options the message Service needs
-// at handler-time (drain params and stream lifetime caps).
+// RateLimitConfig is the subset of rate-limit options the message Service
+// needs at handler-time. Currently only a feature flag — the admission cost
+// formula lives in the ratelimiter package. Kept as a struct so future knobs
+// (see xmtp/xmtpd#1957) have a place to land without changing call sites.
 type RateLimitConfig struct {
-	Enabled              bool
-	DrainIntervalMinutes int
-	DrainAmount          int
-	StreamIdleTimeout    time.Duration
-	StreamMaxDuration    time.Duration
+	Enabled bool
 }
 
 type Service struct {

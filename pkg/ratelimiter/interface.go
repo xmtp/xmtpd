@@ -25,5 +25,4 @@ type Result struct {
 
 type RateLimiter interface {
 	Allow(ctx context.Context, subject string, cost uint64) (*Result, error)
-	ForceDebit(ctx context.Context, subject string, cost uint64) (*Result, error)
 }

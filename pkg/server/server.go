@@ -497,13 +497,7 @@ func startAPIServer(
 	if built != nil {
 		ratelimiter.Register(promReg)
 		msgRateLimiter = built.QueryLimiter
-		rlConfig = message.RateLimitConfig{
-			Enabled:              true,
-			DrainIntervalMinutes: cfg.Options.RateLimit.DrainIntervalMinutes,
-			DrainAmount:          cfg.Options.RateLimit.DrainAmount,
-			StreamIdleTimeout:    cfg.Options.RateLimit.StreamIdleTimeout,
-			StreamMaxDuration:    cfg.Options.RateLimit.StreamMaxDuration,
-		}
+		rlConfig = message.RateLimitConfig{Enabled: true}
 		message.SetSubscribeTrustedCIDRs(built.TrustedCIDRs)
 	}
 
@@ -557,10 +551,6 @@ func startAPIServer(
 				built.QueryLimiter,
 				built.OpensLimiter,
 				built.TrustedCIDRs,
-				server.RateLimitInterceptorConfig{
-					DrainIntervalMinutes: cfg.Options.RateLimit.DrainIntervalMinutes,
-					DrainAmount:          cfg.Options.RateLimit.DrainAmount,
-				},
 			)
 			queryHandlerOpts = []connect.HandlerOption{
 				connect.WithReadMaxBytes(constants.GRPCPayloadLimit),

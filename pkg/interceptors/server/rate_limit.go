@@ -65,12 +65,6 @@ func ComputeCost(method QueryApiMethod, req any) uint64 {
 	}
 }
 
-// RateLimitInterceptorConfig holds configuration for the rate-limit interceptor.
-type RateLimitInterceptorConfig struct {
-	DrainIntervalMinutes int
-	DrainAmount          int
-}
-
 // RateLimitInterceptor enforces rate limits on QueryApi requests.
 // It uses two separate RateLimiter instances:
 //   - queryLimiter: per-IP, per-minute/per-hour buckets for all unary QueryApi methods.
@@ -80,7 +74,6 @@ type RateLimitInterceptor struct {
 	queryLimiter ratelimiter.RateLimiter
 	opensLimiter ratelimiter.RateLimiter
 	trustedCIDRs []*net.IPNet
-	cfg          RateLimitInterceptorConfig
 }
 
 var _ connect.Interceptor = (*RateLimitInterceptor)(nil)
@@ -91,14 +84,12 @@ func NewRateLimitInterceptor(
 	queryLimiter ratelimiter.RateLimiter,
 	opensLimiter ratelimiter.RateLimiter,
 	trustedCIDRs []*net.IPNet,
-	cfg RateLimitInterceptorConfig,
 ) *RateLimitInterceptor {
 	return &RateLimitInterceptor{
 		logger:       logger.Named("xmtpd.rate-limiter"),
 		queryLimiter: queryLimiter,
 		opensLimiter: opensLimiter,
 		trustedCIDRs: trustedCIDRs,
-		cfg:          cfg,
 	}
 }
 

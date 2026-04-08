@@ -58,7 +58,6 @@ func TestRateLimitIntegration_Tier2QueryDenyAfterBudgetExhausted(t *testing.T) {
 		queryLimiter,
 		opensLimiter,
 		nil,
-		RateLimitInterceptorConfig{},
 	)
 
 	calls := 0
@@ -81,31 +80,6 @@ func TestRateLimitIntegration_Tier2QueryDenyAfterBudgetExhausted(t *testing.T) {
 	assert.Equal(t, 5, calls, "inner handler should not be called on the 6th request")
 }
 
-// Test 7.2: ForceDebit can drive the bucket negative, after which a normal
-// Allow call is rejected.
-func TestRateLimitIntegration_RetrospectiveDrainGoesNegative(t *testing.T) {
-	client, keyPrefix := redistestutils.NewRedisForTest(t)
-	limiter, err := ratelimiter.NewRedisLimiter(client, keyPrefix, []ratelimiter.Limit{
-		{Capacity: 10, RefillEvery: time.Minute},
-	})
-	require.NoError(t, err)
-
-	ctx := context.Background()
-
-	res, err := limiter.Allow(ctx, "subj", 9)
-	require.NoError(t, err)
-	require.True(t, res.Allowed)
-
-	res, err = limiter.ForceDebit(ctx, "subj", 100)
-	require.NoError(t, err)
-	require.True(t, res.Allowed)
-	require.Less(t, res.Balances[0].Remaining, -80.0)
-
-	res, err = limiter.Allow(ctx, "subj", 1)
-	require.NoError(t, err)
-	require.False(t, res.Allowed, "next normal call should be rejected after retrospective drain")
-}
-
 // Test 7.3: A Tier 0 client (verified node) bypasses even an absurdly tight
 // limit and is never charged.
 func TestRateLimitIntegration_Tier0Bypass(t *testing.T) {
@@ -120,7 +94,6 @@ func TestRateLimitIntegration_Tier0Bypass(t *testing.T) {
 		limiter,
 		limiter,
 		nil,
-		RateLimitInterceptorConfig{},
 	)
 
 	calls := 0
@@ -156,7 +129,6 @@ func TestRateLimitIntegration_SubscribeOpensSubLimit(t *testing.T) {
 		queryLimiter,
 		opensLimiter,
 		nil,
-		RateLimitInterceptorConfig{},
 	)
 
 	calls := 0

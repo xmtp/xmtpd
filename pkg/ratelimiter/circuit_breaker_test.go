@@ -95,20 +95,10 @@ func TestCircuitBreaker_SuccessResetsFailureCount(t *testing.T) {
 type fakeLimiter struct {
 	allowResult *Result
 	allowErr    error
-	debitResult *Result
-	debitErr    error
 }
 
-func (f *fakeLimiter) Allow(ctx context.Context, subject string, cost uint64) (*Result, error) {
+func (f *fakeLimiter) Allow(_ context.Context, _ string, _ uint64) (*Result, error) {
 	return f.allowResult, f.allowErr
-}
-
-func (f *fakeLimiter) ForceDebit(
-	ctx context.Context,
-	subject string,
-	cost uint64,
-) (*Result, error) {
-	return f.debitResult, f.debitErr
 }
 
 func TestBreakerLimiter_FailOpenWhenBreakerOpen(t *testing.T) {
@@ -144,12 +134,4 @@ func TestBreakerLimiter_PassesThroughOnDenial(t *testing.T) {
 	res, err := bl.Allow(context.Background(), "subj", 1)
 	require.NoError(t, err)
 	require.False(t, res.Allowed) // denial is not a failure
-}
-
-func TestBreakerLimiter_ForceDebitFailOpen(t *testing.T) {
-	inner := &fakeLimiter{debitErr: errSentinel}
-	bl := NewBreakerLimiter(inner, NewCircuitBreaker(1, time.Hour))
-	res, err := bl.ForceDebit(context.Background(), "subj", 1)
-	require.NoError(t, err)
-	require.True(t, res.Allowed)
 }

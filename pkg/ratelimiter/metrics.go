@@ -22,20 +22,13 @@ var (
 			Help: "Number of times the circuit breaker has tripped open",
 		},
 	)
-	StreamTerminationsTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "xmtpd_rate_limit_stream_terminations_total",
-			Help: "Subscribe stream terminations broken down by reason",
-		},
-		[]string{"reason"},
-	)
 )
 
 // Register registers all rate-limit metrics with the provided registry.
 // Safe to call once per process. Re-registration errors are ignored.
 func Register(reg prometheus.Registerer) {
 	for _, c := range []prometheus.Collector{
-		DecisionsTotal, BreakerStateGauge, BreakerTripsTotal, StreamTerminationsTotal,
+		DecisionsTotal, BreakerStateGauge, BreakerTripsTotal,
 	} {
 		_ = reg.Register(c)
 	}

@@ -32,18 +32,10 @@ func (f *fakeLimiter) Allow(
 	return f.result, f.err
 }
 
-func (f *fakeLimiter) ForceDebit(
-	_ context.Context,
-	_ string,
-	_ uint64,
-) (*ratelimiter.Result, error) {
-	return &ratelimiter.Result{Allowed: true}, nil
-}
-
 func newTestInterceptor(t *testing.T, limiter *fakeLimiter) *RateLimitInterceptor {
 	t.Helper()
 	logger := zaptest.NewLogger(t)
-	return NewRateLimitInterceptor(logger, limiter, limiter, nil, RateLimitInterceptorConfig{})
+	return NewRateLimitInterceptor(logger, limiter, limiter, nil)
 }
 
 // mockConnectRequest satisfies connect.AnyRequest for testing.

@@ -152,21 +152,3 @@ func (b *BreakerLimiter) Allow(ctx context.Context, subject string, cost uint64)
 	b.breaker.RecordSuccess()
 	return res, nil
 }
-
-// ForceDebit implements RateLimiter with the same fail-open semantics as Allow.
-func (b *BreakerLimiter) ForceDebit(
-	ctx context.Context,
-	subject string,
-	cost uint64,
-) (*Result, error) {
-	if !b.breaker.Allow() {
-		return &Result{Allowed: true}, nil
-	}
-	res, err := b.inner.ForceDebit(ctx, subject, cost)
-	if err != nil {
-		b.breaker.RecordFailure()
-		return &Result{Allowed: true}, nil //nolint:nilerr // intentional fail-open
-	}
-	b.breaker.RecordSuccess()
-	return res, nil
-}

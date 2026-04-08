@@ -120,6 +120,11 @@ type ReflectionOptions struct {
 }
 
 // RateLimitOptions controls the QueryApi rate-limiting interceptor.
+//
+// Iteration 1 only provides admission-time enforcement: per-IP token buckets
+// on unary QueryApi calls plus a subscribe-opens-per-minute sub-limit.
+// Continual drain of long-held subscribe streams is deferred to
+// xmtp/xmtpd#1957.
 type RateLimitOptions struct {
 	Enable bool `long:"enable" env:"XMTPD_RATE_LIMIT_ENABLE" description:"Enable QueryApi rate limiting (requires Redis)"`
 
@@ -127,14 +132,6 @@ type RateLimitOptions struct {
 	T2PerMinuteCapacity       int `long:"t2-per-minute-capacity"        env:"XMTPD_RATE_LIMIT_T2_PER_MINUTE_CAPACITY"        description:"Tier 2 per-minute token capacity"  default:"60"`
 	T2PerHourCapacity         int `long:"t2-per-hour-capacity"          env:"XMTPD_RATE_LIMIT_T2_PER_HOUR_CAPACITY"          description:"Tier 2 per-hour token capacity"    default:"1200"`
 	T2SubscribeOpensPerMinute int `long:"t2-subscribe-opens-per-minute" env:"XMTPD_RATE_LIMIT_T2_SUBSCRIBE_OPENS_PER_MINUTE" description:"Tier 2 subscribe-opens per minute" default:"10"`
-
-	// Subscription drain
-	DrainIntervalMinutes int `long:"drain-interval-minutes" env:"XMTPD_RATE_LIMIT_DRAIN_INTERVAL_MINUTES" description:"Minutes per subscription drain interval" default:"5"`
-	DrainAmount          int `long:"drain-amount"           env:"XMTPD_RATE_LIMIT_DRAIN_AMOUNT"           description:"Tokens per drain interval"               default:"1"`
-
-	// Stream lifetime
-	StreamIdleTimeout time.Duration `long:"stream-idle-timeout" env:"XMTPD_RATE_LIMIT_STREAM_IDLE_TIMEOUT" description:"Cancel a stream that has had no activity for this duration" default:"15m"`
-	StreamMaxDuration time.Duration `long:"stream-max-duration" env:"XMTPD_RATE_LIMIT_STREAM_MAX_DURATION" description:"Hard cap on subscription stream lifetime"                   default:"60m"`
 
 	// Circuit breaker
 	BreakerFailureThreshold int           `long:"breaker-failure-threshold" env:"XMTPD_RATE_LIMIT_BREAKER_FAILURE_THRESHOLD" description:"Consecutive Redis failures before tripping the circuit breaker" default:"5"`

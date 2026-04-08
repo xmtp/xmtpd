@@ -67,3 +67,5 @@ docs/plans
 # Git worktrees
 .worktrees/
 .claude/worktrees/
+
+tasks/**

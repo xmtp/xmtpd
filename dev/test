@@ -3,7 +3,8 @@ set -e
 
 ulimit -n 2048
 
-go test -timeout 30s `go list ./... | grep -v -e 'pkg/abis' -e 'pkg/config' -e 'pkg/proto' -e 'pkg/mock' -e 'pkg/testing'` "$@"
+# shellcheck disable=SC2046 # word-split go list output so each package is its own arg
+go test -timeout 30s $(go list ./... | grep -v -e 'pkg/abis' -e 'pkg/config' -e 'pkg/proto' -e 'pkg/mock' -e 'pkg/testing') "$@"
 
 if [ -n "${RACE:-}" ]; then
     echo

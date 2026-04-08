@@ -5,16 +5,18 @@ import (
 	"context"
 	"errors"
 	"net"
-	"strings"
 
 	"connectrpc.com/connect"
 	"go.uber.org/zap"
 
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
 	"github.com/xmtp/xmtpd/pkg/ratelimiter"
+	"github.com/xmtp/xmtpd/pkg/utils/clientip"
 )
 
-// QueryApiMethod identifies a QueryApi RPC method.
+// QueryApiMethod identifies a QueryApi RPC method. The string value is the
+// short method name used as a label on rate-limit metrics.
 type QueryApiMethod string
 
 const (
@@ -24,18 +26,23 @@ const (
 	MethodGetNewestEnvelope QueryApiMethod = "GetNewestEnvelope"
 )
 
-const queryApiPathPrefix = "/xmtp.xmtpv4.message_api.QueryApi/"
-
 // QueryApiMethodFromProcedure maps a Connect procedure path to a QueryApiMethod.
 // Returns ("", false) for non-QueryApi procedures.
+//
+// Procedure strings are compared against the generated
+// message_apiconnect.QueryApi*Procedure constants so that a rename of the
+// proto path is a compile-time break here rather than a silent loss of rate
+// limiting on the renamed procedure.
 func QueryApiMethodFromProcedure(procedure string) (QueryApiMethod, bool) {
-	if !strings.HasPrefix(procedure, queryApiPathPrefix) {
-		return "", false
-	}
-	name := QueryApiMethod(strings.TrimPrefix(procedure, queryApiPathPrefix))
-	switch name {
-	case MethodQueryEnvelopes, MethodSubscribeTopics, MethodGetInboxIds, MethodGetNewestEnvelope:
-		return name, true
+	switch procedure {
+	case message_apiconnect.QueryApiQueryEnvelopesProcedure:
+		return MethodQueryEnvelopes, true
+	case message_apiconnect.QueryApiSubscribeTopicsProcedure:
+		return MethodSubscribeTopics, true
+	case message_apiconnect.QueryApiGetInboxIdsProcedure:
+		return MethodGetInboxIds, true
+	case message_apiconnect.QueryApiGetNewestEnvelopeProcedure:
+		return MethodGetNewestEnvelope, true
 	}
 	return "", false
 }
@@ -110,7 +117,7 @@ func (i *RateLimitInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFu
 			return next(ctx, req)
 		}
 
-		subject := ratelimiter.ExtractClientIP(
+		subject := clientip.Extract(
 			req.Peer().Addr,
 			req.Header().Get("X-Forwarded-For"),
 			i.trustedCIDRs,
@@ -178,7 +185,7 @@ func (i *RateLimitInterceptor) WrapStreamingHandler(
 			return next(ctx, conn)
 		}
 
-		clientIP := ratelimiter.ExtractClientIP(
+		clientIP := clientip.Extract(
 			conn.Peer().Addr,
 			conn.RequestHeader().Get("X-Forwarded-For"),
 			i.trustedCIDRs,

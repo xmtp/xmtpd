@@ -20,6 +20,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/ratelimiter"
 	"github.com/xmtp/xmtpd/pkg/utils"
+	"github.com/xmtp/xmtpd/pkg/utils/clientip"
 	"github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 )
 
@@ -290,7 +291,7 @@ func SetSubscribeTrustedCIDRs(cidrs []*net.IPNet) {
 }
 
 func subscribeSubjectFromRequest(req *connect.Request[message_api.SubscribeTopicsRequest]) string {
-	return ratelimiter.ExtractClientIP(
+	return clientip.Extract(
 		req.Peer().Addr,
 		req.Header().Get("X-Forwarded-For"),
 		subscribeTrustedCIDRs,

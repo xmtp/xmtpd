@@ -9,6 +9,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/xmtp/xmtpd/pkg/config"
+	"github.com/xmtp/xmtpd/pkg/utils/clientip"
 	"go.uber.org/zap"
 )
 
@@ -76,7 +77,7 @@ func Build(
 		NewCircuitBreaker(rlOpts.BreakerFailureThreshold, rlOpts.BreakerCooldown),
 	)
 
-	cidrs, err := ParseTrustedProxyCIDRs(rlOpts.TrustedProxyCIDRs)
+	cidrs, err := clientip.ParseTrustedProxyCIDRs(rlOpts.TrustedProxyCIDRs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse trusted proxy CIDRs: %w", err)
 	}

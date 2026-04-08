@@ -15,7 +15,7 @@ func TestCircuitBreaker_OpensAfterThresholdFailures(t *testing.T) {
 	cb := NewCircuitBreaker(3, 100*time.Millisecond)
 	require.Equal(t, BreakerClosed, cb.State())
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		require.True(t, cb.Allow())
 		cb.RecordFailure()
 	}
@@ -77,7 +77,12 @@ type fakeLimiter struct {
 func (f *fakeLimiter) Allow(ctx context.Context, subject string, cost uint64) (*Result, error) {
 	return f.allowResult, f.allowErr
 }
-func (f *fakeLimiter) ForceDebit(ctx context.Context, subject string, cost uint64) (*Result, error) {
+
+func (f *fakeLimiter) ForceDebit(
+	ctx context.Context,
+	subject string,
+	cost uint64,
+) (*Result, error) {
 	return f.debitResult, f.debitErr
 }
 

@@ -96,7 +96,11 @@ func (l *RedisLimiter) Allow(ctx context.Context, subject string, cost uint64) (
 // sufficient positive value.
 //
 // ForceDebit always returns Allowed=true (or an error if Redis fails).
-func (l *RedisLimiter) ForceDebit(ctx context.Context, subject string, cost uint64) (*Result, error) {
+func (l *RedisLimiter) ForceDebit(
+	ctx context.Context,
+	subject string,
+	cost uint64,
+) (*Result, error) {
 	if cost == 0 {
 		return nil, ErrCostMustBeGreaterThanZero
 	}

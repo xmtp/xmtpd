@@ -68,7 +68,7 @@ func TestRateLimitIntegration_Tier2QueryDenyAfterBudgetExhausted(t *testing.T) {
 	}
 	wrapped := rl.WrapUnary(next)
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		_, err := wrapped(context.Background(), newQueryRequest("203.0.113.1:5001"))
 		require.NoError(t, err, "call %d should succeed", i)
 	}
@@ -131,7 +131,7 @@ func TestRateLimitIntegration_Tier0Bypass(t *testing.T) {
 	wrapped := rl.WrapUnary(next)
 
 	ctx := context.WithValue(context.Background(), constants.VerifiedNodeRequestCtxKey{}, true)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		_, err := wrapped(ctx, newQueryRequest("10.0.0.5:5001"))
 		require.NoError(t, err, "call %d should succeed under Tier 0 bypass", i)
 	}
@@ -166,7 +166,7 @@ func TestRateLimitIntegration_SubscribeOpensSubLimit(t *testing.T) {
 	}
 	wrapped := rl.WrapStreamingHandler(next)
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		require.NoError(t,
 			wrapped(context.Background(), newSubscribeConn("203.0.113.1:5001")),
 			"open %d should succeed", i)
@@ -200,7 +200,7 @@ func TestRateLimitIntegration_RedisDownTripsBreakerAndFailsOpen(t *testing.T) {
 	require.NoError(t, client.Close())
 
 	// First two failing calls trip the breaker; both fail open.
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		res, err := bl.Allow(context.Background(), "subj", 1)
 		require.NoError(t, err)
 		require.True(t, res.Allowed, "call %d should fail open", i)
@@ -208,7 +208,7 @@ func TestRateLimitIntegration_RedisDownTripsBreakerAndFailsOpen(t *testing.T) {
 	require.Equal(t, ratelimiter.BreakerOpen, cb.State())
 
 	// Subsequent calls bypass Redis entirely and remain fail-open.
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		res, err := bl.Allow(context.Background(), "subj", 1)
 		require.NoError(t, err)
 		require.True(t, res.Allowed, "post-trip call %d should fail open", i)

@@ -22,13 +22,21 @@ type fakeLimiter struct {
 	err         error
 }
 
-func (f *fakeLimiter) Allow(_ context.Context, subject string, cost uint64) (*ratelimiter.Result, error) {
+func (f *fakeLimiter) Allow(
+	_ context.Context,
+	subject string,
+	cost uint64,
+) (*ratelimiter.Result, error) {
 	f.lastSubject = subject
 	f.lastCost = cost
 	return f.result, f.err
 }
 
-func (f *fakeLimiter) ForceDebit(_ context.Context, _ string, _ uint64) (*ratelimiter.Result, error) {
+func (f *fakeLimiter) ForceDebit(
+	_ context.Context,
+	_ string,
+	_ uint64,
+) (*ratelimiter.Result, error) {
 	return &ratelimiter.Result{Allowed: true}, nil
 }
 
@@ -47,9 +55,9 @@ type mockConnectRequest struct {
 }
 
 func (m *mockConnectRequest) Header() http.Header { return m.header }
-func (m *mockConnectRequest) Peer() connect.Peer   { return m.peer }
-func (m *mockConnectRequest) Spec() connect.Spec   { return m.spec }
-func (m *mockConnectRequest) Any() any             { return m.body }
+func (m *mockConnectRequest) Peer() connect.Peer  { return m.peer }
+func (m *mockConnectRequest) Spec() connect.Spec  { return m.spec }
+func (m *mockConnectRequest) Any() any            { return m.body }
 
 // mockStreamingConn satisfies connect.StreamingHandlerConn for testing.
 type mockStreamingConn struct {
@@ -60,16 +68,16 @@ type mockStreamingConn struct {
 }
 
 func (m *mockStreamingConn) RequestHeader() http.Header { return m.header }
-func (m *mockStreamingConn) Peer() connect.Peer          { return m.peer }
-func (m *mockStreamingConn) Spec() connect.Spec          { return m.spec }
+func (m *mockStreamingConn) Peer() connect.Peer         { return m.peer }
+func (m *mockStreamingConn) Spec() connect.Spec         { return m.spec }
 
 // --- Routing helper tests ---
 
 func TestQueryApiMethod_FromProcedure(t *testing.T) {
 	tests := []struct {
-		name      string
-		procedure string
-		wantOk    bool
+		name       string
+		procedure  string
+		wantOk     bool
 		wantMethod QueryApiMethod
 	}{
 		{
@@ -178,7 +186,7 @@ func TestRateLimitInterceptor_BypassesNonQueryApi(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, handlerCalled, "handler should be called for non-QueryApi procedures")
 	// Limiter should not have been called.
-	assert.Equal(t, "", limiter.lastSubject)
+	assert.Empty(t, limiter.lastSubject)
 }
 
 func TestRateLimitInterceptor_Tier0BypassesLimiter(t *testing.T) {
@@ -208,7 +216,7 @@ func TestRateLimitInterceptor_Tier0BypassesLimiter(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.True(t, handlerCalled, "Tier0 handler should bypass rate limiting")
-	assert.Equal(t, "", limiter.lastSubject, "limiter should not be called for Tier0")
+	assert.Empty(t, limiter.lastSubject, "limiter should not be called for Tier0")
 }
 
 func TestRateLimitInterceptor_Tier2DeniedReturnsResourceExhausted(t *testing.T) {
@@ -266,7 +274,7 @@ func TestRateLimitInterceptor_Streaming_BypassesNonQueryApi(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.True(t, handlerCalled, "non-QueryApi streaming should pass through")
-	assert.Equal(t, "", limiter.lastSubject, "limiter should not be called for non-QueryApi")
+	assert.Empty(t, limiter.lastSubject, "limiter should not be called for non-QueryApi")
 }
 
 func TestRateLimitInterceptor_Streaming_Tier0Bypass(t *testing.T) {
@@ -295,7 +303,7 @@ func TestRateLimitInterceptor_Streaming_Tier0Bypass(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.True(t, handlerCalled, "Tier0 streaming should bypass rate limiting")
-	assert.Equal(t, "", limiter.lastSubject, "limiter should not be called for Tier0")
+	assert.Empty(t, limiter.lastSubject, "limiter should not be called for Tier0")
 }
 
 func TestRateLimitInterceptor_Streaming_OpensSubLimit_Denied(t *testing.T) {

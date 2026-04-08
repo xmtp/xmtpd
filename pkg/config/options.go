@@ -130,16 +130,16 @@ type RateLimitOptions struct {
 
 	// Subscription drain
 	DrainIntervalMinutes int `long:"drain-interval-minutes" env:"XMTPD_RATE_LIMIT_DRAIN_INTERVAL_MINUTES" description:"Minutes per subscription drain interval" default:"5"`
-	DrainAmount          int `long:"drain-amount"           env:"XMTPD_RATE_LIMIT_DRAIN_AMOUNT"           description:"Tokens per drain interval"                default:"1"`
+	DrainAmount          int `long:"drain-amount"           env:"XMTPD_RATE_LIMIT_DRAIN_AMOUNT"           description:"Tokens per drain interval"               default:"1"`
 
 	// Stream lifetime
 	StreamIdleTimeout time.Duration `long:"stream-idle-timeout" env:"XMTPD_RATE_LIMIT_STREAM_IDLE_TIMEOUT" description:"Cancel a stream that has had no activity for this duration" default:"15m"`
-	StreamMaxDuration time.Duration `long:"stream-max-duration" env:"XMTPD_RATE_LIMIT_STREAM_MAX_DURATION" description:"Hard cap on subscription stream lifetime"                  default:"60m"`
+	StreamMaxDuration time.Duration `long:"stream-max-duration" env:"XMTPD_RATE_LIMIT_STREAM_MAX_DURATION" description:"Hard cap on subscription stream lifetime"                   default:"60m"`
 
 	// Circuit breaker
 	BreakerFailureThreshold int           `long:"breaker-failure-threshold" env:"XMTPD_RATE_LIMIT_BREAKER_FAILURE_THRESHOLD" description:"Consecutive Redis failures before tripping the circuit breaker" default:"5"`
-	BreakerCooldown         time.Duration `long:"breaker-cooldown"          env:"XMTPD_RATE_LIMIT_BREAKER_COOLDOWN"          description:"How long the circuit breaker stays open before probing"          default:"10s"`
-	RedisCallTimeout        time.Duration `long:"redis-call-timeout"        env:"XMTPD_RATE_LIMIT_REDIS_CALL_TIMEOUT"        description:"Per-call Redis timeout"                                          default:"50ms"`
+	BreakerCooldown         time.Duration `long:"breaker-cooldown"          env:"XMTPD_RATE_LIMIT_BREAKER_COOLDOWN"          description:"How long the circuit breaker stays open before probing"         default:"10s"`
+	RedisCallTimeout        time.Duration `long:"redis-call-timeout"        env:"XMTPD_RATE_LIMIT_REDIS_CALL_TIMEOUT"        description:"Per-call Redis timeout"                                         default:"50ms"`
 
 	// Trusted proxy CIDRs (comma-separated)
 	TrustedProxyCIDRs string `long:"trusted-proxy-cidrs" env:"XMTPD_RATE_LIMIT_TRUSTED_PROXY_CIDRS" description:"Comma-separated trusted proxy CIDR list for X-Forwarded-For peeling"`

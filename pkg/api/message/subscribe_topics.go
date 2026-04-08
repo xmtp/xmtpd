@@ -45,7 +45,13 @@ func (s *Service) SubscribeTopics(
 	filters := req.Msg.GetFilters()
 
 	subject := subscribeSubjectFromRequest(req)
-	cleanup, err := applySubscribeAdmissionAndDrain(ctx, s.rateLimiter, s.rlConfig, subject, len(filters))
+	cleanup, err := applySubscribeAdmissionAndDrain(
+		ctx,
+		s.rateLimiter,
+		s.rlConfig,
+		subject,
+		len(filters),
+	)
 	if err != nil {
 		return err
 	}
@@ -166,7 +172,10 @@ func (s *Service) SubscribeTopics(
 		case <-maxC:
 			logger.Info("subscribe stream cancelled by max duration")
 			ratelimiter.StreamTerminationsTotal.WithLabelValues("max_duration").Inc()
-			return connect.NewError(connect.CodeDeadlineExceeded, errors.New("stream max duration reached"))
+			return connect.NewError(
+				connect.CodeDeadlineExceeded,
+				errors.New("stream max duration reached"),
+			)
 
 		case <-ctx.Done():
 			logger.Debug("topic subscription stream closed")
@@ -310,12 +319,12 @@ func applySubscribeAdmissionAndDrain(
 	if err != nil {
 		// BreakerLimiter handles errors and fails open, so this should not
 		// happen in practice. Defensive: treat as failure-open and proceed.
-		return func() {}, nil
+		return func() {}, nil //nolint:nilerr // intentional fail-open
 	}
 	if !res.Allowed {
 		return nil, connect.NewError(
 			connect.CodeResourceExhausted,
-			fmt.Errorf("subscribe admission rate limit exceeded"),
+			errors.New("subscribe admission rate limit exceeded"),
 		)
 	}
 

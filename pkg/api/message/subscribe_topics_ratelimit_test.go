@@ -17,7 +17,11 @@ type spyLimiter struct {
 	debitCost    uint64
 }
 
-func (s *spyLimiter) Allow(ctx context.Context, subject string, cost uint64) (*ratelimiter.Result, error) {
+func (s *spyLimiter) Allow(
+	ctx context.Context,
+	subject string,
+	cost uint64,
+) (*ratelimiter.Result, error) {
 	s.allowSubject = subject
 	s.allowCost = cost
 	if s.allowResult == nil {
@@ -26,7 +30,11 @@ func (s *spyLimiter) Allow(ctx context.Context, subject string, cost uint64) (*r
 	return s.allowResult, nil
 }
 
-func (s *spyLimiter) ForceDebit(ctx context.Context, subject string, cost uint64) (*ratelimiter.Result, error) {
+func (s *spyLimiter) ForceDebit(
+	ctx context.Context,
+	subject string,
+	cost uint64,
+) (*ratelimiter.Result, error) {
 	s.debitSubject = subject
 	s.debitCost = cost
 	return &ratelimiter.Result{Allowed: true}, nil
@@ -39,7 +47,13 @@ func TestApplySubscribeAdmissionAndDrain_ChargesAdmissionAndDrainsOnCleanup(t *t
 		DrainIntervalMinutes: 5,
 		DrainAmount:          1,
 	}
-	cleanup, err := applySubscribeAdmissionAndDrain(context.Background(), limiter, cfg, "203.0.113.1", 4)
+	cleanup, err := applySubscribeAdmissionAndDrain(
+		context.Background(),
+		limiter,
+		cfg,
+		"203.0.113.1",
+		4,
+	)
 	require.NoError(t, err)
 	require.Equal(t, uint64(2), limiter.allowCost) // ceil(sqrt(4))
 	require.Equal(t, "203.0.113.1", limiter.allowSubject)

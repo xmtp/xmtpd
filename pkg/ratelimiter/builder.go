@@ -2,6 +2,7 @@ package ratelimiter
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -37,7 +38,7 @@ func Build(
 		return nil, nil
 	}
 	if redisOpts.RedisURL == "" {
-		return nil, fmt.Errorf("rate limiting enabled but XMTPD_REDIS_URL is empty")
+		return nil, errors.New("rate limiting enabled but XMTPD_REDIS_URL is empty")
 	}
 
 	parsed, err := redis.ParseURL(redisOpts.RedisURL)
@@ -66,8 +67,14 @@ func Build(
 		return nil, fmt.Errorf("failed to construct opens limiter: %w", err)
 	}
 
-	queryWrapped := NewBreakerLimiter(queryInner, NewCircuitBreaker(rlOpts.BreakerFailureThreshold, rlOpts.BreakerCooldown))
-	opensWrapped := NewBreakerLimiter(opensInner, NewCircuitBreaker(rlOpts.BreakerFailureThreshold, rlOpts.BreakerCooldown))
+	queryWrapped := NewBreakerLimiter(
+		queryInner,
+		NewCircuitBreaker(rlOpts.BreakerFailureThreshold, rlOpts.BreakerCooldown),
+	)
+	opensWrapped := NewBreakerLimiter(
+		opensInner,
+		NewCircuitBreaker(rlOpts.BreakerFailureThreshold, rlOpts.BreakerCooldown),
+	)
 
 	cidrs, err := ParseTrustedProxyCIDRs(rlOpts.TrustedProxyCIDRs)
 	if err != nil {

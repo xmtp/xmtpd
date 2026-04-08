@@ -3,7 +3,7 @@ package server
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"net"
 	"strings"
 
@@ -135,7 +135,10 @@ func (i *RateLimitInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFu
 			ratelimiter.DecisionsTotal.WithLabelValues(
 				"QueryApi", string(method), "tier2", "denied",
 			).Inc()
-			return nil, connect.NewError(connect.CodeResourceExhausted, fmt.Errorf("rate limit exceeded"))
+			return nil, connect.NewError(
+				connect.CodeResourceExhausted,
+				errors.New("rate limit exceeded"),
+			)
 		}
 
 		ratelimiter.DecisionsTotal.WithLabelValues(
@@ -199,7 +202,10 @@ func (i *RateLimitInterceptor) WrapStreamingHandler(
 			ratelimiter.DecisionsTotal.WithLabelValues(
 				"QueryApi", "SubscribeTopics", "tier2", "denied",
 			).Inc()
-			return connect.NewError(connect.CodeResourceExhausted, fmt.Errorf("subscribe rate limit exceeded"))
+			return connect.NewError(
+				connect.CodeResourceExhausted,
+				errors.New("subscribe rate limit exceeded"),
+			)
 		}
 
 		ratelimiter.DecisionsTotal.WithLabelValues(

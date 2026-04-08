@@ -645,6 +645,38 @@ func TestRedisLimiter_ForceDebit_ZeroCostIsError(t *testing.T) {
 	require.ErrorIs(t, err, ratelimiter.ErrCostMustBeGreaterThanZero)
 }
 
+// TestRedisLimiter_ForceDebit_DeepNegativeBalanceTTLPersistsDebt is a
+// regression for a bug found in code review (PR #1938 macroscope High):
+// when force-debit drives the bucket more negative than -capacity, the TTL
+// must cover the full refill-from-debt time, otherwise the key expires
+// before the debt is repaid and the user gets free tokens on the next call.
+func TestRedisLimiter_ForceDebit_DeepNegativeBalanceTTLPersistsDebt(t *testing.T) {
+	client, keyPrefix := redistestutils.NewRedisForTest(t)
+	limiter, err := ratelimiter.NewRedisLimiter(client, keyPrefix, []ratelimiter.Limit{
+		{Capacity: 10, RefillEvery: time.Minute},
+	})
+	require.NoError(t, err)
+
+	ctx := context.Background()
+
+	// Drive the bucket to -90: well past -capacity. Time to refill back to
+	// full from -90 is (10 - (-90)) * 60s / 10 = 600s.
+	res, err := limiter.ForceDebit(ctx, "subj", 100)
+	require.NoError(t, err)
+	require.True(t, res.Allowed)
+	require.InDelta(t, -90.0, res.Balances[0].Remaining, 0.01)
+
+	// The bucket key is "<prefix>:<subject>:1" — see buildKeys.
+	bucketKey := keyPrefix + ":subj:1"
+	pttl, err := client.PTTL(ctx, bucketKey).Result()
+	require.NoError(t, err)
+	// Must be at least the full refill-from-debt time (~600s).
+	// Allow generous slop for clock skew, but anything below 5 minutes
+	// indicates the TTL was capped and the debt will be forgiven.
+	require.Greater(t, pttl, 5*time.Minute,
+		"deeply-negative bucket TTL was capped — debt would be forgiven prematurely (got %s)", pttl)
+}
+
 func TestRedisLimiter_ForceDebit_MultipleLimits(t *testing.T) {
 	client, keyPrefix := redistestutils.NewRedisForTest(t)
 	limiter, err := ratelimiter.NewRedisLimiter(client, keyPrefix, []ratelimiter.Limit{

@@ -156,23 +156,19 @@ if failed_index == 0 then
 
     -- Set each limit key with its value and expiration in a single call
     -- When a bucket is full, it expires after its refill period
-    -- When not full and non-negative, set TTL based on time to refill to capacity
-    -- When negative (force mode), set TTL capped at 2*refill to bound key lifetime
+    -- When the bucket has any other value (positive or negative from force mode),
+    -- the TTL is the time needed to refill from current level to full capacity.
+    -- Negative balances must persist until the debt is fully repaid — capping
+    -- the TTL would let the key expire early and forgive the debt.
     for i = 1, n do
         local ttl
         if tokens[i] >= caps[i] then
             -- Bucket is full - expire after full refill period
             ttl = refill_ms[i]
-        elseif tokens[i] >= 0 then
-            -- Bucket not full - calculate time to refill to capacity
-            -- TTL = time needed to refill from current level to full capacity
+        else
+            -- Time to refill from current (possibly negative) level to capacity
             local time_to_fill = (caps[i] - tokens[i]) * refill_ms[i] / caps[i]
             ttl = math.ceil(time_to_fill)
-        else
-            -- Negative balance (force mode): extra time to climb back to zero,
-            -- capped at 2*refill to bound key lifetime
-            local time_to_fill = (caps[i] - tokens[i]) * refill_ms[i] / caps[i]
-            ttl = math.ceil(math.min(time_to_fill, refill_ms[i] * 2))
         end
 
         -- Use SET with PX to set value and expiration atomically

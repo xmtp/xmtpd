@@ -16,13 +16,15 @@ func CostQuery(numTopics int) uint64 {
 }
 
 // CostSubscribeDrain returns the retrospective drain cost for a subscription
-// that was held open for `elapsed` time. Computed in whole intervals:
+// that was held open for `elapsed` time. The interval count is rounded up:
 // ceil(elapsed / intervalMinutes) intervals, each costing `drainAmount` tokens.
 //
-// A stream that closes within the first interval pays no drain cost. The
-// admission cost paid at open time and the subscribe-opens-per-minute sub-limit
-// together prevent open-and-immediately-close abuse — the drain is for held
-// resources only.
+// A stream that closes at exactly elapsed=0 pays no drain cost. Any non-zero
+// elapsed time within the first interval rounds up to one full interval —
+// rounding up (rather than down) means partial intervals are billed and a
+// client cannot avoid drain by closing just before each interval boundary.
+// Open-and-immediately-close abuse is bounded separately by the admission
+// cost paid at stream open and the subscribe-opens-per-minute sub-limit.
 func CostSubscribeDrain(elapsed time.Duration, intervalMinutes, drainAmount int) uint64 {
 	if elapsed <= 0 || intervalMinutes <= 0 || drainAmount <= 0 {
 		return 0

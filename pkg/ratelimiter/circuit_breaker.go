@@ -97,10 +97,15 @@ func (cb *CircuitBreaker) RecordSuccess() {
 
 // RecordFailure increments the consecutive failure count. If the count reaches
 // the threshold (or the breaker is in HalfOpen), the breaker opens and the
-// cooldown timer resets.
+// cooldown timer resets. Failures recorded while the breaker is already Open
+// are ignored — they would otherwise double-count BreakerTripsTotal and reset
+// openedAt repeatedly, extending the cooldown for inflight callers.
 func (cb *CircuitBreaker) RecordFailure() {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
+	if cb.state == BreakerOpen {
+		return
+	}
 	if cb.state == BreakerHalfOpen {
 		cb.state = BreakerOpen
 		cb.openedAt = time.Now()

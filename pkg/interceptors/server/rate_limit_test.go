@@ -40,8 +40,9 @@ func (f *fakeLimiter) ForceDebit(
 	return &ratelimiter.Result{Allowed: true}, nil
 }
 
-func newTestInterceptor(limiter *fakeLimiter) *RateLimitInterceptor {
-	logger := zaptest.NewLogger(&testing.T{})
+func newTestInterceptor(t *testing.T, limiter *fakeLimiter) *RateLimitInterceptor {
+	t.Helper()
+	logger := zaptest.NewLogger(t)
 	return NewRateLimitInterceptor(logger, limiter, limiter, nil, RateLimitInterceptorConfig{})
 }
 
@@ -165,7 +166,7 @@ func TestRateLimitInterceptor_BypassesNonQueryApi(t *testing.T) {
 	limiter := &fakeLimiter{
 		result: &ratelimiter.Result{Allowed: false},
 	}
-	interceptor := newTestInterceptor(limiter)
+	interceptor := newTestInterceptor(t, limiter)
 
 	req := &mockConnectRequest{
 		header: http.Header{},
@@ -193,7 +194,7 @@ func TestRateLimitInterceptor_Tier0BypassesLimiter(t *testing.T) {
 	limiter := &fakeLimiter{
 		result: &ratelimiter.Result{Allowed: false},
 	}
-	interceptor := newTestInterceptor(limiter)
+	interceptor := newTestInterceptor(t, limiter)
 
 	req := &mockConnectRequest{
 		header: http.Header{},
@@ -223,7 +224,7 @@ func TestRateLimitInterceptor_Tier2DeniedReturnsResourceExhausted(t *testing.T) 
 	limiter := &fakeLimiter{
 		result: &ratelimiter.Result{Allowed: false},
 	}
-	interceptor := newTestInterceptor(limiter)
+	interceptor := newTestInterceptor(t, limiter)
 
 	req := &mockConnectRequest{
 		header: http.Header{},
@@ -255,7 +256,7 @@ func TestRateLimitInterceptor_Streaming_BypassesNonQueryApi(t *testing.T) {
 	limiter := &fakeLimiter{
 		result: &ratelimiter.Result{Allowed: false},
 	}
-	interceptor := newTestInterceptor(limiter)
+	interceptor := newTestInterceptor(t, limiter)
 
 	conn := &mockStreamingConn{
 		header: http.Header{},
@@ -281,7 +282,7 @@ func TestRateLimitInterceptor_Streaming_Tier0Bypass(t *testing.T) {
 	limiter := &fakeLimiter{
 		result: &ratelimiter.Result{Allowed: false},
 	}
-	interceptor := newTestInterceptor(limiter)
+	interceptor := newTestInterceptor(t, limiter)
 
 	conn := &mockStreamingConn{
 		header: http.Header{},
@@ -310,7 +311,7 @@ func TestRateLimitInterceptor_Streaming_OpensSubLimit_Denied(t *testing.T) {
 	limiter := &fakeLimiter{
 		result: &ratelimiter.Result{Allowed: false},
 	}
-	interceptor := newTestInterceptor(limiter)
+	interceptor := newTestInterceptor(t, limiter)
 
 	conn := &mockStreamingConn{
 		header: http.Header{},

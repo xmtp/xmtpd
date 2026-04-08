@@ -36,6 +36,31 @@ func TestCircuitBreaker_HalfOpenAfterCooldown(t *testing.T) {
 	require.Equal(t, BreakerHalfOpen, cb.State())
 }
 
+// TestCircuitBreaker_RecordFailureWhileOpenIsIdempotent is a regression for
+// PR #1938 macroscope Medium: when several inflight calls fail after the
+// breaker has already opened, RecordFailure must not double-count the trip
+// in BreakerTripsTotal nor reset openedAt (which would extend the cooldown).
+func TestCircuitBreaker_RecordFailureWhileOpenIsIdempotent(t *testing.T) {
+	cb := NewCircuitBreaker(1, time.Hour)
+	cb.RecordFailure()
+	require.Equal(t, BreakerOpen, cb.State())
+	openedAt := cb.openedAt
+	failureCount := cb.failureCount
+
+	// Simulate further inflight calls failing while already open.
+	for range 10 {
+		cb.RecordFailure()
+	}
+	require.Equal(t, BreakerOpen, cb.State())
+	require.Equal(
+		t,
+		openedAt,
+		cb.openedAt,
+		"openedAt must not be reset by failures while already open",
+	)
+	require.Equal(t, failureCount, cb.failureCount, "failureCount must not grow while already open")
+}
+
 func TestCircuitBreaker_HalfOpenSuccessClosesCircuit(t *testing.T) {
 	cb := NewCircuitBreaker(1, 50*time.Millisecond)
 	cb.RecordFailure()

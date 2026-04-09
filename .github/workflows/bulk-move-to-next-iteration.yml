@@ -1,3 +1,5 @@
+name: "Planning: move current tickets to next iteration"
+
 on:
   workflow_dispatch:
 

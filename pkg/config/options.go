@@ -119,6 +119,29 @@ type ReflectionOptions struct {
 	Enable bool `long:"enable" env:"XMTPD_REFLECTION_ENABLE" description:"Enable GRPC reflection"`
 }
 
+// RateLimitOptions controls the QueryApi rate-limiting interceptor.
+//
+// Iteration 1 only provides admission-time enforcement: per-IP token buckets
+// on unary QueryApi calls plus a subscribe-opens-per-minute sub-limit.
+// Continual drain of long-held subscribe streams is deferred to
+// xmtp/xmtpd#1957.
+type RateLimitOptions struct {
+	Enable bool `long:"enable" env:"XMTPD_RATE_LIMIT_ENABLE" description:"Enable QueryApi rate limiting (requires Redis)"`
+
+	// Tier 2 bucket limits
+	T2PerMinuteCapacity       int `long:"t2-per-minute-capacity"        env:"XMTPD_RATE_LIMIT_T2_PER_MINUTE_CAPACITY"        description:"Tier 2 per-minute token capacity"  default:"60"`
+	T2PerHourCapacity         int `long:"t2-per-hour-capacity"          env:"XMTPD_RATE_LIMIT_T2_PER_HOUR_CAPACITY"          description:"Tier 2 per-hour token capacity"    default:"1200"`
+	T2SubscribeOpensPerMinute int `long:"t2-subscribe-opens-per-minute" env:"XMTPD_RATE_LIMIT_T2_SUBSCRIBE_OPENS_PER_MINUTE" description:"Tier 2 subscribe-opens per minute" default:"10"`
+
+	// Circuit breaker
+	BreakerFailureThreshold int           `long:"breaker-failure-threshold" env:"XMTPD_RATE_LIMIT_BREAKER_FAILURE_THRESHOLD" description:"Consecutive Redis failures before tripping the circuit breaker" default:"5"`
+	BreakerCooldown         time.Duration `long:"breaker-cooldown"          env:"XMTPD_RATE_LIMIT_BREAKER_COOLDOWN"          description:"How long the circuit breaker stays open before probing"         default:"10s"`
+	RedisCallTimeout        time.Duration `long:"redis-call-timeout"        env:"XMTPD_RATE_LIMIT_REDIS_CALL_TIMEOUT"        description:"Per-call Redis timeout"                                         default:"50ms"`
+
+	// Trusted proxy CIDRs (comma-separated)
+	TrustedProxyCIDRs string `long:"trusted-proxy-cidrs" env:"XMTPD_RATE_LIMIT_TRUSTED_PROXY_CIDRS" description:"Comma-separated trusted proxy CIDR list for X-Forwarded-For peeling"`
+}
+
 type LogOptions struct {
 	LogLevel    string `short:"l" long:"log-level"    env:"XMTPD_LOG_LEVEL"    description:"Define the logging level, supported strings are: DEBUG, INFO, WARN, ERROR, DPANIC, PANIC, FATAL, and their lower-case forms." default:"INFO"`
 	LogEncoding string `          long:"log-encoding" env:"XMTPD_LOG_ENCODING" description:"Log encoding format. Either console or json"                                                                                  default:"console"`
@@ -147,6 +170,8 @@ type ServerOptions struct {
 	MlsValidation   MlsValidationOptions   `group:"MLS Validation Options"   namespace:"mls-validation"`
 	Payer           PayerOptions           `group:"Payer Options"            namespace:"payer"`
 	PayerReport     PayerReportOptions     `group:"Payer Report Options"     namespace:"payer-report"`
+	Redis           RedisOptions           `group:"Redis Options"            namespace:"redis"`
+	RateLimit       RateLimitOptions       `group:"Rate Limit Options"       namespace:"rate-limit"`
 	Reflection      ReflectionOptions      `group:"Reflection Options"       namespace:"reflection"`
 	Replication     ReplicationOptions     `group:"API Options"              namespace:"replication"`
 	Signer          SignerOptions          `group:"Signer Options"           namespace:"signer"`

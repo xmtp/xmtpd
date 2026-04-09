@@ -314,6 +314,8 @@ func NewTestAPIServer(
 			10*time.Millisecond,
 			dbPkg.NewCachedOriginatorList(db.ReadQuery(), 100*time.Millisecond, log),
 			ledgerPkg.NewLedger(log, db),
+			nil,
+			message.RateLimitConfig{},
 		)
 		require.NoError(t, err)
 

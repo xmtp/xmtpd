@@ -26,6 +26,7 @@ import (
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	message_apiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api/message_apiconnect"
+	"github.com/xmtp/xmtpd/pkg/ratelimiter"
 	"github.com/xmtp/xmtpd/pkg/registrant"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/topic"
@@ -47,6 +48,14 @@ const (
 	requestMissingMessageError = "missing request message"
 )
 
+// RateLimitConfig is the subset of rate-limit options the message Service
+// needs at handler-time. Currently only a feature flag — the admission cost
+// formula lives in the ratelimiter package. Kept as a struct so future knobs
+// (see xmtp/xmtpd#1957) have a place to land without changing call sites.
+type RateLimitConfig struct {
+	Enabled bool
+}
+
 type Service struct {
 	message_apiconnect.UnimplementedReplicationApiHandler
 
@@ -63,6 +72,8 @@ type Service struct {
 	migrationEnabled  bool
 	originatorList    db.OriginatorLister
 	ledger            ledger.ILedger
+	rateLimiter       ratelimiter.RateLimiter // nil when rate limiting disabled
+	rlConfig          RateLimitConfig
 }
 
 var (
@@ -86,6 +97,8 @@ func NewReplicationAPIService(
 	sleepOnFailureTime time.Duration,
 	originatorList db.OriginatorLister,
 	ledger ledger.ILedger,
+	rateLimiter ratelimiter.RateLimiter,
+	rlConfig RateLimitConfig,
 ) (*Service, error) {
 	if validationService == nil {
 		return nil, errors.New("validation service must not be nil")
@@ -128,6 +141,8 @@ func NewReplicationAPIService(
 		migrationEnabled:  migrationEnabled,
 		originatorList:    originatorList,
 		ledger:            ledger,
+		rateLimiter:       rateLimiter,
+		rlConfig:          rlConfig,
 	}, nil
 }
 

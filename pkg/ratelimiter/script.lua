@@ -47,7 +47,7 @@ local tokens    = {} -- Current token count for each limit (after refill)
 
 -- Parse limit configurations from ARGV
 -- Arguments come in pairs: [capacity, refill_time, capacity, refill_time, ...]
-local idx       = 4 -- Start after the first 3 arguments
+local idx       = 4 -- Start after the first 3 arguments (now_ms, num_limits, cost)
 for i = 1, n do
     caps[i] = tonumber(ARGV[idx])
     idx = idx + 1
@@ -138,17 +138,16 @@ if failed_index == 0 then
         redis.call("SET", ts_key, tostring(now_ms))
     end
 
-    -- Set each limit key with its value and expiration in a single call
-    -- When a bucket is full, it expires after its refill period
-    -- When not full, set TTL based on time to refill to capacity
+    -- Set each limit key with its value and expiration in a single call.
+    -- When a bucket is full, expire after its refill period.
+    -- Otherwise the TTL is the time needed to refill to full capacity.
     for i = 1, n do
         local ttl
         if tokens[i] >= caps[i] then
             -- Bucket is full - expire after full refill period
             ttl = refill_ms[i]
         else
-            -- Bucket not full - calculate time to refill to capacity
-            -- TTL = time needed to refill from current level to full capacity
+            -- Time to refill from current level to capacity
             local time_to_fill = (caps[i] - tokens[i]) * refill_ms[i] / caps[i]
             ttl = math.ceil(time_to_fill)
         end

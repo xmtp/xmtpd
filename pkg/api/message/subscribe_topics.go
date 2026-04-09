@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net"
 	"time"
 
 	"connectrpc.com/connect"
@@ -17,7 +18,9 @@ import (
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
+	"github.com/xmtp/xmtpd/pkg/ratelimiter"
 	"github.com/xmtp/xmtpd/pkg/utils"
+	"github.com/xmtp/xmtpd/pkg/utils/clientip"
 	"github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 )
 
@@ -40,6 +43,14 @@ func (s *Service) SubscribeTopics(
 		)
 	}
 
+	filters := req.Msg.GetFilters()
+
+	subject := subscribeSubjectFromRequest(req)
+	err := applySubscribeAdmission(ctx, s.rateLimiter, s.rlConfig, subject, len(filters))
+	if err != nil {
+		return err
+	}
+
 	logger := s.logger.With(utils.MethodField(req.Spec().Procedure))
 
 	if s.logger.Core().Enabled(zap.DebugLevel) {
@@ -47,7 +58,7 @@ func (s *Service) SubscribeTopics(
 	}
 
 	// Send STARTED status so wasm-based clients maintain the connection open.
-	err := stream.Send(newSubscriptionStatusMessage(
+	err = stream.Send(newSubscriptionStatusMessage(
 		message_api.SubscribeTopicsResponse_SUBSCRIPTION_STATUS_STARTED,
 	))
 	if err != nil {
@@ -56,8 +67,6 @@ func (s *Service) SubscribeTopics(
 			fmt.Errorf("could not send status: %w", err),
 		)
 	}
-
-	filters := req.Msg.GetFilters()
 
 	knownOriginators, err := s.originatorList.GetOriginatorNodeIDs(ctx)
 	if err != nil {
@@ -223,6 +232,57 @@ func buildTopicCursors(
 	}
 
 	return cursors, topics, topicKeys
+}
+
+// subscribeTrustedCIDRs is configured at server startup and consumed by the
+// subscribe handler when extracting the client IP for rate-limit billing.
+var subscribeTrustedCIDRs []*net.IPNet
+
+// SetSubscribeTrustedCIDRs configures the trusted-proxy CIDRs used by the
+// subscribe handler for IP keying. Called once at server startup.
+func SetSubscribeTrustedCIDRs(cidrs []*net.IPNet) {
+	subscribeTrustedCIDRs = cidrs
+}
+
+func subscribeSubjectFromRequest(req *connect.Request[message_api.SubscribeTopicsRequest]) string {
+	return clientip.Extract(
+		req.Peer().Addr,
+		req.Header().Get("X-Forwarded-For"),
+		subscribeTrustedCIDRs,
+	)
+}
+
+// applySubscribeAdmission charges the admission cost (ceil(sqrt(numFilters))
+// tokens) for opening a SubscribeTopics stream. It does not track the stream's
+// lifetime — continual billing of long-held streams is intentionally deferred
+// to xmtp/xmtpd#1957.
+//
+// When rate limiting is disabled (cfg.Enabled == false) or the limiter is nil
+// this is a no-op.
+func applySubscribeAdmission(
+	ctx context.Context,
+	limiter ratelimiter.RateLimiter,
+	cfg RateLimitConfig,
+	subject string,
+	numFilters int,
+) error {
+	if !cfg.Enabled || limiter == nil {
+		return nil
+	}
+
+	cost := ratelimiter.CostQuery(numFilters)
+	res, err := limiter.Allow(ctx, subject, cost)
+	if err != nil {
+		// BreakerLimiter handles errors and fails open; defensive no-op here.
+		return nil //nolint:nilerr // intentional fail-open
+	}
+	if !res.Allowed {
+		return connect.NewError(
+			connect.CodeResourceExhausted,
+			errors.New("subscribe admission rate limit exceeded"),
+		)
+	}
+	return nil
 }
 
 // fetchTopicEnvelopesWithRetry fetches envelopes using exponential backoff.

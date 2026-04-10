@@ -2,20 +2,26 @@ package ratelimiter
 
 import (
 	"context"
+	_ "embed"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 )
 
-// RedisStreamLimiter tracks concurrent stream counts using Redis INCR/DECR.
-// Each subject (IP) gets a single Redis key whose value is the current stream
-// count. A TTL on the key provides crash recovery: if a process dies without
-// calling Release, the key expires and the slot is freed.
+//go:embed stream_script.lua
+var streamLuaScript string
+
+// RedisStreamLimiter tracks concurrent stream counts using a Lua script
+// for atomic acquire/release. Each subject (IP) gets a single Redis key
+// whose value is the current stream count. A TTL on the key provides crash
+// recovery: if a process dies without calling Release, the key expires and
+// the slot is freed.
 type RedisStreamLimiter struct {
 	client    redis.UniversalClient
+	script    *redis.Script
 	keyPrefix string
-	maxCount  int64
-	ttl       time.Duration
+	maxCount  int
+	ttlMs     int64
 }
 
 // NewRedisStreamLimiter creates a RedisStreamLimiter.
@@ -30,9 +36,10 @@ func NewRedisStreamLimiter(
 ) *RedisStreamLimiter {
 	return &RedisStreamLimiter{
 		client:    client,
+		script:    redis.NewScript(streamLuaScript),
 		keyPrefix: keyPrefix,
-		maxCount:  int64(maxCount),
-		ttl:       ttl,
+		maxCount:  maxCount,
+		ttlMs:     ttl.Milliseconds(),
 	}
 }
 
@@ -40,45 +47,29 @@ func (l *RedisStreamLimiter) key(subject string) string {
 	return l.keyPrefix + subject
 }
 
-// Acquire atomically increments the stream count for the subject. If the new
-// count exceeds maxCount, it immediately decrements and returns allowed=false.
+// Acquire atomically checks the current count and increments only if below
+// maxCount. Returns allowed=true if the stream was admitted.
 func (l *RedisStreamLimiter) Acquire(ctx context.Context, subject string) (bool, error) {
-	k := l.key(subject)
-
-	count, err := l.client.Incr(ctx, k).Result()
+	result, err := l.script.Run(
+		ctx, l.client, []string{l.key(subject)},
+		"acquire", l.maxCount, l.ttlMs,
+	).Int64()
 	if err != nil {
 		return false, err
 	}
-
-	if count > l.maxCount {
-		// Over limit — roll back the increment.
-		l.client.Decr(ctx, k)
-		return false, nil
-	}
-
-	// Set/refresh TTL on successful acquire.
-	l.client.Expire(ctx, k, l.ttl)
-	return true, nil
+	return result == 1, nil
 }
 
-// Release decrements the stream count for the subject. The count is clamped
-// at zero to prevent negative drift from orphan releases.
+// Release atomically decrements the stream count, clamped at zero.
 func (l *RedisStreamLimiter) Release(ctx context.Context, subject string) error {
-	k := l.key(subject)
-
-	val, err := l.client.Decr(ctx, k).Result()
-	if err != nil {
-		return err
-	}
-
-	// Clamp at zero: if DECR produced a negative value, reset to 0.
-	if val < 0 {
-		l.client.Set(ctx, k, 0, l.ttl)
-	}
-	return nil
+	_, err := l.script.Run(
+		ctx, l.client, []string{l.key(subject)},
+		"release", 0, l.ttlMs,
+	).Result()
+	return err
 }
 
 // RefreshTTL resets the key's TTL to keep it alive while a stream is open.
 func (l *RedisStreamLimiter) RefreshTTL(ctx context.Context, subject string) error {
-	return l.client.Expire(ctx, l.key(subject), l.ttl).Err()
+	return l.client.PExpire(ctx, l.key(subject), time.Duration(l.ttlMs)*time.Millisecond).Err()
 }

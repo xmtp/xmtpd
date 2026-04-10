@@ -559,6 +559,21 @@ func startAPIServer(
 			}
 		}
 
+		notificationHandlerOpts := handlerOpts
+		if built != nil {
+			slInterceptor := server.NewStreamLimitInterceptor(
+				cfg.Logger,
+				built.StreamLimiter,
+				built.TrustedCIDRs,
+				cfg.Options.RateLimit.StreamRefreshInterval,
+			)
+			notificationHandlerOpts = []connect.HandlerOption{
+				connect.WithReadMaxBytes(constants.GRPCPayloadLimit),
+				connect.WithSendMaxBytes(constants.GRPCPayloadLimit),
+				connect.WithInterceptors(append(interceptors, slInterceptor)...),
+			}
+		}
+
 		replicationPath, replicationHandler := message_apiconnect.NewReplicationApiHandler(
 			replicationService, handlerOpts...,
 		)
@@ -569,7 +584,7 @@ func startAPIServer(
 			replicationService, handlerOpts...,
 		)
 		notificationPath, notificationHandler := message_apiconnect.NewNotificationApiHandler(
-			replicationService, handlerOpts...,
+			replicationService, notificationHandlerOpts...,
 		)
 
 		mux.Handle(replicationPath, replicationHandler)

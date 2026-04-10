@@ -9,7 +9,6 @@ on:
       - "Upgrade Tests"
       - "Lint"
       - "Lint Shellcheck"
-      - "Publish Gateway npm Package"
       - "Test"
       - "Nightly Automation"
     types: [completed]

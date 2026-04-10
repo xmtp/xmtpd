@@ -18,9 +18,10 @@ import (
 // key prefixes), the parsed trusted-proxy CIDRs, and is consumed by the server
 // when constructing the rate-limit interceptor.
 type BuiltLimiter struct {
-	QueryLimiter RateLimiter // BreakerLimiter wrapping a RedisLimiter([per-minute, per-hour])
-	OpensLimiter RateLimiter // BreakerLimiter wrapping a RedisLimiter([opens-per-minute])
-	TrustedCIDRs []*net.IPNet
+	QueryLimiter  RateLimiter   // BreakerLimiter wrapping a RedisLimiter([per-minute, per-hour])
+	OpensLimiter  RateLimiter   // BreakerLimiter wrapping a RedisLimiter([opens-per-minute])
+	StreamLimiter StreamLimiter // BreakerStreamLimiter wrapping a RedisStreamLimiter
+	TrustedCIDRs  []*net.IPNet
 }
 
 // Build constructs the rate-limit subsystem from server configuration. If
@@ -77,6 +78,18 @@ func Build(
 		NewCircuitBreaker(rlOpts.BreakerFailureThreshold, rlOpts.BreakerCooldown),
 	)
 
+	streamInner := NewRedisStreamLimiter(
+		client,
+		redisOpts.KeyPrefix+"rl:streams:",
+		rlOpts.T1MaxConcurrentStreams,
+		rlOpts.StreamTTL,
+	)
+	streamLimiter := NewBreakerStreamLimiter(
+		streamInner,
+		NewCircuitBreaker(rlOpts.BreakerFailureThreshold, rlOpts.BreakerCooldown),
+		logger,
+	)
+
 	cidrs, err := clientip.ParseTrustedProxyCIDRs(rlOpts.TrustedProxyCIDRs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse trusted proxy CIDRs: %w", err)
@@ -86,10 +99,14 @@ func Build(
 		zap.Int("t2_per_minute", rlOpts.T2PerMinuteCapacity),
 		zap.Int("t2_per_hour", rlOpts.T2PerHourCapacity),
 		zap.Int("t2_subscribe_opens_per_minute", rlOpts.T2SubscribeOpensPerMinute),
+		zap.Int("t1_max_concurrent_streams", rlOpts.T1MaxConcurrentStreams),
+		zap.Duration("stream_ttl", rlOpts.StreamTTL),
+		zap.Duration("stream_refresh_interval", rlOpts.StreamRefreshInterval),
 	)
 	return &BuiltLimiter{
-		QueryLimiter: queryWrapped,
-		OpensLimiter: opensWrapped,
-		TrustedCIDRs: cidrs,
+		QueryLimiter:  queryWrapped,
+		OpensLimiter:  opensWrapped,
+		StreamLimiter: streamLimiter,
+		TrustedCIDRs:  cidrs,
 	}, nil
 }

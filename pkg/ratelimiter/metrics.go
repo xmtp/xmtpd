@@ -29,6 +29,7 @@ var (
 func Register(reg prometheus.Registerer) {
 	for _, c := range []prometheus.Collector{
 		DecisionsTotal, BreakerStateGauge, BreakerTripsTotal,
+		StreamDecisionsTotal, StreamActiveStreams,
 	} {
 		_ = reg.Register(c)
 	}

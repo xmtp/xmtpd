@@ -7,15 +7,19 @@ import (
 	"github.com/xmtp/xmtpd/pkg/db"
 )
 
-// AwaitCursor blocks until the subscribe worker has polled past all sequence IDs in vc.
-// Only compiled during testing (export_test.go pattern).
+// AwaitCursor blocks until the subscribe worker has *dispatched* every
+// sequence ID in vc to its listeners. This is stronger than "polled past" —
+// it guarantees the start() loop has already handed those rows off, so any
+// listener registered after this call will not retroactively receive them.
+// Tests rely on this guarantee to pre-seed envelopes before opening a stream
+// without racing the worker's dispatch loop.
 func (s *Service) AwaitCursor(ctx context.Context, vc db.VectorClock) error {
 	const checkInterval = 5 * time.Millisecond
 	ticker := time.NewTicker(checkInterval)
 	defer ticker.Stop()
 
 	for {
-		if s.subscribeWorker.subscriptions.cursorMet(vc) {
+		if s.subscribeWorker.dispatchedMet(vc) {
 			return nil
 		}
 		select {
@@ -55,16 +59,4 @@ func (s *subscribeWorker) countGlobalListeners() int {
 		return true
 	})
 	return count
-}
-
-func (s *subscriptionHandler) cursorMet(vc db.VectorClock) bool {
-	s.Lock()
-	defer s.Unlock()
-	for nodeID, minSeq := range vc {
-		poller, ok := s.subs[nodeID]
-		if !ok || uint64(poller.sub.LastSeen()) < minSeq {
-			return false
-		}
-	}
-	return true
 }

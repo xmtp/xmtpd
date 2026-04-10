@@ -1348,23 +1348,31 @@ func TestSubscribeAll_StreamsOnlyNewMessages(t *testing.T) {
 	)
 
 	// Envelope data.
+	//
+	// generateEnvelopes returns `perNode` envelopes *per* originator, so with
+	// 2 nodes we get 2 * perNode total envelopes. We only insert the first
+	// `initialBatchSize` as pre-seeds and the next `streamSize` as the new
+	// batch the stream should observe; the remainder are generated but never
+	// inserted. Slicing by exact bounds (rather than [initialBatchSize:])
+	// keeps the post-subscribe insert count to exactly streamSize — otherwise
+	// the stream races past streamSize and the final equality check fails.
 	var (
 		initialBatchSize = 5
 		streamSize       = 5
-		totalMessages    = initialBatchSize + streamSize
+		perNode          = initialBatchSize + streamSize
 
 		sourceEnvelopes = flattenEnvelopeMap(
 			generateEnvelopes(
 				t,
 				nodeIDs,
-				totalMessages,
-				totalMessages, // Let's get exactly N messages.
+				perNode,
+				perNode, // Exactly perNode per node.
 				payerID,
 				subTopic,
 			))
 
 		initialBatch = sourceEnvelopes[:initialBatchSize]
-		streamBatch  = sourceEnvelopes[initialBatchSize:]
+		streamBatch  = sourceEnvelopes[initialBatchSize : initialBatchSize+streamSize]
 	)
 	defer cancel()
 

@@ -18,8 +18,8 @@ import (
 // key prefixes), the parsed trusted-proxy CIDRs, and is consumed by the server
 // when constructing the rate-limit interceptor.
 type BuiltLimiter struct {
-	QueryLimiter  RateLimiter // BreakerLimiter wrapping a RedisLimiter([per-minute, per-hour])
-	OpensLimiter  RateLimiter // BreakerLimiter wrapping a RedisLimiter([opens-per-minute])
+	QueryLimiter  RateLimiter   // BreakerLimiter wrapping a RedisLimiter([per-minute, per-hour])
+	OpensLimiter  RateLimiter   // BreakerLimiter wrapping a RedisLimiter([opens-per-minute])
 	StreamLimiter StreamLimiter // BreakerStreamLimiter wrapping a RedisStreamLimiter
 	TrustedCIDRs  []*net.IPNet
 }

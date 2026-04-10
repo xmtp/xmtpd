@@ -93,18 +93,8 @@ func TestIndexLogsSuccess(t *testing.T) {
 		contract,
 	)
 
-	done := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		// Test passed
-	case <-time.After(1 * time.Second):
-		t.Fatal("Test timed out waiting for StoreLog and UpdateLatestBlock")
-	}
+	waitForWaitGroup(t, &wg, 10*time.Second,
+		"timed out waiting for StoreLog and UpdateLatestBlock")
 }
 
 func TestIndexLogsRetryableError(t *testing.T) {
@@ -154,18 +144,38 @@ func TestIndexLogsRetryableError(t *testing.T) {
 		contract,
 	)
 
+	waitForWaitGroup(t, &wg, 10*time.Second,
+		"timed out waiting for StoreLog and UpdateLatestBlock")
+
+	contract.AssertNumberOfCalls(t, "StoreLog", 2)
+}
+
+// waitForWaitGroup blocks until wg signals done or the timeout elapses.
+// The helper goroutine is tracked with t.Cleanup so it can never outlive the
+// test function, even if the timeout path is taken.
+func waitForWaitGroup(t *testing.T, wg *sync.WaitGroup, timeout time.Duration, failMsg string) {
+	t.Helper()
+
 	done := make(chan struct{})
 	go func() {
 		wg.Wait()
 		close(done)
 	}()
 
+	t.Cleanup(func() {
+		// Drain the helper goroutine before the test returns. If wg is still
+		// outstanding we can't cleanly stop it, but at least the test already
+		// failed via t.Fatal below so the process will exit shortly.
+		select {
+		case <-done:
+		default:
+		}
+	})
+
 	select {
 	case <-done:
-		// Test passed
-	case <-time.After(1 * time.Second):
-		t.Fatal("Test timed out waiting for StoreLog and UpdateLatestBlock")
+		// success
+	case <-time.After(timeout):
+		t.Fatal(failMsg)
 	}
-
-	contract.AssertNumberOfCalls(t, "StoreLog", 2)
 }

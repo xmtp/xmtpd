@@ -9,6 +9,7 @@ import (
 	"runtime/pprof"
 	"strconv"
 	"sync"
+	"sync/atomic"
 
 	"go.uber.org/zap"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace"
@@ -66,7 +67,7 @@ func StartSpanFromContext(
 	operationName string,
 	opts ...ddtrace.StartSpanOption,
 ) (Span, context.Context) {
-	if !apmEnabled {
+	if !apmEnabled.Load() {
 		return noopSpanInstance, ctx
 	}
 	return tracer.StartSpanFromContext(ctx, operationName, opts...)
@@ -75,7 +76,7 @@ func StartSpanFromContext(
 // StartSpan creates a new root span.
 // Returns a no-op span when tracing is disabled.
 func StartSpan(operationName string, opts ...ddtrace.StartSpanOption) Span {
-	if !apmEnabled {
+	if !apmEnabled.Load() {
 		return noopSpanInstance
 	}
 	return tracer.StartSpan(operationName, opts...)
@@ -90,7 +91,10 @@ func (l logger) Log(msg string) {
 // apmEnabled tracks whether tracing was started (for conditional span creation).
 // Controlled exclusively by XMTPD_TRACING_ENABLE at the application level.
 // When false, all span creation functions return no-ops with zero overhead.
-var apmEnabled bool
+//
+// Stored as atomic.Bool so tests that flip it on/off via SetEnabledForTesting
+// don't race with concurrent readers in tracing hot paths.
+var apmEnabled atomic.Bool
 
 // Start boots the datadog tracer, run this once early in the startup sequence.
 // Tracing is gated by XMTPD_TRACING_ENABLE at the application config level;
@@ -102,7 +106,7 @@ var apmEnabled bool
 //   - DD_TRACE_AGENT_PORT: Datadog agent port (standard DD env var, default: "8126")
 //   - APM_SAMPLE_RATE: Sample rate 0.0-1.0 (default: 1.0 dev/test, 0.1 prod)
 func Start(version string, l *zap.Logger) {
-	apmEnabled = true
+	apmEnabled.Store(true)
 
 	env := os.Getenv("ENV")
 	if env == "" {
@@ -162,16 +166,15 @@ func getSampleRate(env string, l *zap.Logger) float64 {
 // IsEnabled returns whether APM tracing is currently enabled.
 // Use this to conditionally skip expensive span creation.
 func IsEnabled() bool {
-	return apmEnabled
+	return apmEnabled.Load()
 }
 
 // SetEnabledForTesting overrides the apmEnabled flag for use in tests.
 // Returns a cleanup function that restores the previous state.
 // This must only be called from test code.
 func SetEnabledForTesting(enabled bool) func() {
-	prev := apmEnabled
-	apmEnabled = enabled
-	return func() { apmEnabled = prev }
+	prev := apmEnabled.Swap(enabled)
+	return func() { apmEnabled.Store(prev) }
 }
 
 // Stop shuts down the datadog tracer, defer this right after Start().
@@ -238,7 +241,7 @@ func PanicWrap(ctx context.Context, name string, body func(context.Context)) {
 // DD APM should provide some additional functionality based on that.
 // Returns the logger unchanged when tracing is disabled.
 func Link(span Span, l *zap.Logger) *zap.Logger {
-	if !apmEnabled {
+	if !apmEnabled.Load() {
 		return l
 	}
 	return l.With(
@@ -247,14 +250,14 @@ func Link(span Span, l *zap.Logger) *zap.Logger {
 }
 
 func SpanType(span Span, typ string) {
-	if !apmEnabled {
+	if !apmEnabled.Load() {
 		return
 	}
 	span.SetTag(ext.SpanType, typ)
 }
 
 func SpanResource(span Span, resource string) {
-	if !apmEnabled {
+	if !apmEnabled.Load() {
 		return
 	}
 	span.SetTag(ext.ResourceName, resource)
@@ -264,7 +267,7 @@ func SpanResource(span Span, resource string) {
 // String values longer than MaxTagValueLength (in runes) are truncated.
 // Uses rune-based truncation to safely handle multi-byte UTF-8 characters.
 func SpanTag(span Span, key string, value any) {
-	if !apmEnabled {
+	if !apmEnabled.Load() {
 		return
 	}
 	// Truncate long strings to prevent excessive payload sizes
@@ -302,7 +305,7 @@ func GoPanicWrap(
 // workflows where the parent context may or may not be available.
 // Returns a no-op span when tracing is disabled.
 func StartSpanWithParent(operationName string, parentCtx ddtrace.SpanContext) Span {
-	if !apmEnabled {
+	if !apmEnabled.Load() {
 		return noopSpanInstance
 	}
 	if parentCtx != nil {

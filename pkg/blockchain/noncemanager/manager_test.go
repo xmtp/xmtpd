@@ -260,7 +260,10 @@ func TestSimultaneousAllocation(t *testing.T) {
 			var errors []error
 			var mu sync.Mutex
 
-			// Phase 1: All goroutines get nonces simultaneously
+			// Phase 1: All goroutines get nonces simultaneously.
+			// The barrier MUST be closed below (see `close(barrier)`) so the
+			// workers are released; otherwise they would block forever on
+			// `<-barrier` and wg.Wait() would hang.
 			barrier := make(chan struct{})
 
 			for i := range numGoroutines {

@@ -11,7 +11,7 @@ import (
 func TestNotifier(t *testing.T) {
 	registry := newNotifier[int]()
 	channel := registry.register()
-	getCurrentCount := CountChannel(channel)
+	getCurrentCount := CountChannel(t, channel)
 
 	// Make sure the value is getting written to the channel
 	registry.trigger(1)
@@ -30,9 +30,9 @@ func TestNotifierMultiple(t *testing.T) {
 	registry := newNotifier[int]()
 
 	channel1 := registry.register()
-	getCurrentCount1 := CountChannel(channel1)
+	getCurrentCount1 := CountChannel(t, channel1)
 	channel2 := registry.register()
-	getCurrentCount2 := CountChannel(channel2)
+	getCurrentCount2 := CountChannel(t, channel2)
 
 	registry.trigger(1)
 	require.Eventually(t, func() bool {
@@ -48,7 +48,7 @@ func TestNotifierMultiple(t *testing.T) {
 func TestNotifierConcurrent(t *testing.T) {
 	registry := newNotifier[int]()
 	channel := registry.register()
-	getCurrentCount := CountChannel(channel)
+	getCurrentCount := CountChannel(t, channel)
 
 	for range 100 {
 		go registry.trigger(1)
@@ -59,19 +59,47 @@ func TestNotifierConcurrent(t *testing.T) {
 	}, 5*time.Second, 10*time.Millisecond)
 }
 
-func CountChannel[Kind any](ch <-chan Kind, validators ...func(Kind)) func() int {
-	var count int
-	var mutex sync.RWMutex
+// CountChannel spawns a reader goroutine that counts values received on ch.
+// The goroutine exits when ch closes OR when the test completes (via t.Cleanup),
+// preventing goroutine leaks when the notifier never closes its channels.
+func CountChannel[Kind any](
+	t *testing.T,
+	ch <-chan Kind,
+	validators ...func(Kind),
+) func() int {
+	t.Helper()
+
+	var (
+		count int
+		mutex sync.RWMutex
+		stop  = make(chan struct{})
+		done  = make(chan struct{})
+	)
+
+	t.Cleanup(func() {
+		close(stop)
+		<-done
+	})
+
 	go func() {
-		for v := range ch {
-			for _, validate := range validators {
-				if validate != nil {
-					validate(v)
+		defer close(done)
+		for {
+			select {
+			case <-stop:
+				return
+			case v, ok := <-ch:
+				if !ok {
+					return
 				}
+				for _, validate := range validators {
+					if validate != nil {
+						validate(v)
+					}
+				}
+				mutex.Lock()
+				count++
+				mutex.Unlock()
 			}
-			mutex.Lock()
-			count++
-			mutex.Unlock()
 		}
 	}()
 

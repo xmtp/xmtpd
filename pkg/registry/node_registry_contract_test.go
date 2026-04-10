@@ -127,7 +127,7 @@ func TestContractRegistryChangedNodes(t *testing.T) {
 
 	sub := registry.OnChangedNode(1)
 
-	getCurrentCount := r.CountChannel(sub, func(node r.Node) {
+	getCurrentCount := r.CountChannel(t, sub, func(node r.Node) {
 		require.Equal(t, "http://bar.com", node.HTTPAddress)
 	})
 

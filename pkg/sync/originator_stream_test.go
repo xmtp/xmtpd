@@ -399,7 +399,7 @@ func TestSyncWorkerGapStillAdvancesLastSequenceId(t *testing.T) {
 
 	// ---- Assert lastSequenceId advanced to 3 ----
 	require.Eventually(t, func() bool {
-		return lastSequenceIds[nodeID] == 3
+		return origStream.lastSequenceID(nodeID) == 3
 	}, 3*time.Second, 50*time.Millisecond)
 
 	// ---- Assert error log was emitted ----
@@ -454,7 +454,7 @@ func TestSyncWorkerOutOfOrderStillAdvancesLastSequenceId(t *testing.T) {
 
 	// ---- Assert lastSequenceId advanced to 3 ----
 	require.Eventually(t, func() bool {
-		return lastSequenceIds[nodeID] == 3
+		return origStream.lastSequenceID(nodeID) == 3
 	}, 3*time.Second, 50*time.Millisecond)
 
 	// ---- Assert error log was emitted ----
@@ -659,7 +659,9 @@ func TestSyncWorkerNoOutOfOrderErrorForMultipleOriginatorsInOrder(t *testing.T) 
 
 	// And sanity-check lastSequenceIds advanced correctly for all originators
 	require.Eventually(t, func() bool {
-		return lastSequenceIds[200] == 3 && lastSequenceIds[10] == 3 && lastSequenceIds[13] == 3
+		return origStream.lastSequenceID(200) == 3 &&
+			origStream.lastSequenceID(10) == 3 &&
+			origStream.lastSequenceID(13) == 3
 	}, 3*time.Second, 50*time.Millisecond)
 
 	require.Eventually(t, func() bool {

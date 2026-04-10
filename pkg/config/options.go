@@ -140,6 +140,11 @@ type RateLimitOptions struct {
 
 	// Trusted proxy CIDRs (comma-separated)
 	TrustedProxyCIDRs string `long:"trusted-proxy-cidrs" env:"XMTPD_RATE_LIMIT_TRUSTED_PROXY_CIDRS" description:"Comma-separated trusted proxy CIDR list for X-Forwarded-For peeling"`
+
+	// Concurrent stream limits (NotificationApi/SubscribeAllEnvelopes)
+	T1MaxConcurrentStreams int           `long:"t1-max-concurrent-streams" env:"XMTPD_RATE_LIMIT_T1_MAX_CONCURRENT_STREAMS" description:"Max concurrent SubscribeAllEnvelopes streams per IP" default:"2"`
+	StreamTTL              time.Duration `long:"stream-ttl"                env:"XMTPD_RATE_LIMIT_STREAM_TTL"                description:"Redis key TTL for stream counters (crash self-heal window)" default:"15m"`
+	StreamRefreshInterval  time.Duration `long:"stream-refresh-interval"   env:"XMTPD_RATE_LIMIT_STREAM_REFRESH_INTERVAL"   description:"How often to refresh stream counter TTL" default:"5m"`
 }
 
 type LogOptions struct {

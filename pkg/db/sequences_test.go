@@ -7,7 +7,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 	db2 "github.com/xmtp/xmtpd/pkg/db"
@@ -55,7 +54,43 @@ func getNextPayerSequence(t *testing.T, ctx context.Context, db *sql.DB) (int64,
 				return 0, err
 			}
 			t.Log("Acquired sequence ID: ", seq)
-			time.Sleep(10 * time.Millisecond)
+
+			_, err = querier.DeleteAvailableNonce(ctx, seq)
+			if err != nil {
+				return 0, err
+			}
+
+			return int64(seq), nil
+		},
+	)
+}
+
+// getNextPayerSequenceHeld is like getNextPayerSequence but holds the locked
+// row until the release channel is closed. It signals acquired.Done() after
+// GetNextAvailableNonce returns, so tests can wait for all concurrent callers
+// to hold their locks simultaneously. This replaces a `time.Sleep` hold with
+// deterministic synchronization and still exercises `FOR UPDATE SKIP LOCKED`.
+func getNextPayerSequenceHeld(
+	t *testing.T,
+	ctx context.Context,
+	db *sql.DB,
+	acquired *sync.WaitGroup,
+	release <-chan struct{},
+) (int64, error) {
+	return db2.RunInTxWithResult(ctx, db, &sql.TxOptions{},
+		func(ctx context.Context, querier *queries.Queries) (int64, error) {
+			seq, err := querier.GetNextAvailableNonce(ctx)
+			acquired.Done()
+			if err != nil {
+				return 0, err
+			}
+			t.Log("Acquired sequence ID: ", seq)
+
+			// Hold the row-level lock until every concurrent worker has
+			// acquired its own. This guarantees that FOR UPDATE SKIP LOCKED
+			// sees simultaneously-held rows, which is the property the test
+			// is verifying.
+			<-release
 
 			_, err = querier.DeleteAvailableNonce(ctx, seq)
 			if err != nil {
@@ -75,7 +110,6 @@ func failNextPayerSequence(t *testing.T, ctx context.Context, db *sql.DB) (int64
 				return 0, err
 			}
 			t.Log("Acquired sequence ID: ", seq)
-			time.Sleep(10 * time.Millisecond)
 
 			return 0, errors.New("failed to acquire sequence")
 		},
@@ -98,9 +132,17 @@ func TestConcurrentReads(t *testing.T) {
 	numClients := 20
 	results := make(chan int64, numClients)
 
+	// Force every worker to hold its row-level lock concurrently by using a
+	// two-phase barrier: first wait until all workers have acquired, then
+	// release them all at once. This makes `FOR UPDATE SKIP LOCKED` exercise
+	// real contention without relying on wall-clock sleeps.
+	var acquired sync.WaitGroup
+	acquired.Add(numClients)
+	release := make(chan struct{})
+
 	for range numClients {
 		wg.Go(func() {
-			seqID, err := getNextPayerSequence(t, ctx, db)
+			seqID, err := getNextPayerSequenceHeld(t, ctx, db, &acquired, release)
 			if err != nil {
 				t.Errorf("Error acquiring sequence: %v", err)
 			} else {
@@ -108,6 +150,10 @@ func TestConcurrentReads(t *testing.T) {
 			}
 		})
 	}
+
+	// Wait for every worker to be holding a row lock, then release them.
+	acquired.Wait()
+	close(release)
 
 	// Wait for all goroutines to complete
 	wg.Wait()

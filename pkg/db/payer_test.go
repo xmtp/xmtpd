@@ -55,7 +55,7 @@ func TestFindOrCreatePayerWithRetry(t *testing.T) {
 		rawDB, _ := testutils.NewRawDB(t, ctx)
 		address := testutils.RandomString(42)
 
-		// Start transaction T1 and insert the payer (holds row lock, uncommitted)
+		// Start transaction T1 and insert the payer (holds row lock, uncommitted).
 		tx1, err := rawDB.BeginTx(ctx, nil)
 		require.NoError(t, err)
 		defer func() { _ = tx1.Rollback() }()
@@ -63,21 +63,45 @@ func TestFindOrCreatePayerWithRetry(t *testing.T) {
 		_, err = tx1.ExecContext(ctx, "INSERT INTO payers(address) VALUES ($1)", address)
 		require.NoError(t, err)
 
-		// Commit T1 after a short delay so the retry can succeed
-		go func() {
-			time.Sleep(5 * time.Millisecond)
-			_ = tx1.Commit()
-		}()
-
-		// On a separate connection, the raw FindOrCreatePayer gets sql.ErrNoRows
-		// because the CTE INSERT conflicts (T1 holds the lock) and the SELECT
-		// uses the pre-commit snapshot.
 		poolQuerier := queries.New(rawDB)
 
-		// FindOrCreatePayerWithRetry should succeed after T1 commits
-		id, err := db.FindOrCreatePayerWithRetry(ctx, poolQuerier, address, 3)
-		require.NoError(t, err)
-		require.NotZero(t, id)
+		// Run FindOrCreatePayerWithRetry concurrently with T1 commit. The
+		// retry call will block inside INSERT ... ON CONFLICT on T1's unique-
+		// index lock until T1 resolves. Instead of sleeping a fixed duration
+		// to guarantee the retry is blocked before we commit, poll
+		// pg_stat_activity for a session waiting on a Lock event — a
+		// deterministic signal that the contending query is actually stalled.
+		type result struct {
+			id  int32
+			err error
+		}
+		resCh := make(chan result, 1)
+		go func() {
+			id, err := db.FindOrCreatePayerWithRetry(ctx, poolQuerier, address, 10)
+			resCh <- result{id: id, err: err}
+		}()
+
+		require.Eventually(t, func() bool {
+			var count int
+			err := rawDB.QueryRowContext(ctx, `
+				SELECT count(*)
+				FROM pg_stat_activity
+				WHERE state = 'active'
+				  AND wait_event_type = 'Lock'
+				  AND query ILIKE '%payers%'
+			`).Scan(&count)
+			return err == nil && count >= 1
+		}, 5*time.Second, 10*time.Millisecond, "retry call should be blocked on T1's lock")
+
+		require.NoError(t, tx1.Commit())
+
+		select {
+		case r := <-resCh:
+			require.NoError(t, r.err)
+			require.NotZero(t, r.id)
+		case <-time.After(5 * time.Second):
+			t.Fatal("FindOrCreatePayerWithRetry did not return after T1 commit")
+		}
 	})
 
 	t.Run("context cancellation stops retries", func(t *testing.T) {

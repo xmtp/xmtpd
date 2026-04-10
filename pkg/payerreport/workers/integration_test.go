@@ -466,10 +466,28 @@ func TestCanGenerateReport(t *testing.T) {
 	err = scaffold.reportGenerators[0].GenerateReports()
 	require.NoError(t, err)
 
-	// Make sure there is still only one report after generating again
-	time.Sleep(100 * time.Millisecond)
-	messagesOnNode1 := scaffold.getMessagesFromTopic(t, 0, node1ReportTopic)
-	require.Len(t, messagesOnNode1, 1)
+	// Make sure there is still only one report after generating again.
+	// Poll via require.Never instead of a fixed sleep, but tolerate transient
+	// RPC errors inside the predicate so unrelated intermediate failures do
+	// not get promoted into test failures — we only want to catch a genuine
+	// "a second report appeared" condition.
+	client := scaffold.clients[0]
+	require.Never(t, func() bool {
+		resp, err := client.QueryEnvelopes(
+			t.Context(),
+			&connect.Request[message_api.QueryEnvelopesRequest]{
+				Msg: &message_api.QueryEnvelopesRequest{
+					Query: &message_api.EnvelopesQuery{
+						Topics: [][]byte{node1ReportTopic},
+					},
+				},
+			},
+		)
+		if err != nil {
+			return false
+		}
+		return len(resp.Msg.GetEnvelopes()) != 1
+	}, 100*time.Millisecond, 10*time.Millisecond)
 }
 
 func TestFullReportLifecycle(t *testing.T) {

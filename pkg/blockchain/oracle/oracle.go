@@ -77,14 +77,25 @@ type Oracle struct {
 	gasPriceSource      GasPriceSource
 	gasPriceLastUpdated atomic.Int64
 	gasPrice            atomic.Int64
+	maxStaleDuration    time.Duration
 
 	sfGroup singleflight.Group
+}
+
+// Option configures an Oracle at construction time.
+type Option func(*Oracle)
+
+// WithMaxStaleDuration overrides the cache staleness window. Mainly useful
+// in tests that want to force every call to fetch a fresh price.
+func WithMaxStaleDuration(d time.Duration) Option {
+	return func(o *Oracle) { o.maxStaleDuration = d }
 }
 
 func New(
 	ctx context.Context,
 	logger *zap.Logger,
 	wsURL string,
+	opts ...Option,
 ) (*Oracle, error) {
 	ethClient, err := ethclient.Dial(wsURL)
 	if err != nil {
@@ -135,6 +146,11 @@ func New(
 		chainID:            chainID.Int64(),
 		gasPriceSource:     gasPriceSource,
 		gasPriceDefaultWei: gasPriceDefaultWei,
+		maxStaleDuration:   gasPriceMaxStaleDuration,
+	}
+
+	for _, opt := range opts {
+		opt(oracle)
 	}
 
 	return oracle, nil
@@ -188,7 +204,7 @@ func (o *Oracle) isStale() bool {
 		return true
 	}
 
-	return time.Since(time.UnixMilli(lastUpdated)) > gasPriceMaxStaleDuration
+	return time.Since(time.UnixMilli(lastUpdated)) > o.maxStaleDuration
 }
 
 func (o *Oracle) updateGasPrice(ctx context.Context) error {

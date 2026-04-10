@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -12,6 +13,12 @@ import (
 )
 
 const redisAddress = "localhost:6379"
+
+// testKeyPrefixCounter monotonically increases for every call to
+// generateTestKeyPrefix to guarantee uniqueness even when two calls happen
+// inside the same millisecond (as was the case when one test creates two
+// Redis clients back-to-back).
+var testKeyPrefixCounter atomic.Uint64
 
 // NewRedisForTest creates a Redis client configured for testing with proper cleanup.
 // It automatically generates a unique key prefix based on the test name to avoid conflicts.
@@ -45,7 +52,10 @@ func NewRedisForTest(t *testing.T) (redis.UniversalClient, string) {
 	return client, keyPrefix
 }
 
-// generateTestKeyPrefix creates a unique key prefix based on test name and timestamp
+// generateTestKeyPrefix creates a unique key prefix based on test name,
+// timestamp, and a process-level monotonic counter. The counter ensures that
+// two calls in the same millisecond (e.g. two clients created back-to-back
+// within a single test) receive distinct prefixes.
 func generateTestKeyPrefix(t *testing.T) string {
 	// Clean test name to be Redis-key safe
 	testName := strings.ReplaceAll(t.Name(), "/", "_")
@@ -54,8 +64,9 @@ func generateTestKeyPrefix(t *testing.T) string {
 
 	// Add timestamp to ensure uniqueness even for parallel runs
 	timestamp := time.Now().UnixNano() / int64(time.Millisecond)
+	seq := testKeyPrefixCounter.Add(1)
 
-	return fmt.Sprintf("test:%s:%d:", testName, timestamp)
+	return fmt.Sprintf("test:%s:%d:%d:", testName, timestamp, seq)
 }
 
 // cleanupKeysByPrefix removes all keys matching the prefix pattern

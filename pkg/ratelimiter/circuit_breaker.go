@@ -39,6 +39,9 @@ type CircuitBreaker struct {
 	mu               sync.Mutex
 	failureThreshold int
 	cooldown         time.Duration
+	// now returns the current time. Injectable so tests can advance the clock
+	// deterministically instead of sleeping through the cooldown.
+	now func() time.Time
 
 	state        BreakerState
 	failureCount int
@@ -52,6 +55,7 @@ func NewCircuitBreaker(failureThreshold int, cooldown time.Duration) *CircuitBre
 		failureThreshold: failureThreshold,
 		cooldown:         cooldown,
 		state:            BreakerClosed,
+		now:              time.Now,
 	}
 }
 
@@ -74,7 +78,7 @@ func (cb *CircuitBreaker) Allow() bool {
 	case BreakerHalfOpen:
 		return true
 	case BreakerOpen:
-		if time.Since(cb.openedAt) >= cb.cooldown {
+		if cb.now().Sub(cb.openedAt) >= cb.cooldown {
 			cb.state = BreakerHalfOpen
 			BreakerStateGauge.Set(1)
 			return true
@@ -108,7 +112,7 @@ func (cb *CircuitBreaker) RecordFailure() {
 	}
 	if cb.state == BreakerHalfOpen {
 		cb.state = BreakerOpen
-		cb.openedAt = time.Now()
+		cb.openedAt = cb.now()
 		BreakerStateGauge.Set(2)
 		BreakerTripsTotal.Inc()
 		return
@@ -116,7 +120,7 @@ func (cb *CircuitBreaker) RecordFailure() {
 	cb.failureCount++
 	if cb.failureCount >= cb.failureThreshold {
 		cb.state = BreakerOpen
-		cb.openedAt = time.Now()
+		cb.openedAt = cb.now()
 		BreakerStateGauge.Set(2)
 		BreakerTripsTotal.Inc()
 	}

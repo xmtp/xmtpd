@@ -3,6 +3,7 @@ package payerreport_test
 import (
 	"context"
 	"math"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -179,10 +180,21 @@ func TestIdempotentStore(t *testing.T) {
 	require.Equal(t, report.ID, storedReports[0].ID)
 }
 
+// waitForWallClockAfter spins until time.Now() is strictly after ref.
+// Used to guarantee the next postgres now() call produces a CreatedAt strictly
+// greater than ref. pg's now() has microsecond precision, and postgres shares
+// the host wall clock in the dev env, so this gives a deterministic ordering
+// without a 1ms sleep.
+func waitForWallClockAfter(ref time.Time) {
+	for !time.Now().After(ref) {
+		runtime.Gosched()
+	}
+}
+
 func TestFetchReport(t *testing.T) {
 	store := createTestStore(t)
 	report1 := insertRandomReport(t, store)
-	time.Sleep(1 * time.Millisecond)
+	waitForWallClockAfter(report1.CreatedAt)
 	report2 := insertRandomReport(t, store)
 	// Set the second report's status to Approved
 	attestation := &payerreport.PayerReportAttestation{

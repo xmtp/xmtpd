@@ -1,7 +1,6 @@
 package metadata_test
 
 import (
-	"database/sql"
 	"testing"
 	"time"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api"
 	metadata_apiconnect "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api/metadata_apiconnect"
 
-	"github.com/xmtp/xmtpd/pkg/api/message"
 	dbUtils "github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/testutils"
@@ -28,7 +26,7 @@ var (
 
 func setupTest(
 	t *testing.T,
-) (metadata_apiconnect.MetadataApiClient, *sql.DB, testUtilsApi.APIServerMocks) {
+) (metadata_apiconnect.MetadataApiClient, *testUtilsApi.APIServerTestSuite) {
 	var (
 		suite   = testUtilsApi.NewTestAPIServer(t)
 		payerID = dbUtils.NullInt32(testutils.CreatePayer(t, suite.DB))
@@ -89,25 +87,49 @@ func setupTest(
 		},
 	}
 
-	return suite.ClientMetadata, suite.DB, suite.APIServerMocks
+	return suite.ClientMetadata, suite
 }
 
-func insertInitialRows(t *testing.T, store *sql.DB) {
-	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeV3Params{
+// insertInitialRows inserts the first two rows and blocks until GetSyncCursor
+// reports the subscribe worker has polled past them, so tests observe a known
+// cursor state.
+func insertInitialRows(
+	t *testing.T,
+	client metadata_apiconnect.MetadataApiClient,
+	suite *testUtilsApi.APIServerTestSuite,
+) {
+	testutils.InsertGatewayEnvelopes(t, suite.DB, []queries.InsertGatewayEnvelopeV3Params{
 		allRows[0], allRows[1],
 	})
-	time.Sleep(message.SubscribeWorkerPollTime + 100*time.Millisecond)
+	expected := map[uint32]uint64{100: 1, 200: 1}
+	require.Eventually(t, func() bool {
+		resp, err := client.GetSyncCursor(
+			t.Context(),
+			connect.NewRequest(&metadata_api.GetSyncCursorRequest{}),
+		)
+		if err != nil {
+			return false
+		}
+		return assert.ObjectsAreEqual(
+			expected,
+			resp.Msg.GetLatestSync().GetNodeIdToSequenceId(),
+		)
+	}, 5*time.Second, 5*time.Millisecond)
 }
 
-func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) {
-	testutils.InsertGatewayEnvelopes(t, store, []queries.InsertGatewayEnvelopeV3Params{
+func insertAdditionalRows(
+	t *testing.T,
+	suite *testUtilsApi.APIServerTestSuite,
+	notifyChan ...chan bool,
+) {
+	testutils.InsertGatewayEnvelopes(t, suite.DB, []queries.InsertGatewayEnvelopeV3Params{
 		allRows[2], allRows[3], allRows[4],
 	}, notifyChan...)
 }
 
 func TestGetCursorBasic(t *testing.T) {
-	client, db, _ := setupTest(t)
-	insertInitialRows(t, db)
+	client, suite := setupTest(t)
+	insertInitialRows(t, client, suite)
 
 	ctx := t.Context()
 
@@ -126,7 +148,7 @@ func TestGetCursorBasic(t *testing.T) {
 
 	require.Equal(t, expectedCursor, cursor.Msg.GetLatestSync().GetNodeIdToSequenceId())
 
-	insertAdditionalRows(t, db)
+	insertAdditionalRows(t, suite)
 	require.Eventually(t, func() bool {
 		expectedCursor := map[uint32]uint64{
 			100: 3,
@@ -155,8 +177,8 @@ func TestGetCursorBasic(t *testing.T) {
 }
 
 func TestSubscribeSyncCursorBasic(t *testing.T) {
-	client, db, _ := setupTest(t)
-	insertInitialRows(t, db)
+	client, suite := setupTest(t)
+	insertInitialRows(t, client, suite)
 
 	ctx := t.Context()
 
@@ -181,7 +203,7 @@ func TestSubscribeSyncCursorBasic(t *testing.T) {
 
 	require.Equal(t, expectedCursor, firstUpdate.GetLatestSync().GetNodeIdToSequenceId())
 
-	insertAdditionalRows(t, db)
+	insertAdditionalRows(t, suite)
 
 	expectedCursor = map[uint32]uint64{
 		100: 3,

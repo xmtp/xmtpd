@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"syscall"
 	"time"
 
@@ -555,7 +556,7 @@ func startAPIServer(
 			queryHandlerOpts = []connect.HandlerOption{
 				connect.WithReadMaxBytes(constants.GRPCPayloadLimit),
 				connect.WithSendMaxBytes(constants.GRPCPayloadLimit),
-				connect.WithInterceptors(append(interceptors, rlInterceptor)...),
+				connect.WithInterceptors(append(slices.Clone(interceptors), rlInterceptor)...),
 			}
 		}
 
@@ -570,7 +571,7 @@ func startAPIServer(
 			notificationHandlerOpts = []connect.HandlerOption{
 				connect.WithReadMaxBytes(constants.GRPCPayloadLimit),
 				connect.WithSendMaxBytes(constants.GRPCPayloadLimit),
-				connect.WithInterceptors(append(interceptors, slInterceptor)...),
+				connect.WithInterceptors(append(slices.Clone(interceptors), slInterceptor)...),
 			}
 		}
 

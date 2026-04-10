@@ -20,7 +20,7 @@ import (
 type BuiltLimiter struct {
 	QueryLimiter  RateLimiter // BreakerLimiter wrapping a RedisLimiter([per-minute, per-hour])
 	OpensLimiter  RateLimiter // BreakerLimiter wrapping a RedisLimiter([opens-per-minute])
-	StreamLimiter StreamLimiter
+	StreamLimiter StreamLimiter // BreakerStreamLimiter wrapping a RedisStreamLimiter
 	TrustedCIDRs  []*net.IPNet
 }
 
@@ -78,11 +78,16 @@ func Build(
 		NewCircuitBreaker(rlOpts.BreakerFailureThreshold, rlOpts.BreakerCooldown),
 	)
 
-	streamLimiter := NewRedisStreamLimiter(
+	streamInner := NewRedisStreamLimiter(
 		client,
 		redisOpts.KeyPrefix+"rl:streams:",
 		rlOpts.T1MaxConcurrentStreams,
 		rlOpts.StreamTTL,
+	)
+	streamLimiter := NewBreakerStreamLimiter(
+		streamInner,
+		NewCircuitBreaker(rlOpts.BreakerFailureThreshold, rlOpts.BreakerCooldown),
+		logger,
 	)
 
 	cidrs, err := clientip.ParseTrustedProxyCIDRs(rlOpts.TrustedProxyCIDRs)

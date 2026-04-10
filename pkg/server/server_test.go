@@ -3,7 +3,6 @@ package server_test
 import (
 	"fmt"
 	"net"
-	"reflect"
 	"testing"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
@@ -175,7 +175,7 @@ func TestCreateServer(t *testing.T) {
 		}
 
 		for _, e := range q1.Msg.GetEnvelopes() {
-			if reflect.DeepEqual(e, p2.Msg.GetOriginatorEnvelopes()[0]) {
+			if proto.Equal(e, p2.Msg.GetOriginatorEnvelopes()[0]) {
 				return true
 			}
 		}
@@ -197,7 +197,7 @@ func TestCreateServer(t *testing.T) {
 		}
 
 		for _, e := range q2.Msg.GetEnvelopes() {
-			if reflect.DeepEqual(e, p1.Msg.GetOriginatorEnvelopes()[0]) {
+			if proto.Equal(e, p1.Msg.GetOriginatorEnvelopes()[0]) {
 				return true
 			}
 		}

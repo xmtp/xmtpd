@@ -8,6 +8,7 @@ import (
 	"io"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/cenkalti/backoff/v5"
 	envUtils "github.com/xmtp/xmtpd/pkg/envelopes"
@@ -24,6 +25,7 @@ type originatorStream struct {
 	ctx                  context.Context
 	logger               *zap.Logger
 	node                 *registry.Node
+	lastSequenceIdsMu    sync.Mutex
 	lastSequenceIds      map[uint32]uint64
 	permittedOriginators map[uint32]struct{}
 	stream               message_api.ReplicationApi_SubscribeEnvelopesClient
@@ -145,6 +147,15 @@ func (s *originatorStream) listen() error {
 	}
 }
 
+// lastSequenceID returns the last-seen sequence ID for an originator under the
+// stream's mutex, so callers (notably tests polling from goroutines) can read
+// the state without racing with concurrent writes in validateEnvelope.
+func (s *originatorStream) lastSequenceID(originatorID uint32) uint64 {
+	s.lastSequenceIdsMu.Lock()
+	defer s.lastSequenceIdsMu.Unlock()
+	return s.lastSequenceIds[originatorID]
+}
+
 // validateEnvelope performs all static validation on an envelope
 // if an error is encountered, the envelope will be dropped and the stream will continue
 func (s *originatorStream) validateEnvelope(
@@ -198,10 +209,18 @@ func (s *originatorStream) validateEnvelope(
 	metrics.EmitSyncLastSeenOriginatorSequenceID(env.OriginatorNodeID(), env.OriginatorSequenceID())
 	metrics.EmitSyncOriginatorReceivedMessagesCount(env.OriginatorNodeID(), 1)
 
-	var (
-		lastSID     = s.lastSequenceIds[originatorID]
-		expectedSID = lastSID + 1
-	)
+	// The mutex guards tests reading lastSequenceIds from require.Eventually
+	// polling goroutines while validateEnvelope writes to it here. In production
+	// validateEnvelope is only called from a single goroutine, so contention is
+	// negligible.
+	s.lastSequenceIdsMu.Lock()
+	lastSID := s.lastSequenceIds[originatorID]
+	if seqID > lastSID {
+		s.lastSequenceIds[originatorID] = seqID
+	}
+	s.lastSequenceIdsMu.Unlock()
+
+	expectedSID := lastSID + 1
 
 	if seqID != expectedSID {
 		tracing.SpanTag(span, tracing.TagExpectedSequenceID, expectedSID)
@@ -225,10 +244,6 @@ func (s *originatorStream) validateEnvelope(
 
 			tracing.SpanTag(span, tracing.TagGapDetected, true)
 		}
-	}
-
-	if seqID > lastSID {
-		s.lastSequenceIds[originatorID] = seqID
 	}
 
 	// Validate that there is a valid payer signature

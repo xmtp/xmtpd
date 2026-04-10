@@ -60,7 +60,7 @@ func NewTraceContextStore() *TraceContextStore {
 // Drops new entries if store is at capacity (production safety).
 // No-ops when tracing is disabled.
 func (s *TraceContextStore) Store(stagedID int64, span Span) {
-	if !apmEnabled || span == nil {
+	if !apmEnabled.Load() || span == nil {
 		return
 	}
 	s.mu.Lock()

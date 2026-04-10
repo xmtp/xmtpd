@@ -11,12 +11,12 @@ import (
 )
 
 // enableTracingForTest sets apmEnabled=true for the duration of the test
-// and restores the previous value on cleanup.
+// and restores the previous value on cleanup. Goes through SetEnabledForTesting
+// so the underlying atomic.Bool handles synchronization with concurrent readers.
 func enableTracingForTest(t *testing.T) {
 	t.Helper()
-	prev := apmEnabled
-	apmEnabled = true
-	t.Cleanup(func() { apmEnabled = prev })
+	restore := SetEnabledForTesting(true)
+	t.Cleanup(restore)
 }
 
 func TestTraceContextStore_StoreAndRetrieve(t *testing.T) {
@@ -164,9 +164,8 @@ func TestTraceContextStore_ConcurrentAccess(t *testing.T) {
 
 func TestNoopSpan_WhenDisabled(t *testing.T) {
 	// Ensure apmEnabled is false (default state)
-	prevState := apmEnabled
-	apmEnabled = false
-	defer func() { apmEnabled = prevState }()
+	restore := SetEnabledForTesting(false)
+	defer restore()
 
 	assert.False(t, IsEnabled())
 
@@ -203,9 +202,8 @@ func TestNoopSpan_WhenDisabled(t *testing.T) {
 }
 
 func TestTraceContextStore_NoopWhenDisabled(t *testing.T) {
-	prevState := apmEnabled
-	apmEnabled = false
-	defer func() { apmEnabled = prevState }()
+	restore := SetEnabledForTesting(false)
+	defer restore()
 
 	store := NewTraceContextStore()
 
@@ -213,9 +211,9 @@ func TestTraceContextStore_NoopWhenDisabled(t *testing.T) {
 	mt := mocktracer.Start()
 	defer mt.Stop()
 	// Force-enable to create a real span for testing
-	apmEnabled = true
+	reEnable := SetEnabledForTesting(true)
 	span := StartSpan("test.real_span")
-	apmEnabled = false
+	reEnable() // flip back off before store.Store so it exercises the disabled path
 
 	store.Store(12345, span)
 	assert.Equal(t, 0, store.Size(), "store should remain empty when tracing is disabled")

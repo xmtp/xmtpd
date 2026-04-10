@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -108,15 +109,18 @@ func validateUpdates(
 }
 
 // flakyEnvelopesQuery returns a query that fails every other time
-// to simulate a transient database error
+// to simulate a transient database error.
+//
+// numQueries is atomic so concurrent pollers (or concurrent condition checks
+// inside require.Eventually) cannot data-race on the counter.
 func flakyEnvelopesQuery(
 	store *sql.DB,
 ) db.PollableDBQuery[queries.GatewayEnvelopesView, db.VectorClock] {
-	numQueries := 0
+	var numQueries atomic.Int32
 	query := envelopesQuery(store)
 	return func(ctx context.Context, lastSeen db.VectorClock, numRows int32) ([]queries.GatewayEnvelopesView, db.VectorClock, error) {
-		numQueries++
-		if numQueries%2 == 1 {
+		n := numQueries.Add(1)
+		if n%2 == 1 {
 			return nil, lastSeen, errors.New("flaky query")
 		}
 

@@ -439,6 +439,12 @@ func TestRedisLimiter_Refill(t *testing.T) {
 		[]ratelimiter.Limit{{Capacity: 10, RefillEvery: 100 * time.Millisecond}})
 	require.NoError(t, err)
 
+	// The Lua script uses the client-provided timestamp for refill math, so
+	// overriding the limiter's clock fully controls refill behavior without
+	// any wall-clock sleeping.
+	fakeNow := time.Now()
+	limiter.SetNowForTest(func() time.Time { return fakeNow })
+
 	// Consume all tokens
 	res, err := limiter.Allow(context.Background(), "test-subject", 10)
 	require.NoError(t, err)
@@ -450,8 +456,8 @@ func TestRedisLimiter_Refill(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, res.Allowed)
 
-	// Wait for partial refill
-	time.Sleep(50 * time.Millisecond)
+	// Advance the fake clock past the partial refill window.
+	fakeNow = fakeNow.Add(50 * time.Millisecond)
 	res, err = limiter.Allow(context.Background(), "test-subject", 1)
 	require.NoError(t, err)
 	require.True(t, res.Allowed, "should allow after partial refill")

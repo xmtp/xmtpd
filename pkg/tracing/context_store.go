@@ -26,6 +26,9 @@ type TraceContextStore struct {
 	ttl          time.Duration
 	lastCleanup  time.Time
 	cleanupCount int // Track cleanups for testing/monitoring
+	// now returns the current time. Injectable so tests can advance the
+	// clock deterministically instead of sleeping.
+	now func() time.Time
 }
 
 // Span limits for production safety - prevent runaway memory/payload sizes.
@@ -51,6 +54,7 @@ func NewTraceContextStore() *TraceContextStore {
 		contexts:    make(map[int64]traceContextEntry),
 		ttl:         DefaultTraceContextTTL,
 		lastCleanup: time.Now(),
+		now:         time.Now,
 	}
 }
 
@@ -66,8 +70,10 @@ func (s *TraceContextStore) Store(stagedID int64, span Span) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	now := s.now()
+
 	// Lazy cleanup: run every minute to prevent unbounded growth
-	if time.Since(s.lastCleanup) > time.Minute {
+	if now.Sub(s.lastCleanup) > time.Minute {
 		s.cleanupExpiredLocked()
 	}
 
@@ -79,7 +85,7 @@ func (s *TraceContextStore) Store(stagedID int64, span Span) {
 
 	s.contexts[stagedID] = traceContextEntry{
 		ctx:       span.Context(),
-		createdAt: time.Now(),
+		createdAt: now,
 	}
 }
 
@@ -98,7 +104,7 @@ func (s *TraceContextStore) Retrieve(stagedID int64) ddtrace.SpanContext {
 	delete(s.contexts, stagedID)
 
 	// Check if expired
-	if time.Since(entry.createdAt) > s.ttl {
+	if s.now().Sub(entry.createdAt) > s.ttl {
 		return nil
 	}
 
@@ -108,7 +114,7 @@ func (s *TraceContextStore) Retrieve(stagedID int64) ddtrace.SpanContext {
 // cleanupExpiredLocked removes entries older than TTL.
 // Must be called with lock held.
 func (s *TraceContextStore) cleanupExpiredLocked() {
-	now := time.Now()
+	now := s.now()
 	for id, entry := range s.contexts {
 		if now.Sub(entry.createdAt) > s.ttl {
 			delete(s.contexts, id)

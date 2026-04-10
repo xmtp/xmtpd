@@ -46,10 +46,9 @@ func TestRedisGetNonce_RevertMany(t *testing.T) {
 		nonce, err := nonceManager.GetNonce(t.Context())
 		require.NoError(t, err)
 		require.EqualValues(t, 0, nonce.Nonce.Int64())
+		// Cancel is synchronous; when it returns, the nonce is already back
+		// in the available pool, so the next GetNonce can reuse it immediately.
 		nonce.Cancel()
-
-		// Add a small delay to ensure the Cancel operation completes
-		time.Sleep(1 * time.Millisecond)
 	}
 }
 
@@ -177,9 +176,8 @@ func TestRedisGetNonce_ContextCancellation(t *testing.T) {
 
 func TestRedisGetNonce_KeyPrefix(t *testing.T) {
 	client1, keyPrefix1 := redistestutils.NewRedisForTest(t)
-	// The keyPrefix uses the timestamp as a tiebreak when run from the same test.
-	// Ensure we get a distinct prefix
-	time.Sleep(1 * time.Millisecond)
+	// NewRedisForTest adds a process-level monotonic counter to the prefix,
+	// so back-to-back calls always produce distinct prefixes.
 	client2, keyPrefix2 := redistestutils.NewRedisForTest(t)
 
 	logger, err := zap.NewDevelopment()

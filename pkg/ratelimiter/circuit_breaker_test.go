@@ -26,11 +26,14 @@ func TestCircuitBreaker_OpensAfterThresholdFailures(t *testing.T) {
 
 func TestCircuitBreaker_HalfOpenAfterCooldown(t *testing.T) {
 	cb := NewCircuitBreaker(1, 50*time.Millisecond)
+	fakeNow := time.Now()
+	cb.now = func() time.Time { return fakeNow }
 	cb.RecordFailure()
 	require.Equal(t, BreakerOpen, cb.State())
 	require.False(t, cb.Allow())
 
-	time.Sleep(80 * time.Millisecond)
+	// Advance the fake clock past the cooldown without sleeping.
+	fakeNow = fakeNow.Add(80 * time.Millisecond)
 
 	require.True(t, cb.Allow())
 	require.Equal(t, BreakerHalfOpen, cb.State())
@@ -63,8 +66,10 @@ func TestCircuitBreaker_RecordFailureWhileOpenIsIdempotent(t *testing.T) {
 
 func TestCircuitBreaker_HalfOpenSuccessClosesCircuit(t *testing.T) {
 	cb := NewCircuitBreaker(1, 50*time.Millisecond)
+	fakeNow := time.Now()
+	cb.now = func() time.Time { return fakeNow }
 	cb.RecordFailure()
-	time.Sleep(80 * time.Millisecond)
+	fakeNow = fakeNow.Add(80 * time.Millisecond)
 
 	require.True(t, cb.Allow())
 	cb.RecordSuccess()
@@ -73,8 +78,10 @@ func TestCircuitBreaker_HalfOpenSuccessClosesCircuit(t *testing.T) {
 
 func TestCircuitBreaker_HalfOpenFailureReopens(t *testing.T) {
 	cb := NewCircuitBreaker(1, 50*time.Millisecond)
+	fakeNow := time.Now()
+	cb.now = func() time.Time { return fakeNow }
 	cb.RecordFailure()
-	time.Sleep(80 * time.Millisecond)
+	fakeNow = fakeNow.Add(80 * time.Millisecond)
 
 	require.True(t, cb.Allow())
 	cb.RecordFailure()

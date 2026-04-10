@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"runtime"
 	"testing"
 	"time"
 
@@ -512,8 +513,12 @@ func TestSettleReportsWithPartialFailure(t *testing.T) {
 	stored1 := storeReport(t, store, &report1.PayerReport)
 	require.NoError(t, store.SetReportAttestationApproved(t.Context(), stored1.ID))
 	require.NoError(t, store.SetReportSubmitted(t.Context(), stored1.ID, 0))
-	// Make sure the created_at is different between the two reports
-	time.Sleep(1 * time.Millisecond)
+	// Make sure the created_at is different between the two reports. pg now() has
+	// microsecond precision and shares the host wall clock in the dev env, so this
+	// spin gives a deterministic ordering without a 1ms sleep.
+	for !time.Now().After(stored1.CreatedAt) {
+		runtime.Gosched()
+	}
 
 	payers2 := map[common.Address]currency.PicoDollar{
 		common.HexToAddress("0x2"): 200,

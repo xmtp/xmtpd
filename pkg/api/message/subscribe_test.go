@@ -14,7 +14,6 @@ import (
 	"connectrpc.com/connect"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
-	"github.com/xmtp/xmtpd/pkg/api/message"
 	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/db"
 	"github.com/xmtp/xmtpd/pkg/db/queries"
@@ -616,8 +615,18 @@ func TestSubscribeCatchUpSkewedOriginators(t *testing.T) {
 	// Populate the database.
 	saveEnvelopes(t, server.DB, sourceEnvelopes)
 
-	// Let the subscribeWorker's catch up.
-	time.Sleep(4 * message.SubscribeWorkerPollTime)
+	// Block until the subscribeWorker has polled past the last inserted sequence ID.
+	{
+		awaitCtx, awaitCancel := context.WithTimeout(t.Context(), 5*time.Second)
+		require.NoError(
+			t,
+			server.MessageService.AwaitCursor(
+				awaitCtx,
+				db.VectorClock{heavyOriginatorID: uint64(heavyMsgCount)},
+			),
+		)
+		awaitCancel()
+	}
 
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
@@ -694,7 +703,6 @@ func TestSubscribeAll(t *testing.T) {
 		minEnvelopes = 10
 		maxEnvelopes = 20
 
-		insertDelay  = 100 * time.Millisecond
 		envelopeList = flattenEnvelopeMap(
 			generateEnvelopes(
 				t,
@@ -716,12 +724,12 @@ func TestSubscribeAll(t *testing.T) {
 	require.NoError(t, err)
 
 	var (
-		received = 0
+		received atomic.Int64
 		streamWG sync.WaitGroup
 	)
 
 	streamWG.Go(func() {
-		for received < total {
+		for received.Load() < int64(total) {
 			ok := stream.Receive()
 			if !ok {
 				break
@@ -730,23 +738,25 @@ func TestSubscribeAll(t *testing.T) {
 			n := len(stream.Msg().GetEnvelopes())
 			t.Logf("stream produced %v envelopes", n)
 
-			received += n
+			received.Add(int64(n))
 		}
 
 		cancel()
 	})
 
-	// Wait a bit - then start inserting envelopes. Make sure these are streamed.
-	time.Sleep(insertDelay)
+	// Wait until the server has registered the listener before inserting, so
+	// no inserts race the listener registration.
+	awaitCtx, awaitCancel := context.WithTimeout(t.Context(), 5*time.Second)
+	require.NoError(t, server.MessageService.AwaitGlobalListeners(awaitCtx, 1))
+	awaitCancel()
 
 	for _, env := range envelopeList {
 		testutils.InsertGatewayEnvelopes(t, server.DB, []queries.InsertGatewayEnvelopeV3Params{env})
-		time.Sleep(insertDelay)
 	}
 
 	streamWG.Wait()
 
-	require.Equal(t, total, received)
+	require.Equal(t, int64(total), received.Load())
 }
 
 func readOriginatorsStream(
@@ -1335,39 +1345,56 @@ func TestSubscribeAll_StreamsOnlyNewMessages(t *testing.T) {
 			topic.TopicKindGroupMessagesV1,
 			fmt.Appendf(nil, "generic-topic-%v", rand.Int()),
 		)
-
-		insertDelay = 100 * time.Millisecond
 	)
 
 	// Envelope data.
+	//
+	// generateEnvelopes returns `perNode` envelopes *per* originator, so with
+	// 2 nodes we get 2 * perNode total envelopes. We only insert the first
+	// `initialBatchSize` as pre-seeds and the next `streamSize` as the new
+	// batch the stream should observe; the remainder are generated but never
+	// inserted. Slicing by exact bounds (rather than [initialBatchSize:])
+	// keeps the post-subscribe insert count to exactly streamSize — otherwise
+	// the stream races past streamSize and the final equality check fails.
 	var (
 		initialBatchSize = 5
 		streamSize       = 5
-		totalMessages    = initialBatchSize + streamSize
+		perNode          = initialBatchSize + streamSize
 
 		sourceEnvelopes = flattenEnvelopeMap(
 			generateEnvelopes(
 				t,
 				nodeIDs,
-				totalMessages,
-				totalMessages, // Let's get exactly N messages.
+				perNode,
+				perNode, // Exactly perNode per node.
 				payerID,
 				subTopic,
 			))
 
 		initialBatch = sourceEnvelopes[:initialBatchSize]
-		streamBatch  = sourceEnvelopes[initialBatchSize:]
+		streamBatch  = sourceEnvelopes[initialBatchSize : initialBatchSize+streamSize]
 	)
 	defer cancel()
 
-	// Pre-seed envelopes in the DB.
-	// These should NOT get picked up by the stream.
+	// Pre-seed envelopes in the DB. These should NOT get picked up by the
+	// stream because the subscribe worker marks them as known before the
+	// stream subscription is registered.
 	for _, env := range initialBatch {
 		testutils.InsertGatewayEnvelopes(t, server.DB, []queries.InsertGatewayEnvelopeV3Params{env})
 	}
 
-	// Add a delay so the subscribe worker picks pre-seeded envelopes as known before the streaming started.
-	time.Sleep(insertDelay)
+	// Block until the subscribe worker has polled past every pre-seeded row.
+	preSeedVC := make(db.VectorClock)
+	for _, env := range initialBatch {
+		nodeID := uint32(env.OriginatorNodeID)
+		seq := uint64(env.OriginatorSequenceID)
+		if cur, ok := preSeedVC[nodeID]; !ok || seq > cur {
+			preSeedVC[nodeID] = seq
+		}
+	}
+	awaitCtx, awaitCancel := context.WithTimeout(t.Context(), 5*time.Second)
+	require.NoError(t, server.MessageService.AwaitCursor(awaitCtx, preSeedVC))
+	awaitCancel()
 
 	// Start a subscriber stream.
 	req := &message_api.SubscribeAllEnvelopesRequest{}
@@ -1375,12 +1402,12 @@ func TestSubscribeAll_StreamsOnlyNewMessages(t *testing.T) {
 	require.NoError(t, err)
 
 	var (
-		received = 0
+		received atomic.Int64
 		streamWG sync.WaitGroup
 	)
 
 	streamWG.Go(func() {
-		for received < streamSize {
+		for received.Load() < int64(streamSize) {
 			ok := stream.Receive()
 			if !ok {
 				break
@@ -1389,21 +1416,23 @@ func TestSubscribeAll_StreamsOnlyNewMessages(t *testing.T) {
 			n := len(stream.Msg().GetEnvelopes())
 			t.Logf("stream produced %v envelopes", n)
 
-			received += n
+			received.Add(int64(n))
 		}
 
 		cancel()
 	})
 
-	// Wait a bit - then start inserting envelopes. These should in fact be streamed.
-	time.Sleep(insertDelay)
+	// Wait until the server has registered the listener before inserting, so
+	// no inserts race the listener registration.
+	listenerCtx, listenerCancel := context.WithTimeout(t.Context(), 5*time.Second)
+	require.NoError(t, server.MessageService.AwaitGlobalListeners(listenerCtx, 1))
+	listenerCancel()
 
 	for _, env := range streamBatch {
 		testutils.InsertGatewayEnvelopes(t, server.DB, []queries.InsertGatewayEnvelopeV3Params{env})
-		time.Sleep(insertDelay)
 	}
 
 	streamWG.Wait()
 
-	require.Equal(t, streamSize, received)
+	require.Equal(t, int64(streamSize), received.Load())
 }

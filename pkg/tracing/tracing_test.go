@@ -66,7 +66,10 @@ func TestTraceContextStore_StoreNilSpan(t *testing.T) {
 func TestTraceContextStore_TTLExpiration(t *testing.T) {
 	enableTracingForTest(t)
 	store := NewTraceContextStore()
-	// Set short TTL for testing
+	// Drive the store with a controllable fake clock so TTL expiration is
+	// deterministic and does not require a wall-clock sleep.
+	fakeNow := time.Now()
+	store.now = func() time.Time { return fakeNow }
 	store.ttl = 50 * time.Millisecond
 
 	mt := mocktracer.Start()
@@ -78,8 +81,8 @@ func TestTraceContextStore_TTLExpiration(t *testing.T) {
 	store.Store(stagedID, span)
 	assert.Equal(t, 1, store.Size())
 
-	// Wait for TTL to expire
-	time.Sleep(100 * time.Millisecond)
+	// Advance the fake clock past the TTL.
+	fakeNow = fakeNow.Add(100 * time.Millisecond)
 
 	// Retrieve should return nil for expired entry
 	ctx := store.Retrieve(stagedID)
@@ -94,6 +97,9 @@ func TestTraceContextStore_TTLExpiration(t *testing.T) {
 func TestTraceContextStore_CleanupRemovesExpired(t *testing.T) {
 	enableTracingForTest(t)
 	store := NewTraceContextStore()
+	// Use a fake clock so we can advance time past the TTL without sleeping.
+	fakeNow := time.Now()
+	store.now = func() time.Time { return fakeNow }
 	store.ttl = 50 * time.Millisecond
 
 	mt := mocktracer.Start()
@@ -103,11 +109,11 @@ func TestTraceContextStore_CleanupRemovesExpired(t *testing.T) {
 	span1 := StartSpan("test.operation1")
 	store.Store(1, span1)
 
-	// Wait for it to expire
-	time.Sleep(100 * time.Millisecond)
+	// Advance the clock past the TTL so span1 is now expired.
+	fakeNow = fakeNow.Add(100 * time.Millisecond)
 
 	// Force cleanup to run on next store by setting lastCleanup in the past
-	store.lastCleanup = time.Now().Add(-2 * time.Minute)
+	store.lastCleanup = fakeNow.Add(-2 * time.Minute)
 
 	// Store second span - this should trigger cleanup of expired span1
 	span2 := StartSpan("test.operation2")

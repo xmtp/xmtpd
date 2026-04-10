@@ -18,6 +18,11 @@ type RedisLimiter struct {
 	script    *redis.Script
 	keyPrefix string
 	limits    []Limit
+	// now returns the current time. Injectable so tests can advance the clock
+	// deterministically instead of sleeping through the refill window. The Lua
+	// script uses the client-provided timestamp for refill math, so overriding
+	// `now` is enough to fully control refill behavior in tests.
+	now func() time.Time
 }
 
 func NewRedisLimiter(
@@ -34,6 +39,7 @@ func NewRedisLimiter(
 		script:    redis.NewScript(luaScript),
 		keyPrefix: keyPrefix,
 		limits:    limits,
+		now:       time.Now,
 	}, nil
 }
 
@@ -66,7 +72,7 @@ func (l *RedisLimiter) Allow(ctx context.Context, subject string, cost uint64) (
 	if cost == 0 {
 		return nil, ErrCostMustBeGreaterThanZero
 	}
-	now := time.Now()
+	now := l.now()
 	keys := l.buildKeys(subject)
 	args := l.buildArgs(now, cost)
 

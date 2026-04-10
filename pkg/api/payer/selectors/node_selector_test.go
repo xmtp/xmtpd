@@ -663,9 +663,8 @@ func TestClosestNodeSelector_WithPreferredNodes(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, selector)
 
-	// Allow time for latency measurement
-	time.Sleep(200 * time.Millisecond)
-
+	// The first GetNode call performs TCP latency probing synchronously inside
+	// updateLatencyCache, so no wall-clock wait is needed before calling it.
 	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
 	node, err := selector.GetNode(tpc)
 
@@ -699,9 +698,8 @@ func TestClosestNodeSelector_WithoutPreferredNodes(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, selector)
 
-	// Allow time for latency measurement
-	time.Sleep(200 * time.Millisecond)
-
+	// The first GetNode call performs TCP latency probing synchronously inside
+	// updateLatencyCache, so no wall-clock wait is needed before calling it.
 	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
 	_, err = selector.GetNode(tpc)
 	// In test environment, latency measurement may fail - both outcomes are acceptable
@@ -726,9 +724,8 @@ func TestClosestNodeSelector_PreferredNodesFallback(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, selector)
 
-	// Allow time for latency measurement
-	time.Sleep(200 * time.Millisecond)
-
+	// The first GetNode call performs TCP latency probing synchronously inside
+	// updateLatencyCache, so no wall-clock wait is needed before calling it.
 	tpc := *topic.NewTopic(topic.TopicKindIdentityUpdatesV1, []byte("test"))
 	node, err := selector.GetNode(tpc)
 

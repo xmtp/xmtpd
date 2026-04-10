@@ -596,13 +596,16 @@ func TestPublishEnvelopeBatchPublishNoPartialError(t *testing.T) {
 	require.Nil(t, resp)
 	require.Contains(t, err.Error(), "published via the blockchain")
 
-	// give this some time to process just in case
-	time.Sleep(100 * time.Millisecond)
-
-	envs, err := queries.New(suite.DB).
-		SelectGatewayEnvelopesUnfiltered(context.Background(), queries.SelectGatewayEnvelopesUnfilteredParams{})
-	require.NoError(t, err)
-	require.Empty(t, envs)
+	// Assert that no envelopes ever land in the DB. require.Never fails fast
+	// if one does, instead of always waiting 100ms.
+	require.Never(t, func() bool {
+		envs, err := queries.New(suite.DB).
+			SelectGatewayEnvelopesUnfiltered(
+				context.Background(),
+				queries.SelectGatewayEnvelopesUnfilteredParams{},
+			)
+		return err != nil || len(envs) > 0
+	}, 100*time.Millisecond, 10*time.Millisecond)
 }
 
 func TestPublishEnvelopeBalanceEnforcement(t *testing.T) {

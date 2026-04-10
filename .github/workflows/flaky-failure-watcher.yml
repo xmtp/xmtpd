@@ -5,12 +5,7 @@ on:
     # NOTE: workflow_run requires explicit names — no wildcards.
     # When adding a new workflow that runs on main, add it here too.
     workflows:
-      - "Build xmtpd image"
-      - "Upgrade Tests"
-      - "Lint"
-      - "Lint Shellcheck"
       - "Test"
-      - "Nightly Automation"
     types: [completed]
     branches: [main]
 

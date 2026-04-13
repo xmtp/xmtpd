@@ -38,6 +38,9 @@ const (
 	methodQueryEnvelopes    = "xmtp.xmtpv4.message_api.ReplicationApi.QueryEnvelopes"
 	methodGetInboxIds       = "xmtp.xmtpv4.message_api.ReplicationApi.GetInboxIds"
 	methodGetNewestEnvelope = "xmtp.xmtpv4.message_api.ReplicationApi.GetNewestEnvelope"
+
+	// Streaming method (not usable with ghz — handled by runStreamTest)
+	methodSubscribeTopics = "xmtp.xmtpv4.message_api.QueryApi.SubscribeTopics"
 )
 
 // testCase defines a single performance test.
@@ -49,6 +52,7 @@ type testCase struct {
 	JSONPayload string // static JSON request body for read-path tests
 	TopicKind   topic.TopicKind
 	PayloadSize int
+	IsStream    bool // true = streaming test, handled by runStreamTest instead of ghz
 }
 
 var testCases = []testCase{
@@ -107,6 +111,12 @@ var testCases = []testCase{
 		TopicKind:   topic.TopicKindGroupMessagesV1,
 		PayloadSize: 5120,
 	},
+	// Streaming test (cannot use ghz — uses native gRPC streams)
+	{
+		Name:     "SubscribeTopics",
+		Method:   methodSubscribeTopics,
+		IsStream: true,
+	},
 }
 
 type testResult struct {
@@ -131,6 +141,7 @@ type config struct {
 	Connections int
 	Duration    time.Duration
 	Insecure    bool
+	PubRate     int // publish rate in msg/s for streaming tests
 }
 
 func makeGroupMessagePayload(size int) []byte {
@@ -305,6 +316,9 @@ func runWriteTest(cfg *config, tc testCase) (*testResult, error) {
 }
 
 func runTest(cfg *config, tc testCase) (*testResult, error) {
+	if tc.IsStream {
+		return runStreamTest(cfg, tc)
+	}
 	if tc.JSONPayload != "" {
 		return runReadTest(cfg, tc)
 	}
@@ -377,6 +391,10 @@ func parseFlags() (*config, []testCase, string) {
 	)
 	flag.BoolVar(
 		&cfg.Insecure, "insecure", false, "Use plaintext (no TLS)",
+	)
+	flag.IntVar(
+		&cfg.PubRate, "pub-rate", 50,
+		"Publish rate in msg/s for streaming tests",
 	)
 	tests := flag.String(
 		"tests",

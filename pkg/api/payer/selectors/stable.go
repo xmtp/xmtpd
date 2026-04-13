@@ -67,7 +67,7 @@ func (s *StableHashingNodeSelectorAlgorithm) GetNode(
 
 	// Binary search to find the first node with a virtual position >= topicHash
 	idx := sort.Search(len(nodeLocations), func(i int) bool {
-		return topicHash < nodeLocations[i]
+		return topicHash >= nodeLocations[i]
 	})
 
 	// Flatten banlist

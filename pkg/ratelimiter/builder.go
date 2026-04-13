@@ -81,7 +81,7 @@ func Build(
 	streamInner := NewRedisStreamLimiter(
 		client,
 		redisOpts.KeyPrefix+"rl:streams:",
-		rlOpts.T1MaxConcurrentStreams,
+		rlOpts.T1MaxConcurrentSubscribeAll,
 		rlOpts.StreamTTL,
 	)
 	streamLimiter := NewBreakerStreamLimiter(
@@ -99,7 +99,7 @@ func Build(
 		zap.Int("t2_per_minute", rlOpts.T2PerMinuteCapacity),
 		zap.Int("t2_per_hour", rlOpts.T2PerHourCapacity),
 		zap.Int("t2_subscribe_opens_per_minute", rlOpts.T2SubscribeOpensPerMinute),
-		zap.Int("t1_max_concurrent_streams", rlOpts.T1MaxConcurrentStreams),
+		zap.Int("t1_max_concurrent_streams", rlOpts.T1MaxConcurrentSubscribeAll),
 		zap.Duration("stream_ttl", rlOpts.StreamTTL),
 		zap.Duration("stream_refresh_interval", rlOpts.StreamRefreshInterval),
 	)

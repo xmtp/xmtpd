@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"math"
 	"slices"
@@ -31,6 +32,7 @@ type streamStats struct {
 	Latencies    []time.Duration // delivery latencies (publish → recv)
 	Errors       []string
 	FirstMsgAt   time.Duration // time from stream open to first message
+	LastMsgAt    time.Duration // time from stream open to last message
 }
 
 // publishTracker records the most recent publish timestamp per topic.
@@ -116,11 +118,272 @@ func buildPublishRequestForTopic(
 	}, nil
 }
 
-// runStreamTest runs a streaming performance test.
+// runStreamTest dispatches to the appropriate streaming test mode.
+func runStreamTest(cfg *config, tc testCase) (*testResult, error) {
+	if tc.IsCatchup {
+		return runCatchupStreamTest(cfg, tc)
+	}
+	return runLiveStreamTest(cfg, tc)
+}
+
+// runCatchupStreamTest pre-publishes messages, then opens subscriber streams
+// to measure catch-up delivery throughput and latency.
+// -c controls the number of concurrent subscriber streams (each with its own topic).
+// -pub-rate controls the total number of messages to pre-publish (spread across topics).
+func runCatchupStreamTest(cfg *config, tc testCase) (*testResult, error) {
+	fmt.Printf("\n========== %s (catch-up) ==========\n", tc.Name)
+
+	conn, err := newGRPCConn(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("grpc connect: %w", err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	numStreams := max(cfg.Concurrency, 1)
+	totalMsgs := max(cfg.PubRate, 1) // reuse -pub-rate as total pre-publish count
+	msgsPerTopic := max(totalMsgs/numStreams, 1)
+
+	// Generate one random topic per stream.
+	topics := make([]*topic.Topic, numStreams)
+	for i := range topics {
+		topicID := randomBytes(16)
+		topics[i] = topic.NewTopic(topic.TopicKindGroupMessagesV1, topicID)
+	}
+
+	fmt.Printf("Streams: %d, Pre-publish: %d msgs (%d per topic)\n",
+		numStreams, msgsPerTopic*numStreams, msgsPerTopic)
+
+	key, err := ethcrypto.GenerateKey()
+	if err != nil {
+		return nil, fmt.Errorf("generate key: %w", err)
+	}
+
+	// --- Phase 1: Pre-publish messages ---
+	publishClient := messageApi.NewPublishApiClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.Duration+30*time.Second)
+	defer cancel()
+
+	var totalPublished atomic.Uint64
+	var publishErrors atomic.Uint64
+	var pubWg sync.WaitGroup
+
+	for i := range numStreams {
+		pubWg.Add(1)
+		go func(tIdx int) {
+			defer pubWg.Done()
+			for range msgsPerTopic {
+				req, buildErr := buildPublishRequestForTopic(cfg, key, topics[tIdx], 256)
+				if buildErr != nil {
+					publishErrors.Add(1)
+					continue
+				}
+				_, pubErr := publishClient.PublishPayerEnvelopes(ctx, req)
+				if pubErr != nil {
+					publishErrors.Add(1)
+					continue
+				}
+				totalPublished.Add(1)
+			}
+		}(i)
+	}
+	pubWg.Wait()
+
+	published := totalPublished.Load()
+	pubErrs := publishErrors.Load()
+	fmt.Printf("  Pre-published: %d (errors: %d)\n", published, pubErrs)
+	if published == 0 {
+		cancel()
+		return nil, errors.New("no messages published — cannot test catch-up")
+	}
+
+	// --- Phase 2: Open streams and measure catch-up delivery ---
+	var subWg sync.WaitGroup
+	allStats := make([]streamStats, numStreams)
+
+	catchupStart := time.Now()
+
+	for i := range numStreams {
+		subWg.Add(1)
+		go func(idx int) {
+			defer subWg.Done()
+			stats := &allStats[idx]
+			topicBytes := topics[idx].Bytes()
+			expected := uint64(msgsPerTopic)
+
+			runCatchupSubscribeStream(ctx, conn, topicBytes, expected, stats)
+		}(i)
+	}
+	subWg.Wait()
+	catchupDuration := time.Since(catchupStart)
+
+	return aggregateCatchupStats(
+		tc.Name, catchupDuration, allStats,
+		published, pubErrs,
+	), nil
+}
+
+// runCatchupSubscribeStream opens a SubscribeTopics stream and receives until
+// expected messages are delivered or a 10s timeout.
+func runCatchupSubscribeStream(
+	ctx context.Context,
+	conn *grpc.ClientConn,
+	topicBytes []byte,
+	expected uint64,
+	stats *streamStats,
+) {
+	client := messageApi.NewQueryApiClient(conn)
+
+	streamCtx, streamCancel := context.WithTimeout(ctx, 10*time.Second)
+	defer streamCancel()
+
+	stream, err := client.SubscribeTopics(streamCtx, &messageApi.SubscribeTopicsRequest{
+		Filters: []*messageApi.SubscribeTopicsRequest_TopicFilter{
+			{Topic: topicBytes},
+		},
+	})
+	if err != nil {
+		stats.Errors = append(stats.Errors, err.Error())
+		return
+	}
+
+	streamOpen := time.Now()
+	firstMsg := false
+
+	for stats.MessagesRecv < expected {
+		resp, recvErr := stream.Recv()
+		recvTime := time.Now()
+		if recvErr != nil {
+			if streamCtx.Err() != nil {
+				break
+			}
+			stats.Errors = append(stats.Errors, recvErr.Error())
+			break
+		}
+		envs := resp.GetEnvelopes()
+		if envs == nil || len(envs.GetEnvelopes()) == 0 {
+			continue
+		}
+		n := uint64(len(envs.GetEnvelopes()))
+		stats.MessagesRecv += n
+		latency := recvTime.Sub(streamOpen)
+		if !firstMsg {
+			stats.FirstMsgAt = latency
+			firstMsg = true
+		}
+		stats.LastMsgAt = latency
+		stats.Latencies = append(stats.Latencies, latency)
+	}
+}
+
+// aggregateCatchupStats builds a testResult from catch-up stream metrics.
+func aggregateCatchupStats(
+	name string,
+	catchupDuration time.Duration,
+	stats []streamStats,
+	published uint64,
+	pubErrors uint64,
+) *testResult {
+	var totalRecv uint64
+	var allLatencies []time.Duration
+	var allFirstMsg []time.Duration
+	var maxLastMsg time.Duration
+	errMap := make(map[string]int)
+
+	for i := range stats {
+		totalRecv += stats[i].MessagesRecv
+		allLatencies = append(allLatencies, stats[i].Latencies...)
+		if stats[i].FirstMsgAt > 0 {
+			allFirstMsg = append(allFirstMsg, stats[i].FirstMsgAt)
+		}
+		if stats[i].LastMsgAt > maxLastMsg {
+			maxLastMsg = stats[i].LastMsgAt
+		}
+		for _, e := range stats[i].Errors {
+			if len(e) > 120 {
+				e = e[:120] + "..."
+			}
+			errMap[e]++
+		}
+	}
+
+	streamErrCount := 0
+	for _, c := range errMap {
+		streamErrCount += c
+	}
+
+	// Use the actual message delivery window for throughput, not the full wait.
+	secs := maxLastMsg.Seconds()
+	if secs == 0 {
+		secs = catchupDuration.Seconds()
+	}
+	if secs == 0 {
+		secs = 0.001
+	}
+
+	result := &testResult{
+		Name:     name,
+		Count:    totalRecv,
+		RPS:      float64(totalRecv) / secs,
+		OKCount:  int(totalRecv),
+		ErrCount: streamErrCount + int(pubErrors),
+		Errors:   errMap,
+	}
+
+	if total := result.OKCount + result.ErrCount; total > 0 {
+		result.ErrorPct = float64(result.ErrCount) / float64(total) * 100
+	}
+
+	if len(allLatencies) > 0 {
+		slices.Sort(allLatencies)
+		var sum float64
+		for _, l := range allLatencies {
+			sum += msFromDuration(l)
+		}
+		result.AvgLatency = sum / float64(len(allLatencies))
+		result.P50Latency = msFromDuration(percentile(allLatencies, 50))
+		result.P95Latency = msFromDuration(percentile(allLatencies, 95))
+		result.P99Latency = msFromDuration(percentile(allLatencies, 99))
+
+		var sumSquares float64
+		for _, l := range allLatencies {
+			diff := msFromDuration(l) - result.AvgLatency
+			sumSquares += diff * diff
+		}
+		result.StdDev = math.Sqrt(sumSquares / float64(len(allLatencies)))
+	}
+
+	fmt.Printf("  Catch-up duration: %s\n", catchupDuration.Round(time.Millisecond))
+	fmt.Printf(
+		"  Published: %d | Received: %d | Pub errors: %d | Stream errors: %d\n",
+		published, totalRecv, pubErrors, streamErrCount,
+	)
+	fmt.Printf("  Throughput: %.1f msg/s\n", result.RPS)
+	if len(allFirstMsg) > 0 {
+		slices.Sort(allFirstMsg)
+		fmt.Printf(
+			"  Time to first message — P50: %.1fms | P99: %.1fms\n",
+			msFromDuration(percentile(allFirstMsg, 50)),
+			msFromDuration(percentile(allFirstMsg, 99)),
+		)
+	}
+	if len(allLatencies) > 0 {
+		fmt.Printf(
+			"  Catch-up latency (stream open → recv) — Avg: %.1fms | P50: %.1fms | P95: %.1fms | P99: %.1fms\n",
+			result.AvgLatency,
+			result.P50Latency,
+			result.P95Latency,
+			result.P99Latency,
+		)
+	}
+
+	return result
+}
+
+// runLiveStreamTest runs a live streaming performance test.
 // -c controls the number of concurrent subscriber streams.
 // -conn controls the number of publisher goroutines.
 // -pub-rate controls the aggregate publish rate in msg/s.
-func runStreamTest(cfg *config, tc testCase) (*testResult, error) {
+func runLiveStreamTest(cfg *config, tc testCase) (*testResult, error) {
 	fmt.Printf("\n========== %s (streaming) ==========\n", tc.Name)
 
 	conn, err := newGRPCConn(cfg)
@@ -277,9 +540,12 @@ func runSubscribeTopicsStream(
 			stats.Errors = append(stats.Errors, recvErr.Error())
 			break
 		}
-		if envs := resp.GetEnvelopes(); envs != nil {
-			stats.MessagesRecv += uint64(len(envs.GetEnvelopes()))
+		envs := resp.GetEnvelopes()
+		if envs == nil || len(envs.GetEnvelopes()) == 0 {
+			continue // status update or empty — skip latency tracking
 		}
+		n := uint64(len(envs.GetEnvelopes()))
+		stats.MessagesRecv += n
 		if !firstMsg {
 			stats.FirstMsgAt = recvTime.Sub(streamOpen)
 			firstMsg = true

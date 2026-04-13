@@ -53,6 +53,7 @@ type testCase struct {
 	TopicKind   topic.TopicKind
 	PayloadSize int
 	IsStream    bool // true = streaming test, handled by runStreamTest instead of ghz
+	IsCatchup   bool // true = catch-up mode: publish first, then subscribe
 }
 
 var testCases = []testCase{
@@ -111,11 +112,17 @@ var testCases = []testCase{
 		TopicKind:   topic.TopicKindGroupMessagesV1,
 		PayloadSize: 5120,
 	},
-	// Streaming test (cannot use ghz — uses native gRPC streams)
+	// Streaming tests (cannot use ghz — uses native gRPC streams)
 	{
 		Name:     "SubscribeTopics",
 		Method:   methodSubscribeTopics,
 		IsStream: true,
+	},
+	{
+		Name:      "SubscribeTopics-Catchup",
+		Method:    methodSubscribeTopics,
+		IsStream:  true,
+		IsCatchup: true,
 	},
 }
 
@@ -427,11 +434,11 @@ func parseFlags() (*config, []testCase, string) {
 
 func printSummaryTable(results []testResult) {
 	const (
-		top    = "╔══════════════════════╦══════════╦══════════╦══════════╦══════════╦══════════╦════════╗"
-		title  = "║                      Node API Latency by Message Type                              ║"
-		sep    = "╠══════════════════════╬══════════╬══════════╬══════════╬══════════╬══════════╬════════╣"
-		header = "║ Test                 ║ Count    ║ RPS      ║ Avg(ms)  ║ Stdev    ║ P99(ms)  ║ Err%   ║"
-		bottom = "╚══════════════════════╩══════════╩══════════╩══════════╩══════════╩══════════╩════════╝"
+		top    = "╔══════════════════════════╦══════════╦══════════╦══════════╦══════════╦══════════╦════════╗"
+		title  = "║                          Node API Latency by Message Type                              ║"
+		sep    = "╠══════════════════════════╬══════════╬══════════╬══════════╬══════════╬══════════╬════════╣"
+		header = "║ Test                     ║ Count    ║ RPS      ║ Avg(ms)  ║ Stdev    ║ P99(ms)  ║ Err%   ║"
+		bottom = "╚══════════════════════════╩══════════╩══════════╩══════════╩══════════╩══════════╩════════╝"
 	)
 
 	fmt.Println()
@@ -442,7 +449,7 @@ func printSummaryTable(results []testResult) {
 	fmt.Println(sep)
 	for _, r := range results {
 		fmt.Printf(
-			"║ %-20s ║ %8d ║ %8.1f ║ %8.2f ║ %8.2f ║ %8.2f ║ %5.1f%% ║\n",
+			"║ %-24s ║ %8d ║ %8.1f ║ %8.2f ║ %8.2f ║ %8.2f ║ %5.1f%% ║\n",
 			r.Name, r.Count, r.RPS,
 			r.AvgLatency, r.StdDev, r.P99Latency, r.ErrorPct,
 		)

@@ -575,8 +575,19 @@ func startAPIServer(
 			}
 		}
 
+		replicationHandlerOpts := handlerOpts
+		if cfg.Options.API.RequireReplicationNodeAuth {
+			requireAuthInterceptor := server.NewRequireNodeAuthInterceptor(cfg.Logger)
+			replicationHandlerOpts = []connect.HandlerOption{
+				connect.WithReadMaxBytes(constants.GRPCPayloadLimit),
+				connect.WithSendMaxBytes(constants.GRPCPayloadLimit),
+				connect.WithInterceptors(
+					append(slices.Clone(interceptors), requireAuthInterceptor)...),
+			}
+		}
+
 		replicationPath, replicationHandler := message_apiconnect.NewReplicationApiHandler(
-			replicationService, handlerOpts...,
+			replicationService, replicationHandlerOpts...,
 		)
 		queryPath, queryHandler := message_apiconnect.NewQueryApiHandler(
 			replicationService, queryHandlerOpts...,

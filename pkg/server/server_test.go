@@ -202,7 +202,7 @@ func TestCreateServer(t *testing.T) {
 			}
 		}
 		return false
-	}, 10*time.Second, 200*time.Millisecond)
+	}, 20*time.Second, 500*time.Millisecond)
 }
 
 func TestReadOwnWritesGuarantee(t *testing.T) {

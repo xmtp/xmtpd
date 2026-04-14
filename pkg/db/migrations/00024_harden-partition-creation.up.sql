@@ -23,13 +23,25 @@
 --     callers racing on the same `(originator_node_id, band_start)` can
 --     interleave CREATE / ATTACH / DROP CONSTRAINT, and PostgreSQL's
 --     per-statement locks do not guarantee atomicity across the function.
+--   * Even with *per-oid* serialization, two callers for DIFFERENT oids can
+--     deadlock: PostgreSQL's `ATTACH PARTITION` on a sub-partitioned child
+--     propagates locks up to the top-level partitioned parent AND across
+--     sibling L1 children (to validate partition-bound non-overlap). A
+--     caller at step 1 holding AccessExclusive on its newly-created `oN`
+--     child while waiting for ShareRowExclusive on the top parent will
+--     deadlock against a concurrent caller that has already acquired that
+--     ShareRowExclusive and now wants ShareUpdateExclusive on the first
+--     caller's `oN` child (as part of its own step-3 ATTACH propagation).
+--     This was observed in CI as `TestCreateServer` SQLSTATE 40P01.
 --
 -- Fix strategy (append-only; the v2/v3 helpers remain in `pg_proc`):
---   * New `make_*_part_v3`/`_v4` helpers that take a transaction-scoped
---     advisory lock, short-circuit via `pg_inherits` when the partition is
---     already attached, build a CORRECT CHECK predicate, and let any ATTACH
---     error propagate to the caller.
---   * New `ensure_gateway_parts_v4` that wraps the four helpers.
+--   * New `make_*_part_v3`/`_v4` helpers that short-circuit via `pg_inherits`
+--     when the partition is already attached, build a CORRECT CHECK
+--     predicate, and let any ATTACH error propagate to the caller.
+--   * New `ensure_gateway_parts_v4` that takes a single GLOBAL advisory lock
+--     at entry, fully serializing all concurrent partition-creation work
+--     regardless of oid or band. The helpers additionally take per-resource
+--     advisory locks as defense-in-depth for direct callers.
 --
 -- The legacy helpers are left in place so that migration-behavior tests
 -- (e.g. `migration_00023_test.go`) continue to populate pre-rename databases
@@ -265,6 +277,17 @@ $$ LANGUAGE plpgsql;
 
 
 -- Production partition ensure. Calls the hardened helpers above.
+--
+-- Takes a single GLOBAL transaction-scoped advisory lock at entry to
+-- fully serialize all partition-creation work across the cluster.
+--
+-- The per-oid / per-band advisory locks inside the helpers are not
+-- sufficient on their own: `ATTACH PARTITION` on a sub-partitioned child
+-- propagates lock acquisitions across sibling partitions at the L1 level
+-- (to validate partition-bound non-overlap), so two callers for different
+-- oids can still deadlock on each other's freshly-created L1 children.
+-- The global lock is cheap — partition creation is a rare (cold-path)
+-- operation taken only when the savepoint-retry path fires.
 CREATE FUNCTION ensure_gateway_parts_v4(
     p_originator_node_id     int,
     p_originator_sequence_id bigint,
@@ -273,6 +296,12 @@ CREATE FUNCTION ensure_gateway_parts_v4(
 DECLARE
     v_band_start bigint := (p_originator_sequence_id / p_band_width) * p_band_width;
 BEGIN
+    -- Global serialization: one ensure_gateway_parts_v4 call at a time.
+    -- Uses the single-argument form with a 64-bit namespace key derived
+    -- from a stable string so this lock cannot collide with per-oid locks
+    -- (which use the two-int form).
+    PERFORM pg_advisory_xact_lock(hashtext('xmtpd.ensure_gateway_parts')::bigint);
+
     PERFORM make_meta_originator_part_v3(p_originator_node_id);
     PERFORM make_blob_originator_part_v4(p_originator_node_id);
     PERFORM make_meta_seq_subpart_v3(

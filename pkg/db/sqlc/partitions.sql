@@ -17,6 +17,16 @@ SELECT ensure_gateway_parts_v3(
                @band_width
        );
 
+-- name: EnsureGatewayPartsV4 :exec
+-- Hardened partition ensure. Adds advisory locking, pg_inherits-based
+-- short-circuit, corrected CHECK constraint, and no silent error swallowing.
+-- See migration 00024 for context.
+SELECT ensure_gateway_parts_v4(
+               @originator_node_id,
+               @originator_sequence_id,
+               @band_width
+       );
+
 -- name: MakeMetaOriginatorPart :exec
 SELECT make_meta_originator_part_v2(@originator_node_id);
 

@@ -52,6 +52,28 @@ func (q *Queries) EnsureGatewayPartsV3(ctx context.Context, arg EnsureGatewayPar
 	return err
 }
 
+const ensureGatewayPartsV4 = `-- name: EnsureGatewayPartsV4 :exec
+SELECT ensure_gateway_parts_v4(
+               $1,
+               $2,
+               $3
+       )
+`
+
+type EnsureGatewayPartsV4Params struct {
+	OriginatorNodeID     int32
+	OriginatorSequenceID int64
+	BandWidth            int64
+}
+
+// Hardened partition ensure. Adds advisory locking, pg_inherits-based
+// short-circuit, corrected CHECK constraint, and no silent error swallowing.
+// See migration 00024 for context.
+func (q *Queries) EnsureGatewayPartsV4(ctx context.Context, arg EnsureGatewayPartsV4Params) error {
+	_, err := q.exec(ctx, q.ensureGatewayPartsV4Stmt, ensureGatewayPartsV4, arg.OriginatorNodeID, arg.OriginatorSequenceID, arg.BandWidth)
+	return err
+}
+
 const insertSavePoint = `-- name: InsertSavePoint :exec
 SAVEPOINT sp_part
 `

@@ -14,7 +14,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/topic"
 )
 
-const currentMigration int64 = 23
+const currentMigration int64 = 24
 
 var (
 	originatorIDs = []int32{100, 200, 300}
@@ -210,6 +210,10 @@ func TestMigrations(t *testing.T) {
 
 	t.Run("00023_rename-envelope-blobs", func(t *testing.T) {
 		checkRenameEnvelopeBlobs(t, database)
+	})
+
+	t.Run("00024_harden-partition-creation", func(t *testing.T) {
+		checkHardenPartitionCreation(t, database)
 	})
 
 	t.Run("data_verification", func(t *testing.T) {
@@ -409,6 +413,19 @@ func checkStagedInsertBatchV2(t *testing.T, database *sql.DB) {
 
 func checkMetaPartitionSelect(t *testing.T, database *sql.DB) {
 	functionExists(t, database, "get_prunable_meta_partitions")
+}
+
+func checkHardenPartitionCreation(t *testing.T, database *sql.DB) {
+	functions := []string{
+		"make_meta_originator_part_v3",
+		"make_meta_seq_subpart_v3",
+		"make_blob_originator_part_v4",
+		"make_blob_seq_subpart_v4",
+		"ensure_gateway_parts_v4",
+	}
+	for _, fn := range functions {
+		functionExists(t, database, fn)
+	}
 }
 
 func checkRenameEnvelopeBlobs(t *testing.T, database *sql.DB) {

@@ -57,6 +57,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.ensureGatewayPartsV3Stmt, err = db.PrepareContext(ctx, ensureGatewayPartsV3); err != nil {
 		return nil, fmt.Errorf("error preparing query EnsureGatewayPartsV3: %w", err)
 	}
+	if q.ensureGatewayPartsV4Stmt, err = db.PrepareContext(ctx, ensureGatewayPartsV4); err != nil {
+		return nil, fmt.Errorf("error preparing query EnsureGatewayPartsV4: %w", err)
+	}
 	if q.fetchPayerReportStmt, err = db.PrepareContext(ctx, fetchPayerReport); err != nil {
 		return nil, fmt.Errorf("error preparing query FetchPayerReport: %w", err)
 	}
@@ -313,6 +316,11 @@ func (q *Queries) Close() error {
 	if q.ensureGatewayPartsV3Stmt != nil {
 		if cerr := q.ensureGatewayPartsV3Stmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing ensureGatewayPartsV3Stmt: %w", cerr)
+		}
+	}
+	if q.ensureGatewayPartsV4Stmt != nil {
+		if cerr := q.ensureGatewayPartsV4Stmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing ensureGatewayPartsV4Stmt: %w", cerr)
 		}
 	}
 	if q.fetchPayerReportStmt != nil {
@@ -695,6 +703,7 @@ type Queries struct {
 	deleteObsoleteNoncesStmt                     *sql.Stmt
 	ensureGatewayPartsStmt                       *sql.Stmt
 	ensureGatewayPartsV3Stmt                     *sql.Stmt
+	ensureGatewayPartsV4Stmt                     *sql.Stmt
 	fetchPayerReportStmt                         *sql.Stmt
 	fetchPayerReportLockedStmt                   *sql.Stmt
 	fetchPayerReportsStmt                        *sql.Stmt
@@ -778,6 +787,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		deleteObsoleteNoncesStmt:                     q.deleteObsoleteNoncesStmt,
 		ensureGatewayPartsStmt:                       q.ensureGatewayPartsStmt,
 		ensureGatewayPartsV3Stmt:                     q.ensureGatewayPartsV3Stmt,
+		ensureGatewayPartsV4Stmt:                     q.ensureGatewayPartsV4Stmt,
 		fetchPayerReportStmt:                         q.fetchPayerReportStmt,
 		fetchPayerReportLockedStmt:                   q.fetchPayerReportLockedStmt,
 		fetchPayerReportsStmt:                        q.fetchPayerReportsStmt,

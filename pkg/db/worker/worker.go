@@ -167,12 +167,12 @@ func (w *Worker) runPartitionCheck(ctx context.Context, nodeID uint32, seqID int
 		return nil
 	}
 
-	params := queries.EnsureGatewayPartsV3Params{
+	params := queries.EnsureGatewayPartsV4Params{
 		OriginatorNodeID:     int32(nodeID),
 		OriginatorSequenceID: targetSeqID,
 		BandWidth:            partitionSize,
 	}
-	err := w.db.WriteQuery().EnsureGatewayPartsV3(ctx, params)
+	err := w.db.WriteQuery().EnsureGatewayPartsV4(ctx, params)
 	if err != nil {
 		return fmt.Errorf("could not create gateway partitions: %w", err)
 	}

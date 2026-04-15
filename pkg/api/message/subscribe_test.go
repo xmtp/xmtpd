@@ -111,9 +111,9 @@ func insertInitialRows(t *testing.T, suite *testUtilsApi.APIServerTestSuite) {
 	})
 	// Wait until the subscribe worker has polled past the inserted rows so that
 	// a subsequent subscription with LastSeen=nil won't see them.
-	ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
-	defer cancel()
-	require.NoError(t, suite.MessageService.AwaitCursor(ctx, db.VectorClock{100: 1, 200: 1}))
+	require.Eventually(t, func() bool {
+		return suite.MessageService.DispatchedMet(db.VectorClock{100: 1, 200: 1})
+	}, 500*time.Millisecond, 5*time.Millisecond)
 }
 
 func insertAdditionalRows(t *testing.T, store *sql.DB, notifyChan ...chan bool) {
@@ -616,17 +616,11 @@ func TestSubscribeCatchUpSkewedOriginators(t *testing.T) {
 	saveEnvelopes(t, server.DB, sourceEnvelopes)
 
 	// Block until the subscribeWorker has polled past the last inserted sequence ID.
-	{
-		awaitCtx, awaitCancel := context.WithTimeout(t.Context(), 5*time.Second)
-		require.NoError(
-			t,
-			server.MessageService.AwaitCursor(
-				awaitCtx,
-				db.VectorClock{heavyOriginatorID: uint64(heavyMsgCount)},
-			),
+	require.Eventually(t, func() bool {
+		return server.MessageService.DispatchedMet(
+			db.VectorClock{heavyOriginatorID: uint64(heavyMsgCount)},
 		)
-		awaitCancel()
-	}
+	}, 5*time.Second, 5*time.Millisecond)
 
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
@@ -746,9 +740,9 @@ func TestSubscribeAll(t *testing.T) {
 
 	// Wait until the server has registered the listener before inserting, so
 	// no inserts race the listener registration.
-	awaitCtx, awaitCancel := context.WithTimeout(t.Context(), 5*time.Second)
-	require.NoError(t, server.MessageService.AwaitGlobalListeners(awaitCtx, 1))
-	awaitCancel()
+	require.Eventually(t, func() bool {
+		return server.MessageService.GlobalListenerCount() >= 1
+	}, 5*time.Second, 5*time.Millisecond)
 
 	for _, env := range envelopeList {
 		testutils.InsertGatewayEnvelopes(t, server.DB, []queries.InsertGatewayEnvelopeV3Params{env})
@@ -1090,11 +1084,11 @@ func TestOriginatorParity_SkewedPagination(t *testing.T) {
 			)
 			saveEnvelopes(t, server.DB, sourceEnvelopes)
 
-			awaitCtx, awaitCancel := context.WithTimeout(t.Context(), 5*time.Second)
-			defer awaitCancel()
-			require.NoError(t, server.MessageService.AwaitCursor(
-				awaitCtx, db.VectorClock{heavyOriginatorID: uint64(heavyMsgCount)},
-			))
+			require.Eventually(t, func() bool {
+				return server.MessageService.DispatchedMet(
+					db.VectorClock{heavyOriginatorID: uint64(heavyMsgCount)},
+				)
+			}, 5*time.Second, 5*time.Millisecond)
 
 			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 			defer cancel()
@@ -1283,9 +1277,9 @@ func TestOriginatorParity_VariableVolume(t *testing.T) {
 			for nodeID, envs := range sourceEnvelopes {
 				expectedVC[uint32(nodeID)] = uint64(len(envs))
 			}
-			awaitCtx, awaitCancel := context.WithTimeout(t.Context(), 5*time.Second)
-			defer awaitCancel()
-			require.NoError(t, server.MessageService.AwaitCursor(awaitCtx, expectedVC))
+			require.Eventually(t, func() bool {
+				return server.MessageService.DispatchedMet(expectedVC)
+			}, 5*time.Second, 5*time.Millisecond)
 
 			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 			defer cancel()
@@ -1392,9 +1386,9 @@ func TestSubscribeAll_StreamsOnlyNewMessages(t *testing.T) {
 			preSeedVC[nodeID] = seq
 		}
 	}
-	awaitCtx, awaitCancel := context.WithTimeout(t.Context(), 5*time.Second)
-	require.NoError(t, server.MessageService.AwaitCursor(awaitCtx, preSeedVC))
-	awaitCancel()
+	require.Eventually(t, func() bool {
+		return server.MessageService.DispatchedMet(preSeedVC)
+	}, 5*time.Second, 5*time.Millisecond)
 
 	// Start a subscriber stream.
 	req := &message_api.SubscribeAllEnvelopesRequest{}
@@ -1424,9 +1418,9 @@ func TestSubscribeAll_StreamsOnlyNewMessages(t *testing.T) {
 
 	// Wait until the server has registered the listener before inserting, so
 	// no inserts race the listener registration.
-	listenerCtx, listenerCancel := context.WithTimeout(t.Context(), 5*time.Second)
-	require.NoError(t, server.MessageService.AwaitGlobalListeners(listenerCtx, 1))
-	listenerCancel()
+	require.Eventually(t, func() bool {
+		return server.MessageService.GlobalListenerCount() >= 1
+	}, 5*time.Second, 5*time.Millisecond)
 
 	for _, env := range streamBatch {
 		testutils.InsertGatewayEnvelopes(t, server.DB, []queries.InsertGatewayEnvelopeV3Params{env})

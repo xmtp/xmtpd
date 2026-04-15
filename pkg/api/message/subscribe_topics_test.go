@@ -107,9 +107,9 @@ func insertAndWait(
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
-	defer cancel()
-	require.NoError(t, suite.MessageService.AwaitCursor(ctx, vc))
+	require.Eventually(t, func() bool {
+		return suite.MessageService.DispatchedMet(vc)
+	}, 5*time.Second, 5*time.Millisecond)
 }
 
 // requireOriginatorOrdering verifies that envelopes are ordered per originator.

@@ -56,14 +56,10 @@ type subscribeWorker struct {
 	originatorListeners listenersMap[uint32]
 	topicListeners      listenersMap[string]
 
-	// dispatched tracks the highest sequence ID per originator that has been
-	// fully dispatched to listeners by start(). Unlike the per-poller LastSeen
-	// cursor (which advances as soon as the DB is read), this only advances
-	// after dispatchToGlobals/Originators/Topics returns, so a caller observing
-	// dispatched >= X knows any envelope up to X has already been handed to
-	// every listener that existed at dispatch time. Tests rely on this to
-	// synchronize "open a new stream after pre-seeded envelopes are drained"
-	// without sleeping.
+	// dispatched tracks the highest per-originator sequence ID already handed
+	// off to listeners by start() — advanced *after* dispatch, unlike the
+	// per-poller LastSeen which advances on DB read. Tests use it to wait for
+	// pre-seeded rows to drain before opening a stream.
 	dispatchedMu sync.Mutex
 	dispatched   db.VectorClock
 }
@@ -272,14 +268,16 @@ func (s *subscribeWorker) advanceDispatched(
 	if len(batch) == 0 {
 		return
 	}
+	// Batch rows come from SelectGatewayEnvelopesBySingleOriginator: all from
+	// one originator, ORDER BY originator_sequence_id — so the last row has the
+	// max seq.
+	last := batch[len(batch)-1]
+	nodeID := uint32(last.OriginatorNodeID)
+	seq := uint64(last.OriginatorSequenceID)
 	s.dispatchedMu.Lock()
 	defer s.dispatchedMu.Unlock()
-	for _, row := range batch {
-		nodeID := uint32(row.OriginatorNodeID)
-		seq := uint64(row.OriginatorSequenceID)
-		if cur, ok := s.dispatched[nodeID]; !ok || seq > cur {
-			s.dispatched[nodeID] = seq
-		}
+	if cur, ok := s.dispatched[nodeID]; !ok || seq > cur {
+		s.dispatched[nodeID] = seq
 	}
 }
 

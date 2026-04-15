@@ -1341,15 +1341,9 @@ func TestSubscribeAll_StreamsOnlyNewMessages(t *testing.T) {
 		)
 	)
 
-	// Envelope data.
-	//
-	// generateEnvelopes returns `perNode` envelopes *per* originator, so with
-	// 2 nodes we get 2 * perNode total envelopes. We only insert the first
-	// `initialBatchSize` as pre-seeds and the next `streamSize` as the new
-	// batch the stream should observe; the remainder are generated but never
-	// inserted. Slicing by exact bounds (rather than [initialBatchSize:])
-	// keeps the post-subscribe insert count to exactly streamSize — otherwise
-	// the stream races past streamSize and the final equality check fails.
+	// generateEnvelopes returns perNode envelopes per originator, so flattening
+	// gives us 2*perNode total. Slice by exact bounds so the post-subscribe
+	// insert count is exactly streamSize — the final equality check depends on it.
 	var (
 		initialBatchSize = 5
 		streamSize       = 5

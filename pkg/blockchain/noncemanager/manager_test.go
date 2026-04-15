@@ -253,18 +253,27 @@ func TestSimultaneousAllocation(t *testing.T) {
 			err := tm.manager.Replenish(ctx, *big.NewInt(0))
 			require.NoError(t, err)
 
-			const numGoroutines = 50
+			// numGoroutines must not exceed BestGuessConcurrency: both the SQL
+			// and Redis backends cap concurrent nonce holders via a semaphore
+			// of that size, so going higher would leave some workers blocked
+			// inside GetNonce and deadlock the acquired-barrier below.
+			const numGoroutines = noncemanager.BestGuessConcurrency
 
 			var wg sync.WaitGroup
 			var activeNonces sync.Map // nonce -> count of simultaneous holders
 			var errors []error
 			var mu sync.Mutex
 
-			// Phase 1: All goroutines get nonces simultaneously.
-			// The barrier MUST be closed below (see `close(barrier)`) so the
-			// workers are released; otherwise they would block forever on
-			// `<-barrier` and wg.Wait() would hang.
-			barrier := make(chan struct{})
+			// Phase 1: all goroutines race to acquire their nonce.
+			// Phase 2: once every goroutine has acquired, they all consume
+			//          together. This keeps the "held but not consumed" window
+			//          open deterministically across all workers, so a bug that
+			//          double-allocates a nonce is caught without needing a
+			//          wall-clock sleep.
+			startBarrier := make(chan struct{})
+			consumeBarrier := make(chan struct{})
+			var acquired sync.WaitGroup
+			acquired.Add(numGoroutines)
 
 			for i := range numGoroutines {
 				wg.Add(1)
@@ -272,13 +281,14 @@ func TestSimultaneousAllocation(t *testing.T) {
 					defer wg.Done()
 
 					// Wait for all goroutines to be ready
-					<-barrier
+					<-startBarrier
 
 					nonce, err := tm.manager.GetNonce(ctx)
 					if err != nil {
 						mu.Lock()
 						errors = append(errors, err)
 						mu.Unlock()
+						acquired.Done()
 						return
 					}
 
@@ -302,8 +312,11 @@ func TestSimultaneousAllocation(t *testing.T) {
 						mu.Unlock()
 					}
 
-					// Hold the nonce briefly to ensure simultaneous allocation detection
-					time.Sleep(1 * time.Millisecond)
+					// Signal acquisition and hold the nonce until every other
+					// goroutine has also acquired. This is what makes the
+					// simultaneous-allocation window deterministic.
+					acquired.Done()
+					<-consumeBarrier
 
 					// Phase 2: Always consume to avoid cancelled nonce reuse confusion
 					err = nonce.Consume()
@@ -320,7 +333,11 @@ func TestSimultaneousAllocation(t *testing.T) {
 			}
 
 			// Release all goroutines at once
-			close(barrier)
+			close(startBarrier)
+			// Wait for every goroutine to acquire (or fail) its nonce so they
+			// all hold their nonces concurrently before anyone consumes.
+			acquired.Wait()
+			close(consumeBarrier)
 			wg.Wait()
 
 			// For this test, we only care about true simultaneous allocation
@@ -348,14 +365,13 @@ func TestCancelReuse(t *testing.T) {
 			err := tm.manager.Replenish(ctx, *big.NewInt(0))
 			require.NoError(t, err)
 
-			// Allocate one nonce and cancel it
+			// Allocate one nonce and cancel it. Cancel is synchronous on every
+			// backend (sql, redis, in-memory), so when it returns the nonce is
+			// back in the available pool.
 			nonce1, err := tm.manager.GetNonce(ctx)
 			require.NoError(t, err)
 			firstNonce := nonce1.Nonce.Int64()
 			nonce1.Cancel()
-
-			// Allow time for cancellation to take effect (especially for Redis)
-			time.Sleep(10 * time.Millisecond)
 
 			// Get the next nonce - it should be the cancelled one OR the next available
 			nonce2, err := tm.manager.GetNonce(ctx)

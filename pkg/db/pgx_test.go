@@ -111,10 +111,16 @@ func TestNamespacedDBInvalidDSN(t *testing.T) {
 	require.Error(t, err)
 }
 
-func BlackHoleServer(ctx context.Context, port string) error {
+// BlackHoleServer starts a TCP listener that accepts connections but never
+// responds. It closes `ready` as soon as the listener is bound so callers can
+// synchronize on readiness instead of sleeping.
+func BlackHoleServer(ctx context.Context, port string, ready chan<- struct{}) error {
 	ln, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		return fmt.Errorf("error starting blackhole server: %w", err)
+	}
+	if ready != nil {
+		close(ready)
 	}
 	defer func() {
 		_ = ln.Close()
@@ -169,11 +175,16 @@ func TestBlackholeDNS(t *testing.T) {
 	defer cancelServer()
 
 	serverErrCh := make(chan error, 1)
+	serverReady := make(chan struct{})
 	go func() {
-		serverErrCh <- BlackHoleServer(serverCtx, strconv.Itoa(port))
+		serverErrCh <- BlackHoleServer(serverCtx, strconv.Itoa(port), serverReady)
 	}()
-	// Wait for server to start
-	time.Sleep(50 * time.Millisecond)
+	// Wait for the listener to be bound before dialing.
+	select {
+	case <-serverReady:
+	case <-testCtx.Done():
+		t.Fatal("blackhole server did not start in time")
+	}
 
 	_, err = db.NewNamespacedDB(
 		testCtx,

@@ -86,6 +86,13 @@ func (r *Registrant) SignStagedEnvelope(
 	congestionFee currency.PicoDollar,
 	retentionDays uint32,
 ) (*envelopes.OriginatorEnvelope, error) {
+	// Expiry is derived from the staged envelope's originator_time (set once by
+	// the DB at staging) rather than time.Now(), so that SignStagedEnvelope is a
+	// pure function of its inputs. PublishPayerEnvelopes signs the same staged
+	// envelope twice (once to return to the client, once in the publish worker
+	// before storing it); basing expiry on OriginatorTime guarantees both calls
+	// produce identical bytes and signatures, so the envelope the client sees
+	// in the publish response matches what is stored and later queried back.
 	unsignedEnv := envelopes.UnsignedOriginatorEnvelope{
 		OriginatorNodeId:         r.record.NodeID,
 		OriginatorSequenceId:     uint64(stagedEnv.ID),
@@ -94,7 +101,7 @@ func (r *Registrant) SignStagedEnvelope(
 		BaseFeePicodollars:       uint64(baseFee),
 		CongestionFeePicodollars: uint64(congestionFee),
 		ExpiryUnixtime: uint64(
-			time.Now().UTC().
+			stagedEnv.OriginatorTime.UTC().
 				Add(time.Hour * 24 * time.Duration(retentionDays)).
 				Unix(),
 		),

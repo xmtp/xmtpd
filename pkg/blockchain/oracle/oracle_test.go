@@ -2,7 +2,6 @@ package oracle_test
 
 import (
 	"context"
-	"math/rand"
 	"sync"
 	"testing"
 	"time"
@@ -13,7 +12,7 @@ import (
 	"github.com/xmtp/xmtpd/pkg/testutils/anvil"
 )
 
-func buildOracle(t *testing.T) *oracle.Oracle {
+func buildOracle(t *testing.T, opts ...oracle.Option) *oracle.Oracle {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
@@ -25,6 +24,7 @@ func buildOracle(t *testing.T) *oracle.Oracle {
 		ctx,
 		logger,
 		wsURL,
+		opts...,
 	)
 	require.NoError(t, err)
 
@@ -38,8 +38,8 @@ func buildOracle(t *testing.T) *oracle.Oracle {
 func TestOracleGetGasPrice(t *testing.T) {
 	o := buildOracle(t)
 
-	// By forcing waiting, we ensure that the gas price is fetched from the blockchain.
-	time.Sleep(500 * time.Millisecond)
+	// First GetGasPrice call always fetches because lastUpdated is zero,
+	// so no wall-clock wait is required.
 	gasPrice := o.GetGasPrice()
 	require.Positive(t, gasPrice)
 }
@@ -72,7 +72,10 @@ func TestOracleConcurrentGetGasPrice(t *testing.T) {
 }
 
 func TestOracleGetGasPriceRandom(t *testing.T) {
-	o := buildOracle(t)
+	// Force every GetGasPrice call to refetch by configuring a zero stale
+	// window. singleflight still coalesces concurrent fetches, so this
+	// exercises the racy "fetch under load" path without any wall-clock sleep.
+	o := buildOracle(t, oracle.WithMaxStaleDuration(0))
 
 	initialPrice := o.GetGasPrice()
 	require.Positive(t, initialPrice)
@@ -80,8 +83,6 @@ func TestOracleGetGasPriceRandom(t *testing.T) {
 	var wg sync.WaitGroup
 	for range 100 {
 		wg.Go(func() {
-			// Force the oracle to fetch a new gas price for some goroutines.
-			time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
 			price := o.GetGasPrice()
 			require.Positive(t, price)
 		})
@@ -90,15 +91,14 @@ func TestOracleGetGasPriceRandom(t *testing.T) {
 }
 
 func TestOracleGasPriceRefreshesAfterStaleness(t *testing.T) {
-	o := buildOracle(t)
+	// A zero stale window forces the second GetGasPrice call to fetch a
+	// fresh value, deterministically exercising the refresh path.
+	o := buildOracle(t, oracle.WithMaxStaleDuration(0))
 
 	// Get initial gas price
 	initialPrice := o.GetGasPrice()
 	t.Logf("initial gas price: %d", initialPrice)
 	require.Positive(t, initialPrice)
-
-	// Wait for staleness (250ms + buffer)
-	time.Sleep(300 * time.Millisecond)
 
 	// Price should still be valid after refresh
 	currentPrice := o.GetGasPrice()

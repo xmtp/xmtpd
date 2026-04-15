@@ -241,19 +241,25 @@ func TestPublishToNodes(t *testing.T) {
 	)
 }
 
+// slowServer is a test fixture that simulates a replication node that never
+// responds until the client cancels the RPC. When `slow` is set, the handler
+// blocks on ctx.Done() rather than sleeping through a wall-clock duration, so
+// the test completes as soon as the client's publish deadline fires instead of
+// waiting out a hard-coded sleep.
 type slowServer struct {
-	delay atomic.Duration
+	slow atomic.Bool
 	message_api.UnimplementedReplicationApiServer
 }
 
 func (s *slowServer) PublishPayerEnvelopes(
-	context.Context,
-	*message_api.PublishPayerEnvelopesRequest,
+	ctx context.Context,
+	_ *message_api.PublishPayerEnvelopesRequest,
 ) (*message_api.PublishPayerEnvelopesResponse, error) {
-	time.Sleep(s.delay.Load())
-
-	res := &message_api.PublishPayerEnvelopesResponse{}
-	return res, nil
+	if s.slow.Load() {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	return &message_api.PublishPayerEnvelopesResponse{}, nil
 }
 
 func TestPublishToNodesExpires(t *testing.T) {
@@ -299,8 +305,8 @@ func TestPublishToNodesExpires(t *testing.T) {
 		envelopesTestUtils.GetRealisticGroupMessagePayload(false),
 	)
 
-	// Make the server take longer than the service is willing to wait.
-	srv.delay.Store(publishTimeout + time.Second)
+	// Make the server block until the client's publish deadline fires.
+	srv.slow.Store(true)
 	_, err = svc.PublishClientEnvelopes(
 		ctx,
 		connect.NewRequest(&payer_api.PublishClientEnvelopesRequest{
@@ -311,7 +317,7 @@ func TestPublishToNodesExpires(t *testing.T) {
 	require.Error(t, err)
 
 	// Publish rpc should succeed if completed within the deadline.
-	srv.delay.Store(0)
+	srv.slow.Store(false)
 	_, err = svc.PublishClientEnvelopes(
 		ctx,
 		connect.NewRequest(&payer_api.PublishClientEnvelopesRequest{

@@ -3,13 +3,16 @@ package message
 import (
 	"context"
 	"fmt"
+	"maps"
 	"slices"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
 
 	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/db"
+	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/migrator"
 	"github.com/xmtp/xmtpd/pkg/registry"
@@ -52,6 +55,13 @@ type subscribeWorker struct {
 	globalListeners     listenerSet
 	originatorListeners listenersMap[uint32]
 	topicListeners      listenersMap[string]
+
+	// dispatched tracks the highest per-originator sequence ID already handed
+	// off to listeners by start() — advanced *after* dispatch, unlike the
+	// per-poller LastSeen which advances on DB read. Tests use it to wait for
+	// pre-seeded rows to drain before opening a stream.
+	dispatchedMu sync.Mutex
+	dispatched   db.VectorClock
 }
 
 func (s *subscribeWorker) getOriginatorNodeIds() ([]uint32, error) {
@@ -96,6 +106,12 @@ func startSubscribeWorker(
 	}
 	vc := db.ToVectorClock(latestEnvelopes)
 
+	// Seed dispatched with the current vector clock so any envelope already
+	// written to the DB before the worker started counts as "dispatched" (from
+	// the perspective of a brand-new listener that will never see it anyway).
+	initialDispatched := make(db.VectorClock, len(vc))
+	maps.Copy(initialDispatched, vc)
+
 	worker := &subscribeWorker{
 		ctx:                 ctx,
 		logger:              logger,
@@ -105,6 +121,7 @@ func startSubscribeWorker(
 		subscriptions:       newSubscriptionHandler(logger, store, vc),
 		originatorListeners: listenersMap[uint32]{},
 		topicListeners:      listenersMap[string]{},
+		dispatched:          initialDispatched,
 	}
 
 	nodeIDs, err := worker.getOriginatorNodeIds()
@@ -164,6 +181,12 @@ func (s *subscribeWorker) start() {
 			s.dispatchToOriginators(envs)
 			s.dispatchToTopics(envs)
 			s.dispatchToGlobals(envs)
+
+			// Advance the dispatched cursor based on the raw batch (not envs),
+			// so an envelope that failed to unmarshal still counts as
+			// "dispatched" — otherwise tests waiting on its sequence ID would
+			// spin forever.
+			s.advanceDispatched(batch)
 
 			span.Finish()
 		}
@@ -234,6 +257,43 @@ func (s *subscribeWorker) dispatchToTopics(envs []*envelopes.OriginatorEnvelope)
 
 func (s *subscribeWorker) dispatchToGlobals(envs []*envelopes.OriginatorEnvelope) {
 	s.dispatchToListeners(&s.globalListeners, envs)
+}
+
+// advanceDispatched records the highest sequence ID per originator seen in
+// this batch, so dispatchedMet can confirm that every row up to a given
+// vector clock has already been handed to the listener set.
+func (s *subscribeWorker) advanceDispatched(
+	batch []queries.SelectGatewayEnvelopesBySingleOriginatorRow,
+) {
+	if len(batch) == 0 {
+		return
+	}
+	// Batch rows come from SelectGatewayEnvelopesBySingleOriginator: all from
+	// one originator, ORDER BY originator_sequence_id — so the last row has the
+	// max seq.
+	last := batch[len(batch)-1]
+	nodeID := uint32(last.OriginatorNodeID)
+	seq := uint64(last.OriginatorSequenceID)
+	s.dispatchedMu.Lock()
+	defer s.dispatchedMu.Unlock()
+	if cur, ok := s.dispatched[nodeID]; !ok || seq > cur {
+		s.dispatched[nodeID] = seq
+	}
+}
+
+// dispatchedMet returns true iff every (originator, seq) in target has been
+// dispatched to listeners. A returned true is a guarantee that any listener
+// registered after this call will not retroactively receive those envelopes
+// — the batch has already left start().
+func (s *subscribeWorker) dispatchedMet(target db.VectorClock) bool {
+	s.dispatchedMu.Lock()
+	defer s.dispatchedMu.Unlock()
+	for nodeID, minSeq := range target {
+		if cur, ok := s.dispatched[nodeID]; !ok || cur < minSeq {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *subscribeWorker) dispatchToListeners(

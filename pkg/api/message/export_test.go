@@ -1,39 +1,32 @@
 package message
 
 import (
-	"context"
-	"time"
-
 	"github.com/xmtp/xmtpd/pkg/db"
 )
 
-// AwaitCursor blocks until the subscribe worker has polled past all sequence IDs in vc.
-// Only compiled during testing (export_test.go pattern).
-func (s *Service) AwaitCursor(ctx context.Context, vc db.VectorClock) error {
-	const checkInterval = 5 * time.Millisecond
-	ticker := time.NewTicker(checkInterval)
-	defer ticker.Stop()
-
-	for {
-		if s.subscribeWorker.subscriptions.cursorMet(vc) {
-			return nil
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
-		}
-	}
+// DispatchedMet reports whether the subscribe worker has *dispatched* every
+// sequence ID in vc to its listeners. This is stronger than "polled past" —
+// a true return guarantees the start() loop has already handed those rows
+// off, so any listener registered after this call will not retroactively
+// receive them. Tests use this predicate with require.Eventually to pre-seed
+// envelopes before opening a stream without racing the dispatch loop.
+func (s *Service) DispatchedMet(vc db.VectorClock) bool {
+	return s.subscribeWorker.dispatchedMet(vc)
 }
 
-func (s *subscriptionHandler) cursorMet(vc db.VectorClock) bool {
-	s.Lock()
-	defer s.Unlock()
-	for nodeID, minSeq := range vc {
-		poller, ok := s.subs[nodeID]
-		if !ok || uint64(poller.sub.LastSeen()) < minSeq {
-			return false
-		}
-	}
-	return true
+// GlobalListenerCount returns the number of global listeners currently
+// registered with the subscribe worker. Tests poll this (via require.Eventually)
+// to wait for proof that a server-side listener is registered before
+// triggering the code under test — no time.Sleep needed.
+func (s *Service) GlobalListenerCount() int {
+	return s.subscribeWorker.countGlobalListeners()
+}
+
+func (s *subscribeWorker) countGlobalListeners() int {
+	count := 0
+	s.globalListeners.Range(func(_, _ any) bool {
+		count++
+		return true
+	})
+	return count
 }

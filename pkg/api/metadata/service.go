@@ -16,7 +16,15 @@ import (
 	"go.uber.org/zap"
 )
 
-const requestMissingMessageError = "missing request message"
+const (
+	requestMissingMessageError = "missing request message"
+
+	// subscribeSyncCursorKeepaliveInterval is how often the handler re-sends
+	// the current cursor on an otherwise-idle stream. Without it, any
+	// intermediary (LB, reverse proxy) with an idle timeout will terminate
+	// the HTTP/2 stream and force clients to reconnect.
+	subscribeSyncCursorKeepaliveInterval = 30 * time.Second
+)
 
 type Service struct {
 	metadata_apiconnect.UnimplementedMetadataApiHandler
@@ -91,6 +99,9 @@ func (s *Service) SubscribeSyncCursor(
 	s.cu.AddSubscriber(clientID, updateChan)
 	defer s.cu.RemoveSubscriber(clientID)
 
+	keepalive := time.NewTicker(subscribeSyncCursorKeepaliveInterval)
+	defer keepalive.Stop()
+
 	for {
 		select {
 		case _, open := <-updateChan:
@@ -108,6 +119,17 @@ func (s *Service) SubscribeSyncCursor(
 			} else {
 				s.logger.Debug("channel closed by worker")
 				return nil
+			}
+
+		case <-keepalive.C:
+			cursor := s.cu.GetCursor()
+			if err := stream.Send(&metadata_api.GetSyncCursorResponse{
+				LatestSync: cursor,
+			}); err != nil {
+				return connect.NewError(
+					connect.CodeInternal,
+					fmt.Errorf("error sending keepalive cursor: %w", err),
+				)
 			}
 
 		case <-ctx.Done():

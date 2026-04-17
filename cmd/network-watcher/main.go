@@ -20,6 +20,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
+	"golang.org/x/net/http2"
 
 	"github.com/xmtp/xmtpd/pkg/blockchain"
 	"github.com/xmtp/xmtpd/pkg/config"
@@ -126,7 +127,7 @@ func main() {
 	watcher, err := networkwatcher.NewWatcher(networkwatcher.WatcherConfig{
 		Registry:   chainRegistry,
 		Logger:     logger.Named("xmtpd.network-watcher"),
-		HTTPClient: &http.Client{Timeout: 0},
+		HTTPClient: newStreamingHTTPClient(),
 		MinBackoff: options.ReconnectMinBackoff,
 		MaxBackoff: options.ReconnectMaxBackoff,
 	})
@@ -174,6 +175,19 @@ func resolveContractAddresses(logger *zap.Logger) {
 		zap.String("environment", options.Contracts),
 		zap.String("node_registry", options.NodeRegistryAddress),
 	)
+}
+
+// newStreamingHTTPClient returns an http.Client tuned for long-lived
+// server-streaming RPCs. It sends HTTP/2 PING frames on otherwise-idle
+// connections so that intermediaries (LBs, reverse proxies) with idle
+// timeouts don't silently terminate the stream.
+func newStreamingHTTPClient() *http.Client {
+	return &http.Client{
+		Transport: &http2.Transport{
+			ReadIdleTimeout: 15 * time.Second,
+			PingTimeout:     10 * time.Second,
+		},
+	}
 }
 
 func serveMetrics(logger *zap.Logger, reg *prometheus.Registry, port string) {

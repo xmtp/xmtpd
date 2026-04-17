@@ -28,8 +28,9 @@ type SubscriberConfig struct {
 // Subscriber maintains a single long-lived SubscribeSyncCursor stream to one
 // publisher node, reconnecting with exponential backoff on failure.
 type Subscriber struct {
-	cfg    SubscriberConfig
-	client metadata_apiconnect.MetadataApiClient
+	cfg           SubscriberConfig
+	client        metadata_apiconnect.MetadataApiClient
+	loggedInitial bool // true once the first-ever cursor has been logged
 }
 
 // NewSubscriber builds a Subscriber with a Connect client bound to cfg.BaseURL.
@@ -123,14 +124,19 @@ func (s *Subscriber) runOnce(ctx context.Context) (uint64, time.Duration, error)
 		if cursor == nil {
 			continue
 		}
+		snapshot := cursor.GetNodeIdToSequenceId()
 		if updates == 0 {
 			s.cfg.Logger.Info(
 				"stream connected",
-				zap.Int("originators", len(cursor.GetNodeIdToSequenceId())),
+				zap.Int("originators", len(snapshot)),
 			)
 		}
+		if !s.loggedInitial {
+			s.cfg.Logger.Info("initial cursor", zap.Any("cursor", snapshot))
+			s.loggedInitial = true
+		}
 		updates++
-		s.cfg.Aggregator.Apply(s.cfg.NodeID, cursor.GetNodeIdToSequenceId())
+		s.cfg.Aggregator.Apply(s.cfg.NodeID, snapshot)
 	}
 	return updates, time.Since(startedAt), stream.Err()
 }

@@ -130,6 +130,7 @@ func (w *Watcher) reconcile(nodes []registry.Node) {
 	// Cancel subscribers for removed nodes.
 	for id, h := range w.handles {
 		if _, keep := wanted[id]; !keep {
+			w.cfg.Logger.Info("subscriber removed", zap.Uint32("node_id", id))
 			h.cancel()
 			delete(w.handles, id)
 		}
@@ -140,6 +141,11 @@ func (w *Watcher) reconcile(nodes []registry.Node) {
 		if _, exists := w.handles[id]; exists {
 			continue
 		}
+		w.cfg.Logger.Info(
+			"subscriber added",
+			zap.Uint32("node_id", id),
+			zap.String("url", n.HTTPAddress),
+		)
 		subCtx, subCancel := context.WithCancel(w.ctx)
 		done := make(chan struct{})
 		sub := NewSubscriber(SubscriberConfig{

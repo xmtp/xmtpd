@@ -18,7 +18,7 @@ jobs:
   push_to_registry:
     strategy:
       matrix:
-        image: ["xmtpd", "xmtpd-cli", "xmtpd-prune", "xmtpd-gateway", "xmtpd-e2e", "xmtpd-chain-watcher"]
+        image: ["xmtpd", "xmtpd-cli", "xmtpd-prune", "xmtpd-gateway", "xmtpd-e2e", "xmtpd-chain-watcher", "xmtpd-network-watcher"]
     name: Push Docker Images to GitHub Packages
     runs-on: ubuntu-latest
     permissions:
@@ -65,6 +65,8 @@ jobs:
           echo "dockerfile=e2e.Dockerfile" >> $GITHUB_OUTPUT
           elif [[ "${{ matrix.image }}" == "xmtpd-chain-watcher" ]]; then
           echo "dockerfile=chain-watcher.Dockerfile" >> $GITHUB_OUTPUT
+          elif [[ "${{ matrix.image }}" == "xmtpd-network-watcher" ]]; then
+          echo "dockerfile=network-watcher.Dockerfile" >> $GITHUB_OUTPUT
           else
           echo "Unknown image: ${{ matrix.image }}"
           exit 1
@@ -100,6 +102,7 @@ jobs:
       prune_image: ${{ steps.digests.outputs.prune_image }}
       gateway_image: ${{ steps.digests.outputs.gateway_image }}
       chain_watcher_image: ${{ steps.digests.outputs.chain_watcher_image }}
+      network_watcher_image: ${{ steps.digests.outputs.network_watcher_image }}
     steps:
       - name: Download xmtpd digest
         uses: actions/download-artifact@v4
@@ -131,6 +134,12 @@ jobs:
           name: xmtpd-chain-watcher-digest
           path: digests
 
+      - name: Download network-watcher digest
+        uses: actions/download-artifact@v4
+        with:
+          name: xmtpd-network-watcher-digest
+          path: digests
+
       - name: Read and export digests
         id: digests
         run: |
@@ -141,16 +150,18 @@ jobs:
           PRUNE_DIGEST=$(cut -d= -f2 digests/xmtpd-prune.txt)
           GATEWAY_DIGEST=$(cut -d= -f2 digests/xmtpd-gateway.txt)
           CHAIN_WATCHER_DIGEST=$(cut -d= -f2 digests/xmtpd-chain-watcher.txt)
+          NETWORK_WATCHER_DIGEST=$(cut -d= -f2 digests/xmtpd-network-watcher.txt)
 
-          if [[ -z "$XMTPD_DIGEST" || -z "$CLI_DIGEST" || -z "$PRUNE_DIGEST" || -z "$GATEWAY_DIGEST" || -z "$CHAIN_WATCHER_DIGEST" ]]; then
+          if [[ -z "$XMTPD_DIGEST" || -z "$CLI_DIGEST" || -z "$PRUNE_DIGEST" || -z "$GATEWAY_DIGEST" || -z "$CHAIN_WATCHER_DIGEST" || -z "$NETWORK_WATCHER_DIGEST" ]]; then
             echo "✖️  One or more digests are empty – aborting deploy." >&2
             exit 1
           fi
 
-          echo "xmtpd_image=ghcr.io/xmtp/xmtpd@$XMTPD_DIGEST"                               >> $GITHUB_OUTPUT
-          echo "prune_image=ghcr.io/xmtp/xmtpd-prune@$PRUNE_DIGEST"                         >> $GITHUB_OUTPUT
-          echo "gateway_image=ghcr.io/xmtp/xmtpd-gateway@$GATEWAY_DIGEST"                   >> $GITHUB_OUTPUT
-          echo "chain_watcher_image=ghcr.io/xmtp/xmtpd-chain-watcher@$CHAIN_WATCHER_DIGEST" >> $GITHUB_OUTPUT
+          echo "xmtpd_image=ghcr.io/xmtp/xmtpd@$XMTPD_DIGEST"                                   >> $GITHUB_OUTPUT
+          echo "prune_image=ghcr.io/xmtp/xmtpd-prune@$PRUNE_DIGEST"                             >> $GITHUB_OUTPUT
+          echo "gateway_image=ghcr.io/xmtp/xmtpd-gateway@$GATEWAY_DIGEST"                       >> $GITHUB_OUTPUT
+          echo "chain_watcher_image=ghcr.io/xmtp/xmtpd-chain-watcher@$CHAIN_WATCHER_DIGEST"     >> $GITHUB_OUTPUT
+          echo "network_watcher_image=ghcr.io/xmtp/xmtpd-network-watcher@$NETWORK_WATCHER_DIGEST" >> $GITHUB_OUTPUT
 
   deploy_testnet_staging:
     name: Deploy to testnet-staging

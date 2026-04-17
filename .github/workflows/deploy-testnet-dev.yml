@@ -47,6 +47,7 @@ jobs:
       prune_image: ${{ steps.digests.outputs.prune_image }}
       gateway_image: ${{ steps.digests.outputs.gateway_image }}
       chain_watcher_image: ${{ steps.digests.outputs.chain_watcher_image }}
+      network_watcher_image: ${{ steps.digests.outputs.network_watcher_image }}
     steps:
       - name: Download xmtpd digest
         uses: actions/download-artifact@v4
@@ -80,6 +81,14 @@ jobs:
           run-id: ${{ needs.resolve_run.outputs.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Download xmtpd-network-watcher digest
+        uses: actions/download-artifact@v4
+        with:
+          name: xmtpd-network-watcher-digest
+          path: digests
+          run-id: ${{ needs.resolve_run.outputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Read and export digests
         id: digests
         run: |
@@ -89,16 +98,18 @@ jobs:
           PRUNE_DIGEST=$(cut -d= -f2 digests/xmtpd-prune.txt)
           GATEWAY_DIGEST=$(cut -d= -f2 digests/xmtpd-gateway.txt)
           CHAIN_WATCHER_DIGEST=$(cut -d= -f2 digests/xmtpd-chain-watcher.txt)
+          NETWORK_WATCHER_DIGEST=$(cut -d= -f2 digests/xmtpd-network-watcher.txt)
 
-          if [[ -z "$XMTPD_DIGEST" || -z "$PRUNE_DIGEST" || -z "$GATEWAY_DIGEST" || -z "$CHAIN_WATCHER_DIGEST" ]]; then
+          if [[ -z "$XMTPD_DIGEST" || -z "$PRUNE_DIGEST" || -z "$GATEWAY_DIGEST" || -z "$CHAIN_WATCHER_DIGEST" || -z "$NETWORK_WATCHER_DIGEST" ]]; then
             echo "✖️  One or more digests are empty – aborting deploy." >&2
             exit 1
           fi
 
-          echo "xmtpd_image=ghcr.io/xmtp/xmtpd@$XMTPD_DIGEST"                               >> $GITHUB_OUTPUT
-          echo "prune_image=ghcr.io/xmtp/xmtpd-prune@$PRUNE_DIGEST"                         >> $GITHUB_OUTPUT
-          echo "gateway_image=ghcr.io/xmtp/xmtpd-gateway@$GATEWAY_DIGEST"                   >> $GITHUB_OUTPUT
-          echo "chain_watcher_image=ghcr.io/xmtp/xmtpd-chain-watcher@$CHAIN_WATCHER_DIGEST" >> $GITHUB_OUTPUT
+          echo "xmtpd_image=ghcr.io/xmtp/xmtpd@$XMTPD_DIGEST"                                   >> $GITHUB_OUTPUT
+          echo "prune_image=ghcr.io/xmtp/xmtpd-prune@$PRUNE_DIGEST"                             >> $GITHUB_OUTPUT
+          echo "gateway_image=ghcr.io/xmtp/xmtpd-gateway@$GATEWAY_DIGEST"                       >> $GITHUB_OUTPUT
+          echo "chain_watcher_image=ghcr.io/xmtp/xmtpd-chain-watcher@$CHAIN_WATCHER_DIGEST"     >> $GITHUB_OUTPUT
+          echo "network_watcher_image=ghcr.io/xmtp/xmtpd-network-watcher@$NETWORK_WATCHER_DIGEST" >> $GITHUB_OUTPUT
 
   deploy_testnet_dev:
     name: Deploy to testnet-dev
@@ -115,6 +126,6 @@ jobs:
           terraform-token: ${{ secrets.TERRAFORM_TOKEN }}
           terraform-org: xmtp
           terraform-workspace: testnet-dev
-          variable-name: "xmtpd_server_docker_image,xmtpd_prune_docker_image,xmtpd_gateway_docker_image,xmtpd_migrator_docker_image,chain_watcher_image"
-          variable-value: "${{ needs.prepare.outputs.xmtpd_image }},${{ needs.prepare.outputs.prune_image }},${{ needs.prepare.outputs.gateway_image }},${{ needs.prepare.outputs.xmtpd_image }},${{ needs.prepare.outputs.chain_watcher_image }}"
+          variable-name: "xmtpd_server_docker_image,xmtpd_prune_docker_image,xmtpd_gateway_docker_image,xmtpd_migrator_docker_image,chain_watcher_image,network_watcher_image"
+          variable-value: "${{ needs.prepare.outputs.xmtpd_image }},${{ needs.prepare.outputs.prune_image }},${{ needs.prepare.outputs.gateway_image }},${{ needs.prepare.outputs.xmtpd_image }},${{ needs.prepare.outputs.chain_watcher_image }},${{ needs.prepare.outputs.network_watcher_image }}"
           variable-value-required-prefix: "ghcr.io/xmtp/"

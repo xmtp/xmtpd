@@ -127,7 +127,7 @@ func main() {
 	watcher, err := networkwatcher.NewWatcher(networkwatcher.WatcherConfig{
 		Registry:   chainRegistry,
 		Logger:     logger.Named("xmtpd.network-watcher"),
-		HTTPClient: newStreamingHTTPClient(),
+		HTTPClient: newStreamingHTTPClient(logger),
 		MinBackoff: options.ReconnectMinBackoff,
 		MaxBackoff: options.ReconnectMaxBackoff,
 	})
@@ -178,16 +178,21 @@ func resolveContractAddresses(logger *zap.Logger) {
 }
 
 // newStreamingHTTPClient returns an http.Client tuned for long-lived
-// server-streaming RPCs. It sends HTTP/2 PING frames on otherwise-idle
-// connections so that intermediaries (LBs, reverse proxies) with idle
-// timeouts don't silently terminate the stream.
-func newStreamingHTTPClient() *http.Client {
-	return &http.Client{
-		Transport: &http2.Transport{
-			ReadIdleTimeout: 15 * time.Second,
-			PingTimeout:     10 * time.Second,
-		},
+// server-streaming RPCs. On HTTPS connections it sends HTTP/2 PING frames
+// on otherwise-idle streams so that intermediaries (LBs, reverse proxies)
+// with idle timeouts don't silently terminate them. Plain http:// falls
+// back to HTTP/1.1 — sufficient for dev/local setups where idle timeouts
+// aren't a concern.
+func newStreamingHTTPClient(logger *zap.Logger) *http.Client {
+	t := &http.Transport{ForceAttemptHTTP2: true}
+	h2t, err := http2.ConfigureTransports(t)
+	if err != nil {
+		logger.Warn("could not configure HTTP/2 keepalive on transport", zap.Error(err))
+	} else {
+		h2t.ReadIdleTimeout = 15 * time.Second
+		h2t.PingTimeout = 10 * time.Second
 	}
+	return &http.Client{Transport: t}
 }
 
 func serveMetrics(logger *zap.Logger, reg *prometheus.Registry, port string) {

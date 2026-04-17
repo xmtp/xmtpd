@@ -43,10 +43,10 @@ type NetworkWatcherOptions struct {
 
 	NodeRegistryAddress string `long:"node-registry-address" env:"NODE_REGISTRY_ADDRESS"`
 
-	NodeRegistryRefreshInterval time.Duration `env:"NODE_REGISTRY_REFRESH_INTERVAL" default:"60s"`
+	NodeRegistryRefreshInterval time.Duration `long:"node-registry-refresh-interval" env:"NODE_REGISTRY_REFRESH_INTERVAL" default:"60s"`
 
-	ReconnectMinBackoff time.Duration `env:"RECONNECT_MIN_BACKOFF" default:"1s"`
-	ReconnectMaxBackoff time.Duration `env:"RECONNECT_MAX_BACKOFF" default:"30s"`
+	ReconnectMinBackoff time.Duration `long:"reconnect-min-backoff" env:"RECONNECT_MIN_BACKOFF" default:"1s"`
+	ReconnectMaxBackoff time.Duration `long:"reconnect-max-backoff" env:"RECONNECT_MAX_BACKOFF" default:"30s"`
 
 	MetricsPort string `long:"metrics-port" env:"METRICS_PORT" default:"8009"`
 }

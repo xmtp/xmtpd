@@ -38,7 +38,7 @@ func NewSubscriber(cfg SubscriberConfig) *Subscriber {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
-	client := metadata_apiconnect.NewMetadataApiClient(httpClient, cfg.BaseURL)
+	client := metadata_apiconnect.NewMetadataApiClient(httpClient, cfg.BaseURL, connect.WithGRPC())
 	return &Subscriber{cfg: cfg, client: client}
 }
 

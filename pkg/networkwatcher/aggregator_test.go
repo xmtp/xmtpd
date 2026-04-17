@@ -65,3 +65,66 @@ func TestAggregator_ConcurrentApplyIsRaceFree(t *testing.T) {
 
 	_ = time.Now
 }
+
+func TestAggregator_Divergence_MaxMinusMinAcrossLivePublishers(t *testing.T) {
+	resetAggregatorMetrics()
+	a := NewAggregator()
+	a.SetNodeUp(1, true)
+	a.SetNodeUp(2, true)
+	a.SetNodeUp(3, true)
+
+	a.Apply(1, map[uint32]uint64{100: 500})
+	a.Apply(2, map[uint32]uint64{100: 550})
+	a.Apply(3, map[uint32]uint64{100: 700})
+
+	require.InDelta(t, 200.0, metricValue(t, cursorDivergence.WithLabelValues("100")), 0)
+	require.InDelta(t, 700.0, metricValue(t, cursorMax.WithLabelValues("100")), 0)
+}
+
+func TestAggregator_Divergence_ExcludesNonLivePublishers(t *testing.T) {
+	resetAggregatorMetrics()
+	a := NewAggregator()
+	a.SetNodeUp(1, true)
+	a.SetNodeUp(2, true)
+
+	a.Apply(1, map[uint32]uint64{100: 500})
+	a.Apply(2, map[uint32]uint64{100: 700})
+
+	// Node 2 drops.
+	a.SetNodeUp(2, false)
+
+	// Only node 1 is live; divergence collapses to 0 and max becomes 500.
+	require.InDelta(t, 0.0, metricValue(t, cursorDivergence.WithLabelValues("100")), 0)
+	require.InDelta(t, 500.0, metricValue(t, cursorMax.WithLabelValues("100")), 0)
+
+	// Raw gauge for node 2 is retained (last-known).
+	require.InDelta(t, 700.0, metricValue(t, cursorGauge.WithLabelValues("2", "100")), 0)
+}
+
+func TestAggregator_Divergence_SinglePublisherIsZero(t *testing.T) {
+	resetAggregatorMetrics()
+	a := NewAggregator()
+	a.SetNodeUp(1, true)
+
+	a.Apply(1, map[uint32]uint64{100: 500})
+
+	require.InDelta(t, 0.0, metricValue(t, cursorDivergence.WithLabelValues("100")), 0)
+	require.InDelta(t, 500.0, metricValue(t, cursorMax.WithLabelValues("100")), 0)
+}
+
+func TestAggregator_LastUpdateSecondsUsesInjectedNow(t *testing.T) {
+	resetAggregatorMetrics()
+	a := NewAggregator()
+	fixed := time.Unix(1700000000, 0)
+	a.now = func() time.Time { return fixed }
+	a.SetNodeUp(1, true)
+
+	a.Apply(1, map[uint32]uint64{100: 1})
+
+	require.InDelta(
+		t,
+		float64(1700000000),
+		metricValue(t, nodeLastUpdateSeconds.WithLabelValues("1")),
+		0,
+	)
+}

@@ -98,8 +98,6 @@ func RegisterMetrics(reg prometheus.Registerer) {
 }
 
 // nodeIDLabel renders a uint32 node ID as a metric label value.
-//
-//nolint:unused // used by the aggregator added in a later task
 func nodeIDLabel(id uint32) string {
 	return strconv.FormatUint(uint64(id), 10)
 }

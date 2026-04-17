@@ -23,8 +23,10 @@ type WatcherConfig struct {
 }
 
 // Watcher orchestrates per-node Subscribers driven by the on-chain
-// registry. It owns an Aggregator and spawns/cancels Subscribers in
-// response to registry change events.
+// registry. It owns an Aggregator and spawns Subscribers for each node
+// the registry reports. The registry is add-only (nodes are never
+// removed), so this watcher is add-only too — Subscribers are torn down
+// only when the Watcher stops.
 type Watcher struct {
 	cfg        WatcherConfig
 	aggregator *Aggregator
@@ -34,12 +36,7 @@ type Watcher struct {
 	wg     sync.WaitGroup
 
 	mu      sync.Mutex
-	handles map[uint32]*subHandle
-}
-
-type subHandle struct {
-	cancel context.CancelFunc
-	done   chan struct{}
+	spawned map[uint32]struct{}
 }
 
 // NewWatcher validates cfg and returns a Watcher.
@@ -53,19 +50,22 @@ func NewWatcher(cfg WatcherConfig) (*Watcher, error) {
 	if cfg.MinBackoff <= 0 {
 		cfg.MinBackoff = time.Second
 	}
-	if cfg.MaxBackoff < cfg.MinBackoff {
+	if cfg.MaxBackoff <= 0 {
 		cfg.MaxBackoff = 30 * time.Second
+	}
+	if cfg.MaxBackoff < cfg.MinBackoff {
+		cfg.MaxBackoff = cfg.MinBackoff
 	}
 	return &Watcher{
 		cfg:        cfg,
 		aggregator: NewAggregator(),
-		handles:    make(map[uint32]*subHandle),
+		spawned:    make(map[uint32]struct{}),
 	}, nil
 }
 
 // Start begins watching the registry and spawning Subscribers. It returns
-// after initial node reconciliation; node updates continue in the background
-// until Stop (or ctx cancel).
+// after initial node reconciliation; node-add events continue to be
+// processed in the background until Stop (or ctx cancel).
 func (w *Watcher) Start(ctx context.Context) error {
 	w.ctx, w.cancel = context.WithCancel(ctx)
 
@@ -74,7 +74,7 @@ func (w *Watcher) Start(ctx context.Context) error {
 		registryErrors.Inc()
 		return err
 	}
-	w.reconcile(initial)
+	w.spawnMissing(initial)
 
 	w.wg.Go(func() {
 		w.watchLoop()
@@ -88,16 +88,6 @@ func (w *Watcher) Stop() {
 		w.cancel()
 	}
 	w.wg.Wait()
-
-	w.mu.Lock()
-	handles := w.handles
-	w.handles = map[uint32]*subHandle{}
-	w.mu.Unlock()
-
-	for _, h := range handles {
-		h.cancel()
-		<-h.done
-	}
 }
 
 func (w *Watcher) watchLoop() {
@@ -110,35 +100,24 @@ func (w *Watcher) watchLoop() {
 			if !ok {
 				return
 			}
-			w.reconcile(nodes)
+			w.spawnMissing(nodes)
 		}
 	}
 }
 
-func (w *Watcher) reconcile(nodes []registry.Node) {
-	wanted := make(map[uint32]registry.Node, len(nodes))
+// spawnMissing starts a Subscriber for every node in the slice we haven't
+// already spawned for. The slice may be a delta (OnNewNodes) or the full
+// initial set (GetNodes); both are handled the same — we only add.
+func (w *Watcher) spawnMissing(nodes []registry.Node) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	for _, n := range nodes {
 		if !n.IsValidConfig || n.HTTPAddress == "" {
 			continue
 		}
-		wanted[n.NodeID] = n
-	}
-
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	// Cancel subscribers for removed nodes.
-	for id, h := range w.handles {
-		if _, keep := wanted[id]; !keep {
-			w.cfg.Logger.Info("subscriber removed", zap.Uint32("node_id", id))
-			h.cancel()
-			delete(w.handles, id)
-		}
-	}
-
-	// Spawn subscribers for new nodes.
-	for id, n := range wanted {
-		if _, exists := w.handles[id]; exists {
+		id := n.NodeID
+		if _, exists := w.spawned[id]; exists {
 			continue
 		}
 		w.cfg.Logger.Info(
@@ -146,8 +125,6 @@ func (w *Watcher) reconcile(nodes []registry.Node) {
 			zap.Uint32("node_id", id),
 			zap.String("url", n.HTTPAddress),
 		)
-		subCtx, subCancel := context.WithCancel(w.ctx)
-		done := make(chan struct{})
 		sub := NewSubscriber(SubscriberConfig{
 			NodeID:     id,
 			BaseURL:    n.HTTPAddress,
@@ -157,12 +134,9 @@ func (w *Watcher) reconcile(nodes []registry.Node) {
 			MinBackoff: w.cfg.MinBackoff,
 			MaxBackoff: w.cfg.MaxBackoff,
 		})
-		go func() {
-			defer close(done)
-			sub.Run(subCtx)
-		}()
-		w.handles[id] = &subHandle{cancel: subCancel, done: done}
+		w.spawned[id] = struct{}{}
+		w.wg.Go(func() { sub.Run(w.ctx) })
 	}
 
-	knownNodes.Set(float64(len(wanted)))
+	knownNodes.Set(float64(len(w.spawned)))
 }

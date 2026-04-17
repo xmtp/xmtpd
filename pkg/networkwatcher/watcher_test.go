@@ -165,44 +165,14 @@ func TestWatcher_AddsSubscriber_OnNewNodeEvent(t *testing.T) {
 		return metricValue(t, nodeUp.WithLabelValues("1")) == 1
 	}, 2*time.Second, 10*time.Millisecond)
 
+	// OnNewNodes emits the delta of newly-added nodes — the watcher
+	// should spawn for n2 without disturbing the already-running n1.
 	n2 := makeStubNode(t, 2, map[uint32]uint64{100: 2})
-	reg.pushNodes([]registry.Node{n1, n2})
+	reg.pushNodes([]registry.Node{n2})
 
 	require.Eventually(t, func() bool {
 		return metricValue(t, nodeUp.WithLabelValues("2")) == 1 &&
+			metricValue(t, nodeUp.WithLabelValues("1")) == 1 &&
 			metricValue(t, knownNodes) == 2
-	}, 2*time.Second, 10*time.Millisecond)
-}
-
-func TestWatcher_RemovesSubscriber_WhenNodeDropsFromRegistry(t *testing.T) {
-	resetAggregatorMetrics()
-	knownNodes.Set(0)
-
-	n1 := makeStubNode(t, 1, map[uint32]uint64{100: 1})
-	n2 := makeStubNode(t, 2, map[uint32]uint64{100: 2})
-	reg := newFakeRegistry([]registry.Node{n1, n2})
-
-	w, err := NewWatcher(WatcherConfig{
-		Registry:   reg,
-		Logger:     zap.NewNop(),
-		MinBackoff: 5 * time.Millisecond,
-		MaxBackoff: 20 * time.Millisecond,
-		HTTPClient: http.DefaultClient,
-	})
-	require.NoError(t, err)
-
-	ctx := t.Context()
-	require.NoError(t, w.Start(ctx))
-	defer w.Stop()
-
-	require.Eventually(t, func() bool {
-		return metricValue(t, nodeUp.WithLabelValues("2")) == 1
-	}, 2*time.Second, 10*time.Millisecond)
-
-	reg.pushNodes([]registry.Node{n1})
-
-	require.Eventually(t, func() bool {
-		return metricValue(t, nodeUp.WithLabelValues("2")) == 0 &&
-			metricValue(t, knownNodes) == 1
 	}, 2*time.Second, 10*time.Millisecond)
 }

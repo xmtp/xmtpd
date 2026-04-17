@@ -65,11 +65,12 @@ func (s *Subscriber) Run(ctx context.Context) {
 		}
 
 		updates, sessionDuration, err := s.runOnce(ctx)
-		reason := classifyError(err)
 		s.cfg.Aggregator.SetNodeUp(s.cfg.NodeID, false)
-		nodeStreamErrors.
-			WithLabelValues(nodeIDLabel(s.cfg.NodeID), reason).
-			Inc()
+		if err != nil {
+			nodeStreamErrors.
+				WithLabelValues(nodeIDLabel(s.cfg.NodeID), classifyError(err)).
+				Inc()
+		}
 
 		if ctx.Err() != nil {
 			s.cfg.Logger.Info(
@@ -80,9 +81,17 @@ func (s *Subscriber) Run(ctx context.Context) {
 			)
 			return
 		}
+
+		// Reset backoff after a session that actually received data —
+		// a dial-then-drop loop shouldn't collapse backoff, but a
+		// long-lived session that eventually drops should reconnect fast.
+		if updates > 0 {
+			backoff = s.cfg.MinBackoff
+		}
+
 		s.cfg.Logger.Warn(
 			"stream ended, will reconnect",
-			zap.String("reason", reason),
+			zap.String("reason", classifyError(err)),
 			zap.Error(err),
 			zap.Uint64("updates", updates),
 			zap.Duration("session_duration", sessionDuration),

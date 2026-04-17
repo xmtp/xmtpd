@@ -31,6 +31,14 @@ var (
 		[]string{"originator_node_id"},
 	)
 
+	cursorLag = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "xmtpd_network_watcher_cursor_lag",
+			Help: "How far behind publisher is relative to the max cursor across live publishers for an originator (max - publisher cursor).",
+		},
+		[]string{"publisher_node_id", "originator_node_id"},
+	)
+
 	nodeUp = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "xmtpd_network_watcher_node_up",
@@ -85,6 +93,7 @@ func RegisterMetrics(reg prometheus.Registerer) {
 		cursorGauge,
 		cursorDivergence,
 		cursorMax,
+		cursorLag,
 		nodeUp,
 		nodeStreamErrors,
 		nodeLastUpdateSeconds,

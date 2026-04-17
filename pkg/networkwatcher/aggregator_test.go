@@ -29,6 +29,7 @@ func resetAggregatorMetrics() {
 	cursorGauge.Reset()
 	cursorDivergence.Reset()
 	cursorMax.Reset()
+	cursorLag.Reset()
 	nodeUp.Reset()
 	nodeLastUpdateSeconds.Reset()
 }
@@ -81,7 +82,7 @@ func TestAggregator_Divergence_MaxMinusMinAcrossLivePublishers(t *testing.T) {
 	require.InDelta(t, 700.0, metricValue(t, cursorMax.WithLabelValues("100")), 0)
 }
 
-func TestAggregator_Divergence_ExcludesNonLivePublishers(t *testing.T) {
+func TestAggregator_Divergence_IncludesDroppedPublishers(t *testing.T) {
 	resetAggregatorMetrics()
 	a := NewAggregator()
 	a.SetNodeUp(1, true)
@@ -90,15 +91,21 @@ func TestAggregator_Divergence_ExcludesNonLivePublishers(t *testing.T) {
 	a.Apply(1, map[uint32]uint64{100: 500})
 	a.Apply(2, map[uint32]uint64{100: 700})
 
-	// Node 2 drops.
+	// Node 2 drops. Its last-known cursor stays in the state and
+	// continues to contribute to divergence/max/lag — the whole point of
+	// the signal is that a dead node's growing gap should be visible.
 	a.SetNodeUp(2, false)
 
-	// Only node 1 is live; divergence collapses to 0 and max becomes 500.
-	require.InDelta(t, 0.0, metricValue(t, cursorDivergence.WithLabelValues("100")), 0)
-	require.InDelta(t, 500.0, metricValue(t, cursorMax.WithLabelValues("100")), 0)
-
-	// Raw gauge for node 2 is retained (last-known).
+	// node_up reflects liveness, but derived metrics still see both.
+	require.InDelta(t, 0.0, metricValue(t, nodeUp.WithLabelValues("2")), 0)
+	require.InDelta(t, 200.0, metricValue(t, cursorDivergence.WithLabelValues("100")), 0)
+	require.InDelta(t, 700.0, metricValue(t, cursorMax.WithLabelValues("100")), 0)
 	require.InDelta(t, 700.0, metricValue(t, cursorGauge.WithLabelValues("2", "100")), 0)
+
+	// Advance the live publisher; the down publisher's lag grows.
+	a.Apply(1, map[uint32]uint64{100: 900})
+	require.InDelta(t, 0.0, metricValue(t, cursorLag.WithLabelValues("1", "100")), 0)
+	require.InDelta(t, 200.0, metricValue(t, cursorLag.WithLabelValues("2", "100")), 0)
 }
 
 func TestAggregator_Divergence_SinglePublisherIsZero(t *testing.T) {
@@ -110,6 +117,23 @@ func TestAggregator_Divergence_SinglePublisherIsZero(t *testing.T) {
 
 	require.InDelta(t, 0.0, metricValue(t, cursorDivergence.WithLabelValues("100")), 0)
 	require.InDelta(t, 500.0, metricValue(t, cursorMax.WithLabelValues("100")), 0)
+}
+
+func TestAggregator_Lag_IdentifiesBehindPublisher(t *testing.T) {
+	resetAggregatorMetrics()
+	a := NewAggregator()
+	a.SetNodeUp(1, true)
+	a.SetNodeUp(2, true)
+	a.SetNodeUp(3, true)
+
+	a.Apply(1, map[uint32]uint64{100: 500})
+	a.Apply(2, map[uint32]uint64{100: 550})
+	a.Apply(3, map[uint32]uint64{100: 700})
+
+	// Max is 700 (pub 3). Lag for each publisher = 700 - seq.
+	require.InDelta(t, 200.0, metricValue(t, cursorLag.WithLabelValues("1", "100")), 0)
+	require.InDelta(t, 150.0, metricValue(t, cursorLag.WithLabelValues("2", "100")), 0)
+	require.InDelta(t, 0.0, metricValue(t, cursorLag.WithLabelValues("3", "100")), 0)
 }
 
 func TestAggregator_LastUpdateSecondsUsesInjectedNow(t *testing.T) {

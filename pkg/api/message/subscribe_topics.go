@@ -68,16 +68,16 @@ func (s *Service) SubscribeTopics(
 		)
 	}
 
+	if err := validateTopicFilters(filters); err != nil {
+		return err
+	}
+
 	knownOriginators, err := s.originatorList.GetOriginatorNodeIDs(ctx)
 	if err != nil {
 		return connect.NewError(
 			connect.CodeInternal,
 			fmt.Errorf("could not get originator list: %w", err),
 		)
-	}
-
-	if err := validateTopicFilters(filters, knownOriginators); err != nil {
-		return err
 	}
 
 	cursors, topics, topicKeys := buildTopicCursors(filters, knownOriginators)
@@ -146,9 +146,13 @@ func (s *Service) SubscribeTopics(
 }
 
 // validateTopicFilters validates the topic filters in a SubscribeTopicsRequest.
+// Cursor entries for originators the node has not yet seen are allowed: a
+// client may learn of a new originator before this node has indexed any of
+// its messages, or may still hold cursors for originators removed long ago.
+// Unknown originators are harmless in the downstream LATERAL query — they
+// simply match no rows.
 func validateTopicFilters(
 	filters []*message_api.SubscribeTopicsRequest_TopicFilter,
-	knownOriginators []uint32,
 ) error {
 	if len(filters) == 0 {
 		return connect.NewError(
@@ -164,23 +168,9 @@ func validateTopicFilters(
 		)
 	}
 
-	known := make(map[uint32]struct{}, len(knownOriginators))
-	for _, id := range knownOriginators {
-		known[id] = struct{}{}
-	}
-
 	for _, f := range filters {
 		if err := validateTopicFilter(f); err != nil {
 			return connect.NewError(connect.CodeInvalidArgument, err)
-		}
-
-		for origID := range f.GetLastSeen().GetNodeIdToSequenceId() {
-			if _, ok := known[origID]; !ok {
-				return connect.NewError(
-					connect.CodeInvalidArgument,
-					fmt.Errorf("unknown originator node ID in cursor: %d", origID),
-				)
-			}
 		}
 	}
 

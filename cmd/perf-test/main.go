@@ -411,7 +411,45 @@ func parseFlags() (*config, []testCase, string) {
 	outPath := flag.String(
 		"out", "perf_results.json", "JSON results output path",
 	)
+	mixDAU := flag.Int("mix", 0, "Run mixed CB-user workload at this DAU level (0=disabled)")
+	diag := flag.Bool("diag", false, "Run diagnostic test for live delivery")
+	diagConnect := flag.Bool("diag-connect", false, "Run diagnostic with Connect-RPC client")
 	flag.Parse()
+
+	// Mixed workload mode — bypasses normal test flow
+	if *mixDAU > 0 {
+		cfg.NodeID = uint32(*nodeID)
+		snap, err := runMixedWorkload(cfg, *mixDAU, cfg.Duration)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "MIX ERROR: %v\n", err)
+			os.Exit(1)
+		}
+		b, _ := json.MarshalIndent(snap, "", "  ")
+		_ = os.WriteFile(*outPath, b, 0o644)
+		fmt.Printf("\nResults saved to %s\n", *outPath)
+		os.Exit(0)
+	}
+
+	if *diag || *diagConnect {
+		cfg.NodeID = uint32(*nodeID)
+		if *diagConnect {
+			if err := runConnectDiagnostic(cfg); err != nil {
+				fmt.Fprintf(os.Stderr, "DIAGNOSTIC ERROR: %v\n", err)
+				os.Exit(1)
+			}
+			if err := runSubscribeEnvelopesDiagnostic(cfg); err != nil {
+				fmt.Fprintf(os.Stderr, "DIAGNOSTIC ERROR: %v\n", err)
+				os.Exit(1)
+			}
+		}
+		if *diag {
+			if err := runDiagnostic(cfg); err != nil {
+				fmt.Fprintf(os.Stderr, "DIAGNOSTIC ERROR: %v\n", err)
+				os.Exit(1)
+			}
+		}
+		os.Exit(0)
+	}
 
 	cfg.NodeID = uint32(*nodeID)
 

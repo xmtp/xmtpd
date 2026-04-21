@@ -189,7 +189,7 @@ func TestSubscribeTopics_Validation(t *testing.T) {
 	}
 }
 
-func TestSubscribeTopics_UnknownOriginatorInCursor(t *testing.T) {
+func TestSubscribeTopics_AcceptsUnknownOriginatorInCursor(t *testing.T) {
 	client, store, _ := setupTopicTest(t)
 	payerID := db.NullInt32(testutils.CreatePayer(t, store))
 
@@ -197,17 +197,87 @@ func TestSubscribeTopics_UnknownOriginatorInCursor(t *testing.T) {
 		makeEnvRow(t, 100, 1, topicA, payerID),
 	})
 
-	// Reference originator 999 which is not known.
-	stream, err := client.SubscribeTopics(
+	// Cursor references originator 999, which the node has never seen.
+	// The subscription should open normally; FillMissingOriginators seeds
+	// known originator 100 at sequence 0, so catch-up still delivers its
+	// envelope. The unknown originator is a no-op in the LATERAL query.
+	stream := subscribeTopics(
+		t,
+		client,
 		t.Context(),
-		connect.NewRequest(&message_api.SubscribeTopicsRequest{
-			Filters: []*message_api.SubscribeTopicsRequest_TopicFilter{
-				makeFilter(topicA, map[uint32]uint64{999: 0}),
-			},
-		}),
+		[]*message_api.SubscribeTopicsRequest_TopicFilter{
+			makeFilter(topicA, map[uint32]uint64{999: 0}),
+		},
 	)
-	require.NoError(t, err)
-	requireTopicStreamError(t, stream, connect.CodeInvalidArgument)
+
+	envs := collectTopicEnvelopes(t, stream, 1)
+	require.Len(t, envs, 1)
+	decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
+		t, envs[0].GetUnsignedOriginatorEnvelope(),
+	)
+	require.EqualValues(t, 100, decoded.GetOriginatorNodeId())
+	require.EqualValues(t, 1, decoded.GetOriginatorSequenceId())
+}
+
+func TestSubscribeTopics_MixedKnownAndUnknownOriginators(t *testing.T) {
+	client, store, _ := setupTopicTest(t)
+	payerID := db.NullInt32(testutils.CreatePayer(t, store))
+
+	insertAndWait(t, store, []queries.InsertGatewayEnvelopeV3Params{
+		makeEnvRow(t, 100, 1, topicA, payerID),
+		makeEnvRow(t, 100, 2, topicA, payerID),
+		makeEnvRow(t, 200, 1, topicA, payerID),
+	})
+
+	// Cursor: known originator 100 caught up past seq 1, plus an unknown
+	// originator 999. Expect (100, 2) and (200, 1); (100, 1) is skipped
+	// and the 999 entry contributes nothing.
+	stream := subscribeTopics(
+		t,
+		client,
+		t.Context(),
+		[]*message_api.SubscribeTopicsRequest_TopicFilter{
+			makeFilter(topicA, map[uint32]uint64{100: 1, 999: 0}),
+		},
+	)
+
+	envs := collectTopicEnvelopes(t, stream, 2)
+	require.Len(t, envs, 2)
+
+	seen := make(map[uint32]uint64)
+	for _, env := range envs {
+		decoded := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
+			t, env.GetUnsignedOriginatorEnvelope(),
+		)
+		seen[decoded.GetOriginatorNodeId()] = decoded.GetOriginatorSequenceId()
+	}
+	require.Equal(t, uint64(2), seen[100])
+	require.Equal(t, uint64(1), seen[200])
+}
+
+func TestSubscribeTopics_AllUnknownOriginatorsInCursor(t *testing.T) {
+	client, store, _ := setupTopicTest(t)
+	payerID := db.NullInt32(testutils.CreatePayer(t, store))
+
+	insertAndWait(t, store, []queries.InsertGatewayEnvelopeV3Params{
+		makeEnvRow(t, 100, 1, topicA, payerID),
+		makeEnvRow(t, 200, 1, topicA, payerID),
+	})
+
+	// Cursor references only originators the node has never seen. Both
+	// known originators are absent from the cursor, so FillMissingOriginators
+	// seeds them at 0 and catch-up delivers everything.
+	stream := subscribeTopics(
+		t,
+		client,
+		t.Context(),
+		[]*message_api.SubscribeTopicsRequest_TopicFilter{
+			makeFilter(topicA, map[uint32]uint64{888: 5, 999: 10}),
+		},
+	)
+
+	envs := collectTopicEnvelopes(t, stream, 2)
+	require.Len(t, envs, 2)
 }
 
 // ---- Live-Only Tests (nil LastSeen) ----

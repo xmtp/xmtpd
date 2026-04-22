@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/lib/pq"
+	"github.com/moby/moby/api/types/container"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"github.com/xmtp/xmtpd/pkg/e2e/chain"

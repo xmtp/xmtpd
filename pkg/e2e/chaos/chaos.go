@@ -19,8 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/go-connections/nat"
+	"github.com/moby/moby/api/types/container"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"go.uber.org/zap"
@@ -89,7 +88,7 @@ func NewController(
 			hc.ExtraHosts = append(hc.ExtraHosts, "host.docker.internal:host-gateway")
 		},
 		WaitingFor: wait.ForHTTP("/version").
-			WithPort(nat.Port(fmt.Sprintf("%d/tcp", toxiproxyAPI))),
+			WithPort(fmt.Sprintf("%d/tcp", toxiproxyAPI)),
 	}
 
 	var err error
@@ -107,7 +106,7 @@ func NewController(
 
 	mappedPort, err := c.container.MappedPort(
 		createCtx,
-		nat.Port(fmt.Sprintf("%d/tcp", toxiproxyAPI)),
+		fmt.Sprintf("%d/tcp", toxiproxyAPI),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get toxiproxy api port: %w", err)

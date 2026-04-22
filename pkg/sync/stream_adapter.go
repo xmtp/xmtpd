@@ -35,3 +35,23 @@ func (a *envelopesStreamAdapter) Recv() ([]*envelopes.OriginatorEnvelope, error)
 func (a *envelopesStreamAdapter) CloseSend() error {
 	return a.stream.CloseSend()
 }
+
+// originatorsStreamAdapter wraps ReplicationApi_SubscribeOriginatorsClient
+// so it satisfies envelopeRecvStream. An empty SubscribeOriginatorsResponse
+// (no envelopes oneof set) is treated as a keepalive and returns an empty
+// slice so the reader loop skips it without advancing any cursor.
+type originatorsStreamAdapter struct {
+	stream message_api.ReplicationApi_SubscribeOriginatorsClient
+}
+
+func (a *originatorsStreamAdapter) Recv() ([]*envelopes.OriginatorEnvelope, error) {
+	resp, err := a.stream.Recv()
+	if err != nil {
+		return nil, err
+	}
+	return resp.GetEnvelopes().GetEnvelopes(), nil
+}
+
+func (a *originatorsStreamAdapter) CloseSend() error {
+	return a.stream.CloseSend()
+}

@@ -96,6 +96,7 @@ func registerCollectors(reg prometheus.Registerer) {
 		syncOutgoingSyncConnections,
 		syncFailedOutgoingSyncConnections,
 		syncFailedOutgoingSyncConnectionCounter,
+		syncSubscribeRPC,
 		apiOpenConnections,
 		apiIncomingNodeConnectionByVersionGauge,
 		apiNodeConnectionRequestsByVersionCounter,

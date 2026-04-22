@@ -40,11 +40,21 @@ func (a *envelopesStreamAdapter) CloseSend() error {
 // so it satisfies envelopeRecvStream. An empty SubscribeOriginatorsResponse
 // (no envelopes oneof set) is treated as a keepalive and returns an empty
 // slice so the reader loop skips it without advancing any cursor.
+//
+// firstFrame holds a response that was already consumed off the wire during
+// capability probing in subscribeWithFallback, so the caller does not lose
+// the initial keepalive or catch-up batch.
 type originatorsStreamAdapter struct {
-	stream message_api.ReplicationApi_SubscribeOriginatorsClient
+	stream     message_api.ReplicationApi_SubscribeOriginatorsClient
+	firstFrame *message_api.SubscribeOriginatorsResponse
 }
 
 func (a *originatorsStreamAdapter) Recv() ([]*envelopes.OriginatorEnvelope, error) {
+	if a.firstFrame != nil {
+		resp := a.firstFrame
+		a.firstFrame = nil
+		return resp.GetEnvelopes().GetEnvelopes(), nil
+	}
 	resp, err := a.stream.Recv()
 	if err != nil {
 		return nil, err

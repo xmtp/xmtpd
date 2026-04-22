@@ -14,9 +14,13 @@ import (
 )
 
 // subscribeWithFallback opens a sync stream against a peer, preferring the new
-// SubscribeOriginators RPC. When the peer returns codes.Unimplemented (e.g. a
-// v1.2.0 node that has not yet registered the new RPC), it falls back to the
-// legacy SubscribeEnvelopes RPC. Any other error is propagated to the caller.
+// SubscribeOriginators RPC. For server-streaming RPCs, codes.Unimplemented is
+// returned via the first Recv (as trailers) rather than from the method call
+// itself, so capability is probed by consuming one frame. The SubscribeOriginators
+// server sends an immediate keepalive, so the probe unblocks promptly. If the
+// probe returns Unimplemented (e.g. a v1.2.0 node that has not yet registered
+// the new RPC), it falls back to the legacy SubscribeEnvelopes RPC. Any other
+// error is propagated to the caller.
 //
 // The fallback decision is evaluated per stream setup; no per-peer caching is
 // used, so peers upgraded between reconnects are picked up on the next attempt.
@@ -37,14 +41,50 @@ func subscribeWithFallback(
 			},
 		},
 	)
-	if err == nil {
-		metrics.EmitSyncSubscribeRPC("originators", node.NodeID)
-		return &originatorsStreamAdapter{stream: origStream}, nil
-	}
-	if status.Code(err) != codes.Unimplemented {
+	if err != nil {
+		if status.Code(err) == codes.Unimplemented {
+			return subscribeEnvelopesFallback(
+				ctx,
+				client,
+				originatorNodeIDs,
+				cursor,
+				logger,
+				node,
+			)
+		}
 		return nil, err
 	}
 
+	firstFrame, err := origStream.Recv()
+	if err != nil {
+		if status.Code(err) == codes.Unimplemented {
+			return subscribeEnvelopesFallback(
+				ctx,
+				client,
+				originatorNodeIDs,
+				cursor,
+				logger,
+				node,
+			)
+		}
+		return nil, err
+	}
+
+	metrics.EmitSyncSubscribeRPC("originators", node.NodeID)
+	return &originatorsStreamAdapter{
+		stream:     origStream,
+		firstFrame: firstFrame,
+	}, nil
+}
+
+func subscribeEnvelopesFallback(
+	ctx context.Context,
+	client message_api.ReplicationApiClient,
+	originatorNodeIDs []uint32,
+	cursor *envelopes.Cursor,
+	logger *zap.Logger,
+	node *registry.Node,
+) (envelopeRecvStream, error) {
 	logger.Info(
 		"peer does not support SubscribeOriginators, falling back",
 		utils.OriginatorIDField(node.NodeID),

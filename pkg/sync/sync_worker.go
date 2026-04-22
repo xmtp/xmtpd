@@ -403,16 +403,13 @@ func (s *syncWorker) setupStream(
 	tracing.SpanTag(span, "num_originator_ids", len(originatorNodeIDs))
 
 	subscribeSpan, subscribeCtx := tracing.StartSpanFromContext(ctx, tracing.SpanSyncSubscribe)
-	rawStream, err := client.SubscribeEnvelopes(
+	stream, err := subscribeWithFallback(
 		subscribeCtx,
-		&message_api.SubscribeEnvelopesRequest{
-			Query: &message_api.EnvelopesQuery{
-				OriginatorNodeIds: originatorNodeIDs,
-				LastSeen: &envelopes.Cursor{
-					NodeIdToSequenceId: vc,
-				},
-			},
-		},
+		client,
+		originatorNodeIDs,
+		&envelopes.Cursor{NodeIdToSequenceId: vc},
+		s.logger,
+		&node,
 	)
 	if err != nil {
 		subscribeSpan.Finish(tracing.WithError(err))
@@ -429,8 +426,6 @@ func (s *syncWorker) setupStream(
 		)
 	}
 	subscribeSpan.Finish()
-
-	stream := &envelopesStreamAdapter{stream: rawStream}
 
 	lastSequenceIDs := make(map[uint32]uint64)
 	for _, row := range result {

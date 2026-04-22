@@ -14,7 +14,6 @@ import (
 	envUtils "github.com/xmtp/xmtpd/pkg/envelopes"
 	"github.com/xmtp/xmtpd/pkg/metrics"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
-	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/registry"
 	"github.com/xmtp/xmtpd/pkg/tracing"
 	"github.com/xmtp/xmtpd/pkg/utils"
@@ -28,7 +27,7 @@ type originatorStream struct {
 	lastSequenceIdsMu    sync.Mutex
 	lastSequenceIds      map[uint32]uint64
 	permittedOriginators map[uint32]struct{}
-	stream               message_api.ReplicationApi_SubscribeEnvelopesClient
+	stream               envelopeRecvStream
 	writeQueue           chan *envUtils.OriginatorEnvelope
 }
 
@@ -38,7 +37,7 @@ func newOriginatorStream(
 	node *registry.Node,
 	lastSequenceIds map[uint32]uint64,
 	permittedOriginators map[uint32]struct{},
-	stream message_api.ReplicationApi_SubscribeEnvelopesClient,
+	stream envelopeRecvStream,
 	writeQueue chan *envUtils.OriginatorEnvelope,
 ) *originatorStream {
 	return &originatorStream{
@@ -57,7 +56,7 @@ func newOriginatorStream(
 
 func (s *originatorStream) listen() error {
 	var (
-		recvChan = make(chan *message_api.SubscribeEnvelopesResponse)
+		recvChan = make(chan []*envelopes.OriginatorEnvelope)
 		errChan  = make(chan error, 1)
 	)
 
@@ -87,23 +86,23 @@ func (s *originatorStream) listen() error {
 				return backoff.Permanent(errors.New("recvChan is closed"))
 			}
 
-			if envs == nil || len(envs.GetEnvelopes()) == 0 {
+			if len(envs) == 0 {
 				continue
 			}
 
 			// Create span for processing this batch of envelopes
 			batchSpan, batchCtx := tracing.StartSpanFromContext(s.ctx, tracing.SpanSyncReceiveBatch)
 			tracing.SpanTag(batchSpan, tracing.TagSourceNode, s.node.NodeID)
-			tracing.SpanTag(batchSpan, tracing.TagNumEnvelopes, len(envs.GetEnvelopes()))
+			tracing.SpanTag(batchSpan, tracing.TagNumEnvelopes, len(envs))
 
 			s.logger.Debug(
 				"received envelopes",
-				utils.NumEnvelopesField(len(envs.GetEnvelopes())),
+				utils.NumEnvelopesField(len(envs)),
 			)
 
 			validCount := 0
 			invalidCount := 0
-			for _, env := range envs.GetEnvelopes() {
+			for _, env := range envs {
 				// Any message that fails validation here will be dropped permanently
 				parsedEnv, err := s.validateEnvelope(batchCtx, env)
 				if err != nil {

@@ -34,7 +34,7 @@ var payerReportDomainSeparator = testutils.RandomDomainSeparator()
 func mockSubscriptionOnePage(
 	t *testing.T,
 	envs []*envelopes.OriginatorEnvelope,
-) message_api.ReplicationApi_SubscribeEnvelopesClient {
+) envelopeRecvStream {
 	stream := messageApiMocks.NewMockReplicationApi_SubscribeEnvelopesClient[*message_api.SubscribeEnvelopesResponse](
 		t,
 	)
@@ -50,7 +50,7 @@ func mockSubscriptionOnePage(
 				Envelopes: envs,
 			}, nil
 		})
-	return stream
+	return &envelopesStreamAdapter{stream: stream}
 }
 
 func newTestEnvelopeSink(
@@ -87,7 +87,7 @@ func newTestEnvelopeSink(
 func newTestOriginatorStream(
 	t *testing.T,
 	node *registry.Node,
-	stream message_api.ReplicationApi_SubscribeEnvelopesClient,
+	stream envelopeRecvStream,
 	lastSequenceID map[uint32]uint64,
 	writeQueue chan *envUtils.OriginatorEnvelope,
 ) *originatorStream {
@@ -239,7 +239,7 @@ func TestEnvelopeSinkShutdownViaContext(t *testing.T) {
 func newTestOriginatorStreamWithPermitted(
 	t *testing.T,
 	node *registry.Node,
-	stream message_api.ReplicationApi_SubscribeEnvelopesClient,
+	stream envelopeRecvStream,
 	lastSequenceIds map[uint32]uint64,
 	permitted map[uint32]struct{},
 	writeQueue chan *envUtils.OriginatorEnvelope,

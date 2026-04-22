@@ -403,7 +403,7 @@ func (s *syncWorker) setupStream(
 	tracing.SpanTag(span, "num_originator_ids", len(originatorNodeIDs))
 
 	subscribeSpan, subscribeCtx := tracing.StartSpanFromContext(ctx, tracing.SpanSyncSubscribe)
-	stream, err := client.SubscribeEnvelopes(
+	rawStream, err := client.SubscribeEnvelopes(
 		subscribeCtx,
 		&message_api.SubscribeEnvelopesRequest{
 			Query: &message_api.EnvelopesQuery{
@@ -429,6 +429,8 @@ func (s *syncWorker) setupStream(
 		)
 	}
 	subscribeSpan.Finish()
+
+	stream := &envelopesStreamAdapter{stream: rawStream}
 
 	lastSequenceIDs := make(map[uint32]uint64)
 	for _, row := range result {

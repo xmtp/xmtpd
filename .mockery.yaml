@@ -7,6 +7,8 @@ packages:
   github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api:
     interfaces:
       ReplicationApi_SubscribeEnvelopesClient:
+      ReplicationApi_SubscribeOriginatorsClient:
+      ReplicationApiClient:
   github.com/xmtp/xmtpd/pkg/proto/xmtpv4/metadata_api:
     interfaces:
       MetadataApiClient:

@@ -403,16 +403,13 @@ func (s *syncWorker) setupStream(
 	tracing.SpanTag(span, "num_originator_ids", len(originatorNodeIDs))
 
 	subscribeSpan, subscribeCtx := tracing.StartSpanFromContext(ctx, tracing.SpanSyncSubscribe)
-	stream, err := client.SubscribeEnvelopes(
+	stream, err := subscribeWithFallback(
 		subscribeCtx,
-		&message_api.SubscribeEnvelopesRequest{
-			Query: &message_api.EnvelopesQuery{
-				OriginatorNodeIds: originatorNodeIDs,
-				LastSeen: &envelopes.Cursor{
-					NodeIdToSequenceId: vc,
-				},
-			},
-		},
+		client,
+		originatorNodeIDs,
+		&envelopes.Cursor{NodeIdToSequenceId: vc},
+		s.logger,
+		&node,
 	)
 	if err != nil {
 		subscribeSpan.Finish(tracing.WithError(err))

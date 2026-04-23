@@ -59,3 +59,4 @@ This document catalogs the [OpenMetrics](https://prometheus.io/docs/specs/om/ope
 | `xmtp_sync_messages_received_error_count` | `Counter` | Count of failed/errored messages received from the originator | `pkg/metrics/sync.go` |
 | `xmtp_sync_originator_sequence_id` | `Gauge` | Last synced sequence id of the originator | `pkg/metrics/sync.go` |
 | `xmtp_sync_outgoing_sync_connections` | `Gauge` | Gauge of open outgoing sync connections | `pkg/metrics/sync.go` |
+| `xmtp_sync_subscribe_rpc_total` | `Counter` | Count of sync-worker stream setups broken down by RPC kind (originators|envelopes) and peer originator id | `pkg/metrics/sync.go` |

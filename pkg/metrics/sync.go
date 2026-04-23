@@ -116,3 +116,21 @@ func (fc *SyncConnectionsStatusCounter) Close() {
 		syncOutgoingSyncConnections.Dec()
 	}
 }
+
+var syncSubscribeRPC = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "xmtp_sync_subscribe_rpc_total",
+		Help: "Count of sync-worker stream setups broken down by RPC kind (originators|envelopes) and peer originator id",
+	},
+	[]string{"rpc", "originator_id"},
+)
+
+// EmitSyncSubscribeRPC records which Replication RPC was used to open a sync
+// stream against a given peer. Used to observe the SubscribeOriginators rollout.
+// rpc is expected to be "originators" or "envelopes".
+func EmitSyncSubscribeRPC(rpc string, originatorID uint32) {
+	syncSubscribeRPC.With(prometheus.Labels{
+		"rpc":           rpc,
+		"originator_id": strconv.Itoa(int(originatorID)),
+	}).Inc()
+}

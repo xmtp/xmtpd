@@ -12,7 +12,6 @@ require (
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/cenkalti/backoff/v5 v5.0.3
 	github.com/docker/docker v28.5.2+incompatible
-	github.com/docker/go-connections v0.7.0
 	github.com/ethereum/go-ethereum v1.17.0
 	github.com/exaring/otelpgx v0.10.0
 	github.com/golang-jwt/jwt/v5 v5.3.0
@@ -21,10 +20,11 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.1.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
-	github.com/jackc/pgx/v5 v5.9.1
+	github.com/jackc/pgx/v5 v5.9.2
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/jhump/protoreflect v1.18.0
 	github.com/lib/pq v1.12.0
+	github.com/moby/moby/api v1.54.1
 	github.com/pires/go-proxyproto v0.12.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.23.2
@@ -100,6 +100,7 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/distribution/reference v0.6.0 // indirect
+	github.com/docker/go-connections v0.7.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/eapache/queue/v2 v2.0.0-20230407133247-75960ed334e4 // indirect
@@ -147,7 +148,6 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.1 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/go-archive v0.2.0 // indirect
-	github.com/moby/moby/api v1.54.1 // indirect
 	github.com/moby/moby/client v0.4.0 // indirect
 	github.com/moby/patternmatcher v0.6.1 // indirect
 	github.com/moby/sys/atomicwriter v0.1.0 // indirect

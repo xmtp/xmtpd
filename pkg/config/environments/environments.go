@@ -8,35 +8,19 @@ import (
 //go:embed anvil.json
 var envAnvil []byte
 
-//go:embed mainnet.json
-var envMainnet []byte
-
 //go:embed testnet.json
 var envTestnet []byte
-
-//go:embed testnet-staging.json
-var envTestnetStaging []byte
-
-//go:embed testnet-dev.json
-var envTestnetDev []byte
 
 type SmartContractEnvironment string
 
 const (
-	Anvil          SmartContractEnvironment = "anvil"
-	Mainnet        SmartContractEnvironment = "mainnet"
-	Testnet        SmartContractEnvironment = "testnet"
-	TestnetStaging SmartContractEnvironment = "testnet-staging"
-	TestnetDev     SmartContractEnvironment = "testnet-dev"
+	Anvil   SmartContractEnvironment = "anvil"
+	Testnet SmartContractEnvironment = "testnet"
 )
 
 func (s *SmartContractEnvironment) UnmarshalFlag(value string) error {
 	switch value {
-	case string(Anvil),
-		string(Mainnet),
-		string(Testnet),
-		string(TestnetStaging),
-		string(TestnetDev):
+	case string(Anvil), string(Testnet):
 		*s = SmartContractEnvironment(value)
 		return nil
 	default:
@@ -49,14 +33,8 @@ func GetEnvironmentConfig(env SmartContractEnvironment) ([]byte, error) {
 	switch env {
 	case Anvil:
 		return envAnvil, nil
-	case Mainnet:
-		return envMainnet, nil
 	case Testnet:
 		return envTestnet, nil
-	case TestnetStaging:
-		return envTestnetStaging, nil
-	case TestnetDev:
-		return envTestnetDev, nil
 	default:
 		return nil, fmt.Errorf("unknown environment: %s", env)
 	}

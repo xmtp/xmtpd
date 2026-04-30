@@ -1,8 +1,8 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 #
 # nolimit_sweep2.sh — WAF + app rate limits OFF. Find the breaking point.
 #
-set -eu
+set -euo pipefail
 
 BINARY="${1:-/tmp/perf-test}"
 ADDR="${2:-grpc.testnet-staging.xmtp.network:443}"

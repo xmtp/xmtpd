@@ -281,15 +281,4 @@ func blastLoop(
 	}
 }
 
-// Helper reused from mix.go
-func blastPercentile(sorted []time.Duration, pct int) time.Duration {
-	if len(sorted) == 0 {
-		return 0
-	}
-	idx := max(int(math.Ceil(float64(pct)/100.0*float64(len(sorted))))-1, 0)
-	if idx >= len(sorted) {
-		idx = len(sorted) - 1
-	}
-	return sorted[idx]
-}
 

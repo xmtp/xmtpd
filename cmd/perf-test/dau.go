@@ -420,16 +420,12 @@ func dauBlastLoop(
 				switch {
 				case slot < 10:
 					// 48% application group messages — vary payload sizes
-					size := 256
-					switch callCount % 60 {
-					case 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-						12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-						24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35:
+					slot60 := callCount % 60
+					size := 1024 // 15%
+					if slot60 < 36 {
 						size = 256 // 60%
-					case 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50:
+					} else if slot60 < 51 {
 						size = 512 // 25%
-					default:
-						size = 1024 // 15%
 					}
 					callErr = gwClient.publishClientEnvelope(
 						ctx, topic.TopicKindGroupMessagesV1, writeTopic, size,

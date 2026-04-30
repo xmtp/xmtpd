@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"connectrpc.com/connect"
@@ -118,16 +119,16 @@ func runSubscribeEnvelopesDiagnostic(cfg *config) error {
 
 	// Wait for live delivery
 	fmt.Println("  Waiting 5s for live delivery...")
-	received := 0
+	var received atomic.Int64
 	recvDone := make(chan struct{})
 	go func() {
 		defer close(recvDone)
 		for stream.Receive() {
 			envs := stream.Msg().GetEnvelopes()
 			if envs != nil && len(envs) > 0 {
-				received += len(envs)
-				fmt.Printf("  SubscribeEnvelopes received %d (total %d)\n", len(envs), received)
-				if received >= published {
+				total := received.Add(int64(len(envs)))
+				fmt.Printf("  SubscribeEnvelopes received %d (total %d)\n", len(envs), total)
+				if int(total) >= published {
 					return
 				}
 			} else {
@@ -141,7 +142,7 @@ func runSubscribeEnvelopesDiagnostic(cfg *config) error {
 	case <-time.After(5 * time.Second):
 	}
 
-	fmt.Printf("  SubscribeEnvelopes received: %d\n\n", received)
+	fmt.Printf("  SubscribeEnvelopes received: %d\n\n", received.Load())
 	return nil
 }
 
@@ -248,7 +249,7 @@ func runConnectDiagnostic(cfg *config) error {
 
 	// Step 3: Wait for live delivery
 	fmt.Println("  Waiting 5s for live delivery...")
-	received := 0
+	var received2 atomic.Int64
 	recvDone := make(chan struct{})
 	go func() {
 		defer close(recvDone)
@@ -259,9 +260,10 @@ func runConnectDiagnostic(cfg *config) error {
 			}
 			envs := stream.Msg().GetEnvelopes()
 			if envs != nil && len(envs.GetEnvelopes()) > 0 {
-				received += len(envs.GetEnvelopes())
-				fmt.Printf("  Received %d envelopes (total %d)\n", len(envs.GetEnvelopes()), received)
-				if received >= published {
+				n := int64(len(envs.GetEnvelopes()))
+				total := received2.Add(n)
+				fmt.Printf("  Received %d envelopes (total %d)\n", n, total)
+				if int(total) >= published {
 					return
 				}
 			}
@@ -273,14 +275,15 @@ func runConnectDiagnostic(cfg *config) error {
 	case <-time.After(5 * time.Second):
 	}
 
+	recv := received2.Load()
 	fmt.Printf("\n=== CONNECT-RPC RESULTS ===\n")
 	fmt.Printf("Published:  %d\n", published)
-	fmt.Printf("Received:   %d\n", received)
+	fmt.Printf("Received:   %d\n", recv)
 
-	if received == 0 {
-		fmt.Println("\nConnect-RPC client ALSO gets 0 messages → STAGING SERVER BUG (not protocol)")
+	if recv == 0 {
+		fmt.Println("\nConnect-RPC client ALSO gets 0 messages — server bug (not protocol)")
 	} else {
-		fmt.Println("\nConnect-RPC works! → Native gRPC protocol issue with staging")
+		fmt.Println("\nConnect-RPC works! — native gRPC protocol issue with server")
 	}
 
 	return nil

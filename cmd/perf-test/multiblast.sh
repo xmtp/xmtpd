@@ -1,9 +1,9 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 #
 # multiblast.sh — Run N parallel perf-test processes to saturate the server.
 # Each process runs blast mode independently; we aggregate results.
 #
-set -eu
+set -euo pipefail
 
 BINARY="${1:-/tmp/perf-test}"
 ADDR="${2:-grpc.testnet-staging.xmtp.network:443}"

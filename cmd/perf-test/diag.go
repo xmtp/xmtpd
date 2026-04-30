@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	messageApi "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/topic"
-	"google.golang.org/grpc"
 )
 
 // runDiagnostic tests live vs catch-up delivery to isolate the bug.
@@ -82,7 +82,7 @@ func runDiagnostic(cfg *config) error {
 
 	// Step 3: Wait briefly, then check live stream (non-blocking with timeout)
 	fmt.Println("  Waiting 3s for live delivery...")
-	liveReceived := 0
+	var liveReceived atomic.Int64
 	liveCtx, liveCancel := context.WithTimeout(ctx, 3*time.Second)
 	defer liveCancel()
 	go func() {
@@ -97,14 +97,14 @@ func runDiagnostic(cfg *config) error {
 			}
 			envs := resp.GetEnvelopes()
 			if envs != nil && len(envs.GetEnvelopes()) > 0 {
-				liveReceived += len(envs.GetEnvelopes())
-				fmt.Printf("  Live recv: %d envelopes (total %d)\n",
-					len(envs.GetEnvelopes()), liveReceived)
+				n := int64(len(envs.GetEnvelopes()))
+				total := liveReceived.Add(n)
+				fmt.Printf("  Live recv: %d envelopes (total %d)\n", n, total)
 			}
 		}
 	}()
 	<-liveCtx.Done()
-	fmt.Printf("  Live stream received: %d messages\n", liveReceived)
+	fmt.Printf("  Live stream received: %d messages\n", liveReceived.Load())
 
 	// Step 4: Open catch-up stream on the same topic to verify messages are in DB
 	fmt.Println("  Opening catch-up stream...")
@@ -151,48 +151,20 @@ done:
 	fmt.Printf("  Catch-up stream received: %d messages\n", catchupReceived)
 
 	fmt.Printf("\n=== DIAGNOSTIC RESULTS ===\n")
+	live := liveReceived.Load()
 	fmt.Printf("Published:      %d\n", published)
-	fmt.Printf("Live received:  %d\n", liveReceived)
+	fmt.Printf("Live received:  %d\n", live)
 	fmt.Printf("Catchup received: %d\n", catchupReceived)
 
-	if catchupReceived > 0 && liveReceived == 0 {
+	if catchupReceived > 0 && live == 0 {
 		fmt.Println("\nDIAGNOSIS: Messages are in DB but subscribe worker is NOT delivering to live listeners.")
 		fmt.Println("This is a server-side bug in the subscribe worker dispatch path.")
-	} else if catchupReceived == 0 && liveReceived == 0 {
+	} else if catchupReceived == 0 && live == 0 {
 		fmt.Println("\nDIAGNOSIS: Messages are NOT in DB at all. Publish path issue or wrong node.")
-	} else if liveReceived > 0 {
+	} else if live > 0 {
 		fmt.Println("\nDIAGNOSIS: Live delivery is working!")
 	}
 
 	return nil
 }
 
-// runSubscribeEnvelopesDiag tests the older SubscribeEnvelopes RPC for comparison.
-func runSubscribeEnvelopesDiag(cfg *config, conn *grpc.ClientConn, topicBytes []byte) int {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	client := messageApi.NewReplicationApiClient(conn)
-	stream, err := client.SubscribeEnvelopes(ctx, &messageApi.SubscribeEnvelopesRequest{
-		Query: &messageApi.EnvelopesQuery{
-			Topics: [][]byte{topicBytes},
-		},
-	})
-	if err != nil {
-		fmt.Printf("  SubscribeEnvelopes error: %v\n", err)
-		return 0
-	}
-
-	count := 0
-	for {
-		resp, err := stream.Recv()
-		if err != nil {
-			break
-		}
-		envs := resp.GetEnvelopes()
-		if envs != nil {
-			count += len(envs)
-		}
-	}
-	return count
-}

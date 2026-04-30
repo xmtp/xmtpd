@@ -1,10 +1,10 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 #
 # nolimit_sweep.sh — No-ratelimit CB user workload escalation
 #
 # Rate limits OFF, single node (Ohio only). Push until it breaks.
 #
-set -eu
+set -euo pipefail
 
 BINARY="${1:-/tmp/perf-test}"
 ADDR="${2:-grpc.testnet-staging.xmtp.network:443}"

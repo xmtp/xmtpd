@@ -1,11 +1,11 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 #
 # mix_sweep.sh — Escalate mixed CB-user workload through DAU tiers
 #
 # Runs the CB user simulation at each tier for 3 minutes, saves snapshots,
 # stops if rate limited or >10% aggregate error rate.
 #
-set -eu
+set -euo pipefail
 
 BINARY="${1:-/tmp/perf-test}"
 ADDR="${2:-grpc.testnet-staging.xmtp.network:443}"

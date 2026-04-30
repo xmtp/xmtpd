@@ -1,8 +1,8 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 #
 # blast_sweep.sh — Fire as fast as possible, escalate concurrency until it breaks.
 #
-set -eu
+set -euo pipefail
 
 BINARY="${1:-/tmp/perf-test}"
 ADDR="${2:-grpc.testnet-staging.xmtp.network:443}"

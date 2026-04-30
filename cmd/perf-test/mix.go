@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -106,11 +107,12 @@ func (t *apiLatencyTracker) toResult(name string, elapsed time.Duration) testRes
 	total := uint64(ok + errs)
 
 	result := testResult{
-		Name:    name,
-		Count:   total,
-		RPS:     float64(ok) / elapsed.Seconds(),
-		OKCount: ok,
-		Errors:  make(map[string]int),
+		Name:     name,
+		Count:    total,
+		RPS:      float64(ok) / elapsed.Seconds(),
+		OKCount:  ok,
+		ErrCount: errs,
+		Errors:   make(map[string]int),
 	}
 
 	t.errors.Range(func(key, value any) bool {
@@ -120,7 +122,6 @@ func (t *apiLatencyTracker) toResult(name string, elapsed time.Duration) testRes
 			msg = msg[:120] + "..."
 		}
 		result.Errors[msg] = int(cnt)
-		result.ErrCount += int(cnt)
 		return true
 	})
 
@@ -135,9 +136,9 @@ func (t *apiLatencyTracker) toResult(name string, elapsed time.Duration) testRes
 			sum += msFromDuration(l)
 		}
 		result.AvgLatency = sum / float64(len(lats))
-		result.P50Latency = msFromDuration(mixPercentile(lats, 50))
-		result.P95Latency = msFromDuration(mixPercentile(lats, 95))
-		result.P99Latency = msFromDuration(mixPercentile(lats, 99))
+		result.P50Latency = msFromDuration(percentile(lats, 50))
+		result.P95Latency = msFromDuration(percentile(lats, 95))
+		result.P99Latency = msFromDuration(percentile(lats, 99))
 
 		var sumSq float64
 		for _, l := range lats {
@@ -148,17 +149,6 @@ func (t *apiLatencyTracker) toResult(name string, elapsed time.Duration) testRes
 	}
 
 	return result
-}
-
-func mixPercentile(sorted []time.Duration, pct int) time.Duration {
-	if len(sorted) == 0 {
-		return 0
-	}
-	idx := max(int(math.Ceil(float64(pct)/100.0*float64(len(sorted))))-1, 0)
-	if idx >= len(sorted) {
-		idx = len(sorted) - 1
-	}
-	return sorted[idx]
 }
 
 // runMixedWorkload runs the CB user simulation at a given DAU level.
@@ -405,12 +395,9 @@ func runMixAPILoop(
 			if callErr != nil {
 				errMsg := callErr.Error()
 				tracker.recordErr(errMsg)
-				if len(errMsg) > 3 && (errMsg[len(errMsg)-1] == ')' || true) {
-					// Check for 429
-					if contains429(errMsg) {
-						rateLimited.Store(true)
-						tracker.is429.Store(true)
-					}
+				if contains429(errMsg) {
+					rateLimited.Store(true)
+					tracker.is429.Store(true)
 				}
 			} else {
 				tracker.recordOK(latency)
@@ -423,14 +410,5 @@ func runMixAPILoop(
 }
 
 func contains429(s string) bool {
-	return len(s) > 3 && (containsSubstr(s, "429") || containsSubstr(s, "Too Many Requests"))
-}
-
-func containsSubstr(s, sub string) bool {
-	for i := 0; i <= len(s)-len(sub); i++ {
-		if s[i:i+len(sub)] == sub {
-			return true
-		}
-	}
-	return false
+	return strings.Contains(s, "429") || strings.Contains(s, "Too Many Requests")
 }

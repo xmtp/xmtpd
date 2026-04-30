@@ -56,7 +56,7 @@ for dau in "${DAU_TIERS[@]}"; do
     -mix "${dau}" \
     -dur "${DUR}" \
     -out "${out_file}" \
-    2>&1 | tee -a "${SNAP_DIR}/full.log"
+    2>&1 | tee -a "${SNAP_DIR}/full.log" || true
 
   # Check for rate limiting or high error rate
   if [ -f "${out_file}" ]; then

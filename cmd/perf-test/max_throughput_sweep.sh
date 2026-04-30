@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# blast_sweep.sh — Fire as fast as possible, escalate concurrency until it breaks.
+# max_throughput_sweep.sh — Fire as fast as possible, escalate concurrency until it breaks.
 #
 set -euo pipefail
 

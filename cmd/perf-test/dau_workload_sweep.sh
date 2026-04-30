@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# mix_sweep.sh — Escalate mixed CB-user workload through DAU tiers
+# dau_workload_sweep.sh — Escalate mixed CB-user workload through DAU tiers
 #
 # Runs the CB user simulation at each tier for 3 minutes, saves snapshots,
 # stops if rate limited or >10% aggregate error rate.

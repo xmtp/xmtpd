@@ -19,7 +19,7 @@ import (
 // gatewayClient wraps a Connect-RPC PayerApi client for sending unsigned
 // ClientEnvelopes through the gateway (which signs them with its payer key).
 type gatewayClient struct {
-	client payer_apiconnect.PayerApiClient
+	client payer_apiconnect.PayerApiClient //nolint:staticcheck // PayerApi deprecated but no replacement exists yet
 }
 
 // newGatewayClient creates a Connect-RPC client targeting the gateway's PayerApi.
@@ -28,13 +28,22 @@ func newGatewayClient(gatewayAddr string) *gatewayClient {
 		Transport: &http2.Transport{
 			TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12},
 			DialTLSContext: func(ctx context.Context, network, addr string, tlsCfg *tls.Config) (net.Conn, error) {
-				return tls.DialWithDialer(&net.Dialer{Timeout: 10 * time.Second}, network, addr, tlsCfg)
+				return tls.DialWithDialer(
+					&net.Dialer{Timeout: 10 * time.Second},
+					network,
+					addr,
+					tlsCfg,
+				)
 			},
 		},
 	}
 
 	baseURL := "https://" + gatewayAddr
-	client := payer_apiconnect.NewPayerApiClient(httpClient, baseURL, connect.WithGRPC())
+	client := payer_apiconnect.NewPayerApiClient( //nolint:staticcheck
+		httpClient,
+		baseURL,
+		connect.WithGRPC(),
+	)
 
 	return &gatewayClient{client: client}
 }

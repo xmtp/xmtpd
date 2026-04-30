@@ -34,7 +34,11 @@ type blastSnapshot struct {
 
 // runBlastWorkload sends requests as fast as possible across N goroutines and M connections.
 // No rate limiting — pure saturation test to find the server's max throughput.
-func runBlastWorkload(cfg *config, concurrency int, duration time.Duration) (*blastSnapshot, error) {
+func runBlastWorkload(
+	cfg *config,
+	concurrency int,
+	duration time.Duration,
+) (*blastSnapshot, error) {
 	numConns := max(cfg.Connections, 1)
 
 	fmt.Printf("\n╔══════════════════════════════════════════════════╗\n")
@@ -44,14 +48,16 @@ func runBlastWorkload(cfg *config, concurrency int, duration time.Duration) (*bl
 	if cfg.GatewayAddr != "" {
 		fmt.Printf("Gateway:  %s (writes route through gateway)\n", cfg.GatewayAddr)
 	}
-	fmt.Printf("CB traffic mix: 65%% GetInboxIds, 14%% QueryEnvelopes, 3%% GetNewest, 3%% Write\n\n")
+	fmt.Printf(
+		"CB traffic mix: 65%% GetInboxIds, 14%% QueryEnvelopes, 3%% GetNewest, 3%% Write\n\n",
+	)
 
 	// Connection pool
 	conns := make([]*grpc.ClientConn, numConns)
 	for i := range numConns {
 		c, err := newGRPCConn(cfg)
 		if err != nil {
-			for j := 0; j < i; j++ {
+			for j := range i {
 				_ = conns[j].Close()
 			}
 			return nil, fmt.Errorf("grpc connect [%d]: %w", i, err)
@@ -82,10 +88,22 @@ func runBlastWorkload(cfg *config, concurrency int, duration time.Duration) (*bl
 	}
 	adjustedTotal := cbFracGetInboxIds + cbFracQueryEnvelopes + cbFracGetNewest + cbFracWrite
 	allocs := []apiAlloc{
-		{"GetInboxIds", max(int(math.Round(float64(concurrency)*cbFracGetInboxIds/adjustedTotal)), 1)},
-		{"QueryEnvelopes", max(int(math.Round(float64(concurrency)*cbFracQueryEnvelopes/adjustedTotal)), 1)},
-		{"GetNewestEnvelope", max(int(math.Round(float64(concurrency)*cbFracGetNewest/adjustedTotal)), 1)},
-		{"GroupMessage-256B", max(int(math.Round(float64(concurrency)*cbFracWrite/adjustedTotal)), 1)},
+		{
+			"GetInboxIds",
+			max(int(math.Round(float64(concurrency)*cbFracGetInboxIds/adjustedTotal)), 1),
+		},
+		{
+			"QueryEnvelopes",
+			max(int(math.Round(float64(concurrency)*cbFracQueryEnvelopes/adjustedTotal)), 1),
+		},
+		{
+			"GetNewestEnvelope",
+			max(int(math.Round(float64(concurrency)*cbFracGetNewest/adjustedTotal)), 1),
+		},
+		{
+			"GroupMessage-256B",
+			max(int(math.Round(float64(concurrency)*cbFracWrite/adjustedTotal)), 1),
+		},
 	}
 
 	for _, a := range allocs {
@@ -108,21 +126,27 @@ func runBlastWorkload(cfg *config, concurrency int, duration time.Duration) (*bl
 		tracker := &apiLatencyTracker{}
 		trackers[a.name] = tracker
 
-		for g := range a.goroutines {
+		for range a.goroutines {
 			conn := conns[connIdx%numConns]
 			connIdx++
-			wg.Add(1)
-			go func(apiName string, tr *apiLatencyTracker, c *grpc.ClientConn, gIdx int) {
-				defer wg.Done()
-				blastLoop(ctx, c, cfg, key, apiName, tr, deadline, &globalRateLimited, gwClient)
-			}(a.name, tracker, conn, g)
+			wg.Go(func() {
+				blastLoop(
+					ctx,
+					conn,
+					cfg,
+					key,
+					a.name,
+					tracker,
+					deadline,
+					&globalRateLimited,
+					gwClient,
+				)
+			})
 		}
 	}
 
 	// Progress reporter
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		ticker := time.NewTicker(10 * time.Second)
 		defer ticker.Stop()
 		start := time.Now()
@@ -152,7 +176,7 @@ func runBlastWorkload(cfg *config, concurrency int, duration time.Duration) (*bl
 				return
 			}
 		}
-	}()
+	})
 
 	wg.Wait()
 	elapsed := duration
@@ -190,14 +214,22 @@ func runBlastWorkload(cfg *config, concurrency int, duration time.Duration) (*bl
 	}
 	fmt.Println()
 
-	fmt.Println("╔════════════════════════╦══════════╦══════════╦══════════╦══════════╦══════════╦════════╗")
-	fmt.Println("║ API                    ║ Actual   ║ Avg(ms)  ║ P50(ms)  ║ P99(ms)  ║ StdDev  ║ Err%   ║")
-	fmt.Println("╠════════════════════════╬══════════╬══════════╬══════════╬══════════╬══════════╬════════╣")
+	fmt.Println(
+		"╔════════════════════════╦══════════╦══════════╦══════════╦══════════╦══════════╦════════╗",
+	)
+	fmt.Println(
+		"║ API                    ║ Actual   ║ Avg(ms)  ║ P50(ms)  ║ P99(ms)  ║ StdDev  ║ Err%   ║",
+	)
+	fmt.Println(
+		"╠════════════════════════╬══════════╬══════════╬══════════╬══════════╬══════════╬════════╣",
+	)
 	for _, r := range snap.APIs {
 		fmt.Printf("║ %-22s ║ %8.1f ║ %8.2f ║ %8.2f ║ %8.2f ║ %7.2f ║ %5.1f%% ║\n",
 			r.Name, r.RPS, r.AvgLatency, r.P50Latency, r.P99Latency, r.StdDev, r.ErrorPct)
 	}
-	fmt.Println("╚════════════════════════╩══════════╩══════════╩══════════╩══════════╩══════════╩════════╝")
+	fmt.Println(
+		"╚════════════════════════╩══════════╩══════════╩══════════╩══════════╩══════════╩════════╝",
+	)
 
 	return snap, nil
 }
@@ -214,7 +246,7 @@ func blastLoop(
 	rateLimited *atomic.Bool,
 	gwClient *gatewayClient,
 ) {
-	replicationClient := messageApi.NewReplicationApiClient(conn)
+	queryClient := messageApi.NewQueryApiClient(conn)
 	publishClient := messageApi.NewPublishApiClient(conn)
 
 	topicID := randomBytes(16)
@@ -235,19 +267,19 @@ func blastLoop(
 
 		switch apiName {
 		case "GetInboxIds":
-			_, callErr = replicationClient.GetInboxIds(ctx, &messageApi.GetInboxIdsRequest{
+			_, callErr = queryClient.GetInboxIds(ctx, &messageApi.GetInboxIdsRequest{
 				Requests: []*messageApi.GetInboxIdsRequest_Request{{
 					Identifier:     "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
 					IdentifierKind: associations.IdentifierKind_IDENTIFIER_KIND_ETHEREUM,
 				}},
 			})
 		case "QueryEnvelopes":
-			_, callErr = replicationClient.QueryEnvelopes(ctx, &messageApi.QueryEnvelopesRequest{
+			_, callErr = queryClient.QueryEnvelopes(ctx, &messageApi.QueryEnvelopesRequest{
 				Query: &messageApi.EnvelopesQuery{OriginatorNodeIds: []uint32{100}},
 				Limit: 5,
 			})
 		case "GetNewestEnvelope":
-			_, callErr = replicationClient.GetNewestEnvelope(ctx, &messageApi.GetNewestEnvelopeRequest{
+			_, callErr = queryClient.GetNewestEnvelope(ctx, &messageApi.GetNewestEnvelopeRequest{
 				Topics: [][]byte{[]byte("AAAAAAAAAAAAAAAAAAAAAA==")},
 			})
 		case "GroupMessage-256B":
@@ -280,5 +312,3 @@ func blastLoop(
 		}
 	}
 }
-
-

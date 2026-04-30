@@ -45,7 +45,7 @@ func runDiagnostic(cfg *config) error {
 	fmt.Println("  Live stream opened")
 
 	// Drain initial status messages
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		resp, err := liveStream.Recv()
 		if err != nil {
 			return fmt.Errorf("recv initial: %w", err)
@@ -65,7 +65,7 @@ func runDiagnostic(cfg *config) error {
 
 	publishClient := messageApi.NewPublishApiClient(conn)
 	published := 0
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		req, err := buildPublishRequestForTopic(cfg, key, tp, 256)
 		if err != nil {
 			fmt.Printf("  Publish build error: %v\n", err)
@@ -157,7 +157,9 @@ done:
 	fmt.Printf("Catchup received: %d\n", catchupReceived)
 
 	if catchupReceived > 0 && live == 0 {
-		fmt.Println("\nDIAGNOSIS: Messages are in DB but subscribe worker is NOT delivering to live listeners.")
+		fmt.Println(
+			"\nDIAGNOSIS: Messages are in DB but subscribe worker is NOT delivering to live listeners.",
+		)
 		fmt.Println("This is a server-side bug in the subscribe worker dispatch path.")
 	} else if catchupReceived == 0 && live == 0 {
 		fmt.Println("\nDIAGNOSIS: Messages are NOT in DB at all. Publish path issue or wrong node.")
@@ -167,4 +169,3 @@ done:
 
 	return nil
 }
-

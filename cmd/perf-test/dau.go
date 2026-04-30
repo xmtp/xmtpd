@@ -65,12 +65,16 @@ func runDAUBlast(cfg *config, concurrency int, duration time.Duration) (*blastSn
 	fmt.Printf("  - %d unique addresses for GetInboxIds (cache-busting)\n", dauAddressPoolSize)
 	fmt.Printf("  - %d seeded topics for QueryEnvelopes/GetNewest (real data)\n", dauTopicPoolSize)
 	fmt.Printf("  - %d SubscribeAllEnvelopes streams (server resource pressure)\n", numStreams)
-	fmt.Printf("  - Mixed writes: GroupMsg 48%% (app→node) + Commits 32%% (→blockchain) + Welcome 15%% + KeyPkg 5%%\n")
+	fmt.Printf(
+		"  - Mixed writes: GroupMsg 48%% (app→node) + Commits 32%% (→blockchain) + Welcome 15%% + KeyPkg 5%%\n",
+	)
 	fmt.Printf("  - 40%% of group messages are MLS Commits (routed through blockchain)\n")
 	fmt.Printf("  - Key package rotations included\n")
 	fmt.Printf("  - Varied payload sizes: 256B/512B/1KB\n")
 	fmt.Printf("  - Topic-based queries (not originator node ID)\n")
-	fmt.Printf("CB traffic mix: 65%% GetInboxIds, 14%% QueryEnvelopes, 3%% GetNewest, 3%% Write, 15%% Streams\n\n")
+	fmt.Printf(
+		"CB traffic mix: 65%% GetInboxIds, 14%% QueryEnvelopes, 3%% GetNewest, 3%% Write, 15%% Streams\n\n",
+	)
 
 	// --- Pre-generate data pools ---
 	fmt.Print("Generating data pools... ")
@@ -83,7 +87,7 @@ func runDAUBlast(cfg *config, concurrency int, duration time.Duration) (*blastSn
 	for i := range numConns {
 		c, err := newGRPCConn(cfg)
 		if err != nil {
-			for j := 0; j < i; j++ {
+			for j := range i {
 				_ = conns[j].Close()
 			}
 			return nil, fmt.Errorf("grpc connect [%d]: %w", i, err)
@@ -102,7 +106,11 @@ func runDAUBlast(cfg *config, concurrency int, duration time.Duration) (*blastSn
 	}
 
 	// === Phase 1: Seed topics with real data ===
-	fmt.Printf("\n--- Phase 1: Seeding %d topics × %d msgs ---\n", dauTopicPoolSize, dauSeedPerTopic)
+	fmt.Printf(
+		"\n--- Phase 1: Seeding %d topics × %d msgs ---\n",
+		dauTopicPoolSize,
+		dauSeedPerTopic,
+	)
 	seedStart := time.Now()
 	var seedOK, seedErr atomic.Uint64
 
@@ -197,9 +205,18 @@ func runDAUBlast(cfg *config, concurrency int, duration time.Duration) (*blastSn
 		goroutines int
 	}
 	allocs := []apiAlloc{
-		{"GetInboxIds", max(int(math.Round(float64(concurrency)*cbFracGetInboxIds/adjustedTotal)), 1)},
-		{"QueryEnvelopes", max(int(math.Round(float64(concurrency)*cbFracQueryEnvelopes/adjustedTotal)), 1)},
-		{"GetNewestEnvelope", max(int(math.Round(float64(concurrency)*cbFracGetNewest/adjustedTotal)), 1)},
+		{
+			"GetInboxIds",
+			max(int(math.Round(float64(concurrency)*cbFracGetInboxIds/adjustedTotal)), 1),
+		},
+		{
+			"QueryEnvelopes",
+			max(int(math.Round(float64(concurrency)*cbFracQueryEnvelopes/adjustedTotal)), 1),
+		},
+		{
+			"GetNewestEnvelope",
+			max(int(math.Round(float64(concurrency)*cbFracGetNewest/adjustedTotal)), 1),
+		},
 		{"Writes-Mixed", max(int(math.Round(float64(concurrency)*cbFracWrite/adjustedTotal)), 1)},
 	}
 
@@ -225,21 +242,17 @@ func runDAUBlast(cfg *config, concurrency int, duration time.Duration) (*blastSn
 		for range a.goroutines {
 			conn := conns[connIdx%numConns]
 			connIdx++
-			wg.Add(1)
-			go func(apiName string, tr *apiLatencyTracker, c *grpc.ClientConn) {
-				defer wg.Done()
+			wg.Go(func() {
 				dauBlastLoop(
-					blastCtx, c, cfg, key, apiName, tr, deadline,
+					blastCtx, conn, cfg, key, a.name, tracker, deadline,
 					&globalRateLimited, gwClient, addresses, topics,
 				)
-			}(a.name, tracker, conn)
+			})
 		}
 	}
 
 	// Progress reporter
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		ticker := time.NewTicker(10 * time.Second)
 		defer ticker.Stop()
 		start := time.Now()
@@ -257,8 +270,15 @@ func runDAUBlast(cfg *config, concurrency int, duration time.Duration) (*blastSn
 				if totalOK+totalErr > 0 {
 					errPct = float64(totalErr) / float64(totalOK+totalErr) * 100
 				}
-				fmt.Printf("  [%3.0fs] %d OK | %d err (%.1f%%) | %.0f req/s | streams: %d msgs recv'd\n",
-					elapsed, totalOK, totalErr, errPct, rps, streamRecv.Load())
+				fmt.Printf(
+					"  [%3.0fs] %d OK | %d err (%.1f%%) | %.0f req/s | streams: %d msgs recv'd\n",
+					elapsed,
+					totalOK,
+					totalErr,
+					errPct,
+					rps,
+					streamRecv.Load(),
+				)
 				if globalRateLimited.Load() {
 					fmt.Println("  !! RATE LIMITED -- 429 detected")
 				}
@@ -269,7 +289,7 @@ func runDAUBlast(cfg *config, concurrency int, duration time.Duration) (*blastSn
 				return
 			}
 		}
-	}()
+	})
 
 	wg.Wait()
 	blastCancel()
@@ -323,14 +343,22 @@ func runDAUBlast(cfg *config, concurrency int, duration time.Duration) (*blastSn
 	}
 	fmt.Println()
 
-	fmt.Println("╔════════════════════════╦══════════╦══════════╦══════════╦══════════╦══════════╦════════╗")
-	fmt.Println("║ API                    ║ Actual   ║ Avg(ms)  ║ P50(ms)  ║ P99(ms)  ║ StdDev  ║ Err%   ║")
-	fmt.Println("╠════════════════════════╬══════════╬══════════╬══════════╬══════════╬══════════╬════════╣")
+	fmt.Println(
+		"╔════════════════════════╦══════════╦══════════╦══════════╦══════════╦══════════╦════════╗",
+	)
+	fmt.Println(
+		"║ API                    ║ Actual   ║ Avg(ms)  ║ P50(ms)  ║ P99(ms)  ║ StdDev  ║ Err%   ║",
+	)
+	fmt.Println(
+		"╠════════════════════════╬══════════╬══════════╬══════════╬══════════╬══════════╬════════╣",
+	)
 	for _, r := range snap.APIs {
 		fmt.Printf("║ %-22s ║ %8.1f ║ %8.2f ║ %8.2f ║ %8.2f ║ %7.2f ║ %5.1f%% ║\n",
 			r.Name, r.RPS, r.AvgLatency, r.P50Latency, r.P99Latency, r.StdDev, r.ErrorPct)
 	}
-	fmt.Println("╚════════════════════════╩══════════╩══════════╩══════════╩══════════╩══════════╩════════╝")
+	fmt.Println(
+		"╚════════════════════════╩══════════╩══════════╩══════════╩══════════╩══════════╩════════╝",
+	)
 
 	// DAU calculation
 	maxRPS := snap.Aggregate.TotalRPS
@@ -338,10 +366,17 @@ func runDAUBlast(cfg *config, concurrency int, duration time.Duration) (*blastSn
 	maxDAU := maxRPS / rpsPerUser
 	fmt.Printf("\n═══ DAU ESTIMATE ═══\n")
 	fmt.Printf("Peak throughput: %.0f req/s (realistic workload)\n", maxRPS)
-	fmt.Printf("CB user profile: %.0f calls/day = %.4f req/s/user\n", cbCallsPerUserPerDay, rpsPerUser)
+	fmt.Printf(
+		"CB user profile: %.0f calls/day = %.4f req/s/user\n",
+		cbCallsPerUserPerDay,
+		rpsPerUser,
+	)
 	fmt.Printf("MAX SUPPORTED DAU: %.0f (~%.0fK)\n", maxDAU, maxDAU/1000)
 	fmt.Printf("\nComparison: basic blast hit ~23K req/s (optimistic, cached, no blockchain)\n")
-	fmt.Printf("This test: diverse queries, real data, %d streams, 40%% of group msgs → blockchain\n", numStreams)
+	fmt.Printf(
+		"This test: diverse queries, real data, %d streams, 40%% of group msgs → blockchain\n",
+		numStreams,
+	)
 
 	return snap, nil
 }
@@ -359,7 +394,7 @@ func dauBlastLoop(
 	addresses []string,
 	topics []*topic.Topic,
 ) {
-	replicationClient := messageApi.NewReplicationApiClient(conn)
+	queryClient := messageApi.NewQueryApiClient(conn)
 	publishClient := messageApi.NewPublishApiClient(conn)
 
 	writeTopicIdx := uint64(0)
@@ -383,7 +418,7 @@ func dauBlastLoop(
 		case "GetInboxIds":
 			// Cycle through address pool — each goroutine hits different addresses
 			addr := addresses[callCount%uint64(len(addresses))]
-			_, callErr = replicationClient.GetInboxIds(ctx, &messageApi.GetInboxIdsRequest{
+			_, callErr = queryClient.GetInboxIds(ctx, &messageApi.GetInboxIdsRequest{
 				Requests: []*messageApi.GetInboxIdsRequest_Request{{
 					Identifier:     addr,
 					IdentifierKind: associations.IdentifierKind_IDENTIFIER_KIND_ETHEREUM,
@@ -393,7 +428,7 @@ func dauBlastLoop(
 		case "QueryEnvelopes":
 			// Query seeded topics by topic bytes (real production path)
 			tp := topics[callCount%uint64(len(topics))]
-			_, callErr = replicationClient.QueryEnvelopes(ctx, &messageApi.QueryEnvelopesRequest{
+			_, callErr = queryClient.QueryEnvelopes(ctx, &messageApi.QueryEnvelopesRequest{
 				Query: &messageApi.EnvelopesQuery{
 					Topics: [][]byte{tp.Bytes()},
 				},
@@ -403,7 +438,7 @@ func dauBlastLoop(
 		case "GetNewestEnvelope":
 			// Query seeded topics
 			tp := topics[callCount%uint64(len(topics))]
-			_, callErr = replicationClient.GetNewestEnvelope(ctx, &messageApi.GetNewestEnvelopeRequest{
+			_, callErr = queryClient.GetNewestEnvelope(ctx, &messageApi.GetNewestEnvelopeRequest{
 				Topics: [][]byte{tp.Bytes()},
 			})
 

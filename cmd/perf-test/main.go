@@ -39,9 +39,9 @@ const (
 	envelopePoolSize = 2000
 
 	methodPublish           = "xmtp.xmtpv4.message_api.ReplicationApi.PublishPayerEnvelopes"
-	methodQueryEnvelopes    = "xmtp.xmtpv4.message_api.ReplicationApi.QueryEnvelopes"
-	methodGetInboxIds       = "xmtp.xmtpv4.message_api.ReplicationApi.GetInboxIds"
-	methodGetNewestEnvelope = "xmtp.xmtpv4.message_api.ReplicationApi.GetNewestEnvelope"
+	methodQueryEnvelopes    = "xmtp.xmtpv4.message_api.QueryApi.QueryEnvelopes"
+	methodGetInboxIds       = "xmtp.xmtpv4.message_api.QueryApi.GetInboxIds"
+	methodGetNewestEnvelope = "xmtp.xmtpv4.message_api.QueryApi.GetNewestEnvelope"
 
 	// Streaming method (not usable with ghz — handled by runStreamTest)
 	methodSubscribeTopics = "xmtp.xmtpv4.message_api.QueryApi.SubscribeTopics"
@@ -406,8 +406,10 @@ func parseFlags() (*config, []testCase, string) {
 		"grpc.testnet-staging.xmtp.network:443", "gRPC host:port",
 	)
 	flag.StringVar(
-		&cfg.GatewayAddr, "gateway",
-		"", "Gateway address for writes (e.g. payer.testnet-staging.xmtp.network:443). Empty = direct to node",
+		&cfg.GatewayAddr,
+		"gateway",
+		"",
+		"Gateway address for writes (e.g. payer.testnet-staging.xmtp.network:443). Empty = direct to node",
 	)
 	nodeID := flag.Uint("node-id", 100, "Target originator node ID")
 	flag.IntVar(&cfg.Concurrency, "c", 8, "Concurrent workers")
@@ -431,8 +433,16 @@ func parseFlags() (*config, []testCase, string) {
 		"out", "perf_results.json", "JSON results output path",
 	)
 	mixDAU := flag.Int("mix", 0, "Run mixed CB-user workload at this DAU level (0=disabled)")
-	blastConc := flag.Int("blast", 0, "BLAST mode: N goroutines fire as fast as possible (0=disabled)")
-	dauConc := flag.Int("dau", 0, "REALISTIC DAU blast: N goroutines with diverse data, seeded topics, background streams (0=disabled)")
+	blastConc := flag.Int(
+		"blast",
+		0,
+		"BLAST mode: N goroutines fire as fast as possible (0=disabled)",
+	)
+	dauConc := flag.Int(
+		"dau",
+		0,
+		"REALISTIC DAU blast: N goroutines with diverse data, seeded topics, background streams (0=disabled)",
+	)
 	diag := flag.Bool("diag", false, "Run diagnostic test for live delivery")
 	diagConnect := flag.Bool("diag-connect", false, "Run diagnostic with Connect-RPC client")
 	flag.Parse()

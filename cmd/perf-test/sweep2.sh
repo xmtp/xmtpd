@@ -3,7 +3,7 @@
 # sweep2.sh — Re-run failed tests with cooldowns between API groups
 # Writes into the same snapshot directory as the first sweep.
 #
-set -eu
+set -euo pipefail
 
 BINARY="${1:-/tmp/perf-test}"
 ADDR="${2:-grpc.testnet-staging.xmtp.network:443}"

@@ -23,20 +23,42 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// newConnectHTTPClient builds an HTTP/2 client, using TLS unless cfg.Insecure.
+func newConnectHTTPClient(cfg *config) (client *http.Client, baseURL string) {
+	if cfg.Insecure {
+		client = &http.Client{
+			Transport: &http2.Transport{
+				AllowHTTP: true,
+				DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
+					return net.DialTimeout(network, addr, 10*time.Second)
+				},
+			},
+		}
+		baseURL = "http://" + cfg.Addr
+	} else {
+		client = &http.Client{
+			Transport: &http2.Transport{
+				TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12},
+				DialTLSContext: func(
+					ctx context.Context, network, addr string, tlsCfg *tls.Config,
+				) (net.Conn, error) {
+					return tls.DialWithDialer(
+						&net.Dialer{Timeout: 10 * time.Second},
+						network, addr, tlsCfg,
+					)
+				},
+			},
+		}
+		baseURL = "https://" + cfg.Addr
+	}
+	return client, baseURL
+}
+
 // runSubscribeEnvelopesDiagnostic tests SubscribeEnvelopes (older RPC) for live delivery.
 func runSubscribeEnvelopesDiagnostic(cfg *config) error {
 	fmt.Println("\n=== SubscribeEnvelopes Diagnostic ===")
 
-	httpClient := &http.Client{
-		Transport: &http2.Transport{
-			TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12},
-			DialTLSContext: func(ctx context.Context, network, addr string, tlsCfg *tls.Config) (net.Conn, error) {
-				return tls.DialWithDialer(&net.Dialer{Timeout: 10 * time.Second}, network, addr, tlsCfg)
-			},
-		},
-	}
-
-	baseURL := "https://" + cfg.Addr
+	httpClient, baseURL := newConnectHTTPClient(cfg)
 	opts := []connect.ClientOption{connect.WithGRPC()}
 
 	replicationClient := message_apiconnect.NewReplicationApiClient(httpClient, baseURL, opts...)
@@ -50,14 +72,17 @@ func runSubscribeEnvelopesDiagnostic(cfg *config) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Open SubscribeEnvelopes with topic filter
-	stream, err := replicationClient.SubscribeEnvelopes(ctx, connect.NewRequest(
-		&message_api.SubscribeEnvelopesRequest{
-			Query: &message_api.EnvelopesQuery{
-				Topics: [][]byte{topicBytes},
+	// Open SubscribeEnvelopes with topic filter (intentionally testing deprecated API)
+	stream, err := replicationClient.SubscribeEnvelopes( //nolint:staticcheck
+		ctx,
+		connect.NewRequest(
+			&message_api.SubscribeEnvelopesRequest{
+				Query: &message_api.EnvelopesQuery{
+					Topics: [][]byte{topicBytes},
+				},
 			},
-		},
-	))
+		),
+	)
 	if err != nil {
 		return fmt.Errorf("open SubscribeEnvelopes: %w", err)
 	}
@@ -66,7 +91,7 @@ func runSubscribeEnvelopesDiagnostic(cfg *config) error {
 	// Consume initial keepalive (empty response)
 	if stream.Receive() {
 		envs := stream.Msg().GetEnvelopes()
-		if envs == nil || len(envs) == 0 {
+		if len(envs) == 0 {
 			fmt.Println("  Got initial keepalive")
 		}
 	}
@@ -80,7 +105,7 @@ func runSubscribeEnvelopesDiagnostic(cfg *config) error {
 	}
 
 	published := 0
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		aad := &envelopesProto.AuthenticatedData{TargetTopic: topicBytes}
 		clientEnv := &envelopesProto.ClientEnvelope{
 			Aad: aad,
@@ -125,7 +150,7 @@ func runSubscribeEnvelopesDiagnostic(cfg *config) error {
 		defer close(recvDone)
 		for stream.Receive() {
 			envs := stream.Msg().GetEnvelopes()
-			if envs != nil && len(envs) > 0 {
+			if len(envs) > 0 {
 				total := received.Add(int64(len(envs)))
 				fmt.Printf("  SubscribeEnvelopes received %d (total %d)\n", len(envs), total)
 				if int(total) >= published {
@@ -150,17 +175,7 @@ func runSubscribeEnvelopesDiagnostic(cfg *config) error {
 func runConnectDiagnostic(cfg *config) error {
 	fmt.Println("=== Connect-RPC Client Diagnostic ===")
 
-	// Build HTTP/2 client with TLS
-	httpClient := &http.Client{
-		Transport: &http2.Transport{
-			TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12},
-			DialTLSContext: func(ctx context.Context, network, addr string, tlsCfg *tls.Config) (net.Conn, error) {
-				return tls.DialWithDialer(&net.Dialer{Timeout: 10 * time.Second}, network, addr, tlsCfg)
-			},
-		},
-	}
-
-	baseURL := "https://" + cfg.Addr
+	httpClient, baseURL := newConnectHTTPClient(cfg)
 	opts := []connect.ClientOption{connect.WithGRPC()}
 
 	queryClient := message_apiconnect.NewQueryApiClient(httpClient, baseURL, opts...)
@@ -176,11 +191,14 @@ func runConnectDiagnostic(cfg *config) error {
 	defer cancel()
 
 	// Step 1: Open SubscribeTopics stream via Connect-RPC gRPC client
-	stream, err := queryClient.SubscribeTopics(ctx, connect.NewRequest(&message_api.SubscribeTopicsRequest{
-		Filters: []*message_api.SubscribeTopicsRequest_TopicFilter{
-			{Topic: topicBytes},
-		},
-	}))
+	stream, err := queryClient.SubscribeTopics(
+		ctx,
+		connect.NewRequest(&message_api.SubscribeTopicsRequest{
+			Filters: []*message_api.SubscribeTopicsRequest_TopicFilter{
+				{Topic: topicBytes},
+			},
+		}),
+	)
 	if err != nil {
 		return fmt.Errorf("open stream: %w", err)
 	}
@@ -210,7 +228,7 @@ func runConnectDiagnostic(cfg *config) error {
 	}
 
 	published := 0
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		aad := &envelopesProto.AuthenticatedData{TargetTopic: topicBytes}
 		clientEnv := &envelopesProto.ClientEnvelope{
 			Aad: aad,

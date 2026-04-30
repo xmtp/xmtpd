@@ -13,7 +13,7 @@
 #   snapshots/<timestamp>/ directory with per-step JSON files
 #   snapshots/<timestamp>/summary.json — combined results
 
-set -eu
+set -euo pipefail
 
 BINARY="${1:-/tmp/perf-test}"
 ADDR="${2:-grpc.testnet-staging.xmtp.network:443}"

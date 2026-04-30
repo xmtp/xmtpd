@@ -163,7 +163,11 @@ func runMixedWorkload(cfg *config, dau int, duration time.Duration) (*mixSnapsho
 	for _, w := range workers {
 		fmt.Printf("  %-22s → %6.1f req/s\n", w.Name, w.TargetRPS)
 	}
-	fmt.Printf("  %-22s → %6.1f req/s (SKIPPED — staging bug)\n", "SubscribeTopics", totalRPS*cbFracSubscribe)
+	fmt.Printf(
+		"  %-22s → %6.1f req/s (SKIPPED — staging bug)\n",
+		"SubscribeTopics",
+		totalRPS*cbFracSubscribe,
+	)
 	fmt.Println()
 
 	// Connection pool — multiple gRPC connections to avoid HTTP/2 multiplexing bottleneck
@@ -173,7 +177,7 @@ func runMixedWorkload(cfg *config, dau int, duration time.Duration) (*mixSnapsho
 		c, err := newGRPCConn(cfg)
 		if err != nil {
 			// Close any already-opened connections
-			for j := 0; j < i; j++ {
+			for j := range i {
 				_ = conns[j].Close()
 			}
 			return nil, fmt.Errorf("grpc connect [%d]: %w", i, err)
@@ -216,22 +220,28 @@ func runMixedWorkload(cfg *config, dau int, duration time.Duration) (*mixSnapsho
 		numGoroutines := max(int(math.Ceil(w.TargetRPS/50)), 1)
 		perGoroutineRPS := w.TargetRPS / float64(numGoroutines)
 
-		for g := range numGoroutines {
+		for range numGoroutines {
 			// Round-robin connections across goroutines
 			conn := conns[connIdx%numConns]
 			connIdx++
-			wg.Add(1)
-			go func(wk mixAPIWorker, tr *apiLatencyTracker, grps float64, gIdx int, c *grpc.ClientConn) {
-				defer wg.Done()
-				runMixAPILoop(ctx, c, cfg, key, wk, tr, grps, deadline, &globalRateLimited)
-			}(w, tracker, perGoroutineRPS, g, conn)
+			wg.Go(func() {
+				runMixAPILoop(
+					ctx,
+					conn,
+					cfg,
+					key,
+					w,
+					tracker,
+					perGoroutineRPS,
+					deadline,
+					&globalRateLimited,
+				)
+			})
 		}
 	}
 
 	// Progress reporter
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		ticker := time.NewTicker(15 * time.Second)
 		defer ticker.Stop()
 		start := time.Now()
@@ -257,7 +267,7 @@ func runMixedWorkload(cfg *config, dau int, duration time.Duration) (*mixSnapsho
 				return
 			}
 		}
-	}()
+	})
 
 	wg.Wait()
 
@@ -311,13 +321,23 @@ func runMixedWorkload(cfg *config, dau int, duration time.Duration) (*mixSnapsho
 	fmt.Println(mixTop)
 	fmt.Println(mixHeader)
 	fmt.Println(mixSep)
-	for i, w := range workers {
-		if i >= len(snap.APIs) {
-			break
-		}
-		r := snap.APIs[i]
-		fmt.Printf("║ %-22s ║ %5.0f  ║ %8.1f ║ %8.2f ║ %8.2f ║ %8.2f ║ %7.2f ║ %5.1f%% ║\n",
-			w.Name, w.TargetRPS, r.RPS, r.AvgLatency, r.P50Latency, r.P99Latency, r.StdDev, r.ErrorPct)
+	// Build target RPS lookup from workers
+	workerTargets := make(map[string]float64, len(workers))
+	for _, w := range workers {
+		workerTargets[w.Name] = w.TargetRPS
+	}
+	for _, r := range snap.APIs {
+		fmt.Printf(
+			"║ %-22s ║ %5.0f  ║ %8.1f ║ %8.2f ║ %8.2f ║ %8.2f ║ %7.2f ║ %5.1f%% ║\n",
+			r.Name,
+			workerTargets[r.Name],
+			r.RPS,
+			r.AvgLatency,
+			r.P50Latency,
+			r.P99Latency,
+			r.StdDev,
+			r.ErrorPct,
+		)
 	}
 	fmt.Println(mixBot)
 
@@ -344,7 +364,7 @@ func runMixAPILoop(
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	replicationClient := messageApi.NewReplicationApiClient(conn)
+	queryClient := messageApi.NewQueryApiClient(conn)
 	publishClient := messageApi.NewPublishApiClient(conn)
 
 	// Pre-generate a write topic for this goroutine
@@ -363,7 +383,7 @@ func runMixAPILoop(
 
 			switch w.Name {
 			case "GetInboxIds":
-				_, callErr = replicationClient.GetInboxIds(ctx, &messageApi.GetInboxIdsRequest{
+				_, callErr = queryClient.GetInboxIds(ctx, &messageApi.GetInboxIdsRequest{
 					Requests: []*messageApi.GetInboxIdsRequest_Request{{
 						Identifier:     "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
 						IdentifierKind: associations.IdentifierKind_IDENTIFIER_KIND_ETHEREUM,
@@ -371,15 +391,18 @@ func runMixAPILoop(
 				})
 
 			case "QueryEnvelopes":
-				_, callErr = replicationClient.QueryEnvelopes(ctx, &messageApi.QueryEnvelopesRequest{
+				_, callErr = queryClient.QueryEnvelopes(ctx, &messageApi.QueryEnvelopesRequest{
 					Query: &messageApi.EnvelopesQuery{OriginatorNodeIds: []uint32{100}},
 					Limit: 5,
 				})
 
 			case "GetNewestEnvelope":
-				_, callErr = replicationClient.GetNewestEnvelope(ctx, &messageApi.GetNewestEnvelopeRequest{
-					Topics: [][]byte{[]byte("AAAAAAAAAAAAAAAAAAAAAA==")},
-				})
+				_, callErr = queryClient.GetNewestEnvelope(
+					ctx,
+					&messageApi.GetNewestEnvelopeRequest{
+						Topics: [][]byte{[]byte("AAAAAAAAAAAAAAAAAAAAAA==")},
+					},
+				)
 
 			case "GroupMessage-256B":
 				req, buildErr := buildPublishRequestForTopic(cfg, key, writeTopic, 256)

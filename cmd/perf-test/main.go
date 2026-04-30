@@ -28,16 +28,23 @@ import (
 )
 
 const (
-	// Minimal valid MLS PrivateMessage frame (non-commit).
+	// Minimal valid MLS PrivateMessage frame (non-commit, ContentType=Application=0x01).
 	// Used as the prefix for GroupMessage payloads to pass server-side validation.
 	minimalMLSFrameHex = "0001000210aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000000000000101000000"
+
+	// Minimal valid MLS PrivateMessage frame with ContentType=Commit=0x03.
+	// Payer routes these to blockchain via GroupMessageBroadcaster contract.
+	minimalMLSCommitFrameHex = "0001000210aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000000000000103000000"
 
 	envelopePoolSize = 2000
 
 	methodPublish           = "xmtp.xmtpv4.message_api.ReplicationApi.PublishPayerEnvelopes"
-	methodQueryEnvelopes    = "xmtp.xmtpv4.message_api.ReplicationApi.QueryEnvelopes"
-	methodGetInboxIds       = "xmtp.xmtpv4.message_api.ReplicationApi.GetInboxIds"
-	methodGetNewestEnvelope = "xmtp.xmtpv4.message_api.ReplicationApi.GetNewestEnvelope"
+	methodQueryEnvelopes    = "xmtp.xmtpv4.message_api.QueryApi.QueryEnvelopes"
+	methodGetInboxIds       = "xmtp.xmtpv4.message_api.QueryApi.GetInboxIds"
+	methodGetNewestEnvelope = "xmtp.xmtpv4.message_api.QueryApi.GetNewestEnvelope"
+
+	// Streaming method (not usable with ghz — handled by runStreamTest)
+	methodSubscribeTopics = "xmtp.xmtpv4.message_api.QueryApi.SubscribeTopics"
 )
 
 // testCase defines a single performance test.
@@ -49,6 +56,8 @@ type testCase struct {
 	JSONPayload string // static JSON request body for read-path tests
 	TopicKind   topic.TopicKind
 	PayloadSize int
+	IsStream    bool // true = streaming test, handled by runStreamTest instead of ghz
+	IsCatchup   bool // true = catch-up mode: publish first, then subscribe
 }
 
 var testCases = []testCase{
@@ -107,6 +116,18 @@ var testCases = []testCase{
 		TopicKind:   topic.TopicKindGroupMessagesV1,
 		PayloadSize: 5120,
 	},
+	// Streaming tests (cannot use ghz — uses native gRPC streams)
+	{
+		Name:     "SubscribeTopics",
+		Method:   methodSubscribeTopics,
+		IsStream: true,
+	},
+	{
+		Name:      "SubscribeTopics-Catchup",
+		Method:    methodSubscribeTopics,
+		IsStream:  true,
+		IsCatchup: true,
+	},
 }
 
 type testResult struct {
@@ -126,15 +147,27 @@ type testResult struct {
 
 type config struct {
 	Addr        string
+	GatewayAddr string // gateway address for writes (empty = direct to node)
 	NodeID      uint32
 	Concurrency int
 	Connections int
 	Duration    time.Duration
 	Insecure    bool
+	PubRate     int // publish rate in msg/s for streaming tests
 }
 
 func makeGroupMessagePayload(size int) []byte {
 	header, _ := hex.DecodeString(minimalMLSFrameHex)
+	if size <= len(header) {
+		return header
+	}
+	padding := make([]byte, size-len(header))
+	_, _ = rand.Read(padding)
+	return append(header, padding...)
+}
+
+func makeCommitMessagePayload(size int) []byte {
+	header, _ := hex.DecodeString(minimalMLSCommitFrameHex)
 	if size <= len(header) {
 		return header
 	}
@@ -305,6 +338,9 @@ func runWriteTest(cfg *config, tc testCase) (*testResult, error) {
 }
 
 func runTest(cfg *config, tc testCase) (*testResult, error) {
+	if tc.IsStream {
+		return runStreamTest(cfg, tc)
+	}
 	if tc.JSONPayload != "" {
 		return runReadTest(cfg, tc)
 	}
@@ -369,6 +405,12 @@ func parseFlags() (*config, []testCase, string) {
 		&cfg.Addr, "addr",
 		"grpc.testnet-staging.xmtp.network:443", "gRPC host:port",
 	)
+	flag.StringVar(
+		&cfg.GatewayAddr,
+		"gateway",
+		"",
+		"Gateway address for writes (e.g. payer.testnet-staging.xmtp.network:443). Empty = direct to node",
+	)
 	nodeID := flag.Uint("node-id", 100, "Target originator node ID")
 	flag.IntVar(&cfg.Concurrency, "c", 8, "Concurrent workers")
 	flag.IntVar(&cfg.Connections, "conn", 4, "Client connections")
@@ -378,6 +420,10 @@ func parseFlags() (*config, []testCase, string) {
 	flag.BoolVar(
 		&cfg.Insecure, "insecure", false, "Use plaintext (no TLS)",
 	)
+	flag.IntVar(
+		&cfg.PubRate, "pub-rate", 50,
+		"Publish rate in msg/s for streaming tests",
+	)
 	tests := flag.String(
 		"tests",
 		"all",
@@ -386,7 +432,83 @@ func parseFlags() (*config, []testCase, string) {
 	outPath := flag.String(
 		"out", "perf_results.json", "JSON results output path",
 	)
+	mixDAU := flag.Int("mix", 0, "Run mixed CB-user workload at this DAU level (0=disabled)")
+	blastConc := flag.Int(
+		"blast",
+		0,
+		"BLAST mode: N goroutines fire as fast as possible (0=disabled)",
+	)
+	dauConc := flag.Int(
+		"dau",
+		0,
+		"REALISTIC DAU blast: N goroutines with diverse data, seeded topics, background streams (0=disabled)",
+	)
+	diag := flag.Bool("diag", false, "Run diagnostic test for live delivery")
+	diagConnect := flag.Bool("diag-connect", false, "Run diagnostic with Connect-RPC client")
 	flag.Parse()
+
+	// Blast mode — max throughput saturation test
+	if *blastConc > 0 {
+		cfg.NodeID = uint32(*nodeID)
+		snap, err := runBlastWorkload(cfg, *blastConc, cfg.Duration)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "BLAST ERROR: %v\n", err)
+			os.Exit(1)
+		}
+		b, _ := json.MarshalIndent(snap, "", "  ")
+		_ = os.WriteFile(*outPath, b, 0o644)
+		fmt.Printf("\nResults saved to %s\n", *outPath)
+		os.Exit(0)
+	}
+
+	// Realistic DAU blast — diverse data, seeded topics, background streams
+	if *dauConc > 0 {
+		cfg.NodeID = uint32(*nodeID)
+		snap, err := runDAUBlast(cfg, *dauConc, cfg.Duration)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "DAU BLAST ERROR: %v\n", err)
+			os.Exit(1)
+		}
+		b, _ := json.MarshalIndent(snap, "", "  ")
+		_ = os.WriteFile(*outPath, b, 0o644)
+		fmt.Printf("\nResults saved to %s\n", *outPath)
+		os.Exit(0)
+	}
+
+	// Mixed workload mode — bypasses normal test flow
+	if *mixDAU > 0 {
+		cfg.NodeID = uint32(*nodeID)
+		snap, err := runMixedWorkload(cfg, *mixDAU, cfg.Duration)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "MIX ERROR: %v\n", err)
+			os.Exit(1)
+		}
+		b, _ := json.MarshalIndent(snap, "", "  ")
+		_ = os.WriteFile(*outPath, b, 0o644)
+		fmt.Printf("\nResults saved to %s\n", *outPath)
+		os.Exit(0)
+	}
+
+	if *diag || *diagConnect {
+		cfg.NodeID = uint32(*nodeID)
+		if *diagConnect {
+			if err := runConnectDiagnostic(cfg); err != nil {
+				fmt.Fprintf(os.Stderr, "DIAGNOSTIC ERROR: %v\n", err)
+				os.Exit(1)
+			}
+			if err := runSubscribeEnvelopesDiagnostic(cfg); err != nil {
+				fmt.Fprintf(os.Stderr, "DIAGNOSTIC ERROR: %v\n", err)
+				os.Exit(1)
+			}
+		}
+		if *diag {
+			if err := runDiagnostic(cfg); err != nil {
+				fmt.Fprintf(os.Stderr, "DIAGNOSTIC ERROR: %v\n", err)
+				os.Exit(1)
+			}
+		}
+		os.Exit(0)
+	}
 
 	cfg.NodeID = uint32(*nodeID)
 
@@ -409,11 +531,11 @@ func parseFlags() (*config, []testCase, string) {
 
 func printSummaryTable(results []testResult) {
 	const (
-		top    = "╔══════════════════════╦══════════╦══════════╦══════════╦══════════╦══════════╦════════╗"
-		title  = "║                      Node API Latency by Message Type                              ║"
-		sep    = "╠══════════════════════╬══════════╬══════════╬══════════╬══════════╬══════════╬════════╣"
-		header = "║ Test                 ║ Count    ║ RPS      ║ Avg(ms)  ║ Stdev    ║ P99(ms)  ║ Err%   ║"
-		bottom = "╚══════════════════════╩══════════╩══════════╩══════════╩══════════╩══════════╩════════╝"
+		top    = "╔══════════════════════════╦══════════╦══════════╦══════════╦══════════╦══════════╦════════╗"
+		title  = "║                          Node API Latency by Message Type                              ║"
+		sep    = "╠══════════════════════════╬══════════╬══════════╬══════════╬══════════╬══════════╬════════╣"
+		header = "║ Test                     ║ Count    ║ RPS      ║ Avg(ms)  ║ Stdev    ║ P99(ms)  ║ Err%   ║"
+		bottom = "╚══════════════════════════╩══════════╩══════════╩══════════╩══════════╩══════════╩════════╝"
 	)
 
 	fmt.Println()
@@ -424,7 +546,7 @@ func printSummaryTable(results []testResult) {
 	fmt.Println(sep)
 	for _, r := range results {
 		fmt.Printf(
-			"║ %-20s ║ %8d ║ %8.1f ║ %8.2f ║ %8.2f ║ %8.2f ║ %5.1f%% ║\n",
+			"║ %-24s ║ %8d ║ %8.1f ║ %8.2f ║ %8.2f ║ %8.2f ║ %5.1f%% ║\n",
 			r.Name, r.Count, r.RPS,
 			r.AvgLatency, r.StdDev, r.P99Latency, r.ErrorPct,
 		)

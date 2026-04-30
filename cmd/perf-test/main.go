@@ -28,9 +28,13 @@ import (
 )
 
 const (
-	// Minimal valid MLS PrivateMessage frame (non-commit).
+	// Minimal valid MLS PrivateMessage frame (non-commit, ContentType=Application=0x01).
 	// Used as the prefix for GroupMessage payloads to pass server-side validation.
 	minimalMLSFrameHex = "0001000210aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000000000000101000000"
+
+	// Minimal valid MLS PrivateMessage frame with ContentType=Commit=0x03.
+	// Payer routes these to blockchain via GroupMessageBroadcaster contract.
+	minimalMLSCommitFrameHex = "0001000210aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000000000000103000000"
 
 	envelopePoolSize = 2000
 
@@ -143,6 +147,7 @@ type testResult struct {
 
 type config struct {
 	Addr        string
+	GatewayAddr string // gateway address for writes (empty = direct to node)
 	NodeID      uint32
 	Concurrency int
 	Connections int
@@ -153,6 +158,16 @@ type config struct {
 
 func makeGroupMessagePayload(size int) []byte {
 	header, _ := hex.DecodeString(minimalMLSFrameHex)
+	if size <= len(header) {
+		return header
+	}
+	padding := make([]byte, size-len(header))
+	_, _ = rand.Read(padding)
+	return append(header, padding...)
+}
+
+func makeCommitMessagePayload(size int) []byte {
+	header, _ := hex.DecodeString(minimalMLSCommitFrameHex)
 	if size <= len(header) {
 		return header
 	}
@@ -390,6 +405,10 @@ func parseFlags() (*config, []testCase, string) {
 		&cfg.Addr, "addr",
 		"grpc.testnet-staging.xmtp.network:443", "gRPC host:port",
 	)
+	flag.StringVar(
+		&cfg.GatewayAddr, "gateway",
+		"", "Gateway address for writes (e.g. payer.testnet-staging.xmtp.network:443). Empty = direct to node",
+	)
 	nodeID := flag.Uint("node-id", 100, "Target originator node ID")
 	flag.IntVar(&cfg.Concurrency, "c", 8, "Concurrent workers")
 	flag.IntVar(&cfg.Connections, "conn", 4, "Client connections")
@@ -412,9 +431,39 @@ func parseFlags() (*config, []testCase, string) {
 		"out", "perf_results.json", "JSON results output path",
 	)
 	mixDAU := flag.Int("mix", 0, "Run mixed CB-user workload at this DAU level (0=disabled)")
+	blastConc := flag.Int("blast", 0, "BLAST mode: N goroutines fire as fast as possible (0=disabled)")
+	dauConc := flag.Int("dau", 0, "REALISTIC DAU blast: N goroutines with diverse data, seeded topics, background streams (0=disabled)")
 	diag := flag.Bool("diag", false, "Run diagnostic test for live delivery")
 	diagConnect := flag.Bool("diag-connect", false, "Run diagnostic with Connect-RPC client")
 	flag.Parse()
+
+	// Blast mode — max throughput saturation test
+	if *blastConc > 0 {
+		cfg.NodeID = uint32(*nodeID)
+		snap, err := runBlastWorkload(cfg, *blastConc, cfg.Duration)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "BLAST ERROR: %v\n", err)
+			os.Exit(1)
+		}
+		b, _ := json.MarshalIndent(snap, "", "  ")
+		_ = os.WriteFile(*outPath, b, 0o644)
+		fmt.Printf("\nResults saved to %s\n", *outPath)
+		os.Exit(0)
+	}
+
+	// Realistic DAU blast — diverse data, seeded topics, background streams
+	if *dauConc > 0 {
+		cfg.NodeID = uint32(*nodeID)
+		snap, err := runDAUBlast(cfg, *dauConc, cfg.Duration)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "DAU BLAST ERROR: %v\n", err)
+			os.Exit(1)
+		}
+		b, _ := json.MarshalIndent(snap, "", "  ")
+		_ = os.WriteFile(*outPath, b, 0o644)
+		fmt.Printf("\nResults saved to %s\n", *outPath)
+		os.Exit(0)
+	}
 
 	// Mixed workload mode — bypasses normal test flow
 	if *mixDAU > 0 {

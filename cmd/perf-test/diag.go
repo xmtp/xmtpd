@@ -108,28 +108,27 @@ func runDiagnostic(cfg *config) error {
 
 	// Step 4: Open catch-up stream on the same topic to verify messages are in DB
 	fmt.Println("  Opening catch-up stream...")
-	catchupStream, err := queryClient.SubscribeTopics(ctx, &messageApi.SubscribeTopicsRequest{
-		Filters: []*messageApi.SubscribeTopicsRequest_TopicFilter{
-			{Topic: topicBytes},
+	catchupCtx, catchupCancel := context.WithTimeout(ctx, 3*time.Second)
+	defer catchupCancel()
+
+	catchupStream, err := queryClient.SubscribeTopics(
+		catchupCtx, &messageApi.SubscribeTopicsRequest{
+			Filters: []*messageApi.SubscribeTopicsRequest_TopicFilter{
+				{Topic: topicBytes},
+			},
 		},
-	})
+	)
 	if err != nil {
 		return fmt.Errorf("open catchup stream: %w", err)
 	}
 
 	catchupReceived := 0
-	catchupCtx, catchupCancel := context.WithTimeout(ctx, 3*time.Second)
-	defer catchupCancel()
-
 	for {
-		select {
-		case <-catchupCtx.Done():
-			goto done
-		default:
-		}
 		resp, err := catchupStream.Recv()
 		if err != nil {
-			fmt.Printf("  Catch-up recv error: %v\n", err)
+			if catchupCtx.Err() == nil {
+				fmt.Printf("  Catch-up recv error: %v\n", err)
+			}
 			break
 		}
 		if su := resp.GetStatusUpdate(); su != nil {
@@ -140,14 +139,12 @@ func runDiagnostic(cfg *config) error {
 			continue
 		}
 		envs := resp.GetEnvelopes()
-		if envs != nil && len(envs.GetEnvelopes()) > 0 {
+		if len(envs.GetEnvelopes()) > 0 {
 			catchupReceived += len(envs.GetEnvelopes())
 			fmt.Printf("  Catch-up recv: %d envelopes (total %d)\n",
 				len(envs.GetEnvelopes()), catchupReceived)
 		}
 	}
-
-done:
 	fmt.Printf("  Catch-up stream received: %d messages\n", catchupReceived)
 
 	fmt.Printf("\n=== DIAGNOSTIC RESULTS ===\n")

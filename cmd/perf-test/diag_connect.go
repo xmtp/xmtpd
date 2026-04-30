@@ -30,7 +30,7 @@ func newConnectHTTPClient(cfg *config) (client *http.Client, baseURL string) {
 			Transport: &http2.Transport{
 				AllowHTTP: true,
 				DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
-					return net.DialTimeout(network, addr, 10*time.Second)
+					return (&net.Dialer{}).DialContext(ctx, network, addr)
 				},
 			},
 		}
@@ -42,10 +42,7 @@ func newConnectHTTPClient(cfg *config) (client *http.Client, baseURL string) {
 				DialTLSContext: func(
 					ctx context.Context, network, addr string, tlsCfg *tls.Config,
 				) (net.Conn, error) {
-					return tls.DialWithDialer(
-						&net.Dialer{Timeout: 10 * time.Second},
-						network, addr, tlsCfg,
-					)
+					return (&tls.Dialer{Config: tlsCfg}).DialContext(ctx, network, addr)
 				},
 			},
 		}

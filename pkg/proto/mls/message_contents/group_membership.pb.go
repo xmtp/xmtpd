@@ -78,6 +78,141 @@ func (x *GroupMembership) GetFailedInstallations() [][]byte {
 	return nil
 }
 
+// Per-member membership state stored inside the GROUP_MEMBERSHIP component
+// as a TlsMap<InboxId, bytes>. Keys are 32-byte inbox ids, values are the
+// encoded bytes of this message.
+type GroupMembershipEntry struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Version:
+	//
+	//	*GroupMembershipEntry_V1_
+	Version       isGroupMembershipEntry_Version `protobuf_oneof:"version"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GroupMembershipEntry) Reset() {
+	*x = GroupMembershipEntry{}
+	mi := &file_mls_message_contents_group_membership_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GroupMembershipEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GroupMembershipEntry) ProtoMessage() {}
+
+func (x *GroupMembershipEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_mls_message_contents_group_membership_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GroupMembershipEntry.ProtoReflect.Descriptor instead.
+func (*GroupMembershipEntry) Descriptor() ([]byte, []int) {
+	return file_mls_message_contents_group_membership_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *GroupMembershipEntry) GetVersion() isGroupMembershipEntry_Version {
+	if x != nil {
+		return x.Version
+	}
+	return nil
+}
+
+func (x *GroupMembershipEntry) GetV1() *GroupMembershipEntry_V1 {
+	if x != nil {
+		if x, ok := x.Version.(*GroupMembershipEntry_V1_); ok {
+			return x.V1
+		}
+	}
+	return nil
+}
+
+type isGroupMembershipEntry_Version interface {
+	isGroupMembershipEntry_Version()
+}
+
+type GroupMembershipEntry_V1_ struct {
+	V1 *GroupMembershipEntry_V1 `protobuf:"bytes,1,opt,name=v1,proto3,oneof"`
+}
+
+func (*GroupMembershipEntry_V1_) isGroupMembershipEntry_Version() {}
+
+// V1 of the per-member membership state.
+type GroupMembershipEntry_V1 struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Latest identity-update sequence id this client has applied for this
+	// member. Validator-checked at bootstrap against the pre-flip
+	// `GroupMembership.members[inbox_id]` value.
+	SequenceId uint64 `protobuf:"varint,1,opt,name=sequence_id,json=sequenceId,proto3" json:"sequence_id,omitempty"`
+	// Installation ids belonging to this member that we previously failed
+	// to add (expired key package, validation failure, etc.). Used to
+	// suppress retries on later membership updates.
+	//
+	// Sender-authoritative at migration: the migrator partitions the
+	// global `failed_installations` per inbox by walking identity-update
+	// history. Receivers accept these bytes as-is — the validator only
+	// checks `sequence_id`, so the blast radius of a bad partition is
+	// bounded to extra or silenced retries. Installations whose owning
+	// inbox can't be determined are dropped.
+	FailedInstallations [][]byte `protobuf:"bytes,2,rep,name=failed_installations,json=failedInstallations,proto3" json:"failed_installations,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *GroupMembershipEntry_V1) Reset() {
+	*x = GroupMembershipEntry_V1{}
+	mi := &file_mls_message_contents_group_membership_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GroupMembershipEntry_V1) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GroupMembershipEntry_V1) ProtoMessage() {}
+
+func (x *GroupMembershipEntry_V1) ProtoReflect() protoreflect.Message {
+	mi := &file_mls_message_contents_group_membership_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GroupMembershipEntry_V1.ProtoReflect.Descriptor instead.
+func (*GroupMembershipEntry_V1) Descriptor() ([]byte, []int) {
+	return file_mls_message_contents_group_membership_proto_rawDescGZIP(), []int{1, 0}
+}
+
+func (x *GroupMembershipEntry_V1) GetSequenceId() uint64 {
+	if x != nil {
+		return x.SequenceId
+	}
+	return 0
+}
+
+func (x *GroupMembershipEntry_V1) GetFailedInstallations() [][]byte {
+	if x != nil {
+		return x.FailedInstallations
+	}
+	return nil
+}
+
 var File_mls_message_contents_group_membership_proto protoreflect.FileDescriptor
 
 const file_mls_message_contents_group_membership_proto_rawDesc = "" +
@@ -88,7 +223,14 @@ const file_mls_message_contents_group_membership_proto_rawDesc = "" +
 	"\x14failed_installations\x18\x02 \x03(\fR\x13failedInstallations\x1a:\n" +
 	"\fMembersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x04R\x05value:\x028\x01B\xed\x01\n" +
+	"\x05value\x18\x02 \x01(\x04R\x05value:\x028\x01\"\xc1\x01\n" +
+	"\x14GroupMembershipEntry\x12D\n" +
+	"\x02v1\x18\x01 \x01(\v22.xmtp.mls.message_contents.GroupMembershipEntry.V1H\x00R\x02v1\x1aX\n" +
+	"\x02V1\x12\x1f\n" +
+	"\vsequence_id\x18\x01 \x01(\x04R\n" +
+	"sequenceId\x121\n" +
+	"\x14failed_installations\x18\x02 \x03(\fR\x13failedInstallationsB\t\n" +
+	"\aversionB\xed\x01\n" +
 	"\x1dcom.xmtp.mls.message_contentsB\x14GroupMembershipProtoP\x01Z4github.com/xmtp/xmtpd/pkg/proto/mls/message_contents\xa2\x02\x03XMM\xaa\x02\x18Xmtp.Mls.MessageContents\xca\x02\x18Xmtp\\Mls\\MessageContents\xe2\x02$Xmtp\\Mls\\MessageContents\\GPBMetadata\xea\x02\x1aXmtp::Mls::MessageContentsb\x06proto3"
 
 var (
@@ -103,18 +245,21 @@ func file_mls_message_contents_group_membership_proto_rawDescGZIP() []byte {
 	return file_mls_message_contents_group_membership_proto_rawDescData
 }
 
-var file_mls_message_contents_group_membership_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_mls_message_contents_group_membership_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_mls_message_contents_group_membership_proto_goTypes = []any{
-	(*GroupMembership)(nil), // 0: xmtp.mls.message_contents.GroupMembership
-	nil,                     // 1: xmtp.mls.message_contents.GroupMembership.MembersEntry
+	(*GroupMembership)(nil),         // 0: xmtp.mls.message_contents.GroupMembership
+	(*GroupMembershipEntry)(nil),    // 1: xmtp.mls.message_contents.GroupMembershipEntry
+	nil,                             // 2: xmtp.mls.message_contents.GroupMembership.MembersEntry
+	(*GroupMembershipEntry_V1)(nil), // 3: xmtp.mls.message_contents.GroupMembershipEntry.V1
 }
 var file_mls_message_contents_group_membership_proto_depIdxs = []int32{
-	1, // 0: xmtp.mls.message_contents.GroupMembership.members:type_name -> xmtp.mls.message_contents.GroupMembership.MembersEntry
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	2, // 0: xmtp.mls.message_contents.GroupMembership.members:type_name -> xmtp.mls.message_contents.GroupMembership.MembersEntry
+	3, // 1: xmtp.mls.message_contents.GroupMembershipEntry.v1:type_name -> xmtp.mls.message_contents.GroupMembershipEntry.V1
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_mls_message_contents_group_membership_proto_init() }
@@ -122,13 +267,16 @@ func file_mls_message_contents_group_membership_proto_init() {
 	if File_mls_message_contents_group_membership_proto != nil {
 		return
 	}
+	file_mls_message_contents_group_membership_proto_msgTypes[1].OneofWrappers = []any{
+		(*GroupMembershipEntry_V1_)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_mls_message_contents_group_membership_proto_rawDesc), len(file_mls_message_contents_group_membership_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

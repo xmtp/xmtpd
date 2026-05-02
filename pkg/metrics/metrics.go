@@ -1,4 +1,4 @@
-// Package metrics implements the Prometheusmetrics for the XMTPD service.
+// Package metrics implements the Prometheus metrics for the XMTPD service.
 package metrics
 
 import (

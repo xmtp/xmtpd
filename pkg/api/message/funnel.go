@@ -12,7 +12,7 @@ type funnel[T any] struct {
 	closed bool
 }
 
-// Funnel many input channels into a single one. Output channel is closed once all input channels are.
+// Funnel many input channels into a single one. Output channel is closed once all input channels are closed.
 // Adding channels after the output channel has been closed is invalid.
 func newFunnel[T any](ch ...<-chan T) *funnel[T] {
 	f := &funnel[T]{

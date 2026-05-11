@@ -139,7 +139,7 @@ func InsertGatewayEnvelopeWithChecksTransactional(
 // automatically creating missing partitions and retrying once.
 //
 // Behavior:
-//   - Performs an insert into the v2 tables.
+//   - Performs an insert into the v3 tables.
 //   - On “no partition of relation …” errors, creates the necessary partitions
 //     in the same connection, and retries the insert once.
 //

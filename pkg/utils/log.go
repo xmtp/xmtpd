@@ -19,7 +19,7 @@ import (
 // - Build the logger in a way the name chain has readable and meaningful names, such as "xmtpd.api.publish-worker".
 // - Prefer circuit breaking in hot paths, such as "if logger.Core().Enabled(zap.DebugLevel) { ... }".
 // - Always circuit break when using zap.Any, as it relies on reflection.
-// - As a general thumb rule, prefer Debug on hot paths.
+// - As a general rule of thumb, prefer Debug on hot paths.
 // - For repeating fields across different log messages in the same package, use a const.
 // - For repeating fields across different packages, use a field function.
 // - For repeating errors, use a constant error message.

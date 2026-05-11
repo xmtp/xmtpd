@@ -38,7 +38,7 @@
 // # Staleness Handling
 //
 // Gas prices are cached for 250ms. If the cached value is stale, GetGasPrice()
-// fetches a fresh value. If the fetch fails, it returns a safe default (0.1 gwei).
+// fetches a fresh value. If the fetch fails, it returns a safe default value (0.1 gwei on Arbitrum, 10 gwei on other EVM chains).
 package oracle
 
 import (
@@ -148,7 +148,7 @@ func (o *Oracle) Close() {
 // GetGasPrice returns the current gas price.
 // If the cached price is stale (older than 250ms), it fetches a fresh value.
 // Concurrent requests are coalesced to minimize RPC calls.
-// If fetching fails, returns a safe default value (0.1 gwei).
+// If fetching fails, returns a safe default value (0.1 gwei on Arbitrum, 10 gwei on other EVM chains).
 func (o *Oracle) GetGasPrice() int64 {
 	if !o.isStale() {
 		price := o.gasPrice.Load()

@@ -35,6 +35,10 @@ func TestNoBlockchain_IdentityUpdateRoutedToNode(t *testing.T) {
 		IsCanonical: true,
 	}, nil).Maybe()
 
+	mockRegistry.On("GetNodes").Return([]registry.Node{
+		nodeRegistry.GetHealthyNode(200),
+	}, nil).Maybe()
+
 	inboxID := testutils.RandomInboxIDBytes()
 	identityUpdate := &associations.IdentityUpdate{
 		InboxId: utils.HexEncode(inboxID[:]),

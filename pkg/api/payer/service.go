@@ -263,7 +263,20 @@ func (s *Service) groupEnvelopes(
 			)
 		}
 
-		if toBlockchain {
+		if toBlockchain && s.cfg.NoBlockchain {
+			// No-blockchain mode: route to dedicated nodes instead of chain
+			var targetNodeID uint32
+			switch clientEnvelope.TargetTopic().Kind() {
+			case topic.TopicKindIdentityUpdatesV1:
+				targetNodeID = s.cfg.IdentityNodeID
+			case topic.TopicKindGroupMessagesV1:
+				targetNodeID = s.cfg.CommitNodeID
+			}
+			out.forNodes[targetNodeID] = append(
+				out.forNodes[targetNodeID],
+				newClientEnvelopeWithIndex(i, clientEnvelope),
+			)
+		} else if toBlockchain {
 			out.forBlockchain = append(
 				out.forBlockchain,
 				newClientEnvelopeWithIndex(i, clientEnvelope),

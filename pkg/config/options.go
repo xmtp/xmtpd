@@ -14,6 +14,9 @@ type APIOptions struct {
 	OriginatorCacheTTL          time.Duration `long:"originator-cache-ttl"           env:"XMTPD_API_ORIGINATOR_CACHE_TTL"           description:"TTL for originator list cache"                                  default:"5m"`
 	RequirePayerPositiveBalance bool          `long:"require-payer-positive-balance" env:"XMTPD_API_REQUIRE_PAYER_POSITIVE_BALANCE" description:"Reject publishes when payer balance is insufficient"`
 	RequireReplicationNodeAuth  bool          `long:"require-replication-node-auth"  env:"XMTPD_API_REQUIRE_REPLICATION_NODE_AUTH"  description:"Require node JWT authentication for all ReplicationApi methods"`
+
+	// No-blockchain experiment: accept commits and identity updates directly from nodes
+	NoBlockchain bool `long:"no-blockchain" env:"XMTPD_API_NO_BLOCKCHAIN" description:"Accept commits and identity updates from nodes instead of requiring blockchain"`
 }
 
 type ContractsOptions struct {
@@ -95,6 +98,11 @@ type PayerOptions struct {
 	NodeSelectorTimeout        time.Duration `long:"node-selector-connect-timeout" env:"XMTPD_PAYER_NODE_SELECTOR_CONNECT_TIMEOUT" description:"Connection timeout"                             default:"2s"`
 	EnvelopePublishTimeout     time.Duration `long:"envelope-publish-timeout"      env:"XMTPD_PAYER_ENVELOPE_PUBLISH_TIMEOUT"      description:"Envelope publish timeout"                       default:"30s"`
 	EnvelopePublishRetries     uint          `long:"envelope-publish-retries"      env:"XMTPD_PAYER_ENVELOPE_PUBLISH_RETRIES"      description:"How many times to retry publishing an envelope" default:"5"`
+
+	// No-blockchain experiment: route commits and identity updates to dedicated nodes instead of the chain
+	NoBlockchain   bool   `long:"no-blockchain"    env:"XMTPD_PAYER_NO_BLOCKCHAIN"    description:"Skip blockchain for commits and identity updates, route to dedicated nodes instead"`
+	CommitNodeID   uint32 `long:"commit-node-id"   env:"XMTPD_PAYER_COMMIT_NODE_ID"   description:"Node ID for dedicated commit processing (used with --no-blockchain)"`
+	IdentityNodeID uint32 `long:"identity-node-id" env:"XMTPD_PAYER_IDENTITY_NODE_ID" description:"Node ID for dedicated identity update processing (used with --no-blockchain)"`
 }
 
 type ReplicationOptions struct {

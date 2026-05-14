@@ -212,6 +212,7 @@ type APIServerTestSuite struct {
 type APIServerTestConfig struct {
 	registryNodes               []registry.Node
 	requirePayerPositiveBalance bool
+	noBlockchain                bool
 }
 
 type TestAPIOption func(*APIServerTestConfig)
@@ -225,6 +226,12 @@ func WithRegistryNodes(nodes []registry.Node) TestAPIOption {
 func WithRequirePayerPositiveBalance(enabled bool) TestAPIOption {
 	return func(cfg *APIServerTestConfig) {
 		cfg.requirePayerPositiveBalance = enabled
+	}
+}
+
+func WithTestNoBlockchain() TestAPIOption {
+	return func(cfg *APIServerTestConfig) {
+		cfg.noBlockchain = true
 	}
 }
 
@@ -309,6 +316,7 @@ func NewTestAPIServer(
 			config.APIOptions{
 				SendKeepAliveInterval:       30 * time.Second,
 				RequirePayerPositiveBalance: cfg.requirePayerPositiveBalance,
+				NoBlockchain:                cfg.noBlockchain,
 			},
 			false,
 			10*time.Millisecond,

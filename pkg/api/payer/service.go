@@ -629,16 +629,15 @@ func determineRetentionPolicy(clientEnvelope *envelopes.ClientEnvelope) (uint32,
 
 	switch clientEnvelope.TargetTopic().Kind() {
 	case topic.TopicKindIdentityUpdatesV1:
-		panic("should not be called for identity updates")
+		// In no-blockchain mode, identity updates are routed to nodes
+		return constants.DefaultStorageDurationDays, nil
 	case topic.TopicKindGroupMessagesV1:
 		switch payload := clientEnvelope.Payload().(type) {
 		case *envelopesProto.ClientEnvelope_GroupMessage:
-			shouldSendToBlockchain, err := deserializer.ShouldSendToBlockchain(payload)
+			// In no-blockchain mode, commits/proposals are routed to nodes
+			_, err := deserializer.ShouldSendToBlockchain(payload)
 			if err != nil {
 				return 0, err
-			}
-			if shouldSendToBlockchain {
-				panic("should not be called for group message commits or proposals")
 			}
 		default:
 			panic("mismatched payload type")

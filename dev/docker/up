@@ -4,7 +4,7 @@ set -eo pipefail
 if [ -z "$1" ]; then
   profile="single"
   echo "No profile provided, defaulting to single"
-elif [ "$1" = "single" ] || [ "$1" = "dual" ]; then
+elif [ "$1" = "single" ] || [ "$1" = "dual" ] || [ "$1" = "triple" ]; then
   profile="$1"
 else
   echo "Invalid profile '$1', defaulting to single"
@@ -51,8 +51,8 @@ run_cli \
   --add \
   --node-id=100
 
-# Register and enable node 2 (dual only)
-if [ "${profile}" = "dual" ]; then
+# Register and enable node 2 (dual or triple)
+if [ "${profile}" = "dual" ] || [ "${profile}" = "triple" ]; then
   run_cli \
     nodes register \
     --owner-address="${ANVIL_ACC_2_ADDRESS}" \
@@ -63,6 +63,20 @@ if [ "${profile}" = "dual" ]; then
     nodes canonical-network \
     --add \
     --node-id=200
+fi
+
+# Register and enable node 3 (triple only)
+if [ "${profile}" = "triple" ]; then
+  run_cli \
+    nodes register \
+    --owner-address="${ANVIL_ACC_3_ADDRESS}" \
+    --signing-key-pub="${ANVIL_ACC_3_PUBLIC_KEY}" \
+    --http-address="${NODE_3_HTTP_ADDRESS}"
+
+  run_cli \
+    nodes canonical-network \
+    --add \
+    --node-id=300
 fi
 
 echo

@@ -3,7 +3,7 @@ x-postgres-image: &x-postgres-image postgres:16
 services:
   db:
     image: *x-postgres-image
-    profiles: ["single", "dual"]
+    profiles: ["single", "dual", "triple"]
     environment:
       POSTGRES_PASSWORD: xmtp
     ports:
@@ -11,11 +11,19 @@ services:
 
   db2:
     image: *x-postgres-image
-    profiles: ["dual"]
+    profiles: ["dual", "triple"]
     environment:
       POSTGRES_PASSWORD: xmtp
     ports:
       - 8766:5432
+
+  db3:
+    image: *x-postgres-image
+    profiles: ["triple"]
+    environment:
+      POSTGRES_PASSWORD: xmtp
+    ports:
+      - 8767:5432
 
   chain:
     platform: linux/amd64

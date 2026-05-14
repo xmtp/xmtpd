@@ -1,0 +1,23 @@
+#!/bin/bash
+# Run node with --no-blockchain experiment flags.
+# Usage: dev/run-no-chain [1|2|3] [extra-args...]
+#
+# Node 1 (port 5050, node ID 100): handles commits
+# Node 2 (port 5051, node ID 200): handles identity updates
+# Node 3 (port 5052, node ID 300): handles regular messages
+#
+# All nodes accept all message types with --no-blockchain.
+
+set -eu
+
+NODE=${1:-1}
+shift 2>/dev/null || true
+
+NO_CHAIN_FLAGS="--payer.no-blockchain --payer.commit-node-id=100 --payer.identity-node-id=200 --api.no-blockchain"
+
+case $NODE in
+  1) exec dev/run $NO_CHAIN_FLAGS "$@" ;;
+  2) exec dev/run-2 $NO_CHAIN_FLAGS "$@" ;;
+  3) exec dev/run-3 $NO_CHAIN_FLAGS "$@" ;;
+  *) echo "Unknown node: $NODE (use 1, 2, or 3)"; exit 1 ;;
+esac

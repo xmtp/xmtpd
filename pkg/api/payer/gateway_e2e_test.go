@@ -68,9 +68,13 @@ func TestNoBlockchain_GatewayE2E_CommitFlow(t *testing.T) {
 
 	parsed, err := envelopes.NewOriginatorEnvelope(resp.Msg.GetOriginatorEnvelopes()[0])
 	require.NoError(t, err)
-	require.EqualValues(t, commitNodeID, parsed.UnsignedOriginatorEnvelope.PayerEnvelope.TargetOriginator)
+	require.EqualValues(
+		t, commitNodeID, parsed.UnsignedOriginatorEnvelope.PayerEnvelope.TargetOriginator,
+	)
 
-	mockBlockchain.AssertNotCalled(t, "PublishGroupMessage", mock.Anything, mock.Anything, mock.Anything)
+	mockBlockchain.AssertNotCalled(
+		t, "PublishGroupMessage", mock.Anything, mock.Anything, mock.Anything,
+	)
 	t.Logf("E2E commit flow: publish + verify on node %d OK", commitNodeID)
 }
 
@@ -107,7 +111,7 @@ func TestNoBlockchain_GatewayE2E_MixedTraffic(t *testing.T) {
 	groupID := testutils.RandomGroupID()
 
 	// 5 regular messages
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		regularMsg := envelopesTestUtils.CreateGroupMessageClientEnvelope(
 			groupID,
 			envelopesTestUtils.GetRealisticGroupMessagePayload(false),
@@ -137,7 +141,9 @@ func TestNoBlockchain_GatewayE2E_MixedTraffic(t *testing.T) {
 
 	parsed, err := envelopes.NewOriginatorEnvelope(commitResp.Msg.GetOriginatorEnvelopes()[0])
 	require.NoError(t, err)
-	require.EqualValues(t, commitNodeID, parsed.UnsignedOriginatorEnvelope.PayerEnvelope.TargetOriginator)
+	require.EqualValues(
+		t, commitNodeID, parsed.UnsignedOriginatorEnvelope.PayerEnvelope.TargetOriginator,
+	)
 
 	t.Logf("Mixed traffic: 5 regular + 1 commit, all published OK")
 }
@@ -188,9 +194,13 @@ func TestNoBlockchain_GatewayE2E_IdentityUpdateFlow(t *testing.T) {
 
 	parsed, err := envelopes.NewOriginatorEnvelope(resp.Msg.GetOriginatorEnvelopes()[0])
 	require.NoError(t, err)
-	require.EqualValues(t, identityNodeID, parsed.UnsignedOriginatorEnvelope.PayerEnvelope.TargetOriginator)
+	require.EqualValues(
+		t, identityNodeID, parsed.UnsignedOriginatorEnvelope.PayerEnvelope.TargetOriginator,
+	)
 
-	mockBlockchain.AssertNotCalled(t, "PublishIdentityUpdate", mock.Anything, mock.Anything, mock.Anything)
+	mockBlockchain.AssertNotCalled(
+		t, "PublishIdentityUpdate", mock.Anything, mock.Anything, mock.Anything,
+	)
 	t.Logf("E2E identity update flow: publish + verify on node %d OK", identityNodeID)
 }
 
@@ -222,7 +232,7 @@ func TestNoBlockchain_GatewayE2E_MultiGroupOrdering(t *testing.T) {
 	}, nil).Maybe()
 
 	numGroups := 10
-	for i := 0; i < numGroups; i++ {
+	for i := range numGroups {
 		groupID := testutils.RandomGroupID()
 		commitMsg := envelopesTestUtils.CreateGroupMessageClientEnvelope(
 			groupID,

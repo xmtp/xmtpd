@@ -38,7 +38,7 @@ func TestNoBlockchain_LatencyComparison(t *testing.T) {
 	}, nil).Maybe()
 
 	// Warmup
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		groupID := testutils.RandomGroupID()
 		msg := envelopesTestUtils.CreateGroupMessageClientEnvelope(
 			groupID, envelopesTestUtils.GetRealisticGroupMessagePayload(true),
@@ -78,7 +78,7 @@ func TestNoBlockchain_LatencyComparison(t *testing.T) {
 	}, nil).Maybe()
 
 	// Warmup
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		groupID := testutils.RandomGroupID()
 		msg := envelopesTestUtils.CreateGroupMessageClientEnvelope(
 			groupID, envelopesTestUtils.GetRealisticGroupMessagePayload(false),

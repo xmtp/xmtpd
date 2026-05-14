@@ -47,7 +47,6 @@ func TestNoBlockchain_IdentityUpdateRoutedToNode(t *testing.T) {
 			Envelopes: []*envelopesProto.ClientEnvelope{envelope},
 		}),
 	)
-
 	// Will fail connecting to node 200, but NOT with blockchain error
 	if err != nil {
 		require.NotContains(t, err.Error(), "blockchain",
@@ -55,7 +54,9 @@ func TestNoBlockchain_IdentityUpdateRoutedToNode(t *testing.T) {
 		t.Logf("Expected error (no node to connect to): %v", err)
 	}
 
-	mockBlockchain.AssertNotCalled(t, "PublishIdentityUpdate", mock.Anything, mock.Anything, mock.Anything)
+	mockBlockchain.AssertNotCalled(
+		t, "PublishIdentityUpdate", mock.Anything, mock.Anything, mock.Anything,
+	)
 }
 
 func TestNoBlockchain_CommitRoutedToNode(t *testing.T) {
@@ -101,7 +102,8 @@ func TestNoBlockchain_CommitRoutedToNode(t *testing.T) {
 	parsedOriginatorEnvelope, err := envelopes.NewOriginatorEnvelope(responseEnvelope)
 	require.NoError(t, err)
 
-	targetOriginator := parsedOriginatorEnvelope.UnsignedOriginatorEnvelope.PayerEnvelope.TargetOriginator
+	targetOriginator := parsedOriginatorEnvelope.
+		UnsignedOriginatorEnvelope.PayerEnvelope.TargetOriginator
 	require.EqualValues(t, 100, targetOriginator, "commit should target node 100 (commit handler)")
 
 	// Verify retention policy is set
@@ -112,7 +114,9 @@ func TestNoBlockchain_CommitRoutedToNode(t *testing.T) {
 	)
 
 	// Blockchain publisher must NOT have been called
-	mockBlockchain.AssertNotCalled(t, "PublishGroupMessage", mock.Anything, mock.Anything, mock.Anything)
+	mockBlockchain.AssertNotCalled(
+		t, "PublishGroupMessage", mock.Anything, mock.Anything, mock.Anything,
+	)
 }
 
 func TestNoBlockchain_RegularMessageStillUsesNodeSelector(t *testing.T) {

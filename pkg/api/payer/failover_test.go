@@ -63,7 +63,9 @@ func TestNoBlockchain_CommitNodeDown(t *testing.T) {
 	t.Logf("Expected error when commit node down: %v", err)
 
 	// Blockchain publisher must NOT have been called
-	mockBlockchain.AssertNotCalled(t, "PublishGroupMessage", mock.Anything, mock.Anything, mock.Anything)
+	mockBlockchain.AssertNotCalled(
+		t, "PublishGroupMessage", mock.Anything, mock.Anything, mock.Anything,
+	)
 }
 
 // TestNoBlockchain_IdentityNodeDown verifies identity update routing fails
@@ -105,7 +107,9 @@ func TestNoBlockchain_IdentityNodeDown(t *testing.T) {
 	require.Error(t, err, "identity update to unreachable node should fail")
 	t.Logf("Expected error when identity node down: %v", err)
 
-	mockBlockchain.AssertNotCalled(t, "PublishIdentityUpdate", mock.Anything, mock.Anything, mock.Anything)
+	mockBlockchain.AssertNotCalled(
+		t, "PublishIdentityUpdate", mock.Anything, mock.Anything, mock.Anything,
+	)
 }
 
 // TestNoBlockchain_MixedBatch_PartialFailure verifies that a batch with both

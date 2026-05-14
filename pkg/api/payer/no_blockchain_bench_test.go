@@ -50,7 +50,7 @@ func TestNoBlockchain_LatencyComparison(t *testing.T) {
 	}
 
 	start := time.Now()
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		groupID := testutils.RandomGroupID()
 		msg := envelopesTestUtils.CreateGroupMessageClientEnvelope(
 			groupID, envelopesTestUtils.GetRealisticGroupMessagePayload(true),
@@ -90,7 +90,7 @@ func TestNoBlockchain_LatencyComparison(t *testing.T) {
 	}
 
 	start = time.Now()
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		groupID := testutils.RandomGroupID()
 		msg := envelopesTestUtils.CreateGroupMessageClientEnvelope(
 			groupID, envelopesTestUtils.GetRealisticGroupMessagePayload(false),

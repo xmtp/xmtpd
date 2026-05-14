@@ -104,7 +104,7 @@ func TestNoBlockchain_CommitRoutedToNode(t *testing.T) {
 
 	targetOriginator := parsedOriginatorEnvelope.
 		UnsignedOriginatorEnvelope.PayerEnvelope.TargetOriginator
-	require.EqualValues(t, 100, targetOriginator, "commit should target node 100 (commit handler)")
+	require.Equal(t, uint32(100), targetOriginator, "commit should target node 100 (commit handler)")
 
 	// Verify retention policy is set
 	require.EqualValues(

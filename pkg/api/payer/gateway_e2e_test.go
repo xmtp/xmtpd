@@ -68,7 +68,7 @@ func TestNoBlockchain_GatewayE2E_CommitFlow(t *testing.T) {
 
 	parsed, err := envelopes.NewOriginatorEnvelope(resp.Msg.GetOriginatorEnvelopes()[0])
 	require.NoError(t, err)
-	require.EqualValues(
+	require.Equal(
 		t, commitNodeID, parsed.UnsignedOriginatorEnvelope.PayerEnvelope.TargetOriginator,
 	)
 
@@ -141,7 +141,7 @@ func TestNoBlockchain_GatewayE2E_MixedTraffic(t *testing.T) {
 
 	parsed, err := envelopes.NewOriginatorEnvelope(commitResp.Msg.GetOriginatorEnvelopes()[0])
 	require.NoError(t, err)
-	require.EqualValues(
+	require.Equal(
 		t, commitNodeID, parsed.UnsignedOriginatorEnvelope.PayerEnvelope.TargetOriginator,
 	)
 
@@ -194,7 +194,7 @@ func TestNoBlockchain_GatewayE2E_IdentityUpdateFlow(t *testing.T) {
 
 	parsed, err := envelopes.NewOriginatorEnvelope(resp.Msg.GetOriginatorEnvelopes()[0])
 	require.NoError(t, err)
-	require.EqualValues(
+	require.Equal(
 		t, identityNodeID, parsed.UnsignedOriginatorEnvelope.PayerEnvelope.TargetOriginator,
 	)
 
@@ -250,8 +250,11 @@ func TestNoBlockchain_GatewayE2E_MultiGroupOrdering(t *testing.T) {
 
 		parsed, err := envelopes.NewOriginatorEnvelope(resp.Msg.GetOriginatorEnvelopes()[0])
 		require.NoError(t, err)
-		require.EqualValues(t, commitNodeID, parsed.UnsignedOriginatorEnvelope.PayerEnvelope.TargetOriginator,
-			"group %d commit should go to commit node", i)
+		targetOrig := parsed.UnsignedOriginatorEnvelope.PayerEnvelope.TargetOriginator
+		require.Equal(
+			t, commitNodeID, targetOrig,
+			"group %d commit should go to commit node", i,
+		)
 	}
 
 	t.Logf("Multi-group ordering: %d groups, all commits → node %d", numGroups, commitNodeID)

@@ -55,7 +55,7 @@ func testSubmitterWorker(
 	return worker, store, reportsManager
 }
 
-// TestSubmitReports covers all possible valid and invalid states for the submitter worker.
+// TestSubmitterStatesAndTransitions covers all possible valid and invalid states for the submitter worker.
 //
 // Valid transitions:
 //

@@ -66,7 +66,7 @@ func InsertGatewayEnvelopeBatchV2Transactional(
 	logger.Info("creating partitions for batch insert")
 
 	for _, envelope := range input.Envelopes {
-		err = q.EnsureGatewayPartsV3(ctx, queries.EnsureGatewayPartsV3Params{
+		err = q.EnsureGatewayPartsV4(ctx, queries.EnsureGatewayPartsV4Params{
 			OriginatorNodeID:     envelope.OriginatorNodeID,
 			OriginatorSequenceID: envelope.OriginatorSequenceID,
 			BandWidth:            GatewayEnvelopeBandWidth,

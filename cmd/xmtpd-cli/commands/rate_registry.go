@@ -82,6 +82,10 @@ func addRatesHandler(opts AddRatesOpts) error {
 		return fmt.Errorf("could not build logger: %w", err)
 	}
 
+	if opts.MessageFee < 0 || opts.StorageFee < 0 || opts.CongestionFee < 0 {
+		return errors.New("fees cannot be negative")
+		}
+
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
 	defer cancel()
 

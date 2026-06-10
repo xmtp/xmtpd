@@ -31,6 +31,7 @@ type Task struct {
 	//
 	//	*Task_ProcessWelcomePointer
 	//	*Task_SendSyncArchive
+	//	*Task_ProcessPendingSelfRemove
 	Task          isTask_Task `protobuf_oneof:"task"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -91,6 +92,15 @@ func (x *Task) GetSendSyncArchive() *SendSyncArchive {
 	return nil
 }
 
+func (x *Task) GetProcessPendingSelfRemove() *ProcessPendingSelfRemove {
+	if x != nil {
+		if x, ok := x.Task.(*Task_ProcessPendingSelfRemove); ok {
+			return x.ProcessPendingSelfRemove
+		}
+	}
+	return nil
+}
+
 type isTask_Task interface {
 	isTask_Task()
 }
@@ -103,9 +113,15 @@ type Task_SendSyncArchive struct {
 	SendSyncArchive *SendSyncArchive `protobuf:"bytes,2,opt,name=send_sync_archive,json=sendSyncArchive,proto3,oneof"`
 }
 
+type Task_ProcessPendingSelfRemove struct {
+	ProcessPendingSelfRemove *ProcessPendingSelfRemove `protobuf:"bytes,3,opt,name=process_pending_self_remove,json=processPendingSelfRemove,proto3,oneof"`
+}
+
 func (*Task_ProcessWelcomePointer) isTask_Task() {}
 
 func (*Task_SendSyncArchive) isTask_Task() {}
+
+func (*Task_ProcessPendingSelfRemove) isTask_Task() {}
 
 type SendSyncArchive struct {
 	state         protoimpl.MessageState      `protogen:"open.v1"`
@@ -175,14 +191,64 @@ func (x *SendSyncArchive) GetServerUrl() string {
 	return ""
 }
 
+// Durable TaskRunner intent: process a group's pending self-remove requests
+// (build the MLS RemoveProposal/Commit to evict members who sent a LeaveRequest,
+// then clean up the pending-remove list). Enqueued in the same DB transaction as
+// the pending_remove row so it survives restart; runs on the TaskRunner with
+// retry/backoff. group_id is the target conversation.
+type ProcessPendingSelfRemove struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       []byte                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProcessPendingSelfRemove) Reset() {
+	*x = ProcessPendingSelfRemove{}
+	mi := &file_mls_database_task_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProcessPendingSelfRemove) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProcessPendingSelfRemove) ProtoMessage() {}
+
+func (x *ProcessPendingSelfRemove) ProtoReflect() protoreflect.Message {
+	mi := &file_mls_database_task_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProcessPendingSelfRemove.ProtoReflect.Descriptor instead.
+func (*ProcessPendingSelfRemove) Descriptor() ([]byte, []int) {
+	return file_mls_database_task_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ProcessPendingSelfRemove) GetGroupId() []byte {
+	if x != nil {
+		return x.GroupId
+	}
+	return nil
+}
+
 var File_mls_database_task_proto protoreflect.FileDescriptor
 
 const file_mls_database_task_proto_rawDesc = "" +
 	"\n" +
-	"\x17mls/database/task.proto\x12\x11xmtp.mls.database\x1a\x1ddevice_sync/device_sync.proto\x1a*mls/message_contents/welcome_pointer.proto\"\xc5\x01\n" +
+	"\x17mls/database/task.proto\x12\x11xmtp.mls.database\x1a\x1ddevice_sync/device_sync.proto\x1a*mls/message_contents/welcome_pointer.proto\"\xb3\x02\n" +
 	"\x04Task\x12c\n" +
 	"\x17process_welcome_pointer\x18\x01 \x01(\v2).xmtp.mls.message_contents.WelcomePointerH\x00R\x15processWelcomePointer\x12P\n" +
-	"\x11send_sync_archive\x18\x02 \x01(\v2\".xmtp.mls.database.SendSyncArchiveH\x00R\x0fsendSyncArchiveB\x06\n" +
+	"\x11send_sync_archive\x18\x02 \x01(\v2\".xmtp.mls.database.SendSyncArchiveH\x00R\x0fsendSyncArchive\x12l\n" +
+	"\x1bprocess_pending_self_remove\x18\x03 \x01(\v2+.xmtp.mls.database.ProcessPendingSelfRemoveH\x00R\x18processPendingSelfRemoveB\x06\n" +
 	"\x04task\"\xaf\x01\n" +
 	"\x0fSendSyncArchive\x12:\n" +
 	"\aoptions\x18\x01 \x01(\v2 .xmtp.device_sync.ArchiveOptionsR\aoptions\x12\"\n" +
@@ -190,7 +256,9 @@ const file_mls_database_task_proto_rawDesc = "" +
 	"\x03pin\x18\x03 \x01(\tH\x00R\x03pin\x88\x01\x01\x12\x1d\n" +
 	"\n" +
 	"server_url\x18\x04 \x01(\tR\tserverUrlB\x06\n" +
-	"\x04_pinB\xb6\x01\n" +
+	"\x04_pin\"5\n" +
+	"\x18ProcessPendingSelfRemove\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\fR\agroupIdB\xb6\x01\n" +
 	"\x15com.xmtp.mls.databaseB\tTaskProtoP\x01Z,github.com/xmtp/xmtpd/pkg/proto/mls/database\xa2\x02\x03XMD\xaa\x02\x11Xmtp.Mls.Database\xca\x02\x11Xmtp\\Mls\\Database\xe2\x02\x1dXmtp\\Mls\\Database\\GPBMetadata\xea\x02\x13Xmtp::Mls::Databaseb\x06proto3"
 
 var (
@@ -205,22 +273,24 @@ func file_mls_database_task_proto_rawDescGZIP() []byte {
 	return file_mls_database_task_proto_rawDescData
 }
 
-var file_mls_database_task_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_mls_database_task_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_mls_database_task_proto_goTypes = []any{
 	(*Task)(nil),                            // 0: xmtp.mls.database.Task
 	(*SendSyncArchive)(nil),                 // 1: xmtp.mls.database.SendSyncArchive
-	(*message_contents.WelcomePointer)(nil), // 2: xmtp.mls.message_contents.WelcomePointer
-	(*device_sync.ArchiveOptions)(nil),      // 3: xmtp.device_sync.ArchiveOptions
+	(*ProcessPendingSelfRemove)(nil),        // 2: xmtp.mls.database.ProcessPendingSelfRemove
+	(*message_contents.WelcomePointer)(nil), // 3: xmtp.mls.message_contents.WelcomePointer
+	(*device_sync.ArchiveOptions)(nil),      // 4: xmtp.device_sync.ArchiveOptions
 }
 var file_mls_database_task_proto_depIdxs = []int32{
-	2, // 0: xmtp.mls.database.Task.process_welcome_pointer:type_name -> xmtp.mls.message_contents.WelcomePointer
+	3, // 0: xmtp.mls.database.Task.process_welcome_pointer:type_name -> xmtp.mls.message_contents.WelcomePointer
 	1, // 1: xmtp.mls.database.Task.send_sync_archive:type_name -> xmtp.mls.database.SendSyncArchive
-	3, // 2: xmtp.mls.database.SendSyncArchive.options:type_name -> xmtp.device_sync.ArchiveOptions
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	2, // 2: xmtp.mls.database.Task.process_pending_self_remove:type_name -> xmtp.mls.database.ProcessPendingSelfRemove
+	4, // 3: xmtp.mls.database.SendSyncArchive.options:type_name -> xmtp.device_sync.ArchiveOptions
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_mls_database_task_proto_init() }
@@ -231,6 +301,7 @@ func file_mls_database_task_proto_init() {
 	file_mls_database_task_proto_msgTypes[0].OneofWrappers = []any{
 		(*Task_ProcessWelcomePointer)(nil),
 		(*Task_SendSyncArchive)(nil),
+		(*Task_ProcessPendingSelfRemove)(nil),
 	}
 	file_mls_database_task_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
@@ -239,7 +310,7 @@ func file_mls_database_task_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_mls_database_task_proto_rawDesc), len(file_mls_database_task_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

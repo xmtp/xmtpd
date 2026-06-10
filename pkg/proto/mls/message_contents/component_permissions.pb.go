@@ -170,10 +170,18 @@ type ComponentMetadata struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The data structure type of the component's value
 	ComponentType ComponentType `protobuf:"varint,1,opt,name=component_type,json=componentType,proto3,enum=xmtp.mls.message_contents.ComponentType" json:"component_type,omitempty"`
-	// Permission policies for this component
-	Permissions   *ComponentPermissions `protobuf:"bytes,2,opt,name=permissions,proto3" json:"permissions,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Permission policies for this component, evaluated against regular
+	// (member-issued) commits.
+	Permissions *ComponentPermissions `protobuf:"bytes,2,opt,name=permissions,proto3" json:"permissions,omitempty"`
+	// Permission policies for this component, evaluated against MLS External
+	// Commits (RFC 9420 §12.4.3.2). Absent / unset is equivalent to all-Deny:
+	// external committers cannot touch this component. Each component opts in
+	// explicitly by setting this field. Combined with the EXTERNAL_COMMIT_POLICY
+	// master switch (`allow_external_commit`), this is the per-component declarative
+	// authorization for external-commit-driven joins.
+	ExternalCommitterPermissions *ComponentPermissions `protobuf:"bytes,3,opt,name=external_committer_permissions,json=externalCommitterPermissions,proto3" json:"external_committer_permissions,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *ComponentMetadata) Reset() {
@@ -220,6 +228,13 @@ func (x *ComponentMetadata) GetPermissions() *ComponentPermissions {
 	return nil
 }
 
+func (x *ComponentMetadata) GetExternalCommitterPermissions() *ComponentPermissions {
+	if x != nil {
+		return x.ExternalCommitterPermissions
+	}
+	return nil
+}
+
 var File_mls_message_contents_component_permissions_proto protoreflect.FileDescriptor
 
 const file_mls_message_contents_component_permissions_proto_rawDesc = "" +
@@ -228,10 +243,11 @@ const file_mls_message_contents_component_permissions_proto_rawDesc = "" +
 	"\x14ComponentPermissions\x12N\n" +
 	"\rinsert_policy\x18\x01 \x01(\v2).xmtp.mls.message_contents.MetadataPolicyR\finsertPolicy\x12N\n" +
 	"\rupdate_policy\x18\x02 \x01(\v2).xmtp.mls.message_contents.MetadataPolicyR\fupdatePolicy\x12N\n" +
-	"\rdelete_policy\x18\x03 \x01(\v2).xmtp.mls.message_contents.MetadataPolicyR\fdeletePolicy\"\xb7\x01\n" +
+	"\rdelete_policy\x18\x03 \x01(\v2).xmtp.mls.message_contents.MetadataPolicyR\fdeletePolicy\"\xae\x02\n" +
 	"\x11ComponentMetadata\x12O\n" +
 	"\x0ecomponent_type\x18\x01 \x01(\x0e2(.xmtp.mls.message_contents.ComponentTypeR\rcomponentType\x12Q\n" +
-	"\vpermissions\x18\x02 \x01(\v2/.xmtp.mls.message_contents.ComponentPermissionsR\vpermissions*\xfe\x01\n" +
+	"\vpermissions\x18\x02 \x01(\v2/.xmtp.mls.message_contents.ComponentPermissionsR\vpermissions\x12u\n" +
+	"\x1eexternal_committer_permissions\x18\x03 \x01(\v2/.xmtp.mls.message_contents.ComponentPermissionsR\x1cexternalCommitterPermissions*\xfe\x01\n" +
 	"\rComponentType\x12\x1e\n" +
 	"\x1aCOMPONENT_TYPE_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14COMPONENT_TYPE_BYTES\x10\x01\x12\x19\n" +
@@ -268,11 +284,12 @@ var file_mls_message_contents_component_permissions_proto_depIdxs = []int32{
 	3, // 2: xmtp.mls.message_contents.ComponentPermissions.delete_policy:type_name -> xmtp.mls.message_contents.MetadataPolicy
 	0, // 3: xmtp.mls.message_contents.ComponentMetadata.component_type:type_name -> xmtp.mls.message_contents.ComponentType
 	1, // 4: xmtp.mls.message_contents.ComponentMetadata.permissions:type_name -> xmtp.mls.message_contents.ComponentPermissions
-	5, // [5:5] is the sub-list for method output_type
-	5, // [5:5] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	1, // 5: xmtp.mls.message_contents.ComponentMetadata.external_committer_permissions:type_name -> xmtp.mls.message_contents.ComponentPermissions
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_mls_message_contents_component_permissions_proto_init() }

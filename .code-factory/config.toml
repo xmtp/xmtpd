@@ -1,0 +1,15 @@
+#:schema https://code-factory-action.xmtp.team/schema.json
+
+[sandbox]
+# default: size = "medium"
+docker = true
+
+# [harness]
+# default: provider = "claude_code"
+
+# default: scheduled_jobs = []
+
+# [[on_event.failed_run]]
+# workflows = []
+# branches = []
+# prompt_additions = ""

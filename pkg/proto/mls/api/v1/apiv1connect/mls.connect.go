@@ -67,6 +67,8 @@ const (
 	// MlsApiSubscribeWelcomeMessagesProcedure is the fully-qualified name of the MlsApi's
 	// SubscribeWelcomeMessages RPC.
 	MlsApiSubscribeWelcomeMessagesProcedure = "/xmtp.mls.api.v1.MlsApi/SubscribeWelcomeMessages"
+	// MlsApiSubscribeProcedure is the fully-qualified name of the MlsApi's Subscribe RPC.
+	MlsApiSubscribeProcedure = "/xmtp.mls.api.v1.MlsApi/Subscribe"
 	// MlsApiBatchPublishCommitLogProcedure is the fully-qualified name of the MlsApi's
 	// BatchPublishCommitLog RPC.
 	MlsApiBatchPublishCommitLogProcedure = "/xmtp.mls.api.v1.MlsApi/BatchPublishCommitLog"
@@ -106,6 +108,11 @@ type MlsApiClient interface {
 	SubscribeGroupMessages(context.Context, *connect.Request[v1.SubscribeGroupMessagesRequest]) (*connect.ServerStreamForClient[v1.GroupMessage], error)
 	// Subscribe stream of new welcome messages
 	SubscribeWelcomeMessages(context.Context, *connect.Request[v1.SubscribeWelcomeMessagesRequest]) (*connect.ServerStreamForClient[v1.WelcomeMessage], error)
+	// Bidirectional subscription (XIP-83). One long-lived stream the client mutates
+	// in place via add/remove topic deltas, with WebSocket-style liveness ping/pong.
+	// A single stream MAY carry both group-message and welcome topics.
+	// gRPC-only: bidirectional streaming has no HTTP/grpc-gateway mapping.
+	Subscribe(context.Context) *connect.BidiStreamForClient[v1.SubscribeRequest, v1.SubscribeResponse]
 	BatchPublishCommitLog(context.Context, *connect.Request[v1.BatchPublishCommitLogRequest]) (*connect.Response[emptypb.Empty], error)
 	BatchQueryCommitLog(context.Context, *connect.Request[v1.BatchQueryCommitLogRequest]) (*connect.Response[v1.BatchQueryCommitLogResponse], error)
 	GetNewestGroupMessage(context.Context, *connect.Request[v1.GetNewestGroupMessageRequest]) (*connect.Response[v1.GetNewestGroupMessageResponse], error)
@@ -188,6 +195,12 @@ func NewMlsApiClient(httpClient connect.HTTPClient, baseURL string, opts ...conn
 			connect.WithSchema(mlsApiMethods.ByName("SubscribeWelcomeMessages")),
 			connect.WithClientOptions(opts...),
 		),
+		subscribe: connect.NewClient[v1.SubscribeRequest, v1.SubscribeResponse](
+			httpClient,
+			baseURL+MlsApiSubscribeProcedure,
+			connect.WithSchema(mlsApiMethods.ByName("Subscribe")),
+			connect.WithClientOptions(opts...),
+		),
 		batchPublishCommitLog: connect.NewClient[v1.BatchPublishCommitLogRequest, emptypb.Empty](
 			httpClient,
 			baseURL+MlsApiBatchPublishCommitLogProcedure,
@@ -222,6 +235,7 @@ type mlsApiClient struct {
 	queryWelcomeMessages     *connect.Client[v1.QueryWelcomeMessagesRequest, v1.QueryWelcomeMessagesResponse]
 	subscribeGroupMessages   *connect.Client[v1.SubscribeGroupMessagesRequest, v1.GroupMessage]
 	subscribeWelcomeMessages *connect.Client[v1.SubscribeWelcomeMessagesRequest, v1.WelcomeMessage]
+	subscribe                *connect.Client[v1.SubscribeRequest, v1.SubscribeResponse]
 	batchPublishCommitLog    *connect.Client[v1.BatchPublishCommitLogRequest, emptypb.Empty]
 	batchQueryCommitLog      *connect.Client[v1.BatchQueryCommitLogRequest, v1.BatchQueryCommitLogResponse]
 	getNewestGroupMessage    *connect.Client[v1.GetNewestGroupMessageRequest, v1.GetNewestGroupMessageResponse]
@@ -282,6 +296,11 @@ func (c *mlsApiClient) SubscribeWelcomeMessages(ctx context.Context, req *connec
 	return c.subscribeWelcomeMessages.CallServerStream(ctx, req)
 }
 
+// Subscribe calls xmtp.mls.api.v1.MlsApi.Subscribe.
+func (c *mlsApiClient) Subscribe(ctx context.Context) *connect.BidiStreamForClient[v1.SubscribeRequest, v1.SubscribeResponse] {
+	return c.subscribe.CallBidiStream(ctx)
+}
+
 // BatchPublishCommitLog calls xmtp.mls.api.v1.MlsApi.BatchPublishCommitLog.
 func (c *mlsApiClient) BatchPublishCommitLog(ctx context.Context, req *connect.Request[v1.BatchPublishCommitLogRequest]) (*connect.Response[emptypb.Empty], error) {
 	return c.batchPublishCommitLog.CallUnary(ctx, req)
@@ -325,6 +344,11 @@ type MlsApiHandler interface {
 	SubscribeGroupMessages(context.Context, *connect.Request[v1.SubscribeGroupMessagesRequest], *connect.ServerStream[v1.GroupMessage]) error
 	// Subscribe stream of new welcome messages
 	SubscribeWelcomeMessages(context.Context, *connect.Request[v1.SubscribeWelcomeMessagesRequest], *connect.ServerStream[v1.WelcomeMessage]) error
+	// Bidirectional subscription (XIP-83). One long-lived stream the client mutates
+	// in place via add/remove topic deltas, with WebSocket-style liveness ping/pong.
+	// A single stream MAY carry both group-message and welcome topics.
+	// gRPC-only: bidirectional streaming has no HTTP/grpc-gateway mapping.
+	Subscribe(context.Context, *connect.BidiStream[v1.SubscribeRequest, v1.SubscribeResponse]) error
 	BatchPublishCommitLog(context.Context, *connect.Request[v1.BatchPublishCommitLogRequest]) (*connect.Response[emptypb.Empty], error)
 	BatchQueryCommitLog(context.Context, *connect.Request[v1.BatchQueryCommitLogRequest]) (*connect.Response[v1.BatchQueryCommitLogResponse], error)
 	GetNewestGroupMessage(context.Context, *connect.Request[v1.GetNewestGroupMessageRequest]) (*connect.Response[v1.GetNewestGroupMessageResponse], error)
@@ -403,6 +427,12 @@ func NewMlsApiHandler(svc MlsApiHandler, opts ...connect.HandlerOption) (string,
 		connect.WithSchema(mlsApiMethods.ByName("SubscribeWelcomeMessages")),
 		connect.WithHandlerOptions(opts...),
 	)
+	mlsApiSubscribeHandler := connect.NewBidiStreamHandler(
+		MlsApiSubscribeProcedure,
+		svc.Subscribe,
+		connect.WithSchema(mlsApiMethods.ByName("Subscribe")),
+		connect.WithHandlerOptions(opts...),
+	)
 	mlsApiBatchPublishCommitLogHandler := connect.NewUnaryHandler(
 		MlsApiBatchPublishCommitLogProcedure,
 		svc.BatchPublishCommitLog,
@@ -445,6 +475,8 @@ func NewMlsApiHandler(svc MlsApiHandler, opts ...connect.HandlerOption) (string,
 			mlsApiSubscribeGroupMessagesHandler.ServeHTTP(w, r)
 		case MlsApiSubscribeWelcomeMessagesProcedure:
 			mlsApiSubscribeWelcomeMessagesHandler.ServeHTTP(w, r)
+		case MlsApiSubscribeProcedure:
+			mlsApiSubscribeHandler.ServeHTTP(w, r)
 		case MlsApiBatchPublishCommitLogProcedure:
 			mlsApiBatchPublishCommitLogHandler.ServeHTTP(w, r)
 		case MlsApiBatchQueryCommitLogProcedure:
@@ -502,6 +534,10 @@ func (UnimplementedMlsApiHandler) SubscribeGroupMessages(context.Context, *conne
 
 func (UnimplementedMlsApiHandler) SubscribeWelcomeMessages(context.Context, *connect.Request[v1.SubscribeWelcomeMessagesRequest], *connect.ServerStream[v1.WelcomeMessage]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("xmtp.mls.api.v1.MlsApi.SubscribeWelcomeMessages is not implemented"))
+}
+
+func (UnimplementedMlsApiHandler) Subscribe(context.Context, *connect.BidiStream[v1.SubscribeRequest, v1.SubscribeResponse]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("xmtp.mls.api.v1.MlsApi.Subscribe is not implemented"))
 }
 
 func (UnimplementedMlsApiHandler) BatchPublishCommitLog(context.Context, *connect.Request[v1.BatchPublishCommitLogRequest]) (*connect.Response[emptypb.Empty], error) {

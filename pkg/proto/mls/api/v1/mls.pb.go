@@ -79,6 +79,52 @@ func (SortDirection) EnumDescriptor() ([]byte, []int) {
 	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{0}
 }
 
+// Optional per-stream protocol features (none defined yet; future
+// revisions add values, e.g. fetch-over-stream lookups answered with the
+// same read view that feeds the stream, or new streamable topic kinds).
+type SubscribeResponse_V1_Capability int32
+
+const (
+	SubscribeResponse_V1_CAPABILITY_UNSPECIFIED SubscribeResponse_V1_Capability = 0
+)
+
+// Enum value maps for SubscribeResponse_V1_Capability.
+var (
+	SubscribeResponse_V1_Capability_name = map[int32]string{
+		0: "CAPABILITY_UNSPECIFIED",
+	}
+	SubscribeResponse_V1_Capability_value = map[string]int32{
+		"CAPABILITY_UNSPECIFIED": 0,
+	}
+)
+
+func (x SubscribeResponse_V1_Capability) Enum() *SubscribeResponse_V1_Capability {
+	p := new(SubscribeResponse_V1_Capability)
+	*p = x
+	return p
+}
+
+func (x SubscribeResponse_V1_Capability) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SubscribeResponse_V1_Capability) Descriptor() protoreflect.EnumDescriptor {
+	return file_mls_api_v1_mls_proto_enumTypes[1].Descriptor()
+}
+
+func (SubscribeResponse_V1_Capability) Type() protoreflect.EnumType {
+	return &file_mls_api_v1_mls_proto_enumTypes[1]
+}
+
+func (x SubscribeResponse_V1_Capability) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SubscribeResponse_V1_Capability.Descriptor instead.
+func (SubscribeResponse_V1_Capability) EnumDescriptor() ([]byte, []int) {
+	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{24, 0, 0}
+}
+
 // Full representation of a welcome message
 type WelcomeMessage struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1328,6 +1374,233 @@ func (x *SubscribeWelcomeMessagesRequest) GetFilters() []*SubscribeWelcomeMessag
 	return nil
 }
 
+// Client -> server. Sent one or more times over the life of the stream.
+type SubscribeRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Version:
+	//
+	//	*SubscribeRequest_V1_
+	Version       isSubscribeRequest_Version `protobuf_oneof:"version"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubscribeRequest) Reset() {
+	*x = SubscribeRequest{}
+	mi := &file_mls_api_v1_mls_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubscribeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubscribeRequest) ProtoMessage() {}
+
+func (x *SubscribeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_mls_api_v1_mls_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubscribeRequest.ProtoReflect.Descriptor instead.
+func (*SubscribeRequest) Descriptor() ([]byte, []int) {
+	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *SubscribeRequest) GetVersion() isSubscribeRequest_Version {
+	if x != nil {
+		return x.Version
+	}
+	return nil
+}
+
+func (x *SubscribeRequest) GetV1() *SubscribeRequest_V1 {
+	if x != nil {
+		if x, ok := x.Version.(*SubscribeRequest_V1_); ok {
+			return x.V1
+		}
+	}
+	return nil
+}
+
+type isSubscribeRequest_Version interface {
+	isSubscribeRequest_Version()
+}
+
+type SubscribeRequest_V1_ struct {
+	V1 *SubscribeRequest_V1 `protobuf:"bytes,1,opt,name=v1,proto3,oneof"`
+}
+
+func (*SubscribeRequest_V1_) isSubscribeRequest_Version() {}
+
+// Server -> client.
+type SubscribeResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Version:
+	//
+	//	*SubscribeResponse_V1_
+	Version       isSubscribeResponse_Version `protobuf_oneof:"version"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubscribeResponse) Reset() {
+	*x = SubscribeResponse{}
+	mi := &file_mls_api_v1_mls_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubscribeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubscribeResponse) ProtoMessage() {}
+
+func (x *SubscribeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_mls_api_v1_mls_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubscribeResponse.ProtoReflect.Descriptor instead.
+func (*SubscribeResponse) Descriptor() ([]byte, []int) {
+	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *SubscribeResponse) GetVersion() isSubscribeResponse_Version {
+	if x != nil {
+		return x.Version
+	}
+	return nil
+}
+
+func (x *SubscribeResponse) GetV1() *SubscribeResponse_V1 {
+	if x != nil {
+		if x, ok := x.Version.(*SubscribeResponse_V1_); ok {
+			return x.V1
+		}
+	}
+	return nil
+}
+
+type isSubscribeResponse_Version interface {
+	isSubscribeResponse_Version()
+}
+
+type SubscribeResponse_V1_ struct {
+	V1 *SubscribeResponse_V1 `protobuf:"bytes,1,opt,name=v1,proto3,oneof"`
+}
+
+func (*SubscribeResponse_V1_) isSubscribeResponse_Version() {}
+
+// Liveness challenge/response, shared across versions. Either peer MAY send a
+// Ping; the receiver MUST reply with a Pong echoing the nonce. The sender closes
+// the stream if no Pong arrives within its deadline — how a node reaps a vanished
+// peer (e.g. a mobile client the OS suspended behind a proxy that still ACKs the
+// transport).
+type Ping struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Nonce         uint64                 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Ping) Reset() {
+	*x = Ping{}
+	mi := &file_mls_api_v1_mls_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Ping) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Ping) ProtoMessage() {}
+
+func (x *Ping) ProtoReflect() protoreflect.Message {
+	mi := &file_mls_api_v1_mls_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Ping.ProtoReflect.Descriptor instead.
+func (*Ping) Descriptor() ([]byte, []int) {
+	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *Ping) GetNonce() uint64 {
+	if x != nil {
+		return x.Nonce
+	}
+	return 0
+}
+
+type Pong struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Nonce         uint64                 `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"` // echoes the nonce of the Ping it answers
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Pong) Reset() {
+	*x = Pong{}
+	mi := &file_mls_api_v1_mls_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Pong) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Pong) ProtoMessage() {}
+
+func (x *Pong) ProtoReflect() protoreflect.Message {
+	mi := &file_mls_api_v1_mls_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Pong.ProtoReflect.Descriptor instead.
+func (*Pong) Descriptor() ([]byte, []int) {
+	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *Pong) GetNonce() uint64 {
+	if x != nil {
+		return x.Nonce
+	}
+	return 0
+}
+
 type BatchPublishCommitLogRequest struct {
 	state         protoimpl.MessageState     `protogen:"open.v1"`
 	Requests      []*PublishCommitLogRequest `protobuf:"bytes,1,rep,name=requests,proto3" json:"requests,omitempty"`
@@ -1337,7 +1610,7 @@ type BatchPublishCommitLogRequest struct {
 
 func (x *BatchPublishCommitLogRequest) Reset() {
 	*x = BatchPublishCommitLogRequest{}
-	mi := &file_mls_api_v1_mls_proto_msgTypes[23]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1349,7 +1622,7 @@ func (x *BatchPublishCommitLogRequest) String() string {
 func (*BatchPublishCommitLogRequest) ProtoMessage() {}
 
 func (x *BatchPublishCommitLogRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_api_v1_mls_proto_msgTypes[23]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1362,7 +1635,7 @@ func (x *BatchPublishCommitLogRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchPublishCommitLogRequest.ProtoReflect.Descriptor instead.
 func (*BatchPublishCommitLogRequest) Descriptor() ([]byte, []int) {
-	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{23}
+	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *BatchPublishCommitLogRequest) GetRequests() []*PublishCommitLogRequest {
@@ -1383,7 +1656,7 @@ type PublishCommitLogRequest struct {
 
 func (x *PublishCommitLogRequest) Reset() {
 	*x = PublishCommitLogRequest{}
-	mi := &file_mls_api_v1_mls_proto_msgTypes[24]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1395,7 +1668,7 @@ func (x *PublishCommitLogRequest) String() string {
 func (*PublishCommitLogRequest) ProtoMessage() {}
 
 func (x *PublishCommitLogRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_api_v1_mls_proto_msgTypes[24]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1408,7 +1681,7 @@ func (x *PublishCommitLogRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PublishCommitLogRequest.ProtoReflect.Descriptor instead.
 func (*PublishCommitLogRequest) Descriptor() ([]byte, []int) {
-	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{24}
+	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *PublishCommitLogRequest) GetGroupId() []byte {
@@ -1442,7 +1715,7 @@ type QueryCommitLogRequest struct {
 
 func (x *QueryCommitLogRequest) Reset() {
 	*x = QueryCommitLogRequest{}
-	mi := &file_mls_api_v1_mls_proto_msgTypes[25]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1454,7 +1727,7 @@ func (x *QueryCommitLogRequest) String() string {
 func (*QueryCommitLogRequest) ProtoMessage() {}
 
 func (x *QueryCommitLogRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_api_v1_mls_proto_msgTypes[25]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1467,7 +1740,7 @@ func (x *QueryCommitLogRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueryCommitLogRequest.ProtoReflect.Descriptor instead.
 func (*QueryCommitLogRequest) Descriptor() ([]byte, []int) {
-	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{25}
+	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *QueryCommitLogRequest) GetGroupId() []byte {
@@ -1495,7 +1768,7 @@ type QueryCommitLogResponse struct {
 
 func (x *QueryCommitLogResponse) Reset() {
 	*x = QueryCommitLogResponse{}
-	mi := &file_mls_api_v1_mls_proto_msgTypes[26]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1507,7 +1780,7 @@ func (x *QueryCommitLogResponse) String() string {
 func (*QueryCommitLogResponse) ProtoMessage() {}
 
 func (x *QueryCommitLogResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_api_v1_mls_proto_msgTypes[26]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1520,7 +1793,7 @@ func (x *QueryCommitLogResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueryCommitLogResponse.ProtoReflect.Descriptor instead.
 func (*QueryCommitLogResponse) Descriptor() ([]byte, []int) {
-	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{26}
+	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *QueryCommitLogResponse) GetGroupId() []byte {
@@ -1553,7 +1826,7 @@ type BatchQueryCommitLogRequest struct {
 
 func (x *BatchQueryCommitLogRequest) Reset() {
 	*x = BatchQueryCommitLogRequest{}
-	mi := &file_mls_api_v1_mls_proto_msgTypes[27]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1565,7 +1838,7 @@ func (x *BatchQueryCommitLogRequest) String() string {
 func (*BatchQueryCommitLogRequest) ProtoMessage() {}
 
 func (x *BatchQueryCommitLogRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_api_v1_mls_proto_msgTypes[27]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1578,7 +1851,7 @@ func (x *BatchQueryCommitLogRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchQueryCommitLogRequest.ProtoReflect.Descriptor instead.
 func (*BatchQueryCommitLogRequest) Descriptor() ([]byte, []int) {
-	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{27}
+	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *BatchQueryCommitLogRequest) GetRequests() []*QueryCommitLogRequest {
@@ -1597,7 +1870,7 @@ type BatchQueryCommitLogResponse struct {
 
 func (x *BatchQueryCommitLogResponse) Reset() {
 	*x = BatchQueryCommitLogResponse{}
-	mi := &file_mls_api_v1_mls_proto_msgTypes[28]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1609,7 +1882,7 @@ func (x *BatchQueryCommitLogResponse) String() string {
 func (*BatchQueryCommitLogResponse) ProtoMessage() {}
 
 func (x *BatchQueryCommitLogResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_api_v1_mls_proto_msgTypes[28]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1622,7 +1895,7 @@ func (x *BatchQueryCommitLogResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchQueryCommitLogResponse.ProtoReflect.Descriptor instead.
 func (*BatchQueryCommitLogResponse) Descriptor() ([]byte, []int) {
-	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{28}
+	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *BatchQueryCommitLogResponse) GetResponses() []*QueryCommitLogResponse {
@@ -1644,7 +1917,7 @@ type GetNewestGroupMessageRequest struct {
 
 func (x *GetNewestGroupMessageRequest) Reset() {
 	*x = GetNewestGroupMessageRequest{}
-	mi := &file_mls_api_v1_mls_proto_msgTypes[29]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1656,7 +1929,7 @@ func (x *GetNewestGroupMessageRequest) String() string {
 func (*GetNewestGroupMessageRequest) ProtoMessage() {}
 
 func (x *GetNewestGroupMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_api_v1_mls_proto_msgTypes[29]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1669,7 +1942,7 @@ func (x *GetNewestGroupMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNewestGroupMessageRequest.ProtoReflect.Descriptor instead.
 func (*GetNewestGroupMessageRequest) Descriptor() ([]byte, []int) {
-	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{29}
+	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *GetNewestGroupMessageRequest) GetGroupIds() [][]byte {
@@ -1697,7 +1970,7 @@ type GetNewestGroupMessageResponse struct {
 
 func (x *GetNewestGroupMessageResponse) Reset() {
 	*x = GetNewestGroupMessageResponse{}
-	mi := &file_mls_api_v1_mls_proto_msgTypes[30]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1709,7 +1982,7 @@ func (x *GetNewestGroupMessageResponse) String() string {
 func (*GetNewestGroupMessageResponse) ProtoMessage() {}
 
 func (x *GetNewestGroupMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_api_v1_mls_proto_msgTypes[30]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1722,7 +1995,7 @@ func (x *GetNewestGroupMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNewestGroupMessageResponse.ProtoReflect.Descriptor instead.
 func (*GetNewestGroupMessageResponse) Descriptor() ([]byte, []int) {
-	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{30}
+	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *GetNewestGroupMessageResponse) GetResponses() []*GetNewestGroupMessageResponse_Response {
@@ -1748,7 +2021,7 @@ type WelcomeMessage_V1 struct {
 
 func (x *WelcomeMessage_V1) Reset() {
 	*x = WelcomeMessage_V1{}
-	mi := &file_mls_api_v1_mls_proto_msgTypes[31]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1760,7 +2033,7 @@ func (x *WelcomeMessage_V1) String() string {
 func (*WelcomeMessage_V1) ProtoMessage() {}
 
 func (x *WelcomeMessage_V1) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_api_v1_mls_proto_msgTypes[31]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1844,7 +2117,7 @@ type WelcomeMessage_WelcomePointer struct {
 
 func (x *WelcomeMessage_WelcomePointer) Reset() {
 	*x = WelcomeMessage_WelcomePointer{}
-	mi := &file_mls_api_v1_mls_proto_msgTypes[32]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1856,7 +2129,7 @@ func (x *WelcomeMessage_WelcomePointer) String() string {
 func (*WelcomeMessage_WelcomePointer) ProtoMessage() {}
 
 func (x *WelcomeMessage_WelcomePointer) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_api_v1_mls_proto_msgTypes[32]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1935,7 +2208,7 @@ type WelcomeMessageInput_V1 struct {
 
 func (x *WelcomeMessageInput_V1) Reset() {
 	*x = WelcomeMessageInput_V1{}
-	mi := &file_mls_api_v1_mls_proto_msgTypes[33]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1947,7 +2220,7 @@ func (x *WelcomeMessageInput_V1) String() string {
 func (*WelcomeMessageInput_V1) ProtoMessage() {}
 
 func (x *WelcomeMessageInput_V1) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_api_v1_mls_proto_msgTypes[33]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2016,7 +2289,7 @@ type WelcomeMessageInput_WelcomePointer struct {
 
 func (x *WelcomeMessageInput_WelcomePointer) Reset() {
 	*x = WelcomeMessageInput_WelcomePointer{}
-	mi := &file_mls_api_v1_mls_proto_msgTypes[34]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2028,7 +2301,7 @@ func (x *WelcomeMessageInput_WelcomePointer) String() string {
 func (*WelcomeMessageInput_WelcomePointer) ProtoMessage() {}
 
 func (x *WelcomeMessageInput_WelcomePointer) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_api_v1_mls_proto_msgTypes[34]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2088,7 +2361,7 @@ type GroupMessage_V1 struct {
 
 func (x *GroupMessage_V1) Reset() {
 	*x = GroupMessage_V1{}
-	mi := &file_mls_api_v1_mls_proto_msgTypes[35]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2100,7 +2373,7 @@ func (x *GroupMessage_V1) String() string {
 func (*GroupMessage_V1) ProtoMessage() {}
 
 func (x *GroupMessage_V1) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_api_v1_mls_proto_msgTypes[35]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2177,7 +2450,7 @@ type GroupMessageInput_V1 struct {
 
 func (x *GroupMessageInput_V1) Reset() {
 	*x = GroupMessageInput_V1{}
-	mi := &file_mls_api_v1_mls_proto_msgTypes[36]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2189,7 +2462,7 @@ func (x *GroupMessageInput_V1) String() string {
 func (*GroupMessageInput_V1) ProtoMessage() {}
 
 func (x *GroupMessageInput_V1) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_api_v1_mls_proto_msgTypes[36]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2236,7 +2509,7 @@ type FetchKeyPackagesResponse_KeyPackage struct {
 
 func (x *FetchKeyPackagesResponse_KeyPackage) Reset() {
 	*x = FetchKeyPackagesResponse_KeyPackage{}
-	mi := &file_mls_api_v1_mls_proto_msgTypes[37]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2248,7 +2521,7 @@ func (x *FetchKeyPackagesResponse_KeyPackage) String() string {
 func (*FetchKeyPackagesResponse_KeyPackage) ProtoMessage() {}
 
 func (x *FetchKeyPackagesResponse_KeyPackage) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_api_v1_mls_proto_msgTypes[37]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2282,7 +2555,7 @@ type GetIdentityUpdatesResponse_NewInstallationUpdate struct {
 
 func (x *GetIdentityUpdatesResponse_NewInstallationUpdate) Reset() {
 	*x = GetIdentityUpdatesResponse_NewInstallationUpdate{}
-	mi := &file_mls_api_v1_mls_proto_msgTypes[38]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2294,7 +2567,7 @@ func (x *GetIdentityUpdatesResponse_NewInstallationUpdate) String() string {
 func (*GetIdentityUpdatesResponse_NewInstallationUpdate) ProtoMessage() {}
 
 func (x *GetIdentityUpdatesResponse_NewInstallationUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_api_v1_mls_proto_msgTypes[38]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2334,7 +2607,7 @@ type GetIdentityUpdatesResponse_RevokedInstallationUpdate struct {
 
 func (x *GetIdentityUpdatesResponse_RevokedInstallationUpdate) Reset() {
 	*x = GetIdentityUpdatesResponse_RevokedInstallationUpdate{}
-	mi := &file_mls_api_v1_mls_proto_msgTypes[39]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2346,7 +2619,7 @@ func (x *GetIdentityUpdatesResponse_RevokedInstallationUpdate) String() string {
 func (*GetIdentityUpdatesResponse_RevokedInstallationUpdate) ProtoMessage() {}
 
 func (x *GetIdentityUpdatesResponse_RevokedInstallationUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_api_v1_mls_proto_msgTypes[39]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2384,7 +2657,7 @@ type GetIdentityUpdatesResponse_Update struct {
 
 func (x *GetIdentityUpdatesResponse_Update) Reset() {
 	*x = GetIdentityUpdatesResponse_Update{}
-	mi := &file_mls_api_v1_mls_proto_msgTypes[40]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2396,7 +2669,7 @@ func (x *GetIdentityUpdatesResponse_Update) String() string {
 func (*GetIdentityUpdatesResponse_Update) ProtoMessage() {}
 
 func (x *GetIdentityUpdatesResponse_Update) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_api_v1_mls_proto_msgTypes[40]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2472,7 +2745,7 @@ type GetIdentityUpdatesResponse_WalletUpdates struct {
 
 func (x *GetIdentityUpdatesResponse_WalletUpdates) Reset() {
 	*x = GetIdentityUpdatesResponse_WalletUpdates{}
-	mi := &file_mls_api_v1_mls_proto_msgTypes[41]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2484,7 +2757,7 @@ func (x *GetIdentityUpdatesResponse_WalletUpdates) String() string {
 func (*GetIdentityUpdatesResponse_WalletUpdates) ProtoMessage() {}
 
 func (x *GetIdentityUpdatesResponse_WalletUpdates) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_api_v1_mls_proto_msgTypes[41]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2518,7 +2791,7 @@ type SubscribeGroupMessagesRequest_Filter struct {
 
 func (x *SubscribeGroupMessagesRequest_Filter) Reset() {
 	*x = SubscribeGroupMessagesRequest_Filter{}
-	mi := &file_mls_api_v1_mls_proto_msgTypes[42]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2530,7 +2803,7 @@ func (x *SubscribeGroupMessagesRequest_Filter) String() string {
 func (*SubscribeGroupMessagesRequest_Filter) ProtoMessage() {}
 
 func (x *SubscribeGroupMessagesRequest_Filter) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_api_v1_mls_proto_msgTypes[42]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2571,7 +2844,7 @@ type SubscribeWelcomeMessagesRequest_Filter struct {
 
 func (x *SubscribeWelcomeMessagesRequest_Filter) Reset() {
 	*x = SubscribeWelcomeMessagesRequest_Filter{}
-	mi := &file_mls_api_v1_mls_proto_msgTypes[43]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2583,7 +2856,7 @@ func (x *SubscribeWelcomeMessagesRequest_Filter) String() string {
 func (*SubscribeWelcomeMessagesRequest_Filter) ProtoMessage() {}
 
 func (x *SubscribeWelcomeMessagesRequest_Filter) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_api_v1_mls_proto_msgTypes[43]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2613,6 +2886,605 @@ func (x *SubscribeWelcomeMessagesRequest_Filter) GetIdCursor() uint64 {
 	return 0
 }
 
+type SubscribeRequest_V1 struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Each frame is exactly one of: a mutation, a Ping, or a Pong.
+	//
+	// Types that are valid to be assigned to Request:
+	//
+	//	*SubscribeRequest_V1_Mutate_
+	//	*SubscribeRequest_V1_Ping
+	//	*SubscribeRequest_V1_Pong
+	Request       isSubscribeRequest_V1_Request `protobuf_oneof:"request"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubscribeRequest_V1) Reset() {
+	*x = SubscribeRequest_V1{}
+	mi := &file_mls_api_v1_mls_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubscribeRequest_V1) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubscribeRequest_V1) ProtoMessage() {}
+
+func (x *SubscribeRequest_V1) ProtoReflect() protoreflect.Message {
+	mi := &file_mls_api_v1_mls_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubscribeRequest_V1.ProtoReflect.Descriptor instead.
+func (*SubscribeRequest_V1) Descriptor() ([]byte, []int) {
+	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{23, 0}
+}
+
+func (x *SubscribeRequest_V1) GetRequest() isSubscribeRequest_V1_Request {
+	if x != nil {
+		return x.Request
+	}
+	return nil
+}
+
+func (x *SubscribeRequest_V1) GetMutate() *SubscribeRequest_V1_Mutate {
+	if x != nil {
+		if x, ok := x.Request.(*SubscribeRequest_V1_Mutate_); ok {
+			return x.Mutate
+		}
+	}
+	return nil
+}
+
+func (x *SubscribeRequest_V1) GetPing() *Ping {
+	if x != nil {
+		if x, ok := x.Request.(*SubscribeRequest_V1_Ping); ok {
+			return x.Ping
+		}
+	}
+	return nil
+}
+
+func (x *SubscribeRequest_V1) GetPong() *Pong {
+	if x != nil {
+		if x, ok := x.Request.(*SubscribeRequest_V1_Pong); ok {
+			return x.Pong
+		}
+	}
+	return nil
+}
+
+type isSubscribeRequest_V1_Request interface {
+	isSubscribeRequest_V1_Request()
+}
+
+type SubscribeRequest_V1_Mutate_ struct {
+	Mutate *SubscribeRequest_V1_Mutate `protobuf:"bytes,1,opt,name=mutate,proto3,oneof"`
+}
+
+type SubscribeRequest_V1_Ping struct {
+	Ping *Ping `protobuf:"bytes,2,opt,name=ping,proto3,oneof"` // liveness challenge (e.g. probe the link after resuming)
+}
+
+type SubscribeRequest_V1_Pong struct {
+	Pong *Pong `protobuf:"bytes,3,opt,name=pong,proto3,oneof"` // answer to a server Ping
+}
+
+func (*SubscribeRequest_V1_Mutate_) isSubscribeRequest_V1_Request() {}
+
+func (*SubscribeRequest_V1_Ping) isSubscribeRequest_V1_Request() {}
+
+func (*SubscribeRequest_V1_Pong) isSubscribeRequest_V1_Request() {}
+
+// Add and/or remove subscriptions in place (applied atomically per frame).
+// Topics use the kind-prefixed binary representation shared with the
+// decentralized backend (XIP-49 §3.3.2): the first byte is the topic kind,
+// the remainder is the identifier. This RPC initially serves
+// TOPIC_KIND_GROUP_MESSAGES_V1 (0x00, identifier = group_id) and
+// TOPIC_KIND_WELCOME_MESSAGES_V1 (0x01, identifier = installation_key);
+// a topic whose kind the node does not serve fails the stream with
+// INVALID_ARGUMENT. Future kinds (key packages, identity updates) are
+// adopted via the capabilities advertised on Started.
+type SubscribeRequest_V1_Mutate struct {
+	state   protoimpl.MessageState                     `protogen:"open.v1"`
+	Adds    []*SubscribeRequest_V1_Mutate_Subscription `protobuf:"bytes,1,rep,name=adds,proto3" json:"adds,omitempty"`       // begin delivering these topics
+	Removes [][]byte                                   `protobuf:"bytes,2,rep,name=removes,proto3" json:"removes,omitempty"` // topics to stop delivering
+	// Catch this Mutate's adds up to the live edge — history, TopicsLive
+	// markers, and the wave's CatchupComplete — but do NOT register them
+	// for live delivery. The markers then mean "you have everything as of
+	// now". Combined with half-closing the request stream, this is the
+	// bounded catch-up ("sync") mode: the server finishes the wave and then
+	// closes the stream itself. Removals in the Mutate are unaffected.
+	HistoryOnly bool `protobuf:"varint,3,opt,name=history_only,json=historyOnly,proto3" json:"history_only,omitempty"`
+	// Client-chosen correlation id, echoed on this wave's CatchupComplete
+	// so completions are attributable when waves overlap. SHOULD be unique
+	// per stream; 0 = no correlation requested (still echoed as 0).
+	MutateId      uint64 `protobuf:"varint,4,opt,name=mutate_id,json=mutateId,proto3" json:"mutate_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubscribeRequest_V1_Mutate) Reset() {
+	*x = SubscribeRequest_V1_Mutate{}
+	mi := &file_mls_api_v1_mls_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubscribeRequest_V1_Mutate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubscribeRequest_V1_Mutate) ProtoMessage() {}
+
+func (x *SubscribeRequest_V1_Mutate) ProtoReflect() protoreflect.Message {
+	mi := &file_mls_api_v1_mls_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubscribeRequest_V1_Mutate.ProtoReflect.Descriptor instead.
+func (*SubscribeRequest_V1_Mutate) Descriptor() ([]byte, []int) {
+	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{23, 0, 0}
+}
+
+func (x *SubscribeRequest_V1_Mutate) GetAdds() []*SubscribeRequest_V1_Mutate_Subscription {
+	if x != nil {
+		return x.Adds
+	}
+	return nil
+}
+
+func (x *SubscribeRequest_V1_Mutate) GetRemoves() [][]byte {
+	if x != nil {
+		return x.Removes
+	}
+	return nil
+}
+
+func (x *SubscribeRequest_V1_Mutate) GetHistoryOnly() bool {
+	if x != nil {
+		return x.HistoryOnly
+	}
+	return false
+}
+
+func (x *SubscribeRequest_V1_Mutate) GetMutateId() uint64 {
+	if x != nil {
+		return x.MutateId
+	}
+	return 0
+}
+
+// A topic to subscribe, with the cursor to resume from.
+type SubscribeRequest_V1_Mutate_Subscription struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Topic []byte                 `protobuf:"bytes,1,opt,name=topic,proto3" json:"topic,omitempty"`
+	// Deliver ids greater than this; 0 = from the beginning. For a newly
+	// joined group, a client SHOULD seed this from the welcome's encrypted
+	// WelcomeMetadata.message_cursor so a new membership does not refetch
+	// pre-join history it cannot decrypt; for a new installation's welcome
+	// topic, 0 is how pending welcomes are collected.
+	IdCursor      uint64 `protobuf:"varint,2,opt,name=id_cursor,json=idCursor,proto3" json:"id_cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubscribeRequest_V1_Mutate_Subscription) Reset() {
+	*x = SubscribeRequest_V1_Mutate_Subscription{}
+	mi := &file_mls_api_v1_mls_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubscribeRequest_V1_Mutate_Subscription) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubscribeRequest_V1_Mutate_Subscription) ProtoMessage() {}
+
+func (x *SubscribeRequest_V1_Mutate_Subscription) ProtoReflect() protoreflect.Message {
+	mi := &file_mls_api_v1_mls_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubscribeRequest_V1_Mutate_Subscription.ProtoReflect.Descriptor instead.
+func (*SubscribeRequest_V1_Mutate_Subscription) Descriptor() ([]byte, []int) {
+	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{23, 0, 0, 0}
+}
+
+func (x *SubscribeRequest_V1_Mutate_Subscription) GetTopic() []byte {
+	if x != nil {
+		return x.Topic
+	}
+	return nil
+}
+
+func (x *SubscribeRequest_V1_Mutate_Subscription) GetIdCursor() uint64 {
+	if x != nil {
+		return x.IdCursor
+	}
+	return 0
+}
+
+type SubscribeResponse_V1 struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Response:
+	//
+	//	*SubscribeResponse_V1_Messages_
+	//	*SubscribeResponse_V1_Started_
+	//	*SubscribeResponse_V1_Ping
+	//	*SubscribeResponse_V1_Pong
+	//	*SubscribeResponse_V1_TopicsLive_
+	//	*SubscribeResponse_V1_CatchupComplete_
+	Response      isSubscribeResponse_V1_Response `protobuf_oneof:"response"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubscribeResponse_V1) Reset() {
+	*x = SubscribeResponse_V1{}
+	mi := &file_mls_api_v1_mls_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubscribeResponse_V1) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubscribeResponse_V1) ProtoMessage() {}
+
+func (x *SubscribeResponse_V1) ProtoReflect() protoreflect.Message {
+	mi := &file_mls_api_v1_mls_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubscribeResponse_V1.ProtoReflect.Descriptor instead.
+func (*SubscribeResponse_V1) Descriptor() ([]byte, []int) {
+	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{24, 0}
+}
+
+func (x *SubscribeResponse_V1) GetResponse() isSubscribeResponse_V1_Response {
+	if x != nil {
+		return x.Response
+	}
+	return nil
+}
+
+func (x *SubscribeResponse_V1) GetMessages() *SubscribeResponse_V1_Messages {
+	if x != nil {
+		if x, ok := x.Response.(*SubscribeResponse_V1_Messages_); ok {
+			return x.Messages
+		}
+	}
+	return nil
+}
+
+func (x *SubscribeResponse_V1) GetStarted() *SubscribeResponse_V1_Started {
+	if x != nil {
+		if x, ok := x.Response.(*SubscribeResponse_V1_Started_); ok {
+			return x.Started
+		}
+	}
+	return nil
+}
+
+func (x *SubscribeResponse_V1) GetPing() *Ping {
+	if x != nil {
+		if x, ok := x.Response.(*SubscribeResponse_V1_Ping); ok {
+			return x.Ping
+		}
+	}
+	return nil
+}
+
+func (x *SubscribeResponse_V1) GetPong() *Pong {
+	if x != nil {
+		if x, ok := x.Response.(*SubscribeResponse_V1_Pong); ok {
+			return x.Pong
+		}
+	}
+	return nil
+}
+
+func (x *SubscribeResponse_V1) GetTopicsLive() *SubscribeResponse_V1_TopicsLive {
+	if x != nil {
+		if x, ok := x.Response.(*SubscribeResponse_V1_TopicsLive_); ok {
+			return x.TopicsLive
+		}
+	}
+	return nil
+}
+
+func (x *SubscribeResponse_V1) GetCatchupComplete() *SubscribeResponse_V1_CatchupComplete {
+	if x != nil {
+		if x, ok := x.Response.(*SubscribeResponse_V1_CatchupComplete_); ok {
+			return x.CatchupComplete
+		}
+	}
+	return nil
+}
+
+type isSubscribeResponse_V1_Response interface {
+	isSubscribeResponse_V1_Response()
+}
+
+type SubscribeResponse_V1_Messages_ struct {
+	Messages *SubscribeResponse_V1_Messages `protobuf:"bytes,1,opt,name=messages,proto3,oneof"`
+}
+
+type SubscribeResponse_V1_Started_ struct {
+	Started *SubscribeResponse_V1_Started `protobuf:"bytes,2,opt,name=started,proto3,oneof"` // sent once, immediately on open, before any catch-up
+}
+
+type SubscribeResponse_V1_Ping struct {
+	Ping *Ping `protobuf:"bytes,3,opt,name=ping,proto3,oneof"` // idle liveness challenge; receiver MUST answer with Pong
+}
+
+type SubscribeResponse_V1_Pong struct {
+	Pong *Pong `protobuf:"bytes,4,opt,name=pong,proto3,oneof"` // answer to a client Ping
+}
+
+type SubscribeResponse_V1_TopicsLive_ struct {
+	TopicsLive *SubscribeResponse_V1_TopicsLive `protobuf:"bytes,5,opt,name=topics_live,json=topicsLive,proto3,oneof"` // these topics just crossed from catch-up to live
+}
+
+type SubscribeResponse_V1_CatchupComplete_ struct {
+	CatchupComplete *SubscribeResponse_V1_CatchupComplete `protobuf:"bytes,6,opt,name=catchup_complete,json=catchupComplete,proto3,oneof"` // a Mutate's adds are fully delivered
+}
+
+func (*SubscribeResponse_V1_Messages_) isSubscribeResponse_V1_Response() {}
+
+func (*SubscribeResponse_V1_Started_) isSubscribeResponse_V1_Response() {}
+
+func (*SubscribeResponse_V1_Ping) isSubscribeResponse_V1_Response() {}
+
+func (*SubscribeResponse_V1_Pong) isSubscribeResponse_V1_Response() {}
+
+func (*SubscribeResponse_V1_TopicsLive_) isSubscribeResponse_V1_Response() {}
+
+func (*SubscribeResponse_V1_CatchupComplete_) isSubscribeResponse_V1_Response() {}
+
+// A batch of new messages; group and welcome messages share the stream,
+// depending on which subscriptions are active.
+type SubscribeResponse_V1_Messages struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	GroupMessages   []*GroupMessage        `protobuf:"bytes,1,rep,name=group_messages,json=groupMessages,proto3" json:"group_messages,omitempty"`
+	WelcomeMessages []*WelcomeMessage      `protobuf:"bytes,2,rep,name=welcome_messages,json=welcomeMessages,proto3" json:"welcome_messages,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *SubscribeResponse_V1_Messages) Reset() {
+	*x = SubscribeResponse_V1_Messages{}
+	mi := &file_mls_api_v1_mls_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubscribeResponse_V1_Messages) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubscribeResponse_V1_Messages) ProtoMessage() {}
+
+func (x *SubscribeResponse_V1_Messages) ProtoReflect() protoreflect.Message {
+	mi := &file_mls_api_v1_mls_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubscribeResponse_V1_Messages.ProtoReflect.Descriptor instead.
+func (*SubscribeResponse_V1_Messages) Descriptor() ([]byte, []int) {
+	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{24, 0, 0}
+}
+
+func (x *SubscribeResponse_V1_Messages) GetGroupMessages() []*GroupMessage {
+	if x != nil {
+		return x.GroupMessages
+	}
+	return nil
+}
+
+func (x *SubscribeResponse_V1_Messages) GetWelcomeMessages() []*WelcomeMessage {
+	if x != nil {
+		return x.WelcomeMessages
+	}
+	return nil
+}
+
+// The first frame on every stream.
+type SubscribeResponse_V1_Started struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The server's ping cadence (ms): the basis for the client's staleness
+	// threshold and the server's reap deadline.
+	KeepaliveIntervalMs uint32 `protobuf:"varint,1,opt,name=keepalive_interval_ms,json=keepaliveIntervalMs,proto3" json:"keepalive_interval_ms,omitempty"`
+	// Optional protocol features the node supports on this stream. The node
+	// silently ignores request types it does not understand, so a client
+	// MUST NOT send an optional request type whose capability the node did
+	// not advertise (it would hang waiting on a response that never comes).
+	Capabilities  []SubscribeResponse_V1_Capability `protobuf:"varint,2,rep,packed,name=capabilities,proto3,enum=xmtp.mls.api.v1.SubscribeResponse_V1_Capability" json:"capabilities,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubscribeResponse_V1_Started) Reset() {
+	*x = SubscribeResponse_V1_Started{}
+	mi := &file_mls_api_v1_mls_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubscribeResponse_V1_Started) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubscribeResponse_V1_Started) ProtoMessage() {}
+
+func (x *SubscribeResponse_V1_Started) ProtoReflect() protoreflect.Message {
+	mi := &file_mls_api_v1_mls_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubscribeResponse_V1_Started.ProtoReflect.Descriptor instead.
+func (*SubscribeResponse_V1_Started) Descriptor() ([]byte, []int) {
+	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{24, 0, 1}
+}
+
+func (x *SubscribeResponse_V1_Started) GetKeepaliveIntervalMs() uint32 {
+	if x != nil {
+		return x.KeepaliveIntervalMs
+	}
+	return 0
+}
+
+func (x *SubscribeResponse_V1_Started) GetCapabilities() []SubscribeResponse_V1_Capability {
+	if x != nil {
+		return x.Capabilities
+	}
+	return nil
+}
+
+// Sent once per Mutate that adds subscriptions (a catch-up "wave"), after
+// the wave's last TopicsLive: everything the Mutate asked for is delivered.
+type SubscribeResponse_V1_CatchupComplete struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MutateId      uint64                 `protobuf:"varint,1,opt,name=mutate_id,json=mutateId,proto3" json:"mutate_id,omitempty"` // echoes the Mutate that started this wave (0 if none given)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubscribeResponse_V1_CatchupComplete) Reset() {
+	*x = SubscribeResponse_V1_CatchupComplete{}
+	mi := &file_mls_api_v1_mls_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubscribeResponse_V1_CatchupComplete) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubscribeResponse_V1_CatchupComplete) ProtoMessage() {}
+
+func (x *SubscribeResponse_V1_CatchupComplete) ProtoReflect() protoreflect.Message {
+	mi := &file_mls_api_v1_mls_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubscribeResponse_V1_CatchupComplete.ProtoReflect.Descriptor instead.
+func (*SubscribeResponse_V1_CatchupComplete) Descriptor() ([]byte, []int) {
+	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{24, 0, 2}
+}
+
+func (x *SubscribeResponse_V1_CatchupComplete) GetMutateId() uint64 {
+	if x != nil {
+		return x.MutateId
+	}
+	return 0
+}
+
+// Emitted when topics finish catch-up, AFTER the last history frame for
+// them — including any live messages that queued up behind the catch-up,
+// which were equally historical from the client's perspective — so every
+// later frame for a listed topic is live tail. Informational only: delivery
+// correctness (no duplicates, no gaps) never depends on it. Re-adding a
+// topic re-runs catch-up and re-emits it; receivers treat it idempotently.
+type SubscribeResponse_V1_TopicsLive struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Topics        [][]byte               `protobuf:"bytes,1,rep,name=topics,proto3" json:"topics,omitempty"` // kind-prefixed topics now tailing live
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubscribeResponse_V1_TopicsLive) Reset() {
+	*x = SubscribeResponse_V1_TopicsLive{}
+	mi := &file_mls_api_v1_mls_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubscribeResponse_V1_TopicsLive) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubscribeResponse_V1_TopicsLive) ProtoMessage() {}
+
+func (x *SubscribeResponse_V1_TopicsLive) ProtoReflect() protoreflect.Message {
+	mi := &file_mls_api_v1_mls_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubscribeResponse_V1_TopicsLive.ProtoReflect.Descriptor instead.
+func (*SubscribeResponse_V1_TopicsLive) Descriptor() ([]byte, []int) {
+	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{24, 0, 3}
+}
+
+func (x *SubscribeResponse_V1_TopicsLive) GetTopics() [][]byte {
+	if x != nil {
+		return x.Topics
+	}
+	return nil
+}
+
 type GetNewestGroupMessageResponse_Response struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// If no message is found on the topic, will be nil
@@ -2623,7 +3495,7 @@ type GetNewestGroupMessageResponse_Response struct {
 
 func (x *GetNewestGroupMessageResponse_Response) Reset() {
 	*x = GetNewestGroupMessageResponse_Response{}
-	mi := &file_mls_api_v1_mls_proto_msgTypes[44]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2635,7 +3507,7 @@ func (x *GetNewestGroupMessageResponse_Response) String() string {
 func (*GetNewestGroupMessageResponse_Response) ProtoMessage() {}
 
 func (x *GetNewestGroupMessageResponse_Response) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_api_v1_mls_proto_msgTypes[44]
+	mi := &file_mls_api_v1_mls_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2648,7 +3520,7 @@ func (x *GetNewestGroupMessageResponse_Response) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use GetNewestGroupMessageResponse_Response.ProtoReflect.Descriptor instead.
 func (*GetNewestGroupMessageResponse_Response) Descriptor() ([]byte, []int) {
-	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{30, 0}
+	return file_mls_api_v1_mls_proto_rawDescGZIP(), []int{34, 0}
 }
 
 func (x *GetNewestGroupMessageResponse_Response) GetGroupMessage() *GroupMessage {
@@ -2797,7 +3669,54 @@ const file_mls_api_v1_mls_proto_rawDesc = "" +
 	"\afilters\x18\x01 \x03(\v27.xmtp.mls.api.v1.SubscribeWelcomeMessagesRequest.FilterR\afilters\x1aP\n" +
 	"\x06Filter\x12)\n" +
 	"\x10installation_key\x18\x01 \x01(\fR\x0finstallationKey\x12\x1b\n" +
-	"\tid_cursor\x18\x02 \x01(\x04R\bidCursor\"d\n" +
+	"\tid_cursor\x18\x02 \x01(\x04R\bidCursor\"\xfe\x03\n" +
+	"\x10SubscribeRequest\x126\n" +
+	"\x02v1\x18\x01 \x01(\v2$.xmtp.mls.api.v1.SubscribeRequest.V1H\x00R\x02v1\x1a\xa6\x03\n" +
+	"\x02V1\x12E\n" +
+	"\x06mutate\x18\x01 \x01(\v2+.xmtp.mls.api.v1.SubscribeRequest.V1.MutateH\x00R\x06mutate\x12+\n" +
+	"\x04ping\x18\x02 \x01(\v2\x15.xmtp.mls.api.v1.PingH\x00R\x04ping\x12+\n" +
+	"\x04pong\x18\x03 \x01(\v2\x15.xmtp.mls.api.v1.PongH\x00R\x04pong\x1a\xf3\x01\n" +
+	"\x06Mutate\x12L\n" +
+	"\x04adds\x18\x01 \x03(\v28.xmtp.mls.api.v1.SubscribeRequest.V1.Mutate.SubscriptionR\x04adds\x12\x18\n" +
+	"\aremoves\x18\x02 \x03(\fR\aremoves\x12!\n" +
+	"\fhistory_only\x18\x03 \x01(\bR\vhistoryOnly\x12\x1b\n" +
+	"\tmutate_id\x18\x04 \x01(\x04R\bmutateId\x1aA\n" +
+	"\fSubscription\x12\x14\n" +
+	"\x05topic\x18\x01 \x01(\fR\x05topic\x12\x1b\n" +
+	"\tid_cursor\x18\x02 \x01(\x04R\bidCursorB\t\n" +
+	"\arequestB\t\n" +
+	"\aversion\"\xcb\a\n" +
+	"\x11SubscribeResponse\x127\n" +
+	"\x02v1\x18\x01 \x01(\v2%.xmtp.mls.api.v1.SubscribeResponse.V1H\x00R\x02v1\x1a\xf1\x06\n" +
+	"\x02V1\x12L\n" +
+	"\bmessages\x18\x01 \x01(\v2..xmtp.mls.api.v1.SubscribeResponse.V1.MessagesH\x00R\bmessages\x12I\n" +
+	"\astarted\x18\x02 \x01(\v2-.xmtp.mls.api.v1.SubscribeResponse.V1.StartedH\x00R\astarted\x12+\n" +
+	"\x04ping\x18\x03 \x01(\v2\x15.xmtp.mls.api.v1.PingH\x00R\x04ping\x12+\n" +
+	"\x04pong\x18\x04 \x01(\v2\x15.xmtp.mls.api.v1.PongH\x00R\x04pong\x12S\n" +
+	"\vtopics_live\x18\x05 \x01(\v20.xmtp.mls.api.v1.SubscribeResponse.V1.TopicsLiveH\x00R\n" +
+	"topicsLive\x12b\n" +
+	"\x10catchup_complete\x18\x06 \x01(\v25.xmtp.mls.api.v1.SubscribeResponse.V1.CatchupCompleteH\x00R\x0fcatchupComplete\x1a\x9c\x01\n" +
+	"\bMessages\x12D\n" +
+	"\x0egroup_messages\x18\x01 \x03(\v2\x1d.xmtp.mls.api.v1.GroupMessageR\rgroupMessages\x12J\n" +
+	"\x10welcome_messages\x18\x02 \x03(\v2\x1f.xmtp.mls.api.v1.WelcomeMessageR\x0fwelcomeMessages\x1a\x93\x01\n" +
+	"\aStarted\x122\n" +
+	"\x15keepalive_interval_ms\x18\x01 \x01(\rR\x13keepaliveIntervalMs\x12T\n" +
+	"\fcapabilities\x18\x02 \x03(\x0e20.xmtp.mls.api.v1.SubscribeResponse.V1.CapabilityR\fcapabilities\x1a.\n" +
+	"\x0fCatchupComplete\x12\x1b\n" +
+	"\tmutate_id\x18\x01 \x01(\x04R\bmutateId\x1a$\n" +
+	"\n" +
+	"TopicsLive\x12\x16\n" +
+	"\x06topics\x18\x01 \x03(\fR\x06topics\"(\n" +
+	"\n" +
+	"Capability\x12\x1a\n" +
+	"\x16CAPABILITY_UNSPECIFIED\x10\x00B\n" +
+	"\n" +
+	"\bresponseB\t\n" +
+	"\aversion\"\x1c\n" +
+	"\x04Ping\x12\x14\n" +
+	"\x05nonce\x18\x01 \x01(\x04R\x05nonce\"\x1c\n" +
+	"\x04Pong\x12\x14\n" +
+	"\x05nonce\x18\x01 \x01(\x04R\x05nonce\"d\n" +
 	"\x1cBatchPublishCommitLogRequest\x12D\n" +
 	"\brequests\x18\x01 \x03(\v2(.xmtp.mls.api.v1.PublishCommitLogRequestR\brequests\"\xca\x01\n" +
 	"\x17PublishCommitLogRequest\x12\x19\n" +
@@ -2828,7 +3747,7 @@ const file_mls_api_v1_mls_proto_rawDesc = "" +
 	"\rSortDirection\x12\x1e\n" +
 	"\x1aSORT_DIRECTION_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18SORT_DIRECTION_ASCENDING\x10\x01\x12\x1d\n" +
-	"\x19SORT_DIRECTION_DESCENDING\x10\x022\x9c\x10\n" +
+	"\x19SORT_DIRECTION_DESCENDING\x10\x022\xf6\x10\n" +
 	"\x06MlsApi\x12~\n" +
 	"\x11SendGroupMessages\x12).xmtp.mls.api.v1.SendGroupMessagesRequest\x1a\x16.google.protobuf.Empty\"&\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/mls/v1/send-group-messages\x12\x84\x01\n" +
 	"\x13SendWelcomeMessages\x12+.xmtp.mls.api.v1.SendWelcomeMessagesRequest\x1a\x16.google.protobuf.Empty\"(\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/mls/v1/send-welcome-messages\x12\x9d\x01\n" +
@@ -2840,7 +3759,8 @@ const file_mls_api_v1_mls_proto_rawDesc = "" +
 	"\x12QueryGroupMessages\x12*.xmtp.mls.api.v1.QueryGroupMessagesRequest\x1a+.xmtp.mls.api.v1.QueryGroupMessagesResponse\"'\x82\xd3\xe4\x93\x02!:\x01*\"\x1c/mls/v1/query-group-messages\x12\x9e\x01\n" +
 	"\x14QueryWelcomeMessages\x12,.xmtp.mls.api.v1.QueryWelcomeMessagesRequest\x1a-.xmtp.mls.api.v1.QueryWelcomeMessagesResponse\")\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/mls/v1/query-welcome-messages\x12\x96\x01\n" +
 	"\x16SubscribeGroupMessages\x12..xmtp.mls.api.v1.SubscribeGroupMessagesRequest\x1a\x1d.xmtp.mls.api.v1.GroupMessage\"+\x82\xd3\xe4\x93\x02%:\x01*\" /mls/v1/subscribe-group-messages0\x01\x12\x9e\x01\n" +
-	"\x18SubscribeWelcomeMessages\x120.xmtp.mls.api.v1.SubscribeWelcomeMessagesRequest\x1a\x1f.xmtp.mls.api.v1.WelcomeMessage\"-\x82\xd3\xe4\x93\x02':\x01*\"\"/mls/v1/subscribe-welcome-messages0\x01\x12\x8b\x01\n" +
+	"\x18SubscribeWelcomeMessages\x120.xmtp.mls.api.v1.SubscribeWelcomeMessagesRequest\x1a\x1f.xmtp.mls.api.v1.WelcomeMessage\"-\x82\xd3\xe4\x93\x02':\x01*\"\"/mls/v1/subscribe-welcome-messages0\x01\x12X\n" +
+	"\tSubscribe\x12!.xmtp.mls.api.v1.SubscribeRequest\x1a\".xmtp.mls.api.v1.SubscribeResponse\"\x00(\x010\x01\x12\x8b\x01\n" +
 	"\x15BatchPublishCommitLog\x12-.xmtp.mls.api.v1.BatchPublishCommitLogRequest\x1a\x16.google.protobuf.Empty\"+\x82\xd3\xe4\x93\x02%:\x01*\" /mls/v1/batch-publish-commit-log\x12\x9b\x01\n" +
 	"\x13BatchQueryCommitLog\x12+.xmtp.mls.api.v1.BatchQueryCommitLogRequest\x1a,.xmtp.mls.api.v1.BatchQueryCommitLogResponse\")\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/mls/v1/batch-query-commit-log\x12\xa0\x01\n" +
 	"\x15GetNewestGroupMessage\x12-.xmtp.mls.api.v1.GetNewestGroupMessageRequest\x1a..xmtp.mls.api.v1.GetNewestGroupMessageResponse\"(\x82\xd3\xe4\x93\x02\"\x12 /mls/v1/get-newest-group-messageB\xc2\x01\x92A\x0f\x12\r\n" +
@@ -2859,134 +3779,164 @@ func file_mls_api_v1_mls_proto_rawDescGZIP() []byte {
 	return file_mls_api_v1_mls_proto_rawDescData
 }
 
-var file_mls_api_v1_mls_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_mls_api_v1_mls_proto_msgTypes = make([]protoimpl.MessageInfo, 45)
+var file_mls_api_v1_mls_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_mls_api_v1_mls_proto_msgTypes = make([]protoimpl.MessageInfo, 57)
 var file_mls_api_v1_mls_proto_goTypes = []any{
 	(SortDirection)(0),                                           // 0: xmtp.mls.api.v1.SortDirection
-	(*WelcomeMessage)(nil),                                       // 1: xmtp.mls.api.v1.WelcomeMessage
-	(*WelcomeMessageInput)(nil),                                  // 2: xmtp.mls.api.v1.WelcomeMessageInput
-	(*WelcomeMetadata)(nil),                                      // 3: xmtp.mls.api.v1.WelcomeMetadata
-	(*GroupMessage)(nil),                                         // 4: xmtp.mls.api.v1.GroupMessage
-	(*GroupMessageInput)(nil),                                    // 5: xmtp.mls.api.v1.GroupMessageInput
-	(*SendGroupMessagesRequest)(nil),                             // 6: xmtp.mls.api.v1.SendGroupMessagesRequest
-	(*SendWelcomeMessagesRequest)(nil),                           // 7: xmtp.mls.api.v1.SendWelcomeMessagesRequest
-	(*KeyPackageUpload)(nil),                                     // 8: xmtp.mls.api.v1.KeyPackageUpload
-	(*RegisterInstallationRequest)(nil),                          // 9: xmtp.mls.api.v1.RegisterInstallationRequest
-	(*RegisterInstallationResponse)(nil),                         // 10: xmtp.mls.api.v1.RegisterInstallationResponse
-	(*UploadKeyPackageRequest)(nil),                              // 11: xmtp.mls.api.v1.UploadKeyPackageRequest
-	(*FetchKeyPackagesRequest)(nil),                              // 12: xmtp.mls.api.v1.FetchKeyPackagesRequest
-	(*FetchKeyPackagesResponse)(nil),                             // 13: xmtp.mls.api.v1.FetchKeyPackagesResponse
-	(*RevokeInstallationRequest)(nil),                            // 14: xmtp.mls.api.v1.RevokeInstallationRequest
-	(*GetIdentityUpdatesRequest)(nil),                            // 15: xmtp.mls.api.v1.GetIdentityUpdatesRequest
-	(*GetIdentityUpdatesResponse)(nil),                           // 16: xmtp.mls.api.v1.GetIdentityUpdatesResponse
-	(*PagingInfo)(nil),                                           // 17: xmtp.mls.api.v1.PagingInfo
-	(*QueryGroupMessagesRequest)(nil),                            // 18: xmtp.mls.api.v1.QueryGroupMessagesRequest
-	(*QueryGroupMessagesResponse)(nil),                           // 19: xmtp.mls.api.v1.QueryGroupMessagesResponse
-	(*QueryWelcomeMessagesRequest)(nil),                          // 20: xmtp.mls.api.v1.QueryWelcomeMessagesRequest
-	(*QueryWelcomeMessagesResponse)(nil),                         // 21: xmtp.mls.api.v1.QueryWelcomeMessagesResponse
-	(*SubscribeGroupMessagesRequest)(nil),                        // 22: xmtp.mls.api.v1.SubscribeGroupMessagesRequest
-	(*SubscribeWelcomeMessagesRequest)(nil),                      // 23: xmtp.mls.api.v1.SubscribeWelcomeMessagesRequest
-	(*BatchPublishCommitLogRequest)(nil),                         // 24: xmtp.mls.api.v1.BatchPublishCommitLogRequest
-	(*PublishCommitLogRequest)(nil),                              // 25: xmtp.mls.api.v1.PublishCommitLogRequest
-	(*QueryCommitLogRequest)(nil),                                // 26: xmtp.mls.api.v1.QueryCommitLogRequest
-	(*QueryCommitLogResponse)(nil),                               // 27: xmtp.mls.api.v1.QueryCommitLogResponse
-	(*BatchQueryCommitLogRequest)(nil),                           // 28: xmtp.mls.api.v1.BatchQueryCommitLogRequest
-	(*BatchQueryCommitLogResponse)(nil),                          // 29: xmtp.mls.api.v1.BatchQueryCommitLogResponse
-	(*GetNewestGroupMessageRequest)(nil),                         // 30: xmtp.mls.api.v1.GetNewestGroupMessageRequest
-	(*GetNewestGroupMessageResponse)(nil),                        // 31: xmtp.mls.api.v1.GetNewestGroupMessageResponse
-	(*WelcomeMessage_V1)(nil),                                    // 32: xmtp.mls.api.v1.WelcomeMessage.V1
-	(*WelcomeMessage_WelcomePointer)(nil),                        // 33: xmtp.mls.api.v1.WelcomeMessage.WelcomePointer
-	(*WelcomeMessageInput_V1)(nil),                               // 34: xmtp.mls.api.v1.WelcomeMessageInput.V1
-	(*WelcomeMessageInput_WelcomePointer)(nil),                   // 35: xmtp.mls.api.v1.WelcomeMessageInput.WelcomePointer
-	(*GroupMessage_V1)(nil),                                      // 36: xmtp.mls.api.v1.GroupMessage.V1
-	(*GroupMessageInput_V1)(nil),                                 // 37: xmtp.mls.api.v1.GroupMessageInput.V1
-	(*FetchKeyPackagesResponse_KeyPackage)(nil),                  // 38: xmtp.mls.api.v1.FetchKeyPackagesResponse.KeyPackage
-	(*GetIdentityUpdatesResponse_NewInstallationUpdate)(nil),     // 39: xmtp.mls.api.v1.GetIdentityUpdatesResponse.NewInstallationUpdate
-	(*GetIdentityUpdatesResponse_RevokedInstallationUpdate)(nil), // 40: xmtp.mls.api.v1.GetIdentityUpdatesResponse.RevokedInstallationUpdate
-	(*GetIdentityUpdatesResponse_Update)(nil),                    // 41: xmtp.mls.api.v1.GetIdentityUpdatesResponse.Update
-	(*GetIdentityUpdatesResponse_WalletUpdates)(nil),             // 42: xmtp.mls.api.v1.GetIdentityUpdatesResponse.WalletUpdates
-	(*SubscribeGroupMessagesRequest_Filter)(nil),                 // 43: xmtp.mls.api.v1.SubscribeGroupMessagesRequest.Filter
-	(*SubscribeWelcomeMessagesRequest_Filter)(nil),               // 44: xmtp.mls.api.v1.SubscribeWelcomeMessagesRequest.Filter
-	(*GetNewestGroupMessageResponse_Response)(nil),               // 45: xmtp.mls.api.v1.GetNewestGroupMessageResponse.Response
-	(*message_contents.Signature)(nil),                           // 46: xmtp.message_contents.Signature
-	(*associations.RecoverableEd25519Signature)(nil),             // 47: xmtp.identity.associations.RecoverableEd25519Signature
-	(*message_contents1.CommitLogEntry)(nil),                     // 48: xmtp.mls.message_contents.CommitLogEntry
-	(message_contents1.WelcomeWrapperAlgorithm)(0),               // 49: xmtp.mls.message_contents.WelcomeWrapperAlgorithm
-	(message_contents1.WelcomePointerWrapperAlgorithm)(0),        // 50: xmtp.mls.message_contents.WelcomePointerWrapperAlgorithm
-	(*emptypb.Empty)(nil),                                        // 51: google.protobuf.Empty
+	(SubscribeResponse_V1_Capability)(0),                         // 1: xmtp.mls.api.v1.SubscribeResponse.V1.Capability
+	(*WelcomeMessage)(nil),                                       // 2: xmtp.mls.api.v1.WelcomeMessage
+	(*WelcomeMessageInput)(nil),                                  // 3: xmtp.mls.api.v1.WelcomeMessageInput
+	(*WelcomeMetadata)(nil),                                      // 4: xmtp.mls.api.v1.WelcomeMetadata
+	(*GroupMessage)(nil),                                         // 5: xmtp.mls.api.v1.GroupMessage
+	(*GroupMessageInput)(nil),                                    // 6: xmtp.mls.api.v1.GroupMessageInput
+	(*SendGroupMessagesRequest)(nil),                             // 7: xmtp.mls.api.v1.SendGroupMessagesRequest
+	(*SendWelcomeMessagesRequest)(nil),                           // 8: xmtp.mls.api.v1.SendWelcomeMessagesRequest
+	(*KeyPackageUpload)(nil),                                     // 9: xmtp.mls.api.v1.KeyPackageUpload
+	(*RegisterInstallationRequest)(nil),                          // 10: xmtp.mls.api.v1.RegisterInstallationRequest
+	(*RegisterInstallationResponse)(nil),                         // 11: xmtp.mls.api.v1.RegisterInstallationResponse
+	(*UploadKeyPackageRequest)(nil),                              // 12: xmtp.mls.api.v1.UploadKeyPackageRequest
+	(*FetchKeyPackagesRequest)(nil),                              // 13: xmtp.mls.api.v1.FetchKeyPackagesRequest
+	(*FetchKeyPackagesResponse)(nil),                             // 14: xmtp.mls.api.v1.FetchKeyPackagesResponse
+	(*RevokeInstallationRequest)(nil),                            // 15: xmtp.mls.api.v1.RevokeInstallationRequest
+	(*GetIdentityUpdatesRequest)(nil),                            // 16: xmtp.mls.api.v1.GetIdentityUpdatesRequest
+	(*GetIdentityUpdatesResponse)(nil),                           // 17: xmtp.mls.api.v1.GetIdentityUpdatesResponse
+	(*PagingInfo)(nil),                                           // 18: xmtp.mls.api.v1.PagingInfo
+	(*QueryGroupMessagesRequest)(nil),                            // 19: xmtp.mls.api.v1.QueryGroupMessagesRequest
+	(*QueryGroupMessagesResponse)(nil),                           // 20: xmtp.mls.api.v1.QueryGroupMessagesResponse
+	(*QueryWelcomeMessagesRequest)(nil),                          // 21: xmtp.mls.api.v1.QueryWelcomeMessagesRequest
+	(*QueryWelcomeMessagesResponse)(nil),                         // 22: xmtp.mls.api.v1.QueryWelcomeMessagesResponse
+	(*SubscribeGroupMessagesRequest)(nil),                        // 23: xmtp.mls.api.v1.SubscribeGroupMessagesRequest
+	(*SubscribeWelcomeMessagesRequest)(nil),                      // 24: xmtp.mls.api.v1.SubscribeWelcomeMessagesRequest
+	(*SubscribeRequest)(nil),                                     // 25: xmtp.mls.api.v1.SubscribeRequest
+	(*SubscribeResponse)(nil),                                    // 26: xmtp.mls.api.v1.SubscribeResponse
+	(*Ping)(nil),                                                 // 27: xmtp.mls.api.v1.Ping
+	(*Pong)(nil),                                                 // 28: xmtp.mls.api.v1.Pong
+	(*BatchPublishCommitLogRequest)(nil),                         // 29: xmtp.mls.api.v1.BatchPublishCommitLogRequest
+	(*PublishCommitLogRequest)(nil),                              // 30: xmtp.mls.api.v1.PublishCommitLogRequest
+	(*QueryCommitLogRequest)(nil),                                // 31: xmtp.mls.api.v1.QueryCommitLogRequest
+	(*QueryCommitLogResponse)(nil),                               // 32: xmtp.mls.api.v1.QueryCommitLogResponse
+	(*BatchQueryCommitLogRequest)(nil),                           // 33: xmtp.mls.api.v1.BatchQueryCommitLogRequest
+	(*BatchQueryCommitLogResponse)(nil),                          // 34: xmtp.mls.api.v1.BatchQueryCommitLogResponse
+	(*GetNewestGroupMessageRequest)(nil),                         // 35: xmtp.mls.api.v1.GetNewestGroupMessageRequest
+	(*GetNewestGroupMessageResponse)(nil),                        // 36: xmtp.mls.api.v1.GetNewestGroupMessageResponse
+	(*WelcomeMessage_V1)(nil),                                    // 37: xmtp.mls.api.v1.WelcomeMessage.V1
+	(*WelcomeMessage_WelcomePointer)(nil),                        // 38: xmtp.mls.api.v1.WelcomeMessage.WelcomePointer
+	(*WelcomeMessageInput_V1)(nil),                               // 39: xmtp.mls.api.v1.WelcomeMessageInput.V1
+	(*WelcomeMessageInput_WelcomePointer)(nil),                   // 40: xmtp.mls.api.v1.WelcomeMessageInput.WelcomePointer
+	(*GroupMessage_V1)(nil),                                      // 41: xmtp.mls.api.v1.GroupMessage.V1
+	(*GroupMessageInput_V1)(nil),                                 // 42: xmtp.mls.api.v1.GroupMessageInput.V1
+	(*FetchKeyPackagesResponse_KeyPackage)(nil),                  // 43: xmtp.mls.api.v1.FetchKeyPackagesResponse.KeyPackage
+	(*GetIdentityUpdatesResponse_NewInstallationUpdate)(nil),     // 44: xmtp.mls.api.v1.GetIdentityUpdatesResponse.NewInstallationUpdate
+	(*GetIdentityUpdatesResponse_RevokedInstallationUpdate)(nil), // 45: xmtp.mls.api.v1.GetIdentityUpdatesResponse.RevokedInstallationUpdate
+	(*GetIdentityUpdatesResponse_Update)(nil),                    // 46: xmtp.mls.api.v1.GetIdentityUpdatesResponse.Update
+	(*GetIdentityUpdatesResponse_WalletUpdates)(nil),             // 47: xmtp.mls.api.v1.GetIdentityUpdatesResponse.WalletUpdates
+	(*SubscribeGroupMessagesRequest_Filter)(nil),                 // 48: xmtp.mls.api.v1.SubscribeGroupMessagesRequest.Filter
+	(*SubscribeWelcomeMessagesRequest_Filter)(nil),               // 49: xmtp.mls.api.v1.SubscribeWelcomeMessagesRequest.Filter
+	(*SubscribeRequest_V1)(nil),                                  // 50: xmtp.mls.api.v1.SubscribeRequest.V1
+	(*SubscribeRequest_V1_Mutate)(nil),                           // 51: xmtp.mls.api.v1.SubscribeRequest.V1.Mutate
+	(*SubscribeRequest_V1_Mutate_Subscription)(nil),              // 52: xmtp.mls.api.v1.SubscribeRequest.V1.Mutate.Subscription
+	(*SubscribeResponse_V1)(nil),                                 // 53: xmtp.mls.api.v1.SubscribeResponse.V1
+	(*SubscribeResponse_V1_Messages)(nil),                        // 54: xmtp.mls.api.v1.SubscribeResponse.V1.Messages
+	(*SubscribeResponse_V1_Started)(nil),                         // 55: xmtp.mls.api.v1.SubscribeResponse.V1.Started
+	(*SubscribeResponse_V1_CatchupComplete)(nil),                 // 56: xmtp.mls.api.v1.SubscribeResponse.V1.CatchupComplete
+	(*SubscribeResponse_V1_TopicsLive)(nil),                      // 57: xmtp.mls.api.v1.SubscribeResponse.V1.TopicsLive
+	(*GetNewestGroupMessageResponse_Response)(nil),               // 58: xmtp.mls.api.v1.GetNewestGroupMessageResponse.Response
+	(*message_contents.Signature)(nil),                           // 59: xmtp.message_contents.Signature
+	(*associations.RecoverableEd25519Signature)(nil),             // 60: xmtp.identity.associations.RecoverableEd25519Signature
+	(*message_contents1.CommitLogEntry)(nil),                     // 61: xmtp.mls.message_contents.CommitLogEntry
+	(message_contents1.WelcomeWrapperAlgorithm)(0),               // 62: xmtp.mls.message_contents.WelcomeWrapperAlgorithm
+	(message_contents1.WelcomePointerWrapperAlgorithm)(0),        // 63: xmtp.mls.message_contents.WelcomePointerWrapperAlgorithm
+	(*emptypb.Empty)(nil),                                        // 64: google.protobuf.Empty
 }
 var file_mls_api_v1_mls_proto_depIdxs = []int32{
-	32, // 0: xmtp.mls.api.v1.WelcomeMessage.v1:type_name -> xmtp.mls.api.v1.WelcomeMessage.V1
-	33, // 1: xmtp.mls.api.v1.WelcomeMessage.welcome_pointer:type_name -> xmtp.mls.api.v1.WelcomeMessage.WelcomePointer
-	34, // 2: xmtp.mls.api.v1.WelcomeMessageInput.v1:type_name -> xmtp.mls.api.v1.WelcomeMessageInput.V1
-	35, // 3: xmtp.mls.api.v1.WelcomeMessageInput.welcome_pointer:type_name -> xmtp.mls.api.v1.WelcomeMessageInput.WelcomePointer
-	36, // 4: xmtp.mls.api.v1.GroupMessage.v1:type_name -> xmtp.mls.api.v1.GroupMessage.V1
-	37, // 5: xmtp.mls.api.v1.GroupMessageInput.v1:type_name -> xmtp.mls.api.v1.GroupMessageInput.V1
-	5,  // 6: xmtp.mls.api.v1.SendGroupMessagesRequest.messages:type_name -> xmtp.mls.api.v1.GroupMessageInput
-	2,  // 7: xmtp.mls.api.v1.SendWelcomeMessagesRequest.messages:type_name -> xmtp.mls.api.v1.WelcomeMessageInput
-	8,  // 8: xmtp.mls.api.v1.RegisterInstallationRequest.key_package:type_name -> xmtp.mls.api.v1.KeyPackageUpload
-	8,  // 9: xmtp.mls.api.v1.UploadKeyPackageRequest.key_package:type_name -> xmtp.mls.api.v1.KeyPackageUpload
-	38, // 10: xmtp.mls.api.v1.FetchKeyPackagesResponse.key_packages:type_name -> xmtp.mls.api.v1.FetchKeyPackagesResponse.KeyPackage
-	46, // 11: xmtp.mls.api.v1.RevokeInstallationRequest.wallet_signature:type_name -> xmtp.message_contents.Signature
-	42, // 12: xmtp.mls.api.v1.GetIdentityUpdatesResponse.updates:type_name -> xmtp.mls.api.v1.GetIdentityUpdatesResponse.WalletUpdates
+	37, // 0: xmtp.mls.api.v1.WelcomeMessage.v1:type_name -> xmtp.mls.api.v1.WelcomeMessage.V1
+	38, // 1: xmtp.mls.api.v1.WelcomeMessage.welcome_pointer:type_name -> xmtp.mls.api.v1.WelcomeMessage.WelcomePointer
+	39, // 2: xmtp.mls.api.v1.WelcomeMessageInput.v1:type_name -> xmtp.mls.api.v1.WelcomeMessageInput.V1
+	40, // 3: xmtp.mls.api.v1.WelcomeMessageInput.welcome_pointer:type_name -> xmtp.mls.api.v1.WelcomeMessageInput.WelcomePointer
+	41, // 4: xmtp.mls.api.v1.GroupMessage.v1:type_name -> xmtp.mls.api.v1.GroupMessage.V1
+	42, // 5: xmtp.mls.api.v1.GroupMessageInput.v1:type_name -> xmtp.mls.api.v1.GroupMessageInput.V1
+	6,  // 6: xmtp.mls.api.v1.SendGroupMessagesRequest.messages:type_name -> xmtp.mls.api.v1.GroupMessageInput
+	3,  // 7: xmtp.mls.api.v1.SendWelcomeMessagesRequest.messages:type_name -> xmtp.mls.api.v1.WelcomeMessageInput
+	9,  // 8: xmtp.mls.api.v1.RegisterInstallationRequest.key_package:type_name -> xmtp.mls.api.v1.KeyPackageUpload
+	9,  // 9: xmtp.mls.api.v1.UploadKeyPackageRequest.key_package:type_name -> xmtp.mls.api.v1.KeyPackageUpload
+	43, // 10: xmtp.mls.api.v1.FetchKeyPackagesResponse.key_packages:type_name -> xmtp.mls.api.v1.FetchKeyPackagesResponse.KeyPackage
+	59, // 11: xmtp.mls.api.v1.RevokeInstallationRequest.wallet_signature:type_name -> xmtp.message_contents.Signature
+	47, // 12: xmtp.mls.api.v1.GetIdentityUpdatesResponse.updates:type_name -> xmtp.mls.api.v1.GetIdentityUpdatesResponse.WalletUpdates
 	0,  // 13: xmtp.mls.api.v1.PagingInfo.direction:type_name -> xmtp.mls.api.v1.SortDirection
-	17, // 14: xmtp.mls.api.v1.QueryGroupMessagesRequest.paging_info:type_name -> xmtp.mls.api.v1.PagingInfo
-	4,  // 15: xmtp.mls.api.v1.QueryGroupMessagesResponse.messages:type_name -> xmtp.mls.api.v1.GroupMessage
-	17, // 16: xmtp.mls.api.v1.QueryGroupMessagesResponse.paging_info:type_name -> xmtp.mls.api.v1.PagingInfo
-	17, // 17: xmtp.mls.api.v1.QueryWelcomeMessagesRequest.paging_info:type_name -> xmtp.mls.api.v1.PagingInfo
-	1,  // 18: xmtp.mls.api.v1.QueryWelcomeMessagesResponse.messages:type_name -> xmtp.mls.api.v1.WelcomeMessage
-	17, // 19: xmtp.mls.api.v1.QueryWelcomeMessagesResponse.paging_info:type_name -> xmtp.mls.api.v1.PagingInfo
-	43, // 20: xmtp.mls.api.v1.SubscribeGroupMessagesRequest.filters:type_name -> xmtp.mls.api.v1.SubscribeGroupMessagesRequest.Filter
-	44, // 21: xmtp.mls.api.v1.SubscribeWelcomeMessagesRequest.filters:type_name -> xmtp.mls.api.v1.SubscribeWelcomeMessagesRequest.Filter
-	25, // 22: xmtp.mls.api.v1.BatchPublishCommitLogRequest.requests:type_name -> xmtp.mls.api.v1.PublishCommitLogRequest
-	47, // 23: xmtp.mls.api.v1.PublishCommitLogRequest.signature:type_name -> xmtp.identity.associations.RecoverableEd25519Signature
-	17, // 24: xmtp.mls.api.v1.QueryCommitLogRequest.paging_info:type_name -> xmtp.mls.api.v1.PagingInfo
-	48, // 25: xmtp.mls.api.v1.QueryCommitLogResponse.commit_log_entries:type_name -> xmtp.mls.message_contents.CommitLogEntry
-	17, // 26: xmtp.mls.api.v1.QueryCommitLogResponse.paging_info:type_name -> xmtp.mls.api.v1.PagingInfo
-	26, // 27: xmtp.mls.api.v1.BatchQueryCommitLogRequest.requests:type_name -> xmtp.mls.api.v1.QueryCommitLogRequest
-	27, // 28: xmtp.mls.api.v1.BatchQueryCommitLogResponse.responses:type_name -> xmtp.mls.api.v1.QueryCommitLogResponse
-	45, // 29: xmtp.mls.api.v1.GetNewestGroupMessageResponse.responses:type_name -> xmtp.mls.api.v1.GetNewestGroupMessageResponse.Response
-	49, // 30: xmtp.mls.api.v1.WelcomeMessage.V1.wrapper_algorithm:type_name -> xmtp.mls.message_contents.WelcomeWrapperAlgorithm
-	50, // 31: xmtp.mls.api.v1.WelcomeMessage.WelcomePointer.wrapper_algorithm:type_name -> xmtp.mls.message_contents.WelcomePointerWrapperAlgorithm
-	49, // 32: xmtp.mls.api.v1.WelcomeMessageInput.V1.wrapper_algorithm:type_name -> xmtp.mls.message_contents.WelcomeWrapperAlgorithm
-	50, // 33: xmtp.mls.api.v1.WelcomeMessageInput.WelcomePointer.wrapper_algorithm:type_name -> xmtp.mls.message_contents.WelcomePointerWrapperAlgorithm
-	39, // 34: xmtp.mls.api.v1.GetIdentityUpdatesResponse.Update.new_installation:type_name -> xmtp.mls.api.v1.GetIdentityUpdatesResponse.NewInstallationUpdate
-	40, // 35: xmtp.mls.api.v1.GetIdentityUpdatesResponse.Update.revoked_installation:type_name -> xmtp.mls.api.v1.GetIdentityUpdatesResponse.RevokedInstallationUpdate
-	41, // 36: xmtp.mls.api.v1.GetIdentityUpdatesResponse.WalletUpdates.updates:type_name -> xmtp.mls.api.v1.GetIdentityUpdatesResponse.Update
-	4,  // 37: xmtp.mls.api.v1.GetNewestGroupMessageResponse.Response.group_message:type_name -> xmtp.mls.api.v1.GroupMessage
-	6,  // 38: xmtp.mls.api.v1.MlsApi.SendGroupMessages:input_type -> xmtp.mls.api.v1.SendGroupMessagesRequest
-	7,  // 39: xmtp.mls.api.v1.MlsApi.SendWelcomeMessages:input_type -> xmtp.mls.api.v1.SendWelcomeMessagesRequest
-	9,  // 40: xmtp.mls.api.v1.MlsApi.RegisterInstallation:input_type -> xmtp.mls.api.v1.RegisterInstallationRequest
-	11, // 41: xmtp.mls.api.v1.MlsApi.UploadKeyPackage:input_type -> xmtp.mls.api.v1.UploadKeyPackageRequest
-	12, // 42: xmtp.mls.api.v1.MlsApi.FetchKeyPackages:input_type -> xmtp.mls.api.v1.FetchKeyPackagesRequest
-	14, // 43: xmtp.mls.api.v1.MlsApi.RevokeInstallation:input_type -> xmtp.mls.api.v1.RevokeInstallationRequest
-	15, // 44: xmtp.mls.api.v1.MlsApi.GetIdentityUpdates:input_type -> xmtp.mls.api.v1.GetIdentityUpdatesRequest
-	18, // 45: xmtp.mls.api.v1.MlsApi.QueryGroupMessages:input_type -> xmtp.mls.api.v1.QueryGroupMessagesRequest
-	20, // 46: xmtp.mls.api.v1.MlsApi.QueryWelcomeMessages:input_type -> xmtp.mls.api.v1.QueryWelcomeMessagesRequest
-	22, // 47: xmtp.mls.api.v1.MlsApi.SubscribeGroupMessages:input_type -> xmtp.mls.api.v1.SubscribeGroupMessagesRequest
-	23, // 48: xmtp.mls.api.v1.MlsApi.SubscribeWelcomeMessages:input_type -> xmtp.mls.api.v1.SubscribeWelcomeMessagesRequest
-	24, // 49: xmtp.mls.api.v1.MlsApi.BatchPublishCommitLog:input_type -> xmtp.mls.api.v1.BatchPublishCommitLogRequest
-	28, // 50: xmtp.mls.api.v1.MlsApi.BatchQueryCommitLog:input_type -> xmtp.mls.api.v1.BatchQueryCommitLogRequest
-	30, // 51: xmtp.mls.api.v1.MlsApi.GetNewestGroupMessage:input_type -> xmtp.mls.api.v1.GetNewestGroupMessageRequest
-	51, // 52: xmtp.mls.api.v1.MlsApi.SendGroupMessages:output_type -> google.protobuf.Empty
-	51, // 53: xmtp.mls.api.v1.MlsApi.SendWelcomeMessages:output_type -> google.protobuf.Empty
-	10, // 54: xmtp.mls.api.v1.MlsApi.RegisterInstallation:output_type -> xmtp.mls.api.v1.RegisterInstallationResponse
-	51, // 55: xmtp.mls.api.v1.MlsApi.UploadKeyPackage:output_type -> google.protobuf.Empty
-	13, // 56: xmtp.mls.api.v1.MlsApi.FetchKeyPackages:output_type -> xmtp.mls.api.v1.FetchKeyPackagesResponse
-	51, // 57: xmtp.mls.api.v1.MlsApi.RevokeInstallation:output_type -> google.protobuf.Empty
-	16, // 58: xmtp.mls.api.v1.MlsApi.GetIdentityUpdates:output_type -> xmtp.mls.api.v1.GetIdentityUpdatesResponse
-	19, // 59: xmtp.mls.api.v1.MlsApi.QueryGroupMessages:output_type -> xmtp.mls.api.v1.QueryGroupMessagesResponse
-	21, // 60: xmtp.mls.api.v1.MlsApi.QueryWelcomeMessages:output_type -> xmtp.mls.api.v1.QueryWelcomeMessagesResponse
-	4,  // 61: xmtp.mls.api.v1.MlsApi.SubscribeGroupMessages:output_type -> xmtp.mls.api.v1.GroupMessage
-	1,  // 62: xmtp.mls.api.v1.MlsApi.SubscribeWelcomeMessages:output_type -> xmtp.mls.api.v1.WelcomeMessage
-	51, // 63: xmtp.mls.api.v1.MlsApi.BatchPublishCommitLog:output_type -> google.protobuf.Empty
-	29, // 64: xmtp.mls.api.v1.MlsApi.BatchQueryCommitLog:output_type -> xmtp.mls.api.v1.BatchQueryCommitLogResponse
-	31, // 65: xmtp.mls.api.v1.MlsApi.GetNewestGroupMessage:output_type -> xmtp.mls.api.v1.GetNewestGroupMessageResponse
-	52, // [52:66] is the sub-list for method output_type
-	38, // [38:52] is the sub-list for method input_type
-	38, // [38:38] is the sub-list for extension type_name
-	38, // [38:38] is the sub-list for extension extendee
-	0,  // [0:38] is the sub-list for field type_name
+	18, // 14: xmtp.mls.api.v1.QueryGroupMessagesRequest.paging_info:type_name -> xmtp.mls.api.v1.PagingInfo
+	5,  // 15: xmtp.mls.api.v1.QueryGroupMessagesResponse.messages:type_name -> xmtp.mls.api.v1.GroupMessage
+	18, // 16: xmtp.mls.api.v1.QueryGroupMessagesResponse.paging_info:type_name -> xmtp.mls.api.v1.PagingInfo
+	18, // 17: xmtp.mls.api.v1.QueryWelcomeMessagesRequest.paging_info:type_name -> xmtp.mls.api.v1.PagingInfo
+	2,  // 18: xmtp.mls.api.v1.QueryWelcomeMessagesResponse.messages:type_name -> xmtp.mls.api.v1.WelcomeMessage
+	18, // 19: xmtp.mls.api.v1.QueryWelcomeMessagesResponse.paging_info:type_name -> xmtp.mls.api.v1.PagingInfo
+	48, // 20: xmtp.mls.api.v1.SubscribeGroupMessagesRequest.filters:type_name -> xmtp.mls.api.v1.SubscribeGroupMessagesRequest.Filter
+	49, // 21: xmtp.mls.api.v1.SubscribeWelcomeMessagesRequest.filters:type_name -> xmtp.mls.api.v1.SubscribeWelcomeMessagesRequest.Filter
+	50, // 22: xmtp.mls.api.v1.SubscribeRequest.v1:type_name -> xmtp.mls.api.v1.SubscribeRequest.V1
+	53, // 23: xmtp.mls.api.v1.SubscribeResponse.v1:type_name -> xmtp.mls.api.v1.SubscribeResponse.V1
+	30, // 24: xmtp.mls.api.v1.BatchPublishCommitLogRequest.requests:type_name -> xmtp.mls.api.v1.PublishCommitLogRequest
+	60, // 25: xmtp.mls.api.v1.PublishCommitLogRequest.signature:type_name -> xmtp.identity.associations.RecoverableEd25519Signature
+	18, // 26: xmtp.mls.api.v1.QueryCommitLogRequest.paging_info:type_name -> xmtp.mls.api.v1.PagingInfo
+	61, // 27: xmtp.mls.api.v1.QueryCommitLogResponse.commit_log_entries:type_name -> xmtp.mls.message_contents.CommitLogEntry
+	18, // 28: xmtp.mls.api.v1.QueryCommitLogResponse.paging_info:type_name -> xmtp.mls.api.v1.PagingInfo
+	31, // 29: xmtp.mls.api.v1.BatchQueryCommitLogRequest.requests:type_name -> xmtp.mls.api.v1.QueryCommitLogRequest
+	32, // 30: xmtp.mls.api.v1.BatchQueryCommitLogResponse.responses:type_name -> xmtp.mls.api.v1.QueryCommitLogResponse
+	58, // 31: xmtp.mls.api.v1.GetNewestGroupMessageResponse.responses:type_name -> xmtp.mls.api.v1.GetNewestGroupMessageResponse.Response
+	62, // 32: xmtp.mls.api.v1.WelcomeMessage.V1.wrapper_algorithm:type_name -> xmtp.mls.message_contents.WelcomeWrapperAlgorithm
+	63, // 33: xmtp.mls.api.v1.WelcomeMessage.WelcomePointer.wrapper_algorithm:type_name -> xmtp.mls.message_contents.WelcomePointerWrapperAlgorithm
+	62, // 34: xmtp.mls.api.v1.WelcomeMessageInput.V1.wrapper_algorithm:type_name -> xmtp.mls.message_contents.WelcomeWrapperAlgorithm
+	63, // 35: xmtp.mls.api.v1.WelcomeMessageInput.WelcomePointer.wrapper_algorithm:type_name -> xmtp.mls.message_contents.WelcomePointerWrapperAlgorithm
+	44, // 36: xmtp.mls.api.v1.GetIdentityUpdatesResponse.Update.new_installation:type_name -> xmtp.mls.api.v1.GetIdentityUpdatesResponse.NewInstallationUpdate
+	45, // 37: xmtp.mls.api.v1.GetIdentityUpdatesResponse.Update.revoked_installation:type_name -> xmtp.mls.api.v1.GetIdentityUpdatesResponse.RevokedInstallationUpdate
+	46, // 38: xmtp.mls.api.v1.GetIdentityUpdatesResponse.WalletUpdates.updates:type_name -> xmtp.mls.api.v1.GetIdentityUpdatesResponse.Update
+	51, // 39: xmtp.mls.api.v1.SubscribeRequest.V1.mutate:type_name -> xmtp.mls.api.v1.SubscribeRequest.V1.Mutate
+	27, // 40: xmtp.mls.api.v1.SubscribeRequest.V1.ping:type_name -> xmtp.mls.api.v1.Ping
+	28, // 41: xmtp.mls.api.v1.SubscribeRequest.V1.pong:type_name -> xmtp.mls.api.v1.Pong
+	52, // 42: xmtp.mls.api.v1.SubscribeRequest.V1.Mutate.adds:type_name -> xmtp.mls.api.v1.SubscribeRequest.V1.Mutate.Subscription
+	54, // 43: xmtp.mls.api.v1.SubscribeResponse.V1.messages:type_name -> xmtp.mls.api.v1.SubscribeResponse.V1.Messages
+	55, // 44: xmtp.mls.api.v1.SubscribeResponse.V1.started:type_name -> xmtp.mls.api.v1.SubscribeResponse.V1.Started
+	27, // 45: xmtp.mls.api.v1.SubscribeResponse.V1.ping:type_name -> xmtp.mls.api.v1.Ping
+	28, // 46: xmtp.mls.api.v1.SubscribeResponse.V1.pong:type_name -> xmtp.mls.api.v1.Pong
+	57, // 47: xmtp.mls.api.v1.SubscribeResponse.V1.topics_live:type_name -> xmtp.mls.api.v1.SubscribeResponse.V1.TopicsLive
+	56, // 48: xmtp.mls.api.v1.SubscribeResponse.V1.catchup_complete:type_name -> xmtp.mls.api.v1.SubscribeResponse.V1.CatchupComplete
+	5,  // 49: xmtp.mls.api.v1.SubscribeResponse.V1.Messages.group_messages:type_name -> xmtp.mls.api.v1.GroupMessage
+	2,  // 50: xmtp.mls.api.v1.SubscribeResponse.V1.Messages.welcome_messages:type_name -> xmtp.mls.api.v1.WelcomeMessage
+	1,  // 51: xmtp.mls.api.v1.SubscribeResponse.V1.Started.capabilities:type_name -> xmtp.mls.api.v1.SubscribeResponse.V1.Capability
+	5,  // 52: xmtp.mls.api.v1.GetNewestGroupMessageResponse.Response.group_message:type_name -> xmtp.mls.api.v1.GroupMessage
+	7,  // 53: xmtp.mls.api.v1.MlsApi.SendGroupMessages:input_type -> xmtp.mls.api.v1.SendGroupMessagesRequest
+	8,  // 54: xmtp.mls.api.v1.MlsApi.SendWelcomeMessages:input_type -> xmtp.mls.api.v1.SendWelcomeMessagesRequest
+	10, // 55: xmtp.mls.api.v1.MlsApi.RegisterInstallation:input_type -> xmtp.mls.api.v1.RegisterInstallationRequest
+	12, // 56: xmtp.mls.api.v1.MlsApi.UploadKeyPackage:input_type -> xmtp.mls.api.v1.UploadKeyPackageRequest
+	13, // 57: xmtp.mls.api.v1.MlsApi.FetchKeyPackages:input_type -> xmtp.mls.api.v1.FetchKeyPackagesRequest
+	15, // 58: xmtp.mls.api.v1.MlsApi.RevokeInstallation:input_type -> xmtp.mls.api.v1.RevokeInstallationRequest
+	16, // 59: xmtp.mls.api.v1.MlsApi.GetIdentityUpdates:input_type -> xmtp.mls.api.v1.GetIdentityUpdatesRequest
+	19, // 60: xmtp.mls.api.v1.MlsApi.QueryGroupMessages:input_type -> xmtp.mls.api.v1.QueryGroupMessagesRequest
+	21, // 61: xmtp.mls.api.v1.MlsApi.QueryWelcomeMessages:input_type -> xmtp.mls.api.v1.QueryWelcomeMessagesRequest
+	23, // 62: xmtp.mls.api.v1.MlsApi.SubscribeGroupMessages:input_type -> xmtp.mls.api.v1.SubscribeGroupMessagesRequest
+	24, // 63: xmtp.mls.api.v1.MlsApi.SubscribeWelcomeMessages:input_type -> xmtp.mls.api.v1.SubscribeWelcomeMessagesRequest
+	25, // 64: xmtp.mls.api.v1.MlsApi.Subscribe:input_type -> xmtp.mls.api.v1.SubscribeRequest
+	29, // 65: xmtp.mls.api.v1.MlsApi.BatchPublishCommitLog:input_type -> xmtp.mls.api.v1.BatchPublishCommitLogRequest
+	33, // 66: xmtp.mls.api.v1.MlsApi.BatchQueryCommitLog:input_type -> xmtp.mls.api.v1.BatchQueryCommitLogRequest
+	35, // 67: xmtp.mls.api.v1.MlsApi.GetNewestGroupMessage:input_type -> xmtp.mls.api.v1.GetNewestGroupMessageRequest
+	64, // 68: xmtp.mls.api.v1.MlsApi.SendGroupMessages:output_type -> google.protobuf.Empty
+	64, // 69: xmtp.mls.api.v1.MlsApi.SendWelcomeMessages:output_type -> google.protobuf.Empty
+	11, // 70: xmtp.mls.api.v1.MlsApi.RegisterInstallation:output_type -> xmtp.mls.api.v1.RegisterInstallationResponse
+	64, // 71: xmtp.mls.api.v1.MlsApi.UploadKeyPackage:output_type -> google.protobuf.Empty
+	14, // 72: xmtp.mls.api.v1.MlsApi.FetchKeyPackages:output_type -> xmtp.mls.api.v1.FetchKeyPackagesResponse
+	64, // 73: xmtp.mls.api.v1.MlsApi.RevokeInstallation:output_type -> google.protobuf.Empty
+	17, // 74: xmtp.mls.api.v1.MlsApi.GetIdentityUpdates:output_type -> xmtp.mls.api.v1.GetIdentityUpdatesResponse
+	20, // 75: xmtp.mls.api.v1.MlsApi.QueryGroupMessages:output_type -> xmtp.mls.api.v1.QueryGroupMessagesResponse
+	22, // 76: xmtp.mls.api.v1.MlsApi.QueryWelcomeMessages:output_type -> xmtp.mls.api.v1.QueryWelcomeMessagesResponse
+	5,  // 77: xmtp.mls.api.v1.MlsApi.SubscribeGroupMessages:output_type -> xmtp.mls.api.v1.GroupMessage
+	2,  // 78: xmtp.mls.api.v1.MlsApi.SubscribeWelcomeMessages:output_type -> xmtp.mls.api.v1.WelcomeMessage
+	26, // 79: xmtp.mls.api.v1.MlsApi.Subscribe:output_type -> xmtp.mls.api.v1.SubscribeResponse
+	64, // 80: xmtp.mls.api.v1.MlsApi.BatchPublishCommitLog:output_type -> google.protobuf.Empty
+	34, // 81: xmtp.mls.api.v1.MlsApi.BatchQueryCommitLog:output_type -> xmtp.mls.api.v1.BatchQueryCommitLogResponse
+	36, // 82: xmtp.mls.api.v1.MlsApi.GetNewestGroupMessage:output_type -> xmtp.mls.api.v1.GetNewestGroupMessageResponse
+	68, // [68:83] is the sub-list for method output_type
+	53, // [53:68] is the sub-list for method input_type
+	53, // [53:53] is the sub-list for extension type_name
+	53, // [53:53] is the sub-list for extension extendee
+	0,  // [0:53] is the sub-list for field type_name
 }
 
 func init() { file_mls_api_v1_mls_proto_init() }
@@ -3008,18 +3958,37 @@ func file_mls_api_v1_mls_proto_init() {
 	file_mls_api_v1_mls_proto_msgTypes[4].OneofWrappers = []any{
 		(*GroupMessageInput_V1_)(nil),
 	}
-	file_mls_api_v1_mls_proto_msgTypes[40].OneofWrappers = []any{
+	file_mls_api_v1_mls_proto_msgTypes[23].OneofWrappers = []any{
+		(*SubscribeRequest_V1_)(nil),
+	}
+	file_mls_api_v1_mls_proto_msgTypes[24].OneofWrappers = []any{
+		(*SubscribeResponse_V1_)(nil),
+	}
+	file_mls_api_v1_mls_proto_msgTypes[44].OneofWrappers = []any{
 		(*GetIdentityUpdatesResponse_Update_NewInstallation)(nil),
 		(*GetIdentityUpdatesResponse_Update_RevokedInstallation)(nil),
 	}
-	file_mls_api_v1_mls_proto_msgTypes[44].OneofWrappers = []any{}
+	file_mls_api_v1_mls_proto_msgTypes[48].OneofWrappers = []any{
+		(*SubscribeRequest_V1_Mutate_)(nil),
+		(*SubscribeRequest_V1_Ping)(nil),
+		(*SubscribeRequest_V1_Pong)(nil),
+	}
+	file_mls_api_v1_mls_proto_msgTypes[51].OneofWrappers = []any{
+		(*SubscribeResponse_V1_Messages_)(nil),
+		(*SubscribeResponse_V1_Started_)(nil),
+		(*SubscribeResponse_V1_Ping)(nil),
+		(*SubscribeResponse_V1_Pong)(nil),
+		(*SubscribeResponse_V1_TopicsLive_)(nil),
+		(*SubscribeResponse_V1_CatchupComplete_)(nil),
+	}
+	file_mls_api_v1_mls_proto_msgTypes[56].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_mls_api_v1_mls_proto_rawDesc), len(file_mls_api_v1_mls_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   45,
+			NumEnums:      2,
+			NumMessages:   57,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

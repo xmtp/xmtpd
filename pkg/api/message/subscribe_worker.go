@@ -292,16 +292,32 @@ func (s *subscribeWorker) dispatchToListeners(
 }
 
 func (s *subscribeWorker) closeListener(l *listener) {
-	// Assumption: this method may not be called across multiple goroutines
+	// Assumption: this method may not be called across multiple goroutines (worker only).
+	// closed is set under topicsMu so a concurrent mutableSubscription.addTopics observes it
+	// atomically with its own addListener call. Otherwise a stale closed==false read could
+	// re-register the listener in topicListeners AFTER its channel is closed here — leaking it
+	// (dispatch skips closed listeners but never removes them) or, on a torn read, sending on the
+	// closed channel.
+	l.topicsMu.Lock()
 	l.closed = true
+	l.topicsMu.Unlock()
 	close(l.ch)
 
 	go func() {
 		if l.isGlobal {
 			s.globalListeners.Delete(l)
-		} else if len(l.topics) > 0 {
+			return
+		}
+		// topics may have been mutated by a mutableSubscription right up until we set closed
+		// above; read it under the lock so we remove exactly what is still registered. Lock order
+		// is always topicsMu -> listenersMap.mu (mutableSubscription does the same), so this
+		// cannot deadlock.
+		l.topicsMu.Lock()
+		if len(l.topics) > 0 {
 			s.topicListeners.removeListener(l.topics, l)
-		} else if len(l.originators) > 0 {
+		}
+		l.topicsMu.Unlock()
+		if len(l.originators) > 0 {
 			s.originatorListeners.removeListener(l.originators, l)
 		}
 	}()

@@ -212,6 +212,7 @@ type APIServerTestSuite struct {
 type APIServerTestConfig struct {
 	registryNodes               []registry.Node
 	requirePayerPositiveBalance bool
+	sendKeepAliveInterval       time.Duration
 }
 
 type TestAPIOption func(*APIServerTestConfig)
@@ -225,6 +226,14 @@ func WithRegistryNodes(nodes []registry.Node) TestAPIOption {
 func WithRequirePayerPositiveBalance(enabled bool) TestAPIOption {
 	return func(cfg *APIServerTestConfig) {
 		cfg.requirePayerPositiveBalance = enabled
+	}
+}
+
+// WithSendKeepAliveInterval overrides the server keepalive/ping cadence (default 30s), so a test
+// can exercise the Subscribe liveness ping/pong reaping without waiting tens of seconds.
+func WithSendKeepAliveInterval(d time.Duration) TestAPIOption {
+	return func(cfg *APIServerTestConfig) {
+		cfg.sendKeepAliveInterval = d
 	}
 }
 
@@ -251,6 +260,9 @@ func NewTestAPIServer(
 	var cfg APIServerTestConfig
 	for _, opt := range opts {
 		opt(&cfg)
+	}
+	if cfg.sendKeepAliveInterval == 0 {
+		cfg.sendKeepAliveInterval = 30 * time.Second
 	}
 
 	var (
@@ -307,7 +319,7 @@ func NewTestAPIServer(
 			metadata.NewCursorUpdater(ctx, log, db),
 			fees.NewTestFeeCalculator(),
 			config.APIOptions{
-				SendKeepAliveInterval:       30 * time.Second,
+				SendKeepAliveInterval:       cfg.sendKeepAliveInterval,
 				RequirePayerPositiveBalance: cfg.requirePayerPositiveBalance,
 			},
 			false,

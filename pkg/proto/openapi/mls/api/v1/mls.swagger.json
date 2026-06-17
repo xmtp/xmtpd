@@ -563,6 +563,21 @@
       },
       "title": "A wrapper for the updates for a single wallet"
     },
+    "MutateSubscription": {
+      "type": "object",
+      "properties": {
+        "topic": {
+          "type": "string",
+          "format": "byte"
+        },
+        "idCursor": {
+          "type": "string",
+          "format": "uint64",
+          "description": "Deliver ids greater than this; 0 = from the beginning. For a newly\njoined group, a client SHOULD seed this from the welcome's encrypted\nWelcomeMetadata.message_cursor so a new membership does not refetch\npre-join history it cannot decrypt; for a new installation's welcome\ntopic, 0 is how pending welcomes are collected."
+        }
+      },
+      "description": "A topic to subscribe, with the cursor to resume from."
+    },
     "SignatureECDSACompact": {
       "type": "object",
       "properties": {
@@ -594,6 +609,108 @@
         }
       },
       "description": "ECDSA signature bytes and the recovery bit\nproduced by xmtp-js::PublicKey.signWithWallet function, i.e.\nEIP-191 signature of a \"Create Identity\" message with the key embedded.\nUsed to sign identity keys."
+    },
+    "V1Capability": {
+      "type": "string",
+      "enum": [
+        "CAPABILITY_UNSPECIFIED"
+      ],
+      "default": "CAPABILITY_UNSPECIFIED",
+      "description": "Optional per-stream protocol features (none defined yet; future\nrevisions add values, e.g. fetch-over-stream lookups answered with the\nsame read view that feeds the stream, or new streamable topic kinds)."
+    },
+    "V1CatchupComplete": {
+      "type": "object",
+      "properties": {
+        "mutateId": {
+          "type": "string",
+          "format": "uint64",
+          "title": "echoes the Mutate that started this wave (0 if none given)"
+        }
+      },
+      "description": "Sent once per Mutate that adds subscriptions (a catch-up \"wave\"), after\nthe wave's last TopicsLive: everything the Mutate asked for is delivered."
+    },
+    "V1Messages": {
+      "type": "object",
+      "properties": {
+        "groupMessages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/apiv1GroupMessage"
+          }
+        },
+        "welcomeMessages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1WelcomeMessage"
+          }
+        }
+      },
+      "description": "A batch of new messages; group and welcome messages share the stream,\ndepending on which subscriptions are active."
+    },
+    "V1Mutate": {
+      "type": "object",
+      "properties": {
+        "adds": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/MutateSubscription"
+          },
+          "title": "begin delivering these topics"
+        },
+        "removes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "byte"
+          },
+          "title": "topics to stop delivering"
+        },
+        "historyOnly": {
+          "type": "boolean",
+          "description": "Catch this Mutate's adds up to the live edge — history, TopicsLive\nmarkers, and the wave's CatchupComplete — but do NOT register them\nfor live delivery. The markers then mean \"you have everything as of\nnow\". Combined with half-closing the request stream, this is the\nbounded catch-up (\"sync\") mode: the server finishes the wave and then\ncloses the stream itself. Removals in the Mutate are unaffected."
+        },
+        "mutateId": {
+          "type": "string",
+          "format": "uint64",
+          "description": "Client-chosen correlation id, echoed on this wave's CatchupComplete\nso completions are attributable when waves overlap. SHOULD be unique\nper stream; 0 = no correlation requested (still echoed as 0)."
+        }
+      },
+      "description": "Add and/or remove subscriptions in place (applied atomically per frame).\nTopics use the kind-prefixed binary representation shared with the\ndecentralized backend (XIP-49 §3.3.2): the first byte is the topic kind,\nthe remainder is the identifier. This RPC initially serves\nTOPIC_KIND_GROUP_MESSAGES_V1 (0x00, identifier = group_id) and\nTOPIC_KIND_WELCOME_MESSAGES_V1 (0x01, identifier = installation_key);\na topic whose kind the node does not serve fails the stream with\nINVALID_ARGUMENT. Future kinds (key packages, identity updates) are\nadopted via the capabilities advertised on Started."
+    },
+    "V1Started": {
+      "type": "object",
+      "properties": {
+        "keepaliveIntervalMs": {
+          "type": "integer",
+          "format": "int64",
+          "description": "The server's ping cadence (ms): the basis for the client's staleness\nthreshold and the server's reap deadline."
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/V1Capability"
+          },
+          "description": "Optional protocol features the node supports on this stream. The node\nsilently ignores request types it does not understand, so a client\nMUST NOT send an optional request type whose capability the node did\nnot advertise (it would hang waiting on a response that never comes)."
+        }
+      },
+      "description": "The first frame on every stream."
+    },
+    "V1TopicsLive": {
+      "type": "object",
+      "properties": {
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "byte"
+          },
+          "title": "kind-prefixed topics now tailing live"
+        }
+      },
+      "description": "Emitted when topics finish catch-up, AFTER the last history frame for\nthem — including any live messages that queued up behind the catch-up,\nwhich were equally historical from the client's perspective — so every\nlater frame for a listed topic is live tail. Informational only: delivery\ncorrectness (no duplicates, no gaps) never depends on it. Re-adding a\ntopic re-runs catch-up and re-emits it; receivers treat it idempotently."
     },
     "apiv1GroupMessage": {
       "type": "object",
@@ -879,6 +996,26 @@
       "description": "This would be a serialized MLS key package that the node would\n parse, validate, and then store.",
       "title": "A wrapper around the Key Package bytes"
     },
+    "v1Ping": {
+      "type": "object",
+      "properties": {
+        "nonce": {
+          "type": "string",
+          "format": "uint64"
+        }
+      },
+      "description": "Liveness challenge/response, shared across versions. Either peer MAY send a\nPing; the receiver MUST reply with a Pong echoing the nonce. The sender closes\nthe stream if no Pong arrives within its deadline — how a node reaps a vanished\npeer (e.g. a mobile client the OS suspended behind a proxy that still ACKs the\ntransport)."
+    },
+    "v1Pong": {
+      "type": "object",
+      "properties": {
+        "nonce": {
+          "type": "string",
+          "format": "uint64",
+          "title": "echoes the nonce of the Ping it answers"
+        }
+      }
+    },
     "v1PublishCommitLogRequest": {
       "type": "object",
       "properties": {
@@ -1073,6 +1210,59 @@
         }
       },
       "title": "Subscription filter"
+    },
+    "v1SubscribeRequestV1": {
+      "type": "object",
+      "properties": {
+        "mutate": {
+          "$ref": "#/definitions/V1Mutate"
+        },
+        "ping": {
+          "$ref": "#/definitions/v1Ping",
+          "title": "liveness challenge (e.g. probe the link after resuming)"
+        },
+        "pong": {
+          "$ref": "#/definitions/v1Pong",
+          "title": "answer to a server Ping"
+        }
+      }
+    },
+    "v1SubscribeResponse": {
+      "type": "object",
+      "properties": {
+        "v1": {
+          "$ref": "#/definitions/v1SubscribeResponseV1"
+        }
+      },
+      "description": "Server -\u003e client."
+    },
+    "v1SubscribeResponseV1": {
+      "type": "object",
+      "properties": {
+        "messages": {
+          "$ref": "#/definitions/V1Messages"
+        },
+        "started": {
+          "$ref": "#/definitions/V1Started",
+          "title": "sent once, immediately on open, before any catch-up"
+        },
+        "ping": {
+          "$ref": "#/definitions/v1Ping",
+          "title": "idle liveness challenge; receiver MUST answer with Pong"
+        },
+        "pong": {
+          "$ref": "#/definitions/v1Pong",
+          "title": "answer to a client Ping"
+        },
+        "topicsLive": {
+          "$ref": "#/definitions/V1TopicsLive",
+          "title": "these topics just crossed from catch-up to live"
+        },
+        "catchupComplete": {
+          "$ref": "#/definitions/V1CatchupComplete",
+          "title": "a Mutate's adds are fully delivered"
+        }
+      }
     },
     "v1SubscribeWelcomeMessagesRequest": {
       "type": "object",

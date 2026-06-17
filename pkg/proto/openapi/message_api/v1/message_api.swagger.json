@@ -148,7 +148,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/v1SubscribeRequest"
+              "$ref": "#/definitions/xmtpmessage_apiv1SubscribeRequest"
             }
           }
         ],
@@ -357,18 +357,6 @@
       "type": "object",
       "title": "SubscribeAll"
     },
-    "v1SubscribeRequest": {
-      "type": "object",
-      "properties": {
-        "contentTopics": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "title": "Subscribe"
-    },
     "xmtpmessage_apiv1PagingInfo": {
       "type": "object",
       "properties": {
@@ -395,6 +383,18 @@
       ],
       "default": "SORT_DIRECTION_UNSPECIFIED",
       "title": "Sort direction"
+    },
+    "xmtpmessage_apiv1SubscribeRequest": {
+      "type": "object",
+      "properties": {
+        "contentTopics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "Subscribe"
     }
   }
 }

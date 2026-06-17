@@ -17,6 +17,19 @@
   ],
   "paths": {},
   "definitions": {
+    "SubscribeResponseV1Envelopes": {
+      "type": "object",
+      "properties": {
+        "envelopes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/envelopesOriginatorEnvelope"
+          }
+        }
+      },
+      "description": "A batch of envelopes across the active subscriptions; the client demuxes\nby each envelope's target topic."
+    },
     "SubscribeTopicsRequestTopicFilter": {
       "type": "object",
       "properties": {
@@ -260,6 +273,175 @@
         }
       },
       "title": "A single response for a given address"
+    },
+    "xmtpv4message_apiPing": {
+      "type": "object",
+      "properties": {
+        "nonce": {
+          "type": "string",
+          "format": "uint64"
+        }
+      },
+      "description": "Liveness challenge/response for Subscribe, shared across versions. Either peer\nMAY send a Ping; the receiver MUST reply with a Pong echoing the nonce. The\nsender closes the stream if no Pong arrives within its deadline — how a node\nreaps a vanished peer (e.g. a mobile client the OS suspended behind a proxy\nthat still ACKs the transport)."
+    },
+    "xmtpv4message_apiPong": {
+      "type": "object",
+      "properties": {
+        "nonce": {
+          "type": "string",
+          "format": "uint64",
+          "title": "echoes the nonce of the Ping it answers"
+        }
+      }
+    },
+    "xmtpv4message_apiSubscribeRequestV1": {
+      "type": "object",
+      "properties": {
+        "mutate": {
+          "$ref": "#/definitions/xmtpv4message_apiSubscribeRequestV1Mutate"
+        },
+        "ping": {
+          "$ref": "#/definitions/xmtpv4message_apiPing",
+          "title": "liveness challenge (e.g. probe the link after resuming)"
+        },
+        "pong": {
+          "$ref": "#/definitions/xmtpv4message_apiPong",
+          "title": "answer to a node Ping"
+        }
+      }
+    },
+    "xmtpv4message_apiSubscribeRequestV1Mutate": {
+      "type": "object",
+      "properties": {
+        "adds": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/xmtpv4message_apiSubscribeRequestV1MutateSubscription"
+          },
+          "title": "begin delivering these topics"
+        },
+        "removes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "byte"
+          },
+          "title": "topics to stop delivering"
+        },
+        "historyOnly": {
+          "type": "boolean",
+          "description": "Catch this Mutate's adds up to the live edge — history, TopicsLive\nmarkers, and the wave's CatchupComplete — but do NOT register them for\nlive delivery. The markers then mean \"you have everything as of now\".\nCombined with half-closing the request stream, this is the bounded\ncatch-up (\"sync\") mode: the node finishes the wave then closes the\nstream itself. Removals in the Mutate are unaffected."
+        },
+        "mutateId": {
+          "type": "string",
+          "format": "uint64",
+          "description": "Client-chosen correlation id, echoed on this wave's CatchupComplete so\ncompletions are attributable when waves overlap. SHOULD be unique per\nstream; 0 = no correlation requested (still echoed as 0)."
+        }
+      },
+      "description": "Add and/or remove subscriptions in place (applied atomically per frame).\nTopics use the kind-prefixed binary representation (XIP-49 §3.3.2): the\nfirst byte is the topic kind, the remainder is the identifier. A topic\nwhose kind the node does not serve fails the stream with INVALID_ARGUMENT."
+    },
+    "xmtpv4message_apiSubscribeRequestV1MutateSubscription": {
+      "type": "object",
+      "properties": {
+        "topic": {
+          "type": "string",
+          "format": "byte"
+        },
+        "lastSeen": {
+          "$ref": "#/definitions/xmtpv4envelopesCursor",
+          "description": "Resume point: deliver envelopes beyond this per-originator vector\ncursor. Omitted/empty = from the beginning. Originators absent from\nthe cursor map are treated as sequence 0 (the node fills them in),\nmirroring SubscribeTopics.TopicFilter.last_seen."
+        }
+      },
+      "description": "A topic to subscribe, with the vector cursor to resume from."
+    },
+    "xmtpv4message_apiSubscribeResponse": {
+      "type": "object",
+      "properties": {
+        "v1": {
+          "$ref": "#/definitions/xmtpv4message_apiSubscribeResponseV1"
+        }
+      },
+      "description": "Node -\u003e client."
+    },
+    "xmtpv4message_apiSubscribeResponseV1": {
+      "type": "object",
+      "properties": {
+        "envelopes": {
+          "$ref": "#/definitions/SubscribeResponseV1Envelopes"
+        },
+        "started": {
+          "$ref": "#/definitions/xmtpv4message_apiSubscribeResponseV1Started",
+          "title": "sent once, immediately on open, before any catch-up"
+        },
+        "ping": {
+          "$ref": "#/definitions/xmtpv4message_apiPing",
+          "title": "idle liveness challenge; receiver MUST answer with Pong"
+        },
+        "pong": {
+          "$ref": "#/definitions/xmtpv4message_apiPong",
+          "title": "answer to a client Ping"
+        },
+        "topicsLive": {
+          "$ref": "#/definitions/xmtpv4message_apiSubscribeResponseV1TopicsLive",
+          "title": "these topics just crossed from catch-up to live"
+        },
+        "catchupComplete": {
+          "$ref": "#/definitions/xmtpv4message_apiSubscribeResponseV1CatchupComplete",
+          "title": "a Mutate's adds are fully delivered"
+        }
+      }
+    },
+    "xmtpv4message_apiSubscribeResponseV1Capability": {
+      "type": "string",
+      "enum": [
+        "CAPABILITY_UNSPECIFIED"
+      ],
+      "default": "CAPABILITY_UNSPECIFIED",
+      "description": "Optional per-stream protocol features (none defined yet; future revisions\nadd values, e.g. fetch-over-stream lookups answered with the same read\nview that feeds the stream, or new streamable topic kinds)."
+    },
+    "xmtpv4message_apiSubscribeResponseV1CatchupComplete": {
+      "type": "object",
+      "properties": {
+        "mutateId": {
+          "type": "string",
+          "format": "uint64",
+          "title": "echoes the Mutate that started this wave (0 if none given)"
+        }
+      },
+      "description": "Sent once per Mutate that adds subscriptions (a catch-up \"wave\"), after\nthe wave's last TopicsLive: everything the Mutate asked for is delivered."
+    },
+    "xmtpv4message_apiSubscribeResponseV1Started": {
+      "type": "object",
+      "properties": {
+        "keepaliveIntervalMs": {
+          "type": "integer",
+          "format": "int64",
+          "description": "The node's ping cadence (ms): the basis for the client's staleness\nthreshold and the node's reap deadline."
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/xmtpv4message_apiSubscribeResponseV1Capability"
+          },
+          "description": "Optional protocol features the node supports on this stream. The node\nsilently ignores request types it does not understand, so a client MUST\nNOT send an optional request type whose capability the node did not\nadvertise (it would hang waiting on a response that never comes)."
+        }
+      },
+      "description": "The first frame on every stream."
+    },
+    "xmtpv4message_apiSubscribeResponseV1TopicsLive": {
+      "type": "object",
+      "properties": {
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "byte"
+          },
+          "title": "kind-prefixed topics now tailing live"
+        }
+      },
+      "description": "Emitted when topics finish catch-up, AFTER the last history frame for\nthem — including any live envelopes that queued behind the catch-up,\nwhich were equally historical from the client's perspective — so every\nlater frame for a listed topic is live tail. Informational only: delivery\ncorrectness (no duplicates, no gaps) never depends on it. Re-adding a\ntopic re-runs catch-up and re-emits it; receivers treat it idempotently."
     }
   }
 }

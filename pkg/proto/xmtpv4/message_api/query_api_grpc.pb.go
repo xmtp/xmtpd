@@ -23,6 +23,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	QueryApi_QueryEnvelopes_FullMethodName    = "/xmtp.xmtpv4.message_api.QueryApi/QueryEnvelopes"
 	QueryApi_SubscribeTopics_FullMethodName   = "/xmtp.xmtpv4.message_api.QueryApi/SubscribeTopics"
+	QueryApi_Subscribe_FullMethodName         = "/xmtp.xmtpv4.message_api.QueryApi/Subscribe"
 	QueryApi_GetInboxIds_FullMethodName       = "/xmtp.xmtpv4.message_api.QueryApi/GetInboxIds"
 	QueryApi_GetNewestEnvelope_FullMethodName = "/xmtp.xmtpv4.message_api.QueryApi/GetNewestEnvelope"
 )
@@ -35,6 +36,12 @@ const (
 type QueryApiClient interface {
 	QueryEnvelopes(ctx context.Context, in *QueryEnvelopesRequest, opts ...grpc.CallOption) (*QueryEnvelopesResponse, error)
 	SubscribeTopics(ctx context.Context, in *SubscribeTopicsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SubscribeTopicsResponse], error)
+	// XIP-83 bidirectional mutable subscription: a single long-lived stream the
+	// client mutates in place (add/remove topics) with ping/pong liveness, in
+	// contrast to SubscribeTopics' fixed, immutable, server-streaming filter set.
+	// Bidi streaming requires HTTP/2 (not grpc-web / connect-web); browser
+	// clients stay on SubscribeTopics.
+	Subscribe(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[SubscribeRequest, SubscribeResponse], error)
 	GetInboxIds(ctx context.Context, in *GetInboxIdsRequest, opts ...grpc.CallOption) (*GetInboxIdsResponse, error)
 	GetNewestEnvelope(ctx context.Context, in *GetNewestEnvelopeRequest, opts ...grpc.CallOption) (*GetNewestEnvelopeResponse, error)
 }
@@ -76,6 +83,19 @@ func (c *queryApiClient) SubscribeTopics(ctx context.Context, in *SubscribeTopic
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type QueryApi_SubscribeTopicsClient = grpc.ServerStreamingClient[SubscribeTopicsResponse]
 
+func (c *queryApiClient) Subscribe(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[SubscribeRequest, SubscribeResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &QueryApi_ServiceDesc.Streams[1], QueryApi_Subscribe_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[SubscribeRequest, SubscribeResponse]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type QueryApi_SubscribeClient = grpc.BidiStreamingClient[SubscribeRequest, SubscribeResponse]
+
 func (c *queryApiClient) GetInboxIds(ctx context.Context, in *GetInboxIdsRequest, opts ...grpc.CallOption) (*GetInboxIdsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetInboxIdsResponse)
@@ -104,6 +124,12 @@ func (c *queryApiClient) GetNewestEnvelope(ctx context.Context, in *GetNewestEnv
 type QueryApiServer interface {
 	QueryEnvelopes(context.Context, *QueryEnvelopesRequest) (*QueryEnvelopesResponse, error)
 	SubscribeTopics(*SubscribeTopicsRequest, grpc.ServerStreamingServer[SubscribeTopicsResponse]) error
+	// XIP-83 bidirectional mutable subscription: a single long-lived stream the
+	// client mutates in place (add/remove topics) with ping/pong liveness, in
+	// contrast to SubscribeTopics' fixed, immutable, server-streaming filter set.
+	// Bidi streaming requires HTTP/2 (not grpc-web / connect-web); browser
+	// clients stay on SubscribeTopics.
+	Subscribe(grpc.BidiStreamingServer[SubscribeRequest, SubscribeResponse]) error
 	GetInboxIds(context.Context, *GetInboxIdsRequest) (*GetInboxIdsResponse, error)
 	GetNewestEnvelope(context.Context, *GetNewestEnvelopeRequest) (*GetNewestEnvelopeResponse, error)
 }
@@ -120,6 +146,9 @@ func (UnimplementedQueryApiServer) QueryEnvelopes(context.Context, *QueryEnvelop
 }
 func (UnimplementedQueryApiServer) SubscribeTopics(*SubscribeTopicsRequest, grpc.ServerStreamingServer[SubscribeTopicsResponse]) error {
 	return status.Errorf(codes.Unimplemented, "method SubscribeTopics not implemented")
+}
+func (UnimplementedQueryApiServer) Subscribe(grpc.BidiStreamingServer[SubscribeRequest, SubscribeResponse]) error {
+	return status.Errorf(codes.Unimplemented, "method Subscribe not implemented")
 }
 func (UnimplementedQueryApiServer) GetInboxIds(context.Context, *GetInboxIdsRequest) (*GetInboxIdsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetInboxIds not implemented")
@@ -175,6 +204,13 @@ func _QueryApi_SubscribeTopics_Handler(srv interface{}, stream grpc.ServerStream
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type QueryApi_SubscribeTopicsServer = grpc.ServerStreamingServer[SubscribeTopicsResponse]
+
+func _QueryApi_Subscribe_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(QueryApiServer).Subscribe(&grpc.GenericServerStream[SubscribeRequest, SubscribeResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type QueryApi_SubscribeServer = grpc.BidiStreamingServer[SubscribeRequest, SubscribeResponse]
 
 func _QueryApi_GetInboxIds_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetInboxIdsRequest)
@@ -237,6 +273,12 @@ var QueryApi_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "SubscribeTopics",
 			Handler:       _QueryApi_SubscribeTopics_Handler,
 			ServerStreams: true,
+		},
+		{
+			StreamName:    "Subscribe",
+			Handler:       _QueryApi_Subscribe_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
 		},
 	},
 	Metadata: "xmtpv4/message_api/query_api.proto",

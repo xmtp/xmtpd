@@ -357,6 +357,25 @@ func advanceTopicCursors(
 	return result
 }
 
+// advanceCursorsFromRows advances per-topic pagination cursors from the RAW query rows (not just the
+// rows that successfully unmarshal). A catch-up paginator that advanced only from unmarshaled
+// envelopes would never move past a row whose envelope bytes fail to parse: since pagination
+// terminates on raw row count, a single bad row in an otherwise-full page would re-fetch that page
+// forever and the wave would never complete. Advancing from raw rows guarantees forward progress.
+func advanceCursorsFromRows(cursors db.TopicCursors, rows []queries.GatewayEnvelopesView) {
+	for i := range rows {
+		vc, ok := cursors[string(rows[i].Topic)]
+		if !ok {
+			continue
+		}
+		origID := uint32(rows[i].OriginatorNodeID)
+		seqID := uint64(rows[i].OriginatorSequenceID)
+		if cur, seen := vc[origID]; !seen || cur < seqID {
+			vc[origID] = seqID
+		}
+	}
+}
+
 func newSubscriptionStatusMessage(
 	status message_api.SubscribeTopicsResponse_SubscriptionStatus,
 ) *message_api.SubscribeTopicsResponse {

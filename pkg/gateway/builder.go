@@ -264,6 +264,22 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 			return nil, errors.Wrap(err, "failed to create node selector")
 		}
 
+		payerOpts := []payer.Option{
+			payer.WithPublishTimeout(b.config.Payer.EnvelopePublishTimeout),
+			payer.WithPublishRetries(b.config.Payer.EnvelopePublishRetries),
+		}
+		if b.config.Payer.NoBlockchain {
+			payerOpts = append(payerOpts, payer.WithNoBlockchain(
+				b.config.Payer.CommitNodeID,
+				b.config.Payer.IdentityNodeID,
+			))
+			b.logger.Info(
+				"no-blockchain mode enabled",
+				zap.Uint32("commit_node_id", b.config.Payer.CommitNodeID),
+				zap.Uint32("identity_node_id", b.config.Payer.IdentityNodeID),
+			)
+		}
+
 		gatewayAPIService, err := payer.NewPayerAPIService(
 			ctx,
 			b.logger,
@@ -273,8 +289,7 @@ func (b *GatewayServiceBuilder) buildGatewayService(
 			clientMetrics,
 			b.config.Contracts.AppChain.MaxBlockchainPayloadSize,
 			nodeSelector,
-			payer.WithPublishTimeout(b.config.Payer.EnvelopePublishTimeout),
-			payer.WithPublishRetries(b.config.Payer.EnvelopePublishRetries),
+			payerOpts...,
 		)
 		if err != nil {
 			return nil, err

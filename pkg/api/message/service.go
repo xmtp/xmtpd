@@ -847,7 +847,7 @@ func (s *Service) preprocessPayerEnvelopes(
 			continue
 		}
 
-		if topicKind == topic.TopicKindIdentityUpdatesV1 {
+		if topicKind == topic.TopicKindIdentityUpdatesV1 && !s.options.NoBlockchain {
 			errs = append(
 				errs,
 				fmt.Sprintf(
@@ -938,7 +938,7 @@ func (s *Service) validateGroupMessage(
 		)
 	}
 
-	if shouldSendToBlockchain {
+	if shouldSendToBlockchain && !s.options.NoBlockchain {
 		return connect.NewError(
 			connect.CodeInvalidArgument,
 			errors.New("commit and proposal messages must be published via the blockchain"),
@@ -1199,7 +1199,7 @@ func (s *Service) validateClientInfo(clientEnv *envelopes.ClientEnvelope) error 
 		lastSeenCursor := s.cu.GetCursor()
 		for nodeID, seqID := range aad.GetDependsOn().GetNodeIdToSequenceId() {
 			lastSeqID, exists := lastSeenCursor.GetNodeIdToSequenceId()[nodeID]
-			if nodeID >= 100 {
+			if nodeID >= 100 && !s.options.NoBlockchain {
 				// The failure scenarios of non-commits are different from the blockchain path
 				// and as such should be prevented
 				return connect.NewError(

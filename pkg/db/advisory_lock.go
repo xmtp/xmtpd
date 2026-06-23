@@ -20,7 +20,14 @@ const (
 	LockKindSubmitterWorker      LockKind = 0x02
 	LockKindSettlementWorker     LockKind = 0x03
 	LockKindGeneratorWorker      LockKind = 0x04
+	LockKindPartitionCreation    LockKind = 0x05
 )
+
+// partitionCreationLockKey is the single, global advisory-lock key coordinating lazy
+// gateway-envelope partition creation against concurrent inserts. It is not per-originator:
+// the deadlock it prevents is between transactions touching different originators' partitions,
+// so they must contend on the same key.
+const partitionCreationLockKey = int64(LockKindPartitionCreation)
 
 // AdvisoryLocker builds advisory-lock keys and acquires locks using the caller’s
 // connection/transaction via the provided *queries.Queries
@@ -37,6 +44,35 @@ func (a *AdvisoryLocker) LockIdentityUpdateInsert(
 ) error {
 	key := int64((uint64(nodeID) << 8) | uint64(LockKindIdentityUpdateInsert))
 	return queries.AdvisoryLockWithKey(ctx, key)
+}
+
+// SharedLockPartitionCreation takes the shared (reader) side of the partition-creation
+// reader/writer advisory lock. Ordinary gateway-envelope inserts hold it so they run
+// concurrently with each other, but block (and are blocked by) exclusive partition creation.
+func (a *AdvisoryLocker) SharedLockPartitionCreation(
+	ctx context.Context,
+	queries *queries.Queries,
+) error {
+	return queries.SharedAdvisoryLockWithKey(ctx, partitionCreationLockKey)
+}
+
+// LockPartitionCreation takes the exclusive (writer) side of the partition-creation
+// reader/writer advisory lock. It must be acquired in a dedicated transaction (see
+// EnsureGatewayPartitions), never upgraded from the shared lock within an insert transaction,
+// or two upgraders would deadlock.
+//
+// ensure_gateway_parts_v3 ATTACHes partitions to the shared gateway_envelopes_meta and
+// gateway_envelopes_blob parents. Because of the blob->meta and meta->payers foreign keys, each
+// ATTACH validates the FK and takes ShareRowExclusiveLock on both parents once they hold data.
+// That conflicts with the RowExclusiveLock ordinary inserts take, and concurrent transactions
+// acquire the parents' locks in opposite orders and deadlock (SQLSTATE 40P01). Running partition
+// creation as the exclusive writer, while inserts hold the shared lock, guarantees DDL never
+// overlaps DML, removing the conflict.
+func (a *AdvisoryLocker) LockPartitionCreation(
+	ctx context.Context,
+	queries *queries.Queries,
+) error {
+	return queries.AdvisoryLockWithKey(ctx, partitionCreationLockKey)
 }
 
 func (a *AdvisoryLocker) TryLockGeneratorWorker(

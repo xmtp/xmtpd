@@ -18,6 +18,15 @@ func (q *Queries) AdvisoryLockWithKey(ctx context.Context, lockingKey int64) err
 	return err
 }
 
+const sharedAdvisoryLockWithKey = `-- name: SharedAdvisoryLockWithKey :exec
+SELECT pg_advisory_xact_lock_shared($1)
+`
+
+func (q *Queries) SharedAdvisoryLockWithKey(ctx context.Context, lockingKey int64) error {
+	_, err := q.exec(ctx, q.sharedAdvisoryLockWithKeyStmt, sharedAdvisoryLockWithKey, lockingKey)
+	return err
+}
+
 const tryAdvisoryLockWithKey = `-- name: TryAdvisoryLockWithKey :one
 SELECT pg_try_advisory_xact_lock($1) as lock_succeeded
 `

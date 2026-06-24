@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sync/atomic"
 	"time"
@@ -180,34 +181,58 @@ func (p *publishWorker) processBatch() (int32, error) {
 	originatorID := int32(p.registrant.NodeID())
 
 	var spans []tracing.Span
+	// pendingPartitions captures the batch built inside the transaction so that, if the insert
+	// reports a missing partition, we can create it out-of-band (in its own transaction under the
+	// exclusive partition-creation lock) and retry without ever doing DDL inside the insert tx.
+	var pendingPartitions *types.GatewayEnvelopeBatch
 
-	result, err := db.RunInTxWithResult(
-		p.ctx, p.store.DB(), &sql.TxOptions{},
-		func(ctx context.Context, txQueries *queries.Queries) (batchResult, error) {
-			staged, err := txQueries.SelectAndLockStagedEnvelopes(
-				ctx, numRowsPerBatch,
-			)
-			if err != nil {
-				return batchResult{}, fmt.Errorf("select and lock staged envelopes: %w", err)
-			}
-			if len(staged) == 0 {
-				return batchResult{}, nil
-			}
+	txBody := func(ctx context.Context, txQueries *queries.Queries) (batchResult, error) {
+		// Take the shared partition-creation lock as the first statement, before
+		// BulkFindOrCreatePayers (in persistBatch) locks the payers table. Out-of-band
+		// partition creation needs ShareRowExclusiveLock on payers (via the gateway->payers FK
+		// validated when a partition is attached); acquiring the shared lock first keeps the
+		// lock order consistent and prevents a payers-vs-advisory deadlock.
+		if err := db.NewAdvisoryLocker().SharedLockPartitionCreation(ctx, txQueries); err != nil {
+			return batchResult{}, fmt.Errorf("shared lock partition creation: %w", err)
+		}
 
-			spans = p.startEnvelopeSpans(staged, originatorID)
+		staged, err := txQueries.SelectAndLockStagedEnvelopes(
+			ctx, numRowsPerBatch,
+		)
+		if err != nil {
+			return batchResult{}, fmt.Errorf("select and lock staged envelopes: %w", err)
+		}
+		if len(staged) == 0 {
+			return batchResult{}, nil
+		}
 
-			p.logger.Debug(
-				"processing batch", zap.Int("batch_size", len(staged)),
-			)
+		spans = p.startEnvelopeSpans(staged, originatorID)
 
-			prepared, err := p.prepareEnvelopes(staged, txQueries)
-			if err != nil {
-				return batchResult{}, err
-			}
+		p.logger.Debug(
+			"processing batch", zap.Int("batch_size", len(staged)),
+		)
 
-			return p.persistBatch(ctx, txQueries, prepared)
-		},
-	)
+		prepared, err := p.prepareEnvelopes(staged, txQueries)
+		if err != nil {
+			return batchResult{}, err
+		}
+
+		return p.persistBatch(ctx, txQueries, prepared, &pendingPartitions)
+	}
+
+	result, err := db.RunInTxWithResult(p.ctx, p.store.DB(), &sql.TxOptions{}, txBody)
+	if errors.Is(err, db.ErrGatewayPartitionMissing) && pendingPartitions != nil {
+		p.logger.Info("creating partitions for batch insert")
+		if ensErr := db.EnsureGatewayPartitionsForBatch(
+			p.ctx,
+			p.store.DB(),
+			pendingPartitions,
+		); ensErr != nil {
+			err = ensErr
+		} else {
+			result, err = db.RunInTxWithResult(p.ctx, p.store.DB(), &sql.TxOptions{}, txBody)
+		}
+	}
 
 	// Finish per-envelope spans outside the transaction so we capture
 	// errors from the tx body, commit failures, and rollbacks.
@@ -353,6 +378,7 @@ func (p *publishWorker) persistBatch(
 	ctx context.Context,
 	txQueries *queries.Queries,
 	prepared []preparedEnvelope,
+	pendingPartitions **types.GatewayEnvelopeBatch,
 ) (batchResult, error) {
 	originatorID := int32(p.registrant.NodeID())
 
@@ -387,6 +413,9 @@ func (p *publishWorker) persistBatch(
 		stagedIDs = append(stagedIDs, prep.staged.ID)
 		originatorTimes = append(originatorTimes, prep.staged.OriginatorTime)
 	}
+
+	// Expose the batch so the caller can create any missing partitions out-of-band and retry.
+	*pendingPartitions = batchInput
 
 	insertSpan, _ := tracing.StartSpanFromContext(ctx, tracing.SpanPublishWorkerInsertGateway)
 	inserted, err := db.InsertGatewayEnvelopeBatchV2Transactional(

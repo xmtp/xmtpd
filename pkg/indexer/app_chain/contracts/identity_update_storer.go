@@ -133,181 +133,189 @@ func (s *IdentityUpdateStorer) StoreLog(
 	// “could not serialize access due to concurrent update” errors that show
 	// up under REPEATABLE READ with UPSERTs.
 
-	err = db.RunInTx(
-		ctx,
-		s.db,
-		&sql.TxOptions{Isolation: sql.LevelReadCommitted},
-		func(ctx context.Context, querier *queries.Queries) error {
-			err := db.NewAdvisoryLocker().
-				LockIdentityUpdateInsert(ctx, querier, uint32(constants.IdentityUpdateOriginatorID))
-			if err != nil {
-				return re.NewNonRecoverableError(ErrAdvisoryLockSequence, err)
-			}
+	txBody := func(ctx context.Context, querier *queries.Queries) error {
+		err := db.NewAdvisoryLocker().
+			LockIdentityUpdateInsert(ctx, querier, uint32(constants.IdentityUpdateOriginatorID))
+		if err != nil {
+			return re.NewNonRecoverableError(ErrAdvisoryLockSequence, err)
+		}
 
-			latestSequenceID, err := querier.GetLatestSequenceId(
-				ctx,
-				constants.IdentityUpdateOriginatorID,
+		latestSequenceID, err := querier.GetLatestSequenceId(
+			ctx,
+			constants.IdentityUpdateOriginatorID,
+		)
+		if err != nil {
+			return re.NewNonRecoverableError(ErrGetLatestSequenceID, err)
+		}
+
+		if uint64(latestSequenceID) >= msgSent.SequenceId {
+			s.logger.Debug(
+				"identity update already inserted, skipping",
+				utils.LastSequenceIDField(latestSequenceID),
+				utils.SequenceIDField(int64(msgSent.SequenceId)),
 			)
-			if err != nil {
-				return re.NewNonRecoverableError(ErrGetLatestSequenceID, err)
-			}
+			return nil
+		}
 
-			if uint64(latestSequenceID) >= msgSent.SequenceId {
-				s.logger.Debug(
-					"identity update already inserted, skipping",
-					utils.LastSequenceIDField(latestSequenceID),
-					utils.SequenceIDField(int64(msgSent.SequenceId)),
-				)
-				return nil
-			}
+		messageTopic := topic.NewTopic(topic.TopicKindIdentityUpdatesV1, msgSent.InboxId[:])
 
-			messageTopic := topic.NewTopic(topic.TopicKindIdentityUpdatesV1, msgSent.InboxId[:])
+		if s.logger.Core().Enabled(zap.DebugLevel) {
+			s.logger.Debug(
+				"inserting identity update from contract",
+				utils.TopicField(messageTopic.String()),
+			)
+		}
 
+		clientEnvelope, err := envelopes.NewClientEnvelopeFromBytes(msgSent.Update)
+		if err != nil {
+			s.logger.Error(
+				ErrParseClientEnvelope,
+				utils.TopicField(messageTopic.String()),
+				zap.Error(err),
+			)
+			return re.NewNonRecoverableError(ErrParseClientEnvelope, err)
+		}
+
+		associationState, validationError := s.validateIdentityUpdate(
+			ctx,
+			querier,
+			msgSent.InboxId,
+			clientEnvelope,
+		)
+		if validationError != nil {
+			s.logger.Error(
+				ErrValidateIdentityUpdate,
+				utils.TopicField(messageTopic.String()),
+				zap.Error(validationError),
+			)
+
+			return validationError
+		}
+
+		var (
+			inboxID     = utils.HexEncode(msgSent.InboxId[:])
+			sequenceID  = int64(msgSent.SequenceId)
+			insertBatch = make([]string, 0)
+			revokeBatch = make([]string, 0)
+		)
+
+		for _, newMember := range associationState.StateDiff.GetNewMembers() {
 			if s.logger.Core().Enabled(zap.DebugLevel) {
-				s.logger.Debug(
-					"inserting identity update from contract",
-					utils.TopicField(messageTopic.String()),
-				)
+				s.logger.Debug("new member", utils.BodyField(newMember))
 			}
 
-			clientEnvelope, err := envelopes.NewClientEnvelopeFromBytes(msgSent.Update)
+			if address, ok := newMember.GetKind().(*associations.MemberIdentifier_EthereumAddress); ok {
+				insertBatch = append(insertBatch, address.EthereumAddress)
+			}
+		}
+
+		for _, removedMember := range associationState.StateDiff.GetRemovedMembers() {
+			if s.logger.Core().Enabled(zap.DebugLevel) {
+				s.logger.Debug("removed member", utils.BodyField(removedMember))
+			}
+
+			if address, ok := removedMember.GetKind().(*associations.MemberIdentifier_EthereumAddress); ok {
+				revokeBatch = append(revokeBatch, address.EthereumAddress)
+			}
+		}
+
+		if len(insertBatch) > 0 {
+			_, err := querier.InsertAddressLogsBatch(ctx, queries.InsertAddressLogsBatchParams{
+				Addresses:             insertBatch,
+				InboxID:               inboxID,
+				AssociationSequenceID: sequenceID,
+			})
 			if err != nil {
-				s.logger.Error(
-					ErrParseClientEnvelope,
-					utils.TopicField(messageTopic.String()),
-					zap.Error(err),
-				)
-				return re.NewNonRecoverableError(ErrParseClientEnvelope, err)
+				return re.NewRecoverableError(ErrInsertAddressLog, err)
 			}
+		}
 
-			associationState, validationError := s.validateIdentityUpdate(
+		if len(revokeBatch) > 0 {
+			_, err := querier.RevokeAddressFromLogBatch(
 				ctx,
-				querier,
-				msgSent.InboxId,
-				clientEnvelope,
-			)
-			if validationError != nil {
-				s.logger.Error(
-					ErrValidateIdentityUpdate,
-					utils.TopicField(messageTopic.String()),
-					zap.Error(validationError),
-				)
-
-				return validationError
-			}
-
-			var (
-				inboxID     = utils.HexEncode(msgSent.InboxId[:])
-				sequenceID  = int64(msgSent.SequenceId)
-				insertBatch = make([]string, 0)
-				revokeBatch = make([]string, 0)
-			)
-
-			for _, newMember := range associationState.StateDiff.GetNewMembers() {
-				if s.logger.Core().Enabled(zap.DebugLevel) {
-					s.logger.Debug("new member", utils.BodyField(newMember))
-				}
-
-				if address, ok := newMember.GetKind().(*associations.MemberIdentifier_EthereumAddress); ok {
-					insertBatch = append(insertBatch, address.EthereumAddress)
-				}
-			}
-
-			for _, removedMember := range associationState.StateDiff.GetRemovedMembers() {
-				if s.logger.Core().Enabled(zap.DebugLevel) {
-					s.logger.Debug("removed member", utils.BodyField(removedMember))
-				}
-
-				if address, ok := removedMember.GetKind().(*associations.MemberIdentifier_EthereumAddress); ok {
-					revokeBatch = append(revokeBatch, address.EthereumAddress)
-				}
-			}
-
-			if len(insertBatch) > 0 {
-				_, err := querier.InsertAddressLogsBatch(ctx, queries.InsertAddressLogsBatchParams{
-					Addresses:             insertBatch,
-					InboxID:               inboxID,
-					AssociationSequenceID: sequenceID,
-				})
-				if err != nil {
-					return re.NewRecoverableError(ErrInsertAddressLog, err)
-				}
-			}
-
-			if len(revokeBatch) > 0 {
-				_, err := querier.RevokeAddressFromLogBatch(
-					ctx,
-					queries.RevokeAddressFromLogBatchParams{
-						Addresses:            revokeBatch,
-						InboxID:              inboxID,
-						RevocationSequenceID: sequenceID,
-					},
-				)
-				if err != nil {
-					return re.NewRecoverableError(ErrRevokeAddressFromLog, err)
-				}
-			}
-
-			originatorEnvelope, err := buildOriginatorEnvelope(
-				constants.IdentityUpdateOriginatorID,
-				msgSent.SequenceId,
-				msgSent.Update,
-			)
-			if err != nil {
-				s.logger.Error(
-					ErrBuildOriginatorEnvelope,
-					utils.TopicField(messageTopic.String()),
-					zap.Error(err),
-				)
-				return re.NewNonRecoverableError(ErrBuildOriginatorEnvelope, err)
-			}
-
-			signedOriginatorEnvelope, err := buildSignedOriginatorEnvelope(
-				originatorEnvelope,
-				event.TxHash,
-			)
-			if err != nil {
-				s.logger.Error(
-					ErrBuildSignedOriginatorEnvelope,
-					utils.TopicField(messageTopic.String()),
-					zap.Error(err),
-				)
-				return re.NewNonRecoverableError(ErrBuildSignedOriginatorEnvelope, err)
-			}
-
-			originatorEnvelopeBytes, err := proto.Marshal(signedOriginatorEnvelope)
-			if err != nil {
-				s.logger.Error(
-					ErrMarshallOriginatorEnvelope,
-					utils.TopicField(messageTopic.String()),
-					zap.Error(err),
-				)
-				return re.NewNonRecoverableError(ErrMarshallOriginatorEnvelope, err)
-			}
-
-			_, err = db.InsertGatewayEnvelopeWithChecksTransactional(
-				ctx,
-				querier,
-				queries.InsertGatewayEnvelopeV3Params{
-					OriginatorNodeID:     constants.IdentityUpdateOriginatorID,
-					OriginatorSequenceID: int64(msgSent.SequenceId),
-					Topic:                messageTopic.Bytes(),
-					OriginatorEnvelope:   originatorEnvelopeBytes,
-					Expiry:               math.MaxInt64,
+				queries.RevokeAddressFromLogBatchParams{
+					Addresses:            revokeBatch,
+					InboxID:              inboxID,
+					RevocationSequenceID: sequenceID,
 				},
 			)
 			if err != nil {
-				s.logger.Error(
-					ErrInsertEnvelopeFromSmartContract,
-					utils.TopicField(messageTopic.String()),
-					zap.Error(err),
-				)
-				return re.NewRecoverableError(ErrInsertEnvelopeFromSmartContract, err)
+				return re.NewRecoverableError(ErrRevokeAddressFromLog, err)
 			}
+		}
 
-			return nil
-		},
-	)
+		originatorEnvelope, err := buildOriginatorEnvelope(
+			constants.IdentityUpdateOriginatorID,
+			msgSent.SequenceId,
+			msgSent.Update,
+		)
+		if err != nil {
+			s.logger.Error(
+				ErrBuildOriginatorEnvelope,
+				utils.TopicField(messageTopic.String()),
+				zap.Error(err),
+			)
+			return re.NewNonRecoverableError(ErrBuildOriginatorEnvelope, err)
+		}
+
+		signedOriginatorEnvelope, err := buildSignedOriginatorEnvelope(
+			originatorEnvelope,
+			event.TxHash,
+		)
+		if err != nil {
+			s.logger.Error(
+				ErrBuildSignedOriginatorEnvelope,
+				utils.TopicField(messageTopic.String()),
+				zap.Error(err),
+			)
+			return re.NewNonRecoverableError(ErrBuildSignedOriginatorEnvelope, err)
+		}
+
+		originatorEnvelopeBytes, err := proto.Marshal(signedOriginatorEnvelope)
+		if err != nil {
+			s.logger.Error(
+				ErrMarshallOriginatorEnvelope,
+				utils.TopicField(messageTopic.String()),
+				zap.Error(err),
+			)
+			return re.NewNonRecoverableError(ErrMarshallOriginatorEnvelope, err)
+		}
+
+		_, err = db.InsertGatewayEnvelopeWithChecksTransactional(
+			ctx,
+			querier,
+			queries.InsertGatewayEnvelopeV3Params{
+				OriginatorNodeID:     constants.IdentityUpdateOriginatorID,
+				OriginatorSequenceID: int64(msgSent.SequenceId),
+				Topic:                messageTopic.Bytes(),
+				OriginatorEnvelope:   originatorEnvelopeBytes,
+				Expiry:               math.MaxInt64,
+			},
+		)
+		if err != nil {
+			s.logger.Error(
+				ErrInsertEnvelopeFromSmartContract,
+				utils.TopicField(messageTopic.String()),
+				zap.Error(err),
+			)
+			return re.NewRecoverableError(ErrInsertEnvelopeFromSmartContract, err)
+		}
+
+		return nil
+	}
+
+	// Ensure the partition exists up-front, out-of-band under the exclusive partition-creation
+	// lock, so the in-transaction insert never has to create it inline (which would deadlock
+	// across originators). EnsureGatewayPartitions is idempotent and cheap once the partition
+	// exists. We know the single fixed originator and sequence id here, so this avoids the
+	// sentinel/retry dance (and re-validating the identity update).
+	if ensErr := db.EnsureGatewayPartitions(
+		ctx, s.db, constants.IdentityUpdateOriginatorID, int64(msgSent.SequenceId),
+	); ensErr != nil {
+		return re.NewRecoverableError(ErrInsertEnvelopeFromSmartContract, ensErr)
+	}
+
+	err = db.RunInTx(ctx, s.db, &sql.TxOptions{Isolation: sql.LevelReadCommitted}, txBody)
 	if err != nil {
 		var logStorageErr re.RetryableError
 		if errors.As(err, &logStorageErr) {

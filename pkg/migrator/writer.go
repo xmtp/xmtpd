@@ -34,34 +34,47 @@ func (w *Worker) insertOriginatorEnvelopeDatabaseBatch(
 		return re.NewNonRecoverableError("", errors.New("batch is nil"))
 	}
 
-	err := db.RunInTx(
-		ctx,
-		w.writer.Write(),
-		nil,
-		func(ctx context.Context, querier *queries.Queries) error {
-			_, err := querier.SetLocalWorkMem(ctx, batchWorkMem)
-			if err != nil {
-				logger.Error("set local work mem failed", zap.Error(err))
-				return re.NewRecoverableError("set local work mem failed", err)
-			}
+	txBody := func(ctx context.Context, querier *queries.Queries) error {
+		_, err := querier.SetLocalWorkMem(ctx, batchWorkMem)
+		if err != nil {
+			logger.Error("set local work mem failed", zap.Error(err))
+			return re.NewRecoverableError("set local work mem failed", err)
+		}
 
-			_, err = db.InsertGatewayEnvelopeBatchV2Transactional(ctx, querier, logger, batch)
-			if err != nil {
-				logger.Error("insert originator envelope batch failed", zap.Error(err))
-				return re.NewRecoverableError("insert originator envelope batch failed", err)
+		_, err = db.InsertGatewayEnvelopeBatchV2Transactional(ctx, querier, logger, batch)
+		if err != nil {
+			// Propagate ErrGatewayPartitionMissing unwrapped so we can create the partition
+			// out-of-band below; other errors are recoverable retries.
+			if errors.Is(err, db.ErrGatewayPartitionMissing) {
+				return err
 			}
+			logger.Error("insert originator envelope batch failed", zap.Error(err))
+			return re.NewRecoverableError("insert originator envelope batch failed", err)
+		}
 
-			err = querier.UpdateMigrationProgress(ctx, queries.UpdateMigrationProgressParams{
-				LastMigratedID: batch.LastSequenceID(),
-				SourceTable:    w.tableName,
-			})
-			if err != nil {
-				logger.Error("update migration progress failed", zap.Error(err))
-				return re.NewRecoverableError("update migration progress failed", err)
-			}
-
-			return nil
+		err = querier.UpdateMigrationProgress(ctx, queries.UpdateMigrationProgressParams{
+			LastMigratedID: batch.LastSequenceID(),
+			SourceTable:    w.tableName,
 		})
+		if err != nil {
+			logger.Error("update migration progress failed", zap.Error(err))
+			return re.NewRecoverableError("update migration progress failed", err)
+		}
+
+		return nil
+	}
+
+	err := db.RunInTx(ctx, w.writer.Write(), nil, txBody)
+	if errors.Is(err, db.ErrGatewayPartitionMissing) {
+		if ensErr := db.EnsureGatewayPartitionsForBatch(
+			ctx,
+			w.writer.Write(),
+			batch,
+		); ensErr != nil {
+			return re.NewRecoverableError("ensure gateway parts failed", ensErr)
+		}
+		err = db.RunInTx(ctx, w.writer.Write(), nil, txBody)
+	}
 	if err != nil {
 		var retryableError re.RetryableError
 		if errors.As(err, &retryableError) {

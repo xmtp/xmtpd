@@ -246,6 +246,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.setReportSubmittedStmt, err = db.PrepareContext(ctx, setReportSubmitted); err != nil {
 		return nil, fmt.Errorf("error preparing query SetReportSubmitted: %w", err)
 	}
+	if q.sharedAdvisoryLockWithKeyStmt, err = db.PrepareContext(ctx, sharedAdvisoryLockWithKey); err != nil {
+		return nil, fmt.Errorf("error preparing query SharedAdvisoryLockWithKey: %w", err)
+	}
 	if q.sumOriginatorCongestionStmt, err = db.PrepareContext(ctx, sumOriginatorCongestion); err != nil {
 		return nil, fmt.Errorf("error preparing query SumOriginatorCongestion: %w", err)
 	}
@@ -630,6 +633,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing setReportSubmittedStmt: %w", cerr)
 		}
 	}
+	if q.sharedAdvisoryLockWithKeyStmt != nil {
+		if cerr := q.sharedAdvisoryLockWithKeyStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing sharedAdvisoryLockWithKeyStmt: %w", cerr)
+		}
+	}
 	if q.sumOriginatorCongestionStmt != nil {
 		if cerr := q.sumOriginatorCongestionStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing sumOriginatorCongestionStmt: %w", cerr)
@@ -758,6 +766,7 @@ type Queries struct {
 	setReportAttestationStatusStmt               *sql.Stmt
 	setReportSubmissionStatusStmt                *sql.Stmt
 	setReportSubmittedStmt                       *sql.Stmt
+	sharedAdvisoryLockWithKeyStmt                *sql.Stmt
 	sumOriginatorCongestionStmt                  *sql.Stmt
 	tryAdvisoryLockWithKeyStmt                   *sql.Stmt
 	updateMigrationProgressStmt                  *sql.Stmt
@@ -841,6 +850,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		setReportAttestationStatusStmt:               q.setReportAttestationStatusStmt,
 		setReportSubmissionStatusStmt:                q.setReportSubmissionStatusStmt,
 		setReportSubmittedStmt:                       q.setReportSubmittedStmt,
+		sharedAdvisoryLockWithKeyStmt:                q.sharedAdvisoryLockWithKeyStmt,
 		sumOriginatorCongestionStmt:                  q.sumOriginatorCongestionStmt,
 		tryAdvisoryLockWithKeyStmt:                   q.tryAdvisoryLockWithKeyStmt,
 		updateMigrationProgressStmt:                  q.updateMigrationProgressStmt,

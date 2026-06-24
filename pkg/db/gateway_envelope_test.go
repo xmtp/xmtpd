@@ -3,6 +3,7 @@ package db_test
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -396,28 +397,43 @@ func TestInsertGatewayEnvelopeWithChecksTransactional_FailsWithoutTx(t *testing.
 	}
 }
 
+// db_runInsertWithEnsure mirrors the production caller contract: run the insert in a
+// transaction, and on ErrGatewayPartitionMissing create the partition out-of-band (its own
+// transaction under the exclusive lock) and retry once.
+func db_runInsertWithEnsure(
+	ctx context.Context,
+	t *testing.T,
+	db *sql.DB,
+	params queries.InsertGatewayEnvelopeV3Params,
+) error {
+	t.Helper()
+	insertTx := func(ctx context.Context, q *queries.Queries) error {
+		_, err := xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(ctx, q, params)
+		return err
+	}
+	err := xmtpd_db.RunInTx(ctx, db, &sql.TxOptions{}, insertTx)
+	if errors.Is(err, xmtpd_db.ErrGatewayPartitionMissing) {
+		require.NoError(t, xmtpd_db.EnsureGatewayPartitions(
+			ctx, db, params.OriginatorNodeID, params.OriginatorSequenceID,
+		))
+		err = xmtpd_db.RunInTx(ctx, db, &sql.TxOptions{}, insertTx)
+	}
+	return err
+}
+
 func TestInsertGatewayEnvelopeWithCheckTransactional(t *testing.T) {
 	ctx := context.Background()
 	db, _ := testutils.NewRawDB(t, ctx)
-	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
-	require.NoError(t, err)
-	querier := queries.New(db).WithTx(tx)
-	defer func(tx *sql.Tx) {
-		_ = tx.Rollback()
-	}(tx)
 
 	for i := 1; i < 10; i++ {
-		_, err := xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
-			ctx,
-			querier,
-			queries.InsertGatewayEnvelopeV3Params{
-				OriginatorNodeID:     int32(i),
-				OriginatorSequenceID: 1,
-				Topic:                testutils.RandomBytes(32),
-				OriginatorEnvelope:   testutils.RandomBytes(100),
-			},
-		)
-		require.NoError(t, err)
+		// Partitions don't exist yet, so the in-transaction insert reports the missing
+		// partition; the caller creates it out-of-band and retries.
+		require.NoError(t, db_runInsertWithEnsure(ctx, t, db, queries.InsertGatewayEnvelopeV3Params{
+			OriginatorNodeID:     int32(i),
+			OriginatorSequenceID: 1,
+			Topic:                testutils.RandomBytes(32),
+			OriginatorEnvelope:   testutils.RandomBytes(100),
+		}))
 	}
 }
 
@@ -426,40 +442,25 @@ func TestInsertGatewayEnvelopeWithChecksTx_AutoCreateAndRetry(t *testing.T) {
 
 	ctx := context.Background()
 	db, _ := testutils.NewRawDB(t, ctx)
-	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
-	require.NoError(t, err)
-	q := queries.New(db).WithTx(tx)
-	defer func(tx *sql.Tx) {
-		_ = tx.Rollback()
-	}(tx)
 
 	const nodeID int32 = 42
 	const seqID int64 = 1
 
-	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
-		ctx,
-		q,
-		queries.InsertGatewayEnvelopeV3Params{
-			OriginatorNodeID:     nodeID,
-			OriginatorSequenceID: seqID,
-			Topic:                testutils.RandomBytes(32),
-			OriginatorEnvelope:   testutils.RandomBytes(128),
-		},
-	)
-	require.NoError(t, err)
+	// First insert creates the partition out-of-band and retries.
+	require.NoError(t, db_runInsertWithEnsure(ctx, t, db, queries.InsertGatewayEnvelopeV3Params{
+		OriginatorNodeID:     nodeID,
+		OriginatorSequenceID: seqID,
+		Topic:                testutils.RandomBytes(32),
+		OriginatorEnvelope:   testutils.RandomBytes(128),
+	}))
 
 	// A second insert into the SAME band should succeed without needing to create parts again.
-	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
-		ctx,
-		q,
-		queries.InsertGatewayEnvelopeV3Params{
-			OriginatorNodeID:     nodeID,
-			OriginatorSequenceID: seqID + 123, // still within [0..1_000_000) default band
-			Topic:                testutils.RandomBytes(32),
-			OriginatorEnvelope:   testutils.RandomBytes(128),
-		},
-	)
-	require.NoError(t, err)
+	require.NoError(t, db_runInsertWithEnsure(ctx, t, db, queries.InsertGatewayEnvelopeV3Params{
+		OriginatorNodeID:     nodeID,
+		OriginatorSequenceID: seqID + 123, // still within [0..1_000_000) default band
+		Topic:                testutils.RandomBytes(32),
+		OriginatorEnvelope:   testutils.RandomBytes(128),
+	}))
 }
 
 func TestInsertGatewayEnvelopeWithChecksTx_PreexistingPartitions(t *testing.T) {
@@ -503,12 +504,6 @@ func TestInsertGatewayEnvelopeWithChecksTxn_BandBoundaries(t *testing.T) {
 
 	ctx := context.Background()
 	db, _ := testutils.NewRawDB(t, ctx)
-	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
-	require.NoError(t, err)
-	q := queries.New(db).WithTx(tx)
-	defer func(tx *sql.Tx) {
-		_ = tx.Rollback()
-	}(tx)
 
 	const nodeID int32 = 99
 
@@ -516,81 +511,65 @@ func TestInsertGatewayEnvelopeWithChecksTxn_BandBoundaries(t *testing.T) {
 	seqLeft := xmtpd_db.GatewayEnvelopeBandWidth - 1 // falls into band [0, bw)
 	seqRight := xmtpd_db.GatewayEnvelopeBandWidth    // falls into band [bw, 2*bw)
 
-	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
-		ctx,
-		q,
-		queries.InsertGatewayEnvelopeV3Params{
-			OriginatorNodeID:     nodeID,
-			OriginatorSequenceID: seqLeft,
-			Topic:                testutils.RandomBytes(32),
-			OriginatorEnvelope:   testutils.RandomBytes(64),
-		},
-	)
-	require.NoError(t, err)
+	require.NoError(t, db_runInsertWithEnsure(ctx, t, db, queries.InsertGatewayEnvelopeV3Params{
+		OriginatorNodeID:     nodeID,
+		OriginatorSequenceID: seqLeft,
+		Topic:                testutils.RandomBytes(32),
+		OriginatorEnvelope:   testutils.RandomBytes(64),
+	}))
 
-	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
-		ctx,
-		q,
-		queries.InsertGatewayEnvelopeV3Params{
-			OriginatorNodeID:     nodeID,
-			OriginatorSequenceID: seqRight,
-			Topic:                testutils.RandomBytes(32),
-			OriginatorEnvelope:   testutils.RandomBytes(64),
-		},
-	)
-	require.NoError(t, err)
+	require.NoError(t, db_runInsertWithEnsure(ctx, t, db, queries.InsertGatewayEnvelopeV3Params{
+		OriginatorNodeID:     nodeID,
+		OriginatorSequenceID: seqRight,
+		Topic:                testutils.RandomBytes(32),
+		OriginatorEnvelope:   testutils.RandomBytes(64),
+	}))
 
-	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
-		ctx,
-		q,
-		queries.InsertGatewayEnvelopeV3Params{
-			OriginatorNodeID:     nodeID,
-			OriginatorSequenceID: seqLeft + 123, // still within first band
-			Topic:                testutils.RandomBytes(32),
-			OriginatorEnvelope:   testutils.RandomBytes(64),
-		},
-	)
-	require.NoError(t, err)
+	require.NoError(t, db_runInsertWithEnsure(ctx, t, db, queries.InsertGatewayEnvelopeV3Params{
+		OriginatorNodeID:     nodeID,
+		OriginatorSequenceID: seqLeft + 123, // still within first band
+		Topic:                testutils.RandomBytes(32),
+		OriginatorEnvelope:   testutils.RandomBytes(64),
+	}))
 
-	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
-		ctx,
-		q,
-		queries.InsertGatewayEnvelopeV3Params{
-			OriginatorNodeID:     nodeID,
-			OriginatorSequenceID: seqRight + 456, // still within second band
-			Topic:                testutils.RandomBytes(32),
-			OriginatorEnvelope:   testutils.RandomBytes(64),
-		},
-	)
-	require.NoError(t, err)
+	require.NoError(t, db_runInsertWithEnsure(ctx, t, db, queries.InsertGatewayEnvelopeV3Params{
+		OriginatorNodeID:     nodeID,
+		OriginatorSequenceID: seqRight + 456, // still within second band
+		Topic:                testutils.RandomBytes(32),
+		OriginatorEnvelope:   testutils.RandomBytes(64),
+	}))
 }
 
-func TestInsertGatewayEnvelopeWithChecksTx_RollbackDDL(t *testing.T) {
+// TestInsertGatewayEnvelopeWithChecksTx_RollbackInsert verifies that rolling back the insert
+// transaction discards the inserted row while the out-of-band-created partition persists, so a
+// fresh insert into the same partition succeeds.
+func TestInsertGatewayEnvelopeWithChecksTx_RollbackInsert(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
 	db, _ := testutils.NewRawDB(t, ctx)
-	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
-	require.NoError(t, err)
-	q := queries.New(db).WithTx(tx)
 
 	const nodeID int32 = 7
 	const seqID int64 = 10
 
-	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
-		ctx,
-		q,
-		queries.InsertGatewayEnvelopeV3Params{
-			OriginatorNodeID:     nodeID,
-			OriginatorSequenceID: seqID,
-			Topic:                testutils.RandomBytes(32),
-			OriginatorEnvelope:   testutils.RandomBytes(64),
-		},
-	)
-	require.NoError(t, err)
+	params := queries.InsertGatewayEnvelopeV3Params{
+		OriginatorNodeID:     nodeID,
+		OriginatorSequenceID: seqID,
+		Topic:                testutils.RandomBytes(32),
+		OriginatorEnvelope:   testutils.RandomBytes(64),
+	}
 
+	// Create the partition out-of-band, then insert in a transaction that we roll back.
+	require.NoError(t, xmtpd_db.EnsureGatewayPartitions(ctx, db, nodeID, seqID))
+
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
+	require.NoError(t, err)
+	q := queries.New(db).WithTx(tx)
+	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(ctx, q, params)
+	require.NoError(t, err)
 	_ = tx.Rollback()
 
+	// The partition still exists, so re-inserting the same row in a new transaction succeeds.
 	tx2, err := db.BeginTx(ctx, &sql.TxOptions{})
 	require.NoError(t, err)
 	q2 := queries.New(db).WithTx(tx2)
@@ -598,16 +577,7 @@ func TestInsertGatewayEnvelopeWithChecksTx_RollbackDDL(t *testing.T) {
 		_ = tx2.Rollback()
 	}(tx2)
 
-	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
-		ctx,
-		q2,
-		queries.InsertGatewayEnvelopeV3Params{
-			OriginatorNodeID:     nodeID,
-			OriginatorSequenceID: seqID,
-			Topic:                testutils.RandomBytes(32),
-			OriginatorEnvelope:   testutils.RandomBytes(64),
-		},
-	)
+	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(ctx, q2, params)
 	require.NoError(t, err)
 }
 
@@ -616,25 +586,14 @@ func TestInsertGatewayEnvelopeWithChecksTx_Commit(t *testing.T) {
 
 	ctx := context.Background()
 	db, _ := testutils.NewRawDB(t, ctx)
-	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
-	require.NoError(t, err)
-	q := queries.New(db).WithTx(tx)
 
 	const nodeID int32 = 7
 	const seqID int64 = 10
 
-	_, err = xmtpd_db.InsertGatewayEnvelopeWithChecksTransactional(
-		ctx,
-		q,
-		queries.InsertGatewayEnvelopeV3Params{
-			OriginatorNodeID:     nodeID,
-			OriginatorSequenceID: seqID,
-			Topic:                testutils.RandomBytes(32),
-			OriginatorEnvelope:   testutils.RandomBytes(64),
-		},
-	)
-	require.NoError(t, err)
-
-	_ = tx.Commit()
-	t.Logf("tx committed")
+	require.NoError(t, db_runInsertWithEnsure(ctx, t, db, queries.InsertGatewayEnvelopeV3Params{
+		OriginatorNodeID:     nodeID,
+		OriginatorSequenceID: seqID,
+		Topic:                testutils.RandomBytes(32),
+		OriginatorEnvelope:   testutils.RandomBytes(64),
+	}))
 }

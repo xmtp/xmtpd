@@ -402,6 +402,28 @@ func (s *Store) CreateAttestation(
 	)
 }
 
+// runGatewayInsertTx runs a gateway-envelope insert transaction and, if it reports a missing
+// partition, creates the partition out-of-band under the exclusive partition-creation lock and
+// retries once. Partition creation is never done inside the insert transaction to avoid the
+// cross-originator deadlock between partition-creation DDL and concurrent inserts.
+func (s *Store) runGatewayInsertTx(
+	ctx context.Context,
+	originatorNodeID int32,
+	originatorSequenceID int64,
+	txBody func(ctx context.Context, txQueries *queries.Queries) error,
+) error {
+	err := db.RunInTx(ctx, s.db.DB(), &sql.TxOptions{}, txBody)
+	if errors.Is(err, db.ErrGatewayPartitionMissing) {
+		if ensErr := db.EnsureGatewayPartitions(
+			ctx, s.db.DB(), originatorNodeID, originatorSequenceID,
+		); ensErr != nil {
+			return ensErr
+		}
+		err = db.RunInTx(ctx, s.db.DB(), &sql.TxOptions{}, txBody)
+	}
+	return err
+}
+
 // StoreSyncedReport stores a report that has been received through a stream from another node.
 func (s *Store) StoreSyncedReport(
 	ctx context.Context,
@@ -450,31 +472,33 @@ func (s *Store) StoreSyncedReport(
 		return err
 	}
 
-	return db.RunInTx(
-		ctx,
-		s.db.DB(),
-		&sql.TxOptions{},
-		func(ctx context.Context, txQueries *queries.Queries) error {
-			_, err := db.InsertGatewayEnvelopeWithChecksTransactional(ctx, txQueries,
-				queries.InsertGatewayEnvelopeV3Params{
-					OriginatorNodeID:     int32(envelope.OriginatorNodeID()),
-					OriginatorSequenceID: int64(envelope.OriginatorSequenceID()),
-					Topic:                envelope.TargetTopic().Bytes(),
-					OriginatorEnvelope:   originatorEnvelopeBytes,
-					PayerID:              db.NullInt32(payerID),
-					Expiry: int64(
-						envelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime(),
-					),
-				},
-			)
-			if err != nil {
-				return err
-			}
-
-			_, err = txQueries.InsertOrIgnorePayerReport(ctx, *storeReportParams)
-
+	txBody := func(ctx context.Context, txQueries *queries.Queries) error {
+		_, err := db.InsertGatewayEnvelopeWithChecksTransactional(ctx, txQueries,
+			queries.InsertGatewayEnvelopeV3Params{
+				OriginatorNodeID:     int32(envelope.OriginatorNodeID()),
+				OriginatorSequenceID: int64(envelope.OriginatorSequenceID()),
+				Topic:                envelope.TargetTopic().Bytes(),
+				OriginatorEnvelope:   originatorEnvelopeBytes,
+				PayerID:              db.NullInt32(payerID),
+				Expiry: int64(
+					envelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime(),
+				),
+			},
+		)
+		if err != nil {
 			return err
-		},
+		}
+
+		_, err = txQueries.InsertOrIgnorePayerReport(ctx, *storeReportParams)
+
+		return err
+	}
+
+	return s.runGatewayInsertTx(
+		ctx,
+		int32(envelope.OriginatorNodeID()),
+		int64(envelope.OriginatorSequenceID()),
+		txBody,
 	)
 }
 
@@ -496,36 +520,38 @@ func (s *Store) StoreSyncedAttestation(
 
 	attestationProto := attestationProtoWrapper.PayerReportAttestation
 
-	return db.RunInTx(
-		ctx,
-		s.db.DB(),
-		&sql.TxOptions{},
-		func(ctx context.Context, txQueries *queries.Queries) error {
-			_, err := db.InsertGatewayEnvelopeWithChecksTransactional(ctx, txQueries,
-				queries.InsertGatewayEnvelopeV3Params{
-					OriginatorNodeID:     int32(envelope.OriginatorNodeID()),
-					OriginatorSequenceID: int64(envelope.OriginatorSequenceID()),
-					Topic:                envelope.TargetTopic().Bytes(),
-					OriginatorEnvelope:   originatorEnvelopeBytes,
-					PayerID:              db.NullInt32(payerID),
-					Expiry: int64(
-						envelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime(),
-					),
-				},
-			)
-			if err != nil {
-				return err
-			}
+	txBody := func(ctx context.Context, txQueries *queries.Queries) error {
+		_, err := db.InsertGatewayEnvelopeWithChecksTransactional(ctx, txQueries,
+			queries.InsertGatewayEnvelopeV3Params{
+				OriginatorNodeID:     int32(envelope.OriginatorNodeID()),
+				OriginatorSequenceID: int64(envelope.OriginatorSequenceID()),
+				Topic:                envelope.TargetTopic().Bytes(),
+				OriginatorEnvelope:   originatorEnvelopeBytes,
+				PayerID:              db.NullInt32(payerID),
+				Expiry: int64(
+					envelope.UnsignedOriginatorEnvelope.Proto().GetExpiryUnixtime(),
+				),
+			},
+		)
+		if err != nil {
+			return err
+		}
 
-			return txQueries.InsertOrIgnorePayerReportAttestation(
-				ctx,
-				queries.InsertOrIgnorePayerReportAttestationParams{
-					PayerReportID: attestationProto.GetReportId(),
-					NodeID:        int64(attestationProto.GetSignature().GetNodeId()),
-					Signature:     attestationProto.GetSignature().GetSignature().GetBytes(),
-				},
-			)
-		},
+		return txQueries.InsertOrIgnorePayerReportAttestation(
+			ctx,
+			queries.InsertOrIgnorePayerReportAttestationParams{
+				PayerReportID: attestationProto.GetReportId(),
+				NodeID:        int64(attestationProto.GetSignature().GetNodeId()),
+				Signature:     attestationProto.GetSignature().GetSignature().GetBytes(),
+			},
+		)
+	}
+
+	return s.runGatewayInsertTx(
+		ctx,
+		int32(envelope.OriginatorNodeID()),
+		int64(envelope.OriginatorSequenceID()),
+		txBody,
 	)
 }
 

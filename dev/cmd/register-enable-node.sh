@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
+if [[ $# -ne 4 ]]; then
+    echo "Usage: $0 <owner_addr> <signer_pub> <http_addr> <config_file>"
+    echo "Example: $0 0x123... 0xabc... localhost:8080 config.yaml"
+    exit 1
+fi
 OWNER_ADDR="$1"
 SIGNER_PUB="$2"
 HTTP_ADDR="$3"

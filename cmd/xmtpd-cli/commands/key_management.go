@@ -79,6 +79,9 @@ xmtpd-cli keys get-public-key --private-key <private-key>
 `,
 	}
 
+	cmd.Flags().String("private-key", "", "Private key (hex) to derive public key from")
+	_ = viper.BindPFlag("private-key", cmd.Flags().Lookup("private-key"))
+
 	return &cmd
 }
 

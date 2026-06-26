@@ -1,11 +1,14 @@
 package message_test
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -1406,4 +1409,378 @@ func TestSubscribeAll_StreamsOnlyNewMessages(t *testing.T) {
 	streamWG.Wait()
 
 	require.Equal(t, streamSize, received)
+}
+
+// ---- XIP-83 bidirectional Subscribe (QueryApi) ----
+
+func subMutate(
+	mutateID uint64,
+	historyOnly bool,
+	adds []*message_api.SubscribeRequest_V1_Mutate_Subscription,
+	removes [][]byte,
+) *message_api.SubscribeRequest {
+	return &message_api.SubscribeRequest{
+		Version: &message_api.SubscribeRequest_V1_{
+			V1: &message_api.SubscribeRequest_V1{
+				Request: &message_api.SubscribeRequest_V1_Mutate_{
+					Mutate: &message_api.SubscribeRequest_V1_Mutate{
+						MutateId:    mutateID,
+						HistoryOnly: historyOnly,
+						Adds:        adds,
+						Removes:     removes,
+					},
+				},
+			},
+		},
+	}
+}
+
+func addSub(
+	topicBytes []byte,
+	cursor map[uint32]uint64,
+) *message_api.SubscribeRequest_V1_Mutate_Subscription {
+	sub := &message_api.SubscribeRequest_V1_Mutate_Subscription{Topic: topicBytes}
+	if cursor != nil {
+		sub.LastSeen = &envelopes.Cursor{NodeIdToSequenceId: cursor}
+	}
+	return sub
+}
+
+// bidiReader drains a Subscribe stream on a background goroutine into a thread-safe buffer, so a
+// test can poll for expected frames with require.Eventually. It never answers pings (a test that
+// needs liveness reaping relies on that).
+type bidiReader struct {
+	mu     sync.Mutex
+	frames []*message_api.SubscribeResponse
+	err    error
+}
+
+func newBidiReader(
+	stream *connect.BidiStreamForClient[message_api.SubscribeRequest, message_api.SubscribeResponse],
+) *bidiReader {
+	r := &bidiReader{}
+	go func() {
+		for {
+			resp, err := stream.Receive()
+			r.mu.Lock()
+			if err != nil {
+				r.err = err
+				r.mu.Unlock()
+				return
+			}
+			r.frames = append(r.frames, resp)
+			r.mu.Unlock()
+		}
+	}()
+	return r
+}
+
+func (r *bidiReader) snapshot() ([]*message_api.SubscribeResponse, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]*message_api.SubscribeResponse, len(r.frames))
+	copy(out, r.frames)
+	return out, r.err
+}
+
+// subEnvelopeKeys returns the (originatorNodeID, sequenceID) of every delivered envelope, in order.
+func subEnvelopeKeys(t *testing.T, frames []*message_api.SubscribeResponse) [][2]uint64 {
+	t.Helper()
+	var keys [][2]uint64
+	for _, f := range frames {
+		env := f.GetV1().GetEnvelopes()
+		if env == nil {
+			continue
+		}
+		for _, e := range env.GetEnvelopes() {
+			u := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
+				t,
+				e.GetUnsignedOriginatorEnvelope(),
+			)
+			keys = append(
+				keys,
+				[2]uint64{uint64(u.GetOriginatorNodeId()), u.GetOriginatorSequenceId()},
+			)
+		}
+	}
+	return keys
+}
+
+func subTopicsLive(frames []*message_api.SubscribeResponse) [][]byte {
+	var out [][]byte
+	for _, f := range frames {
+		if tl := f.GetV1().GetTopicsLive(); tl != nil {
+			out = append(out, tl.GetTopics()...)
+		}
+	}
+	return out
+}
+
+func subCatchupCompletes(frames []*message_api.SubscribeResponse) []uint64 {
+	var out []uint64
+	for _, f := range frames {
+		if cc := f.GetV1().GetCatchupComplete(); cc != nil {
+			out = append(out, cc.GetMutateId())
+		}
+	}
+	return out
+}
+
+func hasEnvKey(keys [][2]uint64, nodeID, seqID uint64) bool {
+	for _, k := range keys {
+		if k[0] == nodeID && k[1] == seqID {
+			return true
+		}
+	}
+	return false
+}
+
+func hasTopicBytes(topics [][]byte, want []byte) bool {
+	for _, tp := range topics {
+		if bytes.Equal(tp, want) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasMutateID(ids []uint64, want uint64) bool {
+	return slices.Contains(ids, want)
+}
+
+// TestSubscribe_CatchUpThenLive verifies a subscription delivers a topic's history (catch-up),
+// announces the live boundary, then delivers live messages for that topic only — no duplicates
+// across the switch, and nothing from an unsubscribed topic.
+func TestSubscribe_CatchUpThenLive(t *testing.T) {
+	suite := setupTest(t)
+	insertInitialRows(t, suite) // topicA: (100,1),(200,1) in the DB; worker polled past them
+
+	stream := suite.ClientQuery.Subscribe(t.Context())
+	reader := newBidiReader(stream)
+
+	require.NoError(t, stream.Send(subMutate(
+		1, false,
+		[]*message_api.SubscribeRequest_V1_Mutate_Subscription{addSub(topicA, nil)},
+		nil,
+	)))
+
+	require.Eventually(t, func() bool {
+		frames, _ := reader.snapshot()
+		keys := subEnvelopeKeys(t, frames)
+		return hasEnvKey(keys, 100, 1) && hasEnvKey(keys, 200, 1) &&
+			hasTopicBytes(subTopicsLive(frames), topicA) &&
+			hasMutateID(subCatchupCompletes(frames), 1)
+	}, 10*time.Second, 20*time.Millisecond, "expected topicA history + TopicsLive + CatchupComplete(1)")
+
+	// (100,3) is topicA (live); (100,2),(200,2) are topicB (not subscribed).
+	insertAdditionalRows(t, suite.DB)
+
+	require.Eventually(t, func() bool {
+		frames, _ := reader.snapshot()
+		return hasEnvKey(subEnvelopeKeys(t, frames), 100, 3)
+	}, 10*time.Second, 20*time.Millisecond, "expected live topicA delivery of (100,3)")
+
+	frames, err := reader.snapshot()
+	require.NoError(t, err)
+	keys := subEnvelopeKeys(t, frames)
+	require.False(t, hasEnvKey(keys, 100, 2), "topicB (100,2) must not be delivered")
+	require.False(t, hasEnvKey(keys, 200, 2), "topicB (200,2) must not be delivered")
+
+	seen := make(map[[2]uint64]struct{}, len(keys))
+	for _, k := range keys {
+		_, dup := seen[k]
+		require.False(t, dup, "duplicate envelope across catch-up/live: %v", k)
+		seen[k] = struct{}{}
+	}
+}
+
+// TestSubscribe_MutateRemoveStopsDelivery verifies an in-place remove stops live delivery for a
+// topic while an add in the same stream begins it for another — no reconnect.
+func TestSubscribe_MutateRemoveStopsDelivery(t *testing.T) {
+	suite := setupTest(t)
+
+	stream := suite.ClientQuery.Subscribe(t.Context())
+	reader := newBidiReader(stream)
+
+	require.NoError(t, stream.Send(subMutate(
+		1, false,
+		[]*message_api.SubscribeRequest_V1_Mutate_Subscription{addSub(topicA, nil)},
+		nil,
+	)))
+	require.Eventually(t, func() bool {
+		frames, _ := reader.snapshot()
+		return hasMutateID(subCatchupCompletes(frames), 1)
+	}, 10*time.Second, 20*time.Millisecond)
+
+	// Remove topicA, add topicB, in one mutation.
+	require.NoError(t, stream.Send(subMutate(
+		2, false,
+		[]*message_api.SubscribeRequest_V1_Mutate_Subscription{addSub(topicB, nil)},
+		[][]byte{topicA},
+	)))
+	require.Eventually(t, func() bool {
+		frames, _ := reader.snapshot()
+		return hasMutateID(subCatchupCompletes(frames), 2)
+	}, 10*time.Second, 20*time.Millisecond)
+
+	insertAdditionalRows(t, suite.DB) // topicB (100,2),(200,2); topicA (100,3)
+
+	require.Eventually(t, func() bool {
+		keys := subEnvelopeKeys(t, mustFrames(reader))
+		return hasEnvKey(keys, 100, 2) && hasEnvKey(keys, 200, 2)
+	}, 10*time.Second, 20*time.Millisecond, "topicB must be delivered live after the add")
+
+	frames, err := reader.snapshot()
+	require.NoError(t, err)
+	require.False(
+		t,
+		hasEnvKey(subEnvelopeKeys(t, frames), 100, 3),
+		"removed topicA must not deliver (100,3)",
+	)
+}
+
+// TestSubscribe_HalfCloseHistoryOnlyDrains is the bounded catch-up ("sync") flow: history_only +
+// half-close, the server finishes the wave (history, TopicsLive, CatchupComplete) then closes the
+// stream itself — the client sees a clean io.EOF, not a truncated result.
+func TestSubscribe_HalfCloseHistoryOnlyDrains(t *testing.T) {
+	suite := setupTest(t)
+	insertInitialRows(t, suite)
+
+	stream := suite.ClientQuery.Subscribe(t.Context())
+	reader := newBidiReader(stream)
+
+	require.NoError(t, stream.Send(subMutate(
+		7, true, // history_only
+		[]*message_api.SubscribeRequest_V1_Mutate_Subscription{addSub(topicA, nil)},
+		nil,
+	)))
+	require.NoError(t, stream.CloseRequest())
+
+	require.Eventually(t, func() bool {
+		_, err := reader.snapshot()
+		return errors.Is(err, io.EOF)
+	}, 10*time.Second, 20*time.Millisecond, "stream should close cleanly after the bounded catch-up")
+
+	frames, err := reader.snapshot()
+	require.ErrorIs(t, err, io.EOF)
+	keys := subEnvelopeKeys(t, frames)
+	require.True(t, hasEnvKey(keys, 100, 1) && hasEnvKey(keys, 200, 1), "history must be delivered")
+	require.True(t, hasTopicBytes(subTopicsLive(frames), topicA))
+	require.True(t, hasMutateID(subCatchupCompletes(frames), 7))
+}
+
+// TestSubscribe_HistoryOnlyOnLiveRejected verifies a history_only add targeting a topic already
+// live on the same stream is rejected (one cursor floor per topic).
+func TestSubscribe_HistoryOnlyOnLiveRejected(t *testing.T) {
+	suite := setupTest(t)
+
+	stream := suite.ClientQuery.Subscribe(t.Context())
+	reader := newBidiReader(stream)
+
+	require.NoError(t, stream.Send(subMutate(
+		1, false,
+		[]*message_api.SubscribeRequest_V1_Mutate_Subscription{addSub(topicA, nil)},
+		nil,
+	)))
+	require.Eventually(t, func() bool {
+		frames, _ := reader.snapshot()
+		return hasMutateID(subCatchupCompletes(frames), 1)
+	}, 10*time.Second, 20*time.Millisecond)
+
+	require.NoError(t, stream.Send(subMutate(
+		2, true, // history_only on the already-live topicA
+		[]*message_api.SubscribeRequest_V1_Mutate_Subscription{addSub(topicA, nil)},
+		nil,
+	)))
+
+	require.Eventually(t, func() bool {
+		_, err := reader.snapshot()
+		return err != nil
+	}, 10*time.Second, 20*time.Millisecond, "stream should be failed")
+
+	_, err := reader.snapshot()
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+}
+
+// TestSubscribe_NoPongIsReaped verifies an idle client that never answers the server's liveness
+// Ping is reaped with DeadlineExceeded.
+func TestSubscribe_NoPongIsReaped(t *testing.T) {
+	nodes := []registry.Node{
+		{NodeID: 100, IsCanonical: true},
+		{NodeID: 200, IsCanonical: true},
+	}
+	suite := testUtilsApi.NewTestAPIServer(
+		t,
+		testUtilsApi.WithRegistryNodes(nodes),
+		testUtilsApi.WithSendKeepAliveInterval(200*time.Millisecond),
+	)
+
+	stream := suite.ClientQuery.Subscribe(t.Context())
+	reader := newBidiReader(stream) // only reads; never Pongs
+
+	// Subscribe to nothing and stay idle; the server will Ping, get no Pong, and reap.
+	require.NoError(t, stream.Send(subMutate(1, false, nil, nil)))
+
+	require.Eventually(t, func() bool {
+		_, err := reader.snapshot()
+		return err != nil
+	}, 5*time.Second, 50*time.Millisecond, "an idle client that never Pongs must be reaped")
+
+	_, err := reader.snapshot()
+	require.Equal(t, connect.CodeDeadlineExceeded, connect.CodeOf(err))
+}
+
+// TestSubscribe_ReAddLiveTopicDoesNotReplay verifies that re-adding an already-live topic WITHOUT a
+// remove (e.g. a herald re-issuing an add with a default/stale cursor) is a no-op: it must not reset
+// the live cursor and re-deliver already-sent envelopes (no duplicates, no backwards seqID). Replay
+// is only available via remove+re-add.
+func TestSubscribe_ReAddLiveTopicDoesNotReplay(t *testing.T) {
+	suite := setupTest(t)
+	insertInitialRows(t, suite) // topicA: (100,1),(200,1)
+
+	stream := suite.ClientQuery.Subscribe(t.Context())
+	reader := newBidiReader(stream)
+
+	// Subscribe to topicA; receive its history and go live.
+	require.NoError(t, stream.Send(subMutate(
+		1, false,
+		[]*message_api.SubscribeRequest_V1_Mutate_Subscription{addSub(topicA, nil)},
+		nil,
+	)))
+	require.Eventually(t, func() bool {
+		keys := subEnvelopeKeys(t, mustFrames(reader))
+		return hasEnvKey(keys, 100, 1) && hasEnvKey(keys, 200, 1) &&
+			hasMutateID(subCatchupCompletes(mustFrames(reader)), 1)
+	}, 10*time.Second, 20*time.Millisecond)
+
+	// Deliver a live message so the live cursor advances past the history.
+	insertAdditionalRows(t, suite.DB) // topicA (100,3); topicB (100,2),(200,2) not subscribed
+	require.Eventually(t, func() bool {
+		return hasEnvKey(subEnvelopeKeys(t, mustFrames(reader)), 100, 3)
+	}, 10*time.Second, 20*time.Millisecond, "expected live topicA (100,3)")
+
+	// Re-add topicA WITHOUT removing it, with a zero cursor. This must be a no-op — NOT a replay.
+	require.NoError(t, stream.Send(subMutate(
+		2, false,
+		[]*message_api.SubscribeRequest_V1_Mutate_Subscription{addSub(topicA, map[uint32]uint64{})},
+		nil,
+	)))
+	// The no-op mutate is still confirmed (its adds collapsed to none -> removes-only path).
+	require.Eventually(t, func() bool {
+		return hasMutateID(subCatchupCompletes(mustFrames(reader)), 2)
+	}, 10*time.Second, 20*time.Millisecond, "expected CatchupComplete(2) for the no-op re-add")
+
+	// No envelope may be delivered twice: a replay would re-send (100,1),(200,1),(100,3).
+	counts := make(map[[2]uint64]int)
+	for _, k := range subEnvelopeKeys(t, mustFrames(reader)) {
+		counts[k]++
+	}
+	for k, n := range counts {
+		require.Equalf(t, 1, n, "envelope %v delivered %d times: re-add must not replay", k, n)
+	}
+}
+
+func mustFrames(r *bidiReader) []*message_api.SubscribeResponse {
+	frames, _ := r.snapshot()
+	return frames
 }

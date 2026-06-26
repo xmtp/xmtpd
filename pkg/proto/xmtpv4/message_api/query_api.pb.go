@@ -26,10 +26,11 @@ var File_xmtpv4_message_api_query_api_proto protoreflect.FileDescriptor
 
 const file_xmtpv4_message_api_query_api_proto_rawDesc = "" +
 	"\n" +
-	"\"xmtpv4/message_api/query_api.proto\x12\x17xmtp.xmtpv4.message_api\x1a$xmtpv4/message_api/message_api.proto2\xe3\x03\n" +
+	"\"xmtpv4/message_api/query_api.proto\x12\x17xmtp.xmtpv4.message_api\x1a$xmtpv4/message_api/message_api.proto2\xcd\x04\n" +
 	"\bQueryApi\x12s\n" +
 	"\x0eQueryEnvelopes\x12..xmtp.xmtpv4.message_api.QueryEnvelopesRequest\x1a/.xmtp.xmtpv4.message_api.QueryEnvelopesResponse\"\x00\x12x\n" +
-	"\x0fSubscribeTopics\x12/.xmtp.xmtpv4.message_api.SubscribeTopicsRequest\x1a0.xmtp.xmtpv4.message_api.SubscribeTopicsResponse\"\x000\x01\x12j\n" +
+	"\x0fSubscribeTopics\x12/.xmtp.xmtpv4.message_api.SubscribeTopicsRequest\x1a0.xmtp.xmtpv4.message_api.SubscribeTopicsResponse\"\x000\x01\x12h\n" +
+	"\tSubscribe\x12).xmtp.xmtpv4.message_api.SubscribeRequest\x1a*.xmtp.xmtpv4.message_api.SubscribeResponse\"\x00(\x010\x01\x12j\n" +
 	"\vGetInboxIds\x12+.xmtp.xmtpv4.message_api.GetInboxIdsRequest\x1a,.xmtp.xmtpv4.message_api.GetInboxIdsResponse\"\x00\x12|\n" +
 	"\x11GetNewestEnvelope\x121.xmtp.xmtpv4.message_api.GetNewestEnvelopeRequest\x1a2.xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse\"\x00B\xda\x01\n" +
 	"\x1bcom.xmtp.xmtpv4.message_apiB\rQueryApiProtoP\x01Z2github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api\xa2\x02\x03XXM\xaa\x02\x16Xmtp.Xmtpv4.MessageApi\xca\x02\x16Xmtp\\Xmtpv4\\MessageApi\xe2\x02\"Xmtp\\Xmtpv4\\MessageApi\\GPBMetadata\xea\x02\x18Xmtp::Xmtpv4::MessageApib\x06proto3"
@@ -37,24 +38,28 @@ const file_xmtpv4_message_api_query_api_proto_rawDesc = "" +
 var file_xmtpv4_message_api_query_api_proto_goTypes = []any{
 	(*QueryEnvelopesRequest)(nil),     // 0: xmtp.xmtpv4.message_api.QueryEnvelopesRequest
 	(*SubscribeTopicsRequest)(nil),    // 1: xmtp.xmtpv4.message_api.SubscribeTopicsRequest
-	(*GetInboxIdsRequest)(nil),        // 2: xmtp.xmtpv4.message_api.GetInboxIdsRequest
-	(*GetNewestEnvelopeRequest)(nil),  // 3: xmtp.xmtpv4.message_api.GetNewestEnvelopeRequest
-	(*QueryEnvelopesResponse)(nil),    // 4: xmtp.xmtpv4.message_api.QueryEnvelopesResponse
-	(*SubscribeTopicsResponse)(nil),   // 5: xmtp.xmtpv4.message_api.SubscribeTopicsResponse
-	(*GetInboxIdsResponse)(nil),       // 6: xmtp.xmtpv4.message_api.GetInboxIdsResponse
-	(*GetNewestEnvelopeResponse)(nil), // 7: xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse
+	(*SubscribeRequest)(nil),          // 2: xmtp.xmtpv4.message_api.SubscribeRequest
+	(*GetInboxIdsRequest)(nil),        // 3: xmtp.xmtpv4.message_api.GetInboxIdsRequest
+	(*GetNewestEnvelopeRequest)(nil),  // 4: xmtp.xmtpv4.message_api.GetNewestEnvelopeRequest
+	(*QueryEnvelopesResponse)(nil),    // 5: xmtp.xmtpv4.message_api.QueryEnvelopesResponse
+	(*SubscribeTopicsResponse)(nil),   // 6: xmtp.xmtpv4.message_api.SubscribeTopicsResponse
+	(*SubscribeResponse)(nil),         // 7: xmtp.xmtpv4.message_api.SubscribeResponse
+	(*GetInboxIdsResponse)(nil),       // 8: xmtp.xmtpv4.message_api.GetInboxIdsResponse
+	(*GetNewestEnvelopeResponse)(nil), // 9: xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse
 }
 var file_xmtpv4_message_api_query_api_proto_depIdxs = []int32{
 	0, // 0: xmtp.xmtpv4.message_api.QueryApi.QueryEnvelopes:input_type -> xmtp.xmtpv4.message_api.QueryEnvelopesRequest
 	1, // 1: xmtp.xmtpv4.message_api.QueryApi.SubscribeTopics:input_type -> xmtp.xmtpv4.message_api.SubscribeTopicsRequest
-	2, // 2: xmtp.xmtpv4.message_api.QueryApi.GetInboxIds:input_type -> xmtp.xmtpv4.message_api.GetInboxIdsRequest
-	3, // 3: xmtp.xmtpv4.message_api.QueryApi.GetNewestEnvelope:input_type -> xmtp.xmtpv4.message_api.GetNewestEnvelopeRequest
-	4, // 4: xmtp.xmtpv4.message_api.QueryApi.QueryEnvelopes:output_type -> xmtp.xmtpv4.message_api.QueryEnvelopesResponse
-	5, // 5: xmtp.xmtpv4.message_api.QueryApi.SubscribeTopics:output_type -> xmtp.xmtpv4.message_api.SubscribeTopicsResponse
-	6, // 6: xmtp.xmtpv4.message_api.QueryApi.GetInboxIds:output_type -> xmtp.xmtpv4.message_api.GetInboxIdsResponse
-	7, // 7: xmtp.xmtpv4.message_api.QueryApi.GetNewestEnvelope:output_type -> xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse
-	4, // [4:8] is the sub-list for method output_type
-	0, // [0:4] is the sub-list for method input_type
+	2, // 2: xmtp.xmtpv4.message_api.QueryApi.Subscribe:input_type -> xmtp.xmtpv4.message_api.SubscribeRequest
+	3, // 3: xmtp.xmtpv4.message_api.QueryApi.GetInboxIds:input_type -> xmtp.xmtpv4.message_api.GetInboxIdsRequest
+	4, // 4: xmtp.xmtpv4.message_api.QueryApi.GetNewestEnvelope:input_type -> xmtp.xmtpv4.message_api.GetNewestEnvelopeRequest
+	5, // 5: xmtp.xmtpv4.message_api.QueryApi.QueryEnvelopes:output_type -> xmtp.xmtpv4.message_api.QueryEnvelopesResponse
+	6, // 6: xmtp.xmtpv4.message_api.QueryApi.SubscribeTopics:output_type -> xmtp.xmtpv4.message_api.SubscribeTopicsResponse
+	7, // 7: xmtp.xmtpv4.message_api.QueryApi.Subscribe:output_type -> xmtp.xmtpv4.message_api.SubscribeResponse
+	8, // 8: xmtp.xmtpv4.message_api.QueryApi.GetInboxIds:output_type -> xmtp.xmtpv4.message_api.GetInboxIdsResponse
+	9, // 9: xmtp.xmtpv4.message_api.QueryApi.GetNewestEnvelope:output_type -> xmtp.xmtpv4.message_api.GetNewestEnvelopeResponse
+	5, // [5:10] is the sub-list for method output_type
+	0, // [0:5] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name

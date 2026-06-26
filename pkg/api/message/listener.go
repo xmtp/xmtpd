@@ -11,8 +11,12 @@ import (
 )
 
 type listener struct {
-	ctx         context.Context
-	ch          chan<- []*envelopes.OriginatorEnvelope
+	ctx context.Context
+	ch  chan<- []*envelopes.OriginatorEnvelope
+	// topicsMu guards topics, which is fixed for a server-stream listener but mutated in
+	// place by a mutableSubscription (the XIP-83 bidi Subscribe). The worker reads it when
+	// reaping the listener (closeListener), so concurrent mutation needs the lock.
+	topicsMu    sync.Mutex
 	closed      bool
 	topics      map[string]struct{}
 	originators map[uint32]struct{}
@@ -101,7 +105,7 @@ func (lm *listenersMap[K]) removeListener(keys map[K]struct{}, l *listener) {
 	for key := range keys {
 		value, ok := lm.data.Load(key)
 		if !ok || value == nil {
-			return // Key doesn't exist, nothing to do
+			continue // This key is already gone (e.g. reaped by the worker); keep unregistering the rest
 		}
 		set := value.(*listenerSet)
 		set.removeListener(l)

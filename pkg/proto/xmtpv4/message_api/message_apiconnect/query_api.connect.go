@@ -40,6 +40,8 @@ const (
 	// QueryApiSubscribeTopicsProcedure is the fully-qualified name of the QueryApi's SubscribeTopics
 	// RPC.
 	QueryApiSubscribeTopicsProcedure = "/xmtp.xmtpv4.message_api.QueryApi/SubscribeTopics"
+	// QueryApiSubscribeProcedure is the fully-qualified name of the QueryApi's Subscribe RPC.
+	QueryApiSubscribeProcedure = "/xmtp.xmtpv4.message_api.QueryApi/Subscribe"
 	// QueryApiGetInboxIdsProcedure is the fully-qualified name of the QueryApi's GetInboxIds RPC.
 	QueryApiGetInboxIdsProcedure = "/xmtp.xmtpv4.message_api.QueryApi/GetInboxIds"
 	// QueryApiGetNewestEnvelopeProcedure is the fully-qualified name of the QueryApi's
@@ -51,6 +53,12 @@ const (
 type QueryApiClient interface {
 	QueryEnvelopes(context.Context, *connect.Request[message_api.QueryEnvelopesRequest]) (*connect.Response[message_api.QueryEnvelopesResponse], error)
 	SubscribeTopics(context.Context, *connect.Request[message_api.SubscribeTopicsRequest]) (*connect.ServerStreamForClient[message_api.SubscribeTopicsResponse], error)
+	// XIP-83 bidirectional mutable subscription: a single long-lived stream the
+	// client mutates in place (add/remove topics) with ping/pong liveness, in
+	// contrast to SubscribeTopics' fixed, immutable, server-streaming filter set.
+	// Bidi streaming requires HTTP/2 (not grpc-web / connect-web); browser
+	// clients stay on SubscribeTopics.
+	Subscribe(context.Context) *connect.BidiStreamForClient[message_api.SubscribeRequest, message_api.SubscribeResponse]
 	GetInboxIds(context.Context, *connect.Request[message_api.GetInboxIdsRequest]) (*connect.Response[message_api.GetInboxIdsResponse], error)
 	GetNewestEnvelope(context.Context, *connect.Request[message_api.GetNewestEnvelopeRequest]) (*connect.Response[message_api.GetNewestEnvelopeResponse], error)
 }
@@ -78,6 +86,12 @@ func NewQueryApiClient(httpClient connect.HTTPClient, baseURL string, opts ...co
 			connect.WithSchema(queryApiMethods.ByName("SubscribeTopics")),
 			connect.WithClientOptions(opts...),
 		),
+		subscribe: connect.NewClient[message_api.SubscribeRequest, message_api.SubscribeResponse](
+			httpClient,
+			baseURL+QueryApiSubscribeProcedure,
+			connect.WithSchema(queryApiMethods.ByName("Subscribe")),
+			connect.WithClientOptions(opts...),
+		),
 		getInboxIds: connect.NewClient[message_api.GetInboxIdsRequest, message_api.GetInboxIdsResponse](
 			httpClient,
 			baseURL+QueryApiGetInboxIdsProcedure,
@@ -97,6 +111,7 @@ func NewQueryApiClient(httpClient connect.HTTPClient, baseURL string, opts ...co
 type queryApiClient struct {
 	queryEnvelopes    *connect.Client[message_api.QueryEnvelopesRequest, message_api.QueryEnvelopesResponse]
 	subscribeTopics   *connect.Client[message_api.SubscribeTopicsRequest, message_api.SubscribeTopicsResponse]
+	subscribe         *connect.Client[message_api.SubscribeRequest, message_api.SubscribeResponse]
 	getInboxIds       *connect.Client[message_api.GetInboxIdsRequest, message_api.GetInboxIdsResponse]
 	getNewestEnvelope *connect.Client[message_api.GetNewestEnvelopeRequest, message_api.GetNewestEnvelopeResponse]
 }
@@ -109,6 +124,11 @@ func (c *queryApiClient) QueryEnvelopes(ctx context.Context, req *connect.Reques
 // SubscribeTopics calls xmtp.xmtpv4.message_api.QueryApi.SubscribeTopics.
 func (c *queryApiClient) SubscribeTopics(ctx context.Context, req *connect.Request[message_api.SubscribeTopicsRequest]) (*connect.ServerStreamForClient[message_api.SubscribeTopicsResponse], error) {
 	return c.subscribeTopics.CallServerStream(ctx, req)
+}
+
+// Subscribe calls xmtp.xmtpv4.message_api.QueryApi.Subscribe.
+func (c *queryApiClient) Subscribe(ctx context.Context) *connect.BidiStreamForClient[message_api.SubscribeRequest, message_api.SubscribeResponse] {
+	return c.subscribe.CallBidiStream(ctx)
 }
 
 // GetInboxIds calls xmtp.xmtpv4.message_api.QueryApi.GetInboxIds.
@@ -125,6 +145,12 @@ func (c *queryApiClient) GetNewestEnvelope(ctx context.Context, req *connect.Req
 type QueryApiHandler interface {
 	QueryEnvelopes(context.Context, *connect.Request[message_api.QueryEnvelopesRequest]) (*connect.Response[message_api.QueryEnvelopesResponse], error)
 	SubscribeTopics(context.Context, *connect.Request[message_api.SubscribeTopicsRequest], *connect.ServerStream[message_api.SubscribeTopicsResponse]) error
+	// XIP-83 bidirectional mutable subscription: a single long-lived stream the
+	// client mutates in place (add/remove topics) with ping/pong liveness, in
+	// contrast to SubscribeTopics' fixed, immutable, server-streaming filter set.
+	// Bidi streaming requires HTTP/2 (not grpc-web / connect-web); browser
+	// clients stay on SubscribeTopics.
+	Subscribe(context.Context, *connect.BidiStream[message_api.SubscribeRequest, message_api.SubscribeResponse]) error
 	GetInboxIds(context.Context, *connect.Request[message_api.GetInboxIdsRequest]) (*connect.Response[message_api.GetInboxIdsResponse], error)
 	GetNewestEnvelope(context.Context, *connect.Request[message_api.GetNewestEnvelopeRequest]) (*connect.Response[message_api.GetNewestEnvelopeResponse], error)
 }
@@ -148,6 +174,12 @@ func NewQueryApiHandler(svc QueryApiHandler, opts ...connect.HandlerOption) (str
 		connect.WithSchema(queryApiMethods.ByName("SubscribeTopics")),
 		connect.WithHandlerOptions(opts...),
 	)
+	queryApiSubscribeHandler := connect.NewBidiStreamHandler(
+		QueryApiSubscribeProcedure,
+		svc.Subscribe,
+		connect.WithSchema(queryApiMethods.ByName("Subscribe")),
+		connect.WithHandlerOptions(opts...),
+	)
 	queryApiGetInboxIdsHandler := connect.NewUnaryHandler(
 		QueryApiGetInboxIdsProcedure,
 		svc.GetInboxIds,
@@ -166,6 +198,8 @@ func NewQueryApiHandler(svc QueryApiHandler, opts ...connect.HandlerOption) (str
 			queryApiQueryEnvelopesHandler.ServeHTTP(w, r)
 		case QueryApiSubscribeTopicsProcedure:
 			queryApiSubscribeTopicsHandler.ServeHTTP(w, r)
+		case QueryApiSubscribeProcedure:
+			queryApiSubscribeHandler.ServeHTTP(w, r)
 		case QueryApiGetInboxIdsProcedure:
 			queryApiGetInboxIdsHandler.ServeHTTP(w, r)
 		case QueryApiGetNewestEnvelopeProcedure:
@@ -185,6 +219,10 @@ func (UnimplementedQueryApiHandler) QueryEnvelopes(context.Context, *connect.Req
 
 func (UnimplementedQueryApiHandler) SubscribeTopics(context.Context, *connect.Request[message_api.SubscribeTopicsRequest], *connect.ServerStream[message_api.SubscribeTopicsResponse]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("xmtp.xmtpv4.message_api.QueryApi.SubscribeTopics is not implemented"))
+}
+
+func (UnimplementedQueryApiHandler) Subscribe(context.Context, *connect.BidiStream[message_api.SubscribeRequest, message_api.SubscribeResponse]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("xmtp.xmtpv4.message_api.QueryApi.Subscribe is not implemented"))
 }
 
 func (UnimplementedQueryApiHandler) GetInboxIds(context.Context, *connect.Request[message_api.GetInboxIdsRequest]) (*connect.Response[message_api.GetInboxIdsResponse], error) {

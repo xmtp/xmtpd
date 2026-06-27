@@ -126,7 +126,7 @@ func TestUnbalancedTrees(t *testing.T) {
 				)
 			}
 
-			// TODO: Check that all internal nodes, let of the upperBound, up to the root are not nil.
+			// TODO: Check that all internal nodes, set of the upperBound, up to the root are not nil.
 		})
 	}
 }

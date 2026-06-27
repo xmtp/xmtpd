@@ -33,7 +33,7 @@ type Config struct {
 }
 
 // partition config controls when should the database worker create new partitions.
-// TODO: Perhaps use a lis of originators and setup partitions even for nodes that do not have any yet.
+// TODO: Perhaps use a list of originators and setup partitions even for nodes that do not have any yet.
 
 type PartitionConfig struct {
 	FillThreshold float64

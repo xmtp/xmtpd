@@ -32,6 +32,9 @@ type Task struct {
 	//	*Task_ProcessWelcomePointer
 	//	*Task_SendSyncArchive
 	//	*Task_ProcessPendingSelfRemove
+	//	*Task_PullInDeadline
+	//	*Task_KpRotation
+	//	*Task_KpDeletion
 	Task          isTask_Task `protobuf_oneof:"task"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -101,6 +104,33 @@ func (x *Task) GetProcessPendingSelfRemove() *ProcessPendingSelfRemove {
 	return nil
 }
 
+func (x *Task) GetPullInDeadline() *PullInDeadline {
+	if x != nil {
+		if x, ok := x.Task.(*Task_PullInDeadline); ok {
+			return x.PullInDeadline
+		}
+	}
+	return nil
+}
+
+func (x *Task) GetKpRotation() *KpRotation {
+	if x != nil {
+		if x, ok := x.Task.(*Task_KpRotation); ok {
+			return x.KpRotation
+		}
+	}
+	return nil
+}
+
+func (x *Task) GetKpDeletion() *KpDeletion {
+	if x != nil {
+		if x, ok := x.Task.(*Task_KpDeletion); ok {
+			return x.KpDeletion
+		}
+	}
+	return nil
+}
+
 type isTask_Task interface {
 	isTask_Task()
 }
@@ -117,11 +147,161 @@ type Task_ProcessPendingSelfRemove struct {
 	ProcessPendingSelfRemove *ProcessPendingSelfRemove `protobuf:"bytes,3,opt,name=process_pending_self_remove,json=processPendingSelfRemove,proto3,oneof"`
 }
 
+type Task_PullInDeadline struct {
+	PullInDeadline *PullInDeadline `protobuf:"bytes,4,opt,name=pull_in_deadline,json=pullInDeadline,proto3,oneof"`
+}
+
+type Task_KpRotation struct {
+	KpRotation *KpRotation `protobuf:"bytes,5,opt,name=kp_rotation,json=kpRotation,proto3,oneof"`
+}
+
+type Task_KpDeletion struct {
+	KpDeletion *KpDeletion `protobuf:"bytes,6,opt,name=kp_deletion,json=kpDeletion,proto3,oneof"`
+}
+
 func (*Task_ProcessWelcomePointer) isTask_Task() {}
 
 func (*Task_SendSyncArchive) isTask_Task() {}
 
 func (*Task_ProcessPendingSelfRemove) isTask_Task() {}
+
+func (*Task_PullInDeadline) isTask_Task() {}
+
+func (*Task_KpRotation) isTask_Task() {}
+
+func (*Task_KpDeletion) isTask_Task() {}
+
+// Lower a target task's next-attempt deadline so it runs sooner. One-shot:
+// applied by the TaskWorker, then deleted.
+type PullInDeadline struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The UNIQUE data_hash identifying the target task row.
+	TargetDataHash []byte `protobuf:"bytes,1,opt,name=target_data_hash,json=targetDataHash,proto3" json:"target_data_hash,omitempty"`
+	// Target's next_attempt_at_ns is set to MIN(current, this).
+	NotLaterThanNs int64 `protobuf:"varint,2,opt,name=not_later_than_ns,json=notLaterThanNs,proto3" json:"not_later_than_ns,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *PullInDeadline) Reset() {
+	*x = PullInDeadline{}
+	mi := &file_mls_database_task_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PullInDeadline) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PullInDeadline) ProtoMessage() {}
+
+func (x *PullInDeadline) ProtoReflect() protoreflect.Message {
+	mi := &file_mls_database_task_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PullInDeadline.ProtoReflect.Descriptor instead.
+func (*PullInDeadline) Descriptor() ([]byte, []int) {
+	return file_mls_database_task_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *PullInDeadline) GetTargetDataHash() []byte {
+	if x != nil {
+		return x.TargetDataHash
+	}
+	return nil
+}
+
+func (x *PullInDeadline) GetNotLaterThanNs() int64 {
+	if x != nil {
+		return x.NotLaterThanNs
+	}
+	return 0
+}
+
+// Recurring singleton: rotate + upload a fresh key package when the identity's
+// rotation deadline is due. Empty payload => stable data_hash for pull-ins.
+type KpRotation struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *KpRotation) Reset() {
+	*x = KpRotation{}
+	mi := &file_mls_database_task_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KpRotation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KpRotation) ProtoMessage() {}
+
+func (x *KpRotation) ProtoReflect() protoreflect.Message {
+	mi := &file_mls_database_task_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KpRotation.ProtoReflect.Descriptor instead.
+func (*KpRotation) Descriptor() ([]byte, []int) {
+	return file_mls_database_task_proto_rawDescGZIP(), []int{2}
+}
+
+// Recurring singleton: delete superseded local key-package material whose
+// delete_at_ns has passed. Empty payload => stable data_hash for pull-ins.
+type KpDeletion struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *KpDeletion) Reset() {
+	*x = KpDeletion{}
+	mi := &file_mls_database_task_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KpDeletion) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KpDeletion) ProtoMessage() {}
+
+func (x *KpDeletion) ProtoReflect() protoreflect.Message {
+	mi := &file_mls_database_task_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KpDeletion.ProtoReflect.Descriptor instead.
+func (*KpDeletion) Descriptor() ([]byte, []int) {
+	return file_mls_database_task_proto_rawDescGZIP(), []int{3}
+}
 
 type SendSyncArchive struct {
 	state         protoimpl.MessageState      `protogen:"open.v1"`
@@ -135,7 +315,7 @@ type SendSyncArchive struct {
 
 func (x *SendSyncArchive) Reset() {
 	*x = SendSyncArchive{}
-	mi := &file_mls_database_task_proto_msgTypes[1]
+	mi := &file_mls_database_task_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -147,7 +327,7 @@ func (x *SendSyncArchive) String() string {
 func (*SendSyncArchive) ProtoMessage() {}
 
 func (x *SendSyncArchive) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_database_task_proto_msgTypes[1]
+	mi := &file_mls_database_task_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -160,7 +340,7 @@ func (x *SendSyncArchive) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendSyncArchive.ProtoReflect.Descriptor instead.
 func (*SendSyncArchive) Descriptor() ([]byte, []int) {
-	return file_mls_database_task_proto_rawDescGZIP(), []int{1}
+	return file_mls_database_task_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SendSyncArchive) GetOptions() *device_sync.ArchiveOptions {
@@ -205,7 +385,7 @@ type ProcessPendingSelfRemove struct {
 
 func (x *ProcessPendingSelfRemove) Reset() {
 	*x = ProcessPendingSelfRemove{}
-	mi := &file_mls_database_task_proto_msgTypes[2]
+	mi := &file_mls_database_task_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -217,7 +397,7 @@ func (x *ProcessPendingSelfRemove) String() string {
 func (*ProcessPendingSelfRemove) ProtoMessage() {}
 
 func (x *ProcessPendingSelfRemove) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_database_task_proto_msgTypes[2]
+	mi := &file_mls_database_task_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -230,7 +410,7 @@ func (x *ProcessPendingSelfRemove) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessPendingSelfRemove.ProtoReflect.Descriptor instead.
 func (*ProcessPendingSelfRemove) Descriptor() ([]byte, []int) {
-	return file_mls_database_task_proto_rawDescGZIP(), []int{2}
+	return file_mls_database_task_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ProcessPendingSelfRemove) GetGroupId() []byte {
@@ -244,12 +424,24 @@ var File_mls_database_task_proto protoreflect.FileDescriptor
 
 const file_mls_database_task_proto_rawDesc = "" +
 	"\n" +
-	"\x17mls/database/task.proto\x12\x11xmtp.mls.database\x1a\x1ddevice_sync/device_sync.proto\x1a*mls/message_contents/welcome_pointer.proto\"\xb3\x02\n" +
+	"\x17mls/database/task.proto\x12\x11xmtp.mls.database\x1a\x1ddevice_sync/device_sync.proto\x1a*mls/message_contents/welcome_pointer.proto\"\x86\x04\n" +
 	"\x04Task\x12c\n" +
 	"\x17process_welcome_pointer\x18\x01 \x01(\v2).xmtp.mls.message_contents.WelcomePointerH\x00R\x15processWelcomePointer\x12P\n" +
 	"\x11send_sync_archive\x18\x02 \x01(\v2\".xmtp.mls.database.SendSyncArchiveH\x00R\x0fsendSyncArchive\x12l\n" +
-	"\x1bprocess_pending_self_remove\x18\x03 \x01(\v2+.xmtp.mls.database.ProcessPendingSelfRemoveH\x00R\x18processPendingSelfRemoveB\x06\n" +
-	"\x04task\"\xaf\x01\n" +
+	"\x1bprocess_pending_self_remove\x18\x03 \x01(\v2+.xmtp.mls.database.ProcessPendingSelfRemoveH\x00R\x18processPendingSelfRemove\x12M\n" +
+	"\x10pull_in_deadline\x18\x04 \x01(\v2!.xmtp.mls.database.PullInDeadlineH\x00R\x0epullInDeadline\x12@\n" +
+	"\vkp_rotation\x18\x05 \x01(\v2\x1d.xmtp.mls.database.KpRotationH\x00R\n" +
+	"kpRotation\x12@\n" +
+	"\vkp_deletion\x18\x06 \x01(\v2\x1d.xmtp.mls.database.KpDeletionH\x00R\n" +
+	"kpDeletionB\x06\n" +
+	"\x04task\"e\n" +
+	"\x0ePullInDeadline\x12(\n" +
+	"\x10target_data_hash\x18\x01 \x01(\fR\x0etargetDataHash\x12)\n" +
+	"\x11not_later_than_ns\x18\x02 \x01(\x03R\x0enotLaterThanNs\"\f\n" +
+	"\n" +
+	"KpRotation\"\f\n" +
+	"\n" +
+	"KpDeletion\"\xaf\x01\n" +
 	"\x0fSendSyncArchive\x12:\n" +
 	"\aoptions\x18\x01 \x01(\v2 .xmtp.device_sync.ArchiveOptionsR\aoptions\x12\"\n" +
 	"\rsync_group_id\x18\x02 \x01(\fR\vsyncGroupId\x12\x15\n" +
@@ -273,24 +465,30 @@ func file_mls_database_task_proto_rawDescGZIP() []byte {
 	return file_mls_database_task_proto_rawDescData
 }
 
-var file_mls_database_task_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_mls_database_task_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_mls_database_task_proto_goTypes = []any{
 	(*Task)(nil),                            // 0: xmtp.mls.database.Task
-	(*SendSyncArchive)(nil),                 // 1: xmtp.mls.database.SendSyncArchive
-	(*ProcessPendingSelfRemove)(nil),        // 2: xmtp.mls.database.ProcessPendingSelfRemove
-	(*message_contents.WelcomePointer)(nil), // 3: xmtp.mls.message_contents.WelcomePointer
-	(*device_sync.ArchiveOptions)(nil),      // 4: xmtp.device_sync.ArchiveOptions
+	(*PullInDeadline)(nil),                  // 1: xmtp.mls.database.PullInDeadline
+	(*KpRotation)(nil),                      // 2: xmtp.mls.database.KpRotation
+	(*KpDeletion)(nil),                      // 3: xmtp.mls.database.KpDeletion
+	(*SendSyncArchive)(nil),                 // 4: xmtp.mls.database.SendSyncArchive
+	(*ProcessPendingSelfRemove)(nil),        // 5: xmtp.mls.database.ProcessPendingSelfRemove
+	(*message_contents.WelcomePointer)(nil), // 6: xmtp.mls.message_contents.WelcomePointer
+	(*device_sync.ArchiveOptions)(nil),      // 7: xmtp.device_sync.ArchiveOptions
 }
 var file_mls_database_task_proto_depIdxs = []int32{
-	3, // 0: xmtp.mls.database.Task.process_welcome_pointer:type_name -> xmtp.mls.message_contents.WelcomePointer
-	1, // 1: xmtp.mls.database.Task.send_sync_archive:type_name -> xmtp.mls.database.SendSyncArchive
-	2, // 2: xmtp.mls.database.Task.process_pending_self_remove:type_name -> xmtp.mls.database.ProcessPendingSelfRemove
-	4, // 3: xmtp.mls.database.SendSyncArchive.options:type_name -> xmtp.device_sync.ArchiveOptions
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	6, // 0: xmtp.mls.database.Task.process_welcome_pointer:type_name -> xmtp.mls.message_contents.WelcomePointer
+	4, // 1: xmtp.mls.database.Task.send_sync_archive:type_name -> xmtp.mls.database.SendSyncArchive
+	5, // 2: xmtp.mls.database.Task.process_pending_self_remove:type_name -> xmtp.mls.database.ProcessPendingSelfRemove
+	1, // 3: xmtp.mls.database.Task.pull_in_deadline:type_name -> xmtp.mls.database.PullInDeadline
+	2, // 4: xmtp.mls.database.Task.kp_rotation:type_name -> xmtp.mls.database.KpRotation
+	3, // 5: xmtp.mls.database.Task.kp_deletion:type_name -> xmtp.mls.database.KpDeletion
+	7, // 6: xmtp.mls.database.SendSyncArchive.options:type_name -> xmtp.device_sync.ArchiveOptions
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_mls_database_task_proto_init() }
@@ -302,15 +500,18 @@ func file_mls_database_task_proto_init() {
 		(*Task_ProcessWelcomePointer)(nil),
 		(*Task_SendSyncArchive)(nil),
 		(*Task_ProcessPendingSelfRemove)(nil),
+		(*Task_PullInDeadline)(nil),
+		(*Task_KpRotation)(nil),
+		(*Task_KpDeletion)(nil),
 	}
-	file_mls_database_task_proto_msgTypes[1].OneofWrappers = []any{}
+	file_mls_database_task_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_mls_database_task_proto_rawDesc), len(file_mls_database_task_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

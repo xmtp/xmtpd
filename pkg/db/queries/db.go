@@ -216,11 +216,17 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.selectGatewayEnvelopesUnfilteredStmt, err = db.PrepareContext(ctx, selectGatewayEnvelopesUnfiltered); err != nil {
 		return nil, fmt.Errorf("error preparing query SelectGatewayEnvelopesUnfiltered: %w", err)
 	}
+	if q.selectGatewayEnvelopesWaveScanStmt, err = db.PrepareContext(ctx, selectGatewayEnvelopesWaveScan); err != nil {
+		return nil, fmt.Errorf("error preparing query SelectGatewayEnvelopesWaveScan: %w", err)
+	}
 	if q.selectNewestFromTopicsStmt, err = db.PrepareContext(ctx, selectNewestFromTopics); err != nil {
 		return nil, fmt.Errorf("error preparing query SelectNewestFromTopics: %w", err)
 	}
 	if q.selectNodeInfoStmt, err = db.PrepareContext(ctx, selectNodeInfo); err != nil {
 		return nil, fmt.Errorf("error preparing query SelectNodeInfo: %w", err)
+	}
+	if q.selectOriginatorCeilingsStmt, err = db.PrepareContext(ctx, selectOriginatorCeilings); err != nil {
+		return nil, fmt.Errorf("error preparing query SelectOriginatorCeilings: %w", err)
 	}
 	if q.selectOriginatorNodeIDsStmt, err = db.PrepareContext(ctx, selectOriginatorNodeIDs); err != nil {
 		return nil, fmt.Errorf("error preparing query SelectOriginatorNodeIDs: %w", err)
@@ -583,6 +589,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing selectGatewayEnvelopesUnfilteredStmt: %w", cerr)
 		}
 	}
+	if q.selectGatewayEnvelopesWaveScanStmt != nil {
+		if cerr := q.selectGatewayEnvelopesWaveScanStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing selectGatewayEnvelopesWaveScanStmt: %w", cerr)
+		}
+	}
 	if q.selectNewestFromTopicsStmt != nil {
 		if cerr := q.selectNewestFromTopicsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing selectNewestFromTopicsStmt: %w", cerr)
@@ -591,6 +602,11 @@ func (q *Queries) Close() error {
 	if q.selectNodeInfoStmt != nil {
 		if cerr := q.selectNodeInfoStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing selectNodeInfoStmt: %w", cerr)
+		}
+	}
+	if q.selectOriginatorCeilingsStmt != nil {
+		if cerr := q.selectOriginatorCeilingsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing selectOriginatorCeilingsStmt: %w", cerr)
 		}
 	}
 	if q.selectOriginatorNodeIDsStmt != nil {
@@ -756,8 +772,10 @@ type Queries struct {
 	selectGatewayEnvelopesBySingleOriginatorStmt *sql.Stmt
 	selectGatewayEnvelopesByTopicsStmt           *sql.Stmt
 	selectGatewayEnvelopesUnfilteredStmt         *sql.Stmt
+	selectGatewayEnvelopesWaveScanStmt           *sql.Stmt
 	selectNewestFromTopicsStmt                   *sql.Stmt
 	selectNodeInfoStmt                           *sql.Stmt
+	selectOriginatorCeilingsStmt                 *sql.Stmt
 	selectOriginatorNodeIDsStmt                  *sql.Stmt
 	selectStagedOriginatorEnvelopesStmt          *sql.Stmt
 	selectVectorClockStmt                        *sql.Stmt
@@ -840,8 +858,10 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		selectGatewayEnvelopesBySingleOriginatorStmt: q.selectGatewayEnvelopesBySingleOriginatorStmt,
 		selectGatewayEnvelopesByTopicsStmt:           q.selectGatewayEnvelopesByTopicsStmt,
 		selectGatewayEnvelopesUnfilteredStmt:         q.selectGatewayEnvelopesUnfilteredStmt,
+		selectGatewayEnvelopesWaveScanStmt:           q.selectGatewayEnvelopesWaveScanStmt,
 		selectNewestFromTopicsStmt:                   q.selectNewestFromTopicsStmt,
 		selectNodeInfoStmt:                           q.selectNodeInfoStmt,
+		selectOriginatorCeilingsStmt:                 q.selectOriginatorCeilingsStmt,
 		selectOriginatorNodeIDsStmt:                  q.selectOriginatorNodeIDsStmt,
 		selectStagedOriginatorEnvelopesStmt:          q.selectStagedOriginatorEnvelopesStmt,
 		selectVectorClockStmt:                        q.selectVectorClockStmt,

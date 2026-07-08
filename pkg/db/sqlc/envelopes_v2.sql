@@ -261,6 +261,58 @@ CROSS JOIN LATERAL (
 ) AS bl
 ORDER BY bl.originator_node_id, bl.originator_sequence_id;
 
+-- name: SelectOriginatorCeilings :many
+-- Newest sequence id per originator: the per-originator replay ceiling a Subscribe
+-- catch-up wave pins at wave start (XIP-83 server requirement 4). One backward probe
+-- of the (originator_node_id, originator_sequence_id) primary key per originator.
+SELECT o.node_id::INT AS originator_node_id,
+       COALESCE((SELECT max(m.originator_sequence_id)
+                 FROM gateway_envelopes_meta m
+                 WHERE m.originator_node_id = o.node_id), 0)::BIGINT AS max_sequence_id
+FROM unnest(@node_ids::INT[]) AS o(node_id);
+
+-- name: SelectGatewayEnvelopesWaveScan :many
+-- One page of a Subscribe catch-up wave's replay: the wave's per-(topic, originator)
+-- cursor floors merged into a single (originator, sequence) keyset scan, bounded per
+-- originator by the ceiling pinned at wave start — so the wave's replay is delivered
+-- in total cursor order per originator across ALL of its topics, not per-topic
+-- bursts, and the scan terminates under sustained publishing (XIP-83 server
+-- requirement 4). The page starts strictly after (scan_node_id, scan_sequence_id)
+-- (the previous page's last row); a page shorter than row_limit means the wave is
+-- fully replayed up to its ceilings.
+--
+-- Cursor keys MUST be unique per (topic, originator): unnest preserves duplicates
+-- and the join would return a repeated pair's rows more than once.
+WITH cursor_entries AS (
+    SELECT t.topic, n.node_id, s.seq_id
+    FROM unnest(@cursor_topics::BYTEA[]) WITH ORDINALITY AS t(topic, ord)
+    JOIN unnest(@cursor_node_ids::INT[]) WITH ORDINALITY AS n(node_id, ord) USING (ord)
+    JOIN unnest(@cursor_sequence_ids::BIGINT[]) WITH ORDINALITY AS s(seq_id, ord) USING (ord)
+),
+ceilings AS (
+    SELECT x.node_id, y.seq_id
+    FROM unnest(@ceiling_node_ids::INT[]) WITH ORDINALITY AS x(node_id, ord)
+    JOIN unnest(@ceiling_sequence_ids::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord) USING (ord)
+)
+SELECT m.originator_node_id,
+       m.originator_sequence_id,
+       m.gateway_time,
+       m.topic,
+       b.originator_envelope
+FROM gateway_envelopes_meta AS m
+JOIN cursor_entries AS ce
+    ON m.topic = ce.topic AND m.originator_node_id = ce.node_id
+JOIN ceilings AS cl
+    ON cl.node_id = m.originator_node_id
+JOIN gateway_envelopes_blob AS b
+    ON b.originator_node_id = m.originator_node_id
+   AND b.originator_sequence_id = m.originator_sequence_id
+WHERE m.originator_sequence_id > ce.seq_id
+  AND m.originator_sequence_id <= cl.seq_id
+  AND (m.originator_node_id, m.originator_sequence_id) > (@scan_node_id::INT, @scan_sequence_id::BIGINT)
+ORDER BY m.originator_node_id, m.originator_sequence_id
+LIMIT @row_limit::INT;
+
 -- name: InsertGatewayEnvelopeBatchV2 :one
 -- Pre-rename batch insert. Calls the v2 stored function which still
 -- references the legacy gateway_envelope_blobs table. No production code

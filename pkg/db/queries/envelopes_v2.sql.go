@@ -646,6 +646,106 @@ func (q *Queries) SelectGatewayEnvelopesUnfiltered(ctx context.Context, arg Sele
 	return items, nil
 }
 
+const selectGatewayEnvelopesWaveScan = `-- name: SelectGatewayEnvelopesWaveScan :many
+WITH cursor_entries AS (
+    SELECT t.topic, n.node_id, s.seq_id
+    FROM unnest($4::BYTEA[]) WITH ORDINALITY AS t(topic, ord)
+    JOIN unnest($5::INT[]) WITH ORDINALITY AS n(node_id, ord) USING (ord)
+    JOIN unnest($6::BIGINT[]) WITH ORDINALITY AS s(seq_id, ord) USING (ord)
+),
+ceilings AS (
+    SELECT x.node_id, y.seq_id
+    FROM unnest($7::INT[]) WITH ORDINALITY AS x(node_id, ord)
+    JOIN unnest($8::BIGINT[]) WITH ORDINALITY AS y(seq_id, ord) USING (ord)
+)
+SELECT m.originator_node_id,
+       m.originator_sequence_id,
+       m.gateway_time,
+       m.topic,
+       b.originator_envelope
+FROM gateway_envelopes_meta AS m
+JOIN cursor_entries AS ce
+    ON m.topic = ce.topic AND m.originator_node_id = ce.node_id
+JOIN ceilings AS cl
+    ON cl.node_id = m.originator_node_id
+JOIN gateway_envelopes_blob AS b
+    ON b.originator_node_id = m.originator_node_id
+   AND b.originator_sequence_id = m.originator_sequence_id
+WHERE m.originator_sequence_id > ce.seq_id
+  AND m.originator_sequence_id <= cl.seq_id
+  AND (m.originator_node_id, m.originator_sequence_id) > ($1::INT, $2::BIGINT)
+ORDER BY m.originator_node_id, m.originator_sequence_id
+LIMIT $3::INT
+`
+
+type SelectGatewayEnvelopesWaveScanParams struct {
+	ScanNodeID         int32
+	ScanSequenceID     int64
+	RowLimit           int32
+	CursorTopics       [][]byte
+	CursorNodeIds      []int32
+	CursorSequenceIds  []int64
+	CeilingNodeIds     []int32
+	CeilingSequenceIds []int64
+}
+
+type SelectGatewayEnvelopesWaveScanRow struct {
+	OriginatorNodeID     int32
+	OriginatorSequenceID int64
+	GatewayTime          time.Time
+	Topic                []byte
+	OriginatorEnvelope   []byte
+}
+
+// One page of a Subscribe catch-up wave's replay: the wave's per-(topic, originator)
+// cursor floors merged into a single (originator, sequence) keyset scan, bounded per
+// originator by the ceiling pinned at wave start — so the wave's replay is delivered
+// in total cursor order per originator across ALL of its topics, not per-topic
+// bursts, and the scan terminates under sustained publishing (XIP-83 server
+// requirement 4). The page starts strictly after (scan_node_id, scan_sequence_id)
+// (the previous page's last row); a page shorter than row_limit means the wave is
+// fully replayed up to its ceilings.
+//
+// Cursor keys MUST be unique per (topic, originator): unnest preserves duplicates
+// and the join would return a repeated pair's rows more than once.
+func (q *Queries) SelectGatewayEnvelopesWaveScan(ctx context.Context, arg SelectGatewayEnvelopesWaveScanParams) ([]SelectGatewayEnvelopesWaveScanRow, error) {
+	rows, err := q.query(ctx, q.selectGatewayEnvelopesWaveScanStmt, selectGatewayEnvelopesWaveScan,
+		arg.ScanNodeID,
+		arg.ScanSequenceID,
+		arg.RowLimit,
+		pq.Array(arg.CursorTopics),
+		pq.Array(arg.CursorNodeIds),
+		pq.Array(arg.CursorSequenceIds),
+		pq.Array(arg.CeilingNodeIds),
+		pq.Array(arg.CeilingSequenceIds),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SelectGatewayEnvelopesWaveScanRow
+	for rows.Next() {
+		var i SelectGatewayEnvelopesWaveScanRow
+		if err := rows.Scan(
+			&i.OriginatorNodeID,
+			&i.OriginatorSequenceID,
+			&i.GatewayTime,
+			&i.Topic,
+			&i.OriginatorEnvelope,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const selectNewestFromTopics = `-- name: SelectNewestFromTopics :many
 WITH latest AS (SELECT DISTINCT ON (m.topic) m.originator_node_id,
                                              m.originator_sequence_id,
@@ -691,6 +791,45 @@ func (q *Queries) SelectNewestFromTopics(ctx context.Context, topics [][]byte) (
 			&i.Topic,
 			&i.OriginatorEnvelope,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const selectOriginatorCeilings = `-- name: SelectOriginatorCeilings :many
+SELECT o.node_id::INT AS originator_node_id,
+       COALESCE((SELECT max(m.originator_sequence_id)
+                 FROM gateway_envelopes_meta m
+                 WHERE m.originator_node_id = o.node_id), 0)::BIGINT AS max_sequence_id
+FROM unnest($1::INT[]) AS o(node_id)
+`
+
+type SelectOriginatorCeilingsRow struct {
+	OriginatorNodeID int32
+	MaxSequenceID    int64
+}
+
+// Newest sequence id per originator: the per-originator replay ceiling a Subscribe
+// catch-up wave pins at wave start (XIP-83 server requirement 4). One backward probe
+// of the (originator_node_id, originator_sequence_id) primary key per originator.
+func (q *Queries) SelectOriginatorCeilings(ctx context.Context, nodeIds []int32) ([]SelectOriginatorCeilingsRow, error) {
+	rows, err := q.query(ctx, q.selectOriginatorCeilingsStmt, selectOriginatorCeilings, pq.Array(nodeIds))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SelectOriginatorCeilingsRow
+	for rows.Next() {
+		var i SelectOriginatorCeilingsRow
+		if err := rows.Scan(&i.OriginatorNodeID, &i.MaxSequenceID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

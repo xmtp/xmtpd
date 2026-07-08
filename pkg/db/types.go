@@ -163,6 +163,63 @@ func TransformRowsByPerTopicCursors(
 	return result
 }
 
+// SetWaveScanCursors flattens TopicCursors into the parallel floor arrays required by
+// SelectGatewayEnvelopesWaveScan. Each (topic, nodeID, seqID) triple produces one entry
+// in the three arrays.
+func SetWaveScanCursors(
+	q *queries.SelectGatewayEnvelopesWaveScanParams,
+	tc TopicCursors,
+) {
+	total := 0
+	for _, vc := range tc {
+		total += len(vc)
+	}
+
+	q.CursorTopics = make([][]byte, 0, total)
+	q.CursorNodeIds = make([]int32, 0, total)
+	q.CursorSequenceIds = make([]int64, 0, total)
+
+	for topicKey, vc := range tc {
+		topicBytes := []byte(topicKey)
+		for nodeID, seqID := range vc {
+			if nodeID > math.MaxInt32 || seqID > uint64(math.MaxInt64) {
+				continue
+			}
+			q.CursorTopics = append(q.CursorTopics, topicBytes)
+			q.CursorNodeIds = append(q.CursorNodeIds, int32(nodeID))
+			q.CursorSequenceIds = append(q.CursorSequenceIds, int64(seqID))
+		}
+	}
+}
+
+// SetWaveScanCeilings flattens the per-originator ceiling vector into the parallel
+// arrays required by SelectGatewayEnvelopesWaveScan.
+func SetWaveScanCeilings(
+	q *queries.SelectGatewayEnvelopesWaveScanParams,
+	ceilings VectorClock,
+) {
+	q.CeilingNodeIds = make([]int32, 0, len(ceilings))
+	q.CeilingSequenceIds = make([]int64, 0, len(ceilings))
+	for nodeID, seqID := range ceilings {
+		if nodeID > math.MaxInt32 || seqID > uint64(math.MaxInt64) {
+			continue
+		}
+		q.CeilingNodeIds = append(q.CeilingNodeIds, int32(nodeID))
+		q.CeilingSequenceIds = append(q.CeilingSequenceIds, int64(seqID))
+	}
+}
+
+// TransformRowsWaveScan converts wave-scan rows to the common GatewayEnvelopesView type.
+func TransformRowsWaveScan(
+	rows []queries.SelectGatewayEnvelopesWaveScanRow,
+) []queries.GatewayEnvelopesView {
+	result := make([]queries.GatewayEnvelopesView, len(rows))
+	for i, row := range rows {
+		result[i] = queries.GatewayEnvelopesView(row)
+	}
+	return result
+}
+
 // CalculateRowsPerEntry computes the per-(topic, originator) sub-limit
 // for the per-topic cursor query. Returns at least 10 to avoid starving
 // low-volume originators.

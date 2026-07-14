@@ -1667,6 +1667,17 @@ func TestSubscribe_HalfCloseHistoryOnlyDrains(t *testing.T) {
 	require.True(t, hasEnvKey(keys, 100, 1) && hasEnvKey(keys, 200, 1), "history must be delivered")
 	require.True(t, hasTopicBytes(subTopicsLive(frames), topicA))
 	require.True(t, hasMutateID(subCatchupCompletes(frames), 7))
+
+	// Every data frame carries the wave's mutate_id: history_only pages sent with the live
+	// tag (0) would satisfy the delivery assertions above but violate XIP-83 requirement 3.
+	require.Empty(t, subEnvelopeKeysTagged(t, frames, 0),
+		"history_only pages must never ride the live tag")
+	for _, f := range frames {
+		if env := f.GetV1().GetEnvelopes(); env != nil {
+			require.Equal(t, uint64(7), env.GetMutateId(),
+				"every history_only data frame carries the wave's mutate_id")
+		}
+	}
 }
 
 // TestSubscribe_HistoryOnlyOnLiveRejected verifies a history_only add targeting a topic already
@@ -1783,4 +1794,664 @@ func TestSubscribe_ReAddLiveTopicDoesNotReplay(t *testing.T) {
 func mustFrames(r *bidiReader) []*message_api.SubscribeResponse {
 	frames, _ := r.snapshot()
 	return frames
+}
+
+// ---- XIP-83 delivery tagging & ordering (server requirements 3 and 4) ----
+
+// envRow builds one insertable gateway envelope row for the tagging/ordering tests.
+func envRow(
+	t *testing.T,
+	payerID sql.NullInt32,
+	nodeID int32,
+	seqID int64,
+	topicBytes []byte,
+) queries.InsertGatewayEnvelopeV3Params {
+	t.Helper()
+	return queries.InsertGatewayEnvelopeV3Params{
+		OriginatorNodeID:     nodeID,
+		OriginatorSequenceID: seqID,
+		Topic:                topicBytes,
+		PayerID:              payerID,
+		OriginatorEnvelope: testutils.Marshal(
+			t,
+			envelopeTestUtils.CreateOriginatorEnvelopeWithTopic(
+				t,
+				uint32(nodeID),
+				uint64(seqID),
+				topicBytes,
+			),
+		),
+	}
+}
+
+// subEnvelopeKeysTagged returns the (originator, sequence) keys of envelopes carried by
+// Envelopes frames stamped with the given wave tag, in receive order.
+func subEnvelopeKeysTagged(
+	t *testing.T,
+	frames []*message_api.SubscribeResponse,
+	tag uint64,
+) [][2]uint64 {
+	t.Helper()
+	var keys [][2]uint64
+	for _, f := range frames {
+		env := f.GetV1().GetEnvelopes()
+		if env == nil || env.GetMutateId() != tag {
+			continue
+		}
+		for _, e := range env.GetEnvelopes() {
+			u := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
+				t,
+				e.GetUnsignedOriginatorEnvelope(),
+			)
+			keys = append(
+				keys,
+				[2]uint64{uint64(u.GetOriginatorNodeId()), u.GetOriginatorSequenceId()},
+			)
+		}
+	}
+	return keys
+}
+
+// requirePerOriginatorAscending asserts each originator's sequence ids strictly ascend in
+// the given key order — the total-order shape both delivery lanes guarantee per originator.
+func requirePerOriginatorAscending(t *testing.T, keys [][2]uint64, desc string) {
+	t.Helper()
+	last := make(map[uint64]uint64)
+	for _, k := range keys {
+		if prev, ok := last[k[0]]; ok {
+			require.Greater(t, k[1], prev,
+				"%s: originator %d sequences must strictly ascend", desc, k[0])
+		}
+		last[k[0]] = k[1]
+	}
+}
+
+// requireExactlyOnce asserts no (originator, sequence) key appears twice across the keys.
+func requireExactlyOnce(t *testing.T, keys [][2]uint64, desc string) {
+	t.Helper()
+	seen := make(map[[2]uint64]struct{}, len(keys))
+	for _, k := range keys {
+		_, dup := seen[k]
+		require.Falsef(t, dup, "%s: envelope %v delivered more than once", desc, k)
+		seen[k] = struct{}{}
+	}
+}
+
+// TestSubscribe_ReplayTaggedWithWaveLiveTaggedZero pins delivery tagging under overlapping
+// waves: every replay frame carries exactly the mutate_id of the wave that produced it, and
+// live frames carry 0.
+func TestSubscribe_ReplayTaggedWithWaveLiveTaggedZero(t *testing.T) {
+	suite := setupTest(t)
+	payerID := db.NullInt32(testutils.CreatePayer(t, suite.DB))
+
+	// History: topicA fed by originator 100, topicB by originator 200.
+	testutils.InsertGatewayEnvelopes(t, suite.DB, []queries.InsertGatewayEnvelopeV3Params{
+		envRow(t, payerID, 100, 1, topicA),
+		envRow(t, payerID, 100, 2, topicA),
+		envRow(t, payerID, 100, 3, topicA),
+		envRow(t, payerID, 200, 1, topicB),
+		envRow(t, payerID, 200, 2, topicB),
+	})
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+	require.NoError(t, suite.MessageService.AwaitCursor(ctx, db.VectorClock{100: 3, 200: 2}))
+
+	stream := suite.ClientQuery.Subscribe(t.Context())
+	reader := newBidiReader(stream)
+
+	// Two overlapping waves, back to back: their replays race on the same stream.
+	require.NoError(t, stream.Send(subMutate(
+		7, false,
+		[]*message_api.SubscribeRequest_V1_Mutate_Subscription{addSub(topicA, nil)},
+		nil,
+	)))
+	require.NoError(t, stream.Send(subMutate(
+		8, false,
+		[]*message_api.SubscribeRequest_V1_Mutate_Subscription{addSub(topicB, nil)},
+		nil,
+	)))
+	require.Eventually(t, func() bool {
+		cc := subCatchupCompletes(mustFrames(reader))
+		return hasMutateID(cc, 7) && hasMutateID(cc, 8)
+	}, 10*time.Second, 20*time.Millisecond, "both waves must complete")
+
+	frames := mustFrames(reader)
+	wave7 := subEnvelopeKeysTagged(t, frames, 7)
+	wave8 := subEnvelopeKeysTagged(t, frames, 8)
+	require.Len(t, wave7, 3, "wave 7 delivers exactly topicA's history, tagged 7")
+	require.Len(t, wave8, 2, "wave 8 delivers exactly topicB's history, tagged 8")
+	for _, k := range wave7 {
+		require.Equal(t, uint64(100), k[0], "wave 7 must carry only topicA's originator")
+	}
+	for _, k := range wave8 {
+		require.Equal(t, uint64(200), k[0], "wave 8 must carry only topicB's originator")
+	}
+	require.Empty(t, subEnvelopeKeysTagged(t, frames, 0), "no replay frame may carry the live tag")
+
+	// Live tail on both topics is tagged 0.
+	testutils.InsertGatewayEnvelopes(t, suite.DB, []queries.InsertGatewayEnvelopeV3Params{
+		envRow(t, payerID, 100, 4, topicA),
+		envRow(t, payerID, 200, 3, topicB),
+	})
+	require.Eventually(t, func() bool {
+		live := subEnvelopeKeysTagged(t, mustFrames(reader), 0)
+		return hasEnvKey(live, 100, 4) && hasEnvKey(live, 200, 3)
+	}, 10*time.Second, 20*time.Millisecond, "live tail must be tagged 0")
+
+	requireExactlyOnce(t, subEnvelopeKeys(t, mustFrames(reader)), "all lanes")
+}
+
+// TestSubscribe_WaveReplayPerOriginatorOrderAcrossTopics pins wave order: one wave covering
+// two topics whose envelopes interleave per originator must replay each originator's
+// envelopes in ascending sequence order across BOTH topics — one merged cursor-ordered
+// pass, not one topic's burst then the other's.
+func TestSubscribe_WaveReplayPerOriginatorOrderAcrossTopics(t *testing.T) {
+	suite := setupTest(t)
+	payerID := db.NullInt32(testutils.CreatePayer(t, suite.DB))
+
+	// Originator 100 alternates between the two topics; originator 200 interleaves too.
+	testutils.InsertGatewayEnvelopes(t, suite.DB, []queries.InsertGatewayEnvelopeV3Params{
+		envRow(t, payerID, 100, 1, topicA),
+		envRow(t, payerID, 100, 2, topicB),
+		envRow(t, payerID, 100, 3, topicA),
+		envRow(t, payerID, 100, 4, topicB),
+		envRow(t, payerID, 100, 5, topicA),
+		envRow(t, payerID, 100, 6, topicB),
+		envRow(t, payerID, 200, 1, topicB),
+		envRow(t, payerID, 200, 2, topicA),
+	})
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+	require.NoError(t, suite.MessageService.AwaitCursor(ctx, db.VectorClock{100: 6, 200: 2}))
+
+	stream := suite.ClientQuery.Subscribe(t.Context())
+	reader := newBidiReader(stream)
+
+	require.NoError(t, stream.Send(subMutate(
+		3, false,
+		[]*message_api.SubscribeRequest_V1_Mutate_Subscription{
+			addSub(topicA, nil),
+			addSub(topicB, nil),
+		},
+		nil,
+	)))
+	require.Eventually(t, func() bool {
+		return hasMutateID(subCatchupCompletes(mustFrames(reader)), 3)
+	}, 10*time.Second, 20*time.Millisecond)
+
+	replay := subEnvelopeKeysTagged(t, mustFrames(reader), 3)
+	require.Len(t, replay, 8, "the wave delivers both topics' history, tagged 3")
+	requirePerOriginatorAscending(t, replay, "wave replay across interleaved topics")
+	requireExactlyOnce(t, replay, "wave replay")
+}
+
+// TestSubscribe_LivePerOriginatorOrderAcrossTopics pins live order: live (mutate_id 0)
+// envelopes across all live topics arrive in ascending sequence order per originator.
+func TestSubscribe_LivePerOriginatorOrderAcrossTopics(t *testing.T) {
+	suite := setupTest(t)
+	payerID := db.NullInt32(testutils.CreatePayer(t, suite.DB))
+
+	stream := suite.ClientQuery.Subscribe(t.Context())
+	reader := newBidiReader(stream)
+
+	require.NoError(t, stream.Send(subMutate(
+		1, false,
+		[]*message_api.SubscribeRequest_V1_Mutate_Subscription{
+			addSub(topicA, nil),
+			addSub(topicB, nil),
+		},
+		nil,
+	)))
+	require.Eventually(t, func() bool {
+		return hasMutateID(subCatchupCompletes(mustFrames(reader)), 1)
+	}, 10*time.Second, 20*time.Millisecond)
+
+	// Each originator alternates between the two live topics.
+	testutils.InsertGatewayEnvelopes(t, suite.DB, []queries.InsertGatewayEnvelopeV3Params{
+		envRow(t, payerID, 100, 1, topicA),
+		envRow(t, payerID, 100, 2, topicB),
+		envRow(t, payerID, 100, 3, topicA),
+		envRow(t, payerID, 200, 1, topicB),
+		envRow(t, payerID, 200, 2, topicA),
+	})
+	require.Eventually(t, func() bool {
+		live := subEnvelopeKeysTagged(t, mustFrames(reader), 0)
+		return hasEnvKey(live, 100, 3) && hasEnvKey(live, 200, 2)
+	}, 10*time.Second, 20*time.Millisecond)
+
+	live := subEnvelopeKeysTagged(t, mustFrames(reader), 0)
+	require.Len(t, live, 5)
+	requirePerOriginatorAscending(t, live, "live lane across topics")
+	requireExactlyOnce(t, live, "live lane")
+}
+
+// TestSubscribe_SeamLiveWaitsForCatchupComplete pins the seam: while a wave replays a
+// topic, the topic speaks live (mutate_id 0) only after the wave's CatchupComplete.
+// Envelopes published mid-wave arrive exactly once — either folded into the wave (tagged)
+// or live after its CatchupComplete — and never as a live frame before it. A pre-live
+// sentinel topic publishes throughout: the gate is per-topic, so live delivery for other
+// subscriptions keeps flowing while the wave's topic is gated.
+func TestSubscribe_SeamLiveWaitsForCatchupComplete(t *testing.T) {
+	suite := setupTest(t)
+	payerID := db.NullInt32(testutils.CreatePayer(t, suite.DB))
+	sentinelTopic := topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("seam-sentinel")).
+		Bytes()
+
+	testutils.InsertGatewayEnvelopes(t, suite.DB, []queries.InsertGatewayEnvelopeV3Params{
+		envRow(t, payerID, 100, 1, topicA),
+		envRow(t, payerID, 100, 2, topicA),
+		envRow(t, payerID, 100, 3, topicA),
+	})
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+	require.NoError(t, suite.MessageService.AwaitCursor(ctx, db.VectorClock{100: 3}))
+
+	stream := suite.ClientQuery.Subscribe(t.Context())
+	reader := newBidiReader(stream)
+
+	// Sentinel first: subscribed, live, and demonstrably delivering before the wave starts.
+	require.NoError(t, stream.Send(subMutate(
+		1, false,
+		[]*message_api.SubscribeRequest_V1_Mutate_Subscription{addSub(sentinelTopic, nil)},
+		nil,
+	)))
+	require.Eventually(t, func() bool {
+		return hasMutateID(subCatchupCompletes(mustFrames(reader)), 1)
+	}, 10*time.Second, 20*time.Millisecond)
+	testutils.InsertGatewayEnvelopes(t, suite.DB, []queries.InsertGatewayEnvelopeV3Params{
+		envRow(t, payerID, 200, 1, sentinelTopic),
+	})
+	require.Eventually(t, func() bool {
+		return hasEnvKey(subEnvelopeKeysTagged(t, mustFrames(reader), 0), 200, 1)
+	}, 10*time.Second, 20*time.Millisecond, "sentinel must be live before the wave starts")
+
+	// Start the wave and immediately publish into it, racing the replay — and keep the
+	// sentinel publishing during the wave.
+	require.NoError(t, stream.Send(subMutate(
+		9, false,
+		[]*message_api.SubscribeRequest_V1_Mutate_Subscription{addSub(topicA, nil)},
+		nil,
+	)))
+	testutils.InsertGatewayEnvelopes(t, suite.DB, []queries.InsertGatewayEnvelopeV3Params{
+		envRow(t, payerID, 100, 4, topicA),
+		envRow(t, payerID, 100, 5, topicA),
+		envRow(t, payerID, 200, 2, sentinelTopic),
+	})
+
+	require.Eventually(t, func() bool {
+		frames := mustFrames(reader)
+		keys := subEnvelopeKeys(t, frames)
+		return hasMutateID(subCatchupCompletes(frames), 9) &&
+			hasEnvKey(keys, 100, 4) && hasEnvKey(keys, 100, 5)
+	}, 10*time.Second, 20*time.Millisecond, "wave complete + racers delivered")
+
+	// After the wave: the sentinel's live lane must still be flowing.
+	testutils.InsertGatewayEnvelopes(t, suite.DB, []queries.InsertGatewayEnvelopeV3Params{
+		envRow(t, payerID, 200, 3, sentinelTopic),
+	})
+	require.Eventually(t, func() bool {
+		live := subEnvelopeKeysTagged(t, mustFrames(reader), 0)
+		return hasEnvKey(live, 200, 2) && hasEnvKey(live, 200, 3)
+	}, 10*time.Second, 20*time.Millisecond,
+		"sentinel tag-0 delivery must keep flowing across the wave")
+
+	frames, err := reader.snapshot()
+	require.NoError(t, err)
+	requireExactlyOnce(t, subEnvelopeKeys(t, frames), "wave + live")
+	requirePerOriginatorAscending(t, subEnvelopeKeysTagged(t, frames, 9), "wave 9 replay")
+	requirePerOriginatorAscending(t, subEnvelopeKeysTagged(t, frames, 0), "live lane")
+
+	// The sentinel's envelopes (originator 200) travel the live lane only — never the wave's.
+	for _, k := range subEnvelopeKeysTagged(t, frames, 9) {
+		require.Equal(t, uint64(100), k[0], "wave 9 must not capture the sentinel's envelopes")
+	}
+
+	// The seam, scoped to the wave's topic (originator 100 publishes only to topicA here): no
+	// live frame for it may precede CatchupComplete(9), and every wave-tagged frame must
+	// precede it. Sentinel (originator 200) tag-0 frames may land on either side.
+	ccIdx := -1
+	for i, f := range frames {
+		if cc := f.GetV1().GetCatchupComplete(); cc != nil && cc.GetMutateId() == 9 {
+			ccIdx = i
+		}
+	}
+	require.GreaterOrEqual(t, ccIdx, 0)
+	for i, f := range frames {
+		env := f.GetV1().GetEnvelopes()
+		if env == nil || len(env.GetEnvelopes()) == 0 {
+			continue
+		}
+		switch env.GetMutateId() {
+		case 0:
+			for _, e := range env.GetEnvelopes() {
+				u := envelopeTestUtils.UnmarshalUnsignedOriginatorEnvelope(
+					t,
+					e.GetUnsignedOriginatorEnvelope(),
+				)
+				if u.GetOriginatorNodeId() == 100 {
+					require.Greater(t, i, ccIdx,
+						"a live frame for the wave's topic must follow its CatchupComplete")
+				}
+			}
+		case 9:
+			require.Less(t, i, ccIdx,
+				"a wave replay frame must precede its CatchupComplete")
+		default:
+			t.Fatalf("frame %d carries unexpected tag %d", i, env.GetMutateId())
+		}
+	}
+}
+
+// TestSubscribe_ResetMidWaveReplaysUnderNewTag covers remove+re-add (reset) racing an
+// envelope-bearing first wave: the reset topic is owned by the newer wave, whose replay is
+// stamped with the new mutate_id; the stale wave's remaining pages are dropped, so nothing
+// is delivered twice and only the owning wave announces the topic.
+func TestSubscribe_ResetMidWaveReplaysUnderNewTag(t *testing.T) {
+	suite := setupTest(t)
+	payerID := db.NullInt32(testutils.CreatePayer(t, suite.DB))
+	resetTopic := topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("reset-mid-wave")).
+		Bytes()
+
+	// More than one wave-scan page (topicPageLimit rows) so the reset can land between the
+	// stale wave's pages.
+	const total = 600
+	rows := make([]queries.InsertGatewayEnvelopeV3Params, 0, total)
+	for i := int64(1); i <= total; i++ {
+		rows = append(rows, envRow(t, payerID, 100, i, resetTopic))
+	}
+	testutils.InsertGatewayEnvelopes(t, suite.DB, rows)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	require.NoError(t, suite.MessageService.AwaitCursor(ctx, db.VectorClock{100: total}))
+
+	stream := suite.ClientQuery.Subscribe(t.Context())
+	reader := newBidiReader(stream)
+
+	// Wave 1 starts the replay; the reset (remove + re-add from an empty cursor) is sent
+	// immediately, racing wave 1's pages.
+	require.NoError(t, stream.Send(subMutate(
+		1, false,
+		[]*message_api.SubscribeRequest_V1_Mutate_Subscription{addSub(resetTopic, nil)},
+		nil,
+	)))
+	require.NoError(t, stream.Send(subMutate(
+		2, false,
+		[]*message_api.SubscribeRequest_V1_Mutate_Subscription{addSub(resetTopic, nil)},
+		[][]byte{resetTopic},
+	)))
+
+	require.Eventually(t, func() bool {
+		cc := subCatchupCompletes(mustFrames(reader))
+		return hasMutateID(cc, 1) && hasMutateID(cc, 2)
+	}, 20*time.Second, 20*time.Millisecond, "both waves must complete")
+
+	frames, err := reader.snapshot()
+	require.NoError(t, err)
+	wave1 := subEnvelopeKeysTagged(t, frames, 1)
+	wave2 := subEnvelopeKeysTagged(t, frames, 2)
+	requireExactlyOnce(t, wave1, "stale wave replay")
+	requireExactlyOnce(t, wave2, "reset wave replay")
+	requirePerOriginatorAscending(t, wave1, "stale wave replay")
+	requirePerOriginatorAscending(t, wave2, "reset wave replay")
+
+	// Between them the two waves cover every seeded envelope exactly once: the reset wave owns
+	// everything the stale wave had not yet delivered when the reset applied. (Do not assert
+	// how the split falls — the reset races the stale wave's pages.)
+	seen := make(map[[2]uint64]struct{}, total)
+	for _, k := range wave1 {
+		seen[k] = struct{}{}
+	}
+	for _, k := range wave2 {
+		_, both := seen[k]
+		require.Falsef(t, both, "envelope %v delivered under both tag 1 and tag 2", k)
+		seen[k] = struct{}{}
+	}
+	require.Len(t, seen, total, "the two waves together must cover every envelope exactly once")
+	for i := int64(1); i <= total; i++ {
+		require.Contains(t, seen, [2]uint64{100, uint64(i)})
+	}
+	require.True(t, hasEnvKey(wave2, 100, total),
+		"the reset wave must deliver at least the tail of the history")
+
+	// Only the owning (reset) wave announces the topic, and nothing rides the live tag: the
+	// history predates the subscription, so the live lane has nothing to say before CC(2).
+	announced := 0
+	for _, tl := range subTopicsLive(frames) {
+		if bytes.Equal(tl, resetTopic) {
+			announced++
+		}
+	}
+	require.Equal(t, 1, announced, "exactly one TopicsLive may announce the reset topic")
+	require.Empty(t, subEnvelopeKeysTagged(t, frames, 0), "no envelope may ride the live tag")
+}
+
+// TestSubscribe_WaveScanPaginatesPastPageLimit drives the wave's merged keyset scan across a
+// page boundary that lands mid-originator: the resume must be strictly-after the last row (a
+// >= row-value comparison would re-deliver the boundary row) without skipping the next
+// originator's rows.
+func TestSubscribe_WaveScanPaginatesPastPageLimit(t *testing.T) {
+	suite := setupTest(t)
+	payerID := db.NullInt32(testutils.CreatePayer(t, suite.DB))
+	pageT1 := topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("wave-page-t1")).Bytes()
+	pageT2 := topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("wave-page-t2")).Bytes()
+
+	// topicPageLimit (500) + 1 rows for originator 100, interleaved across both topics, put
+	// the page boundary inside originator 100's run; originator 200's rows follow on page 2.
+	const heavy = 501
+	const light = 5
+	rows := make([]queries.InsertGatewayEnvelopeV3Params, 0, heavy+light)
+	for i := int64(1); i <= heavy; i++ {
+		tp := pageT1
+		if i%2 == 0 {
+			tp = pageT2
+		}
+		rows = append(rows, envRow(t, payerID, 100, i, tp))
+	}
+	for i := int64(1); i <= light; i++ {
+		rows = append(rows, envRow(t, payerID, 200, i, pageT1))
+	}
+	testutils.InsertGatewayEnvelopes(t, suite.DB, rows)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	require.NoError(
+		t,
+		suite.MessageService.AwaitCursor(ctx, db.VectorClock{100: heavy, 200: light}),
+	)
+
+	stream := suite.ClientQuery.Subscribe(t.Context())
+	reader := newBidiReader(stream)
+
+	require.NoError(t, stream.Send(subMutate(
+		5, false,
+		[]*message_api.SubscribeRequest_V1_Mutate_Subscription{
+			addSub(pageT1, nil),
+			addSub(pageT2, nil),
+		},
+		nil,
+	)))
+	require.Eventually(t, func() bool {
+		return hasMutateID(subCatchupCompletes(mustFrames(reader)), 5)
+	}, 20*time.Second, 20*time.Millisecond)
+
+	frames, err := reader.snapshot()
+	require.NoError(t, err)
+	replay := subEnvelopeKeysTagged(t, frames, 5)
+	require.Len(t, replay, heavy+light, "every seeded envelope arrives tagged with the wave")
+	requireExactlyOnce(t, replay, "wave replay across pages")
+	requirePerOriginatorAscending(t, replay, "wave replay across pages")
+
+	waveFrames := 0
+	for _, f := range frames {
+		if env := f.GetV1().GetEnvelopes(); env != nil && env.GetMutateId() == 5 {
+			waveFrames++
+		}
+	}
+	require.GreaterOrEqual(t, waveFrames, 2, "the replay must span multiple scan pages")
+}
+
+// TestSubscribe_CursorNamedUnknownOriginatorReplayed covers a client cursor naming an
+// originator the TTL-cached originator list has not seen (its rows exist in
+// gateway_envelopes_meta, but the cached list is stale): the wave must still pin a ceiling
+// for it and replay its rows, rather than silently dropping them from the catch-up (the
+// legacy per-topic path replayed them — see TestSubscribeTopics_AcceptsUnknownOriginatorInCursor).
+func TestSubscribe_CursorNamedUnknownOriginatorReplayed(t *testing.T) {
+	suite := setupTest(t)
+	payerID := db.NullInt32(testutils.CreatePayer(t, suite.DB))
+
+	// topicA history from originator 100 (known everywhere) and originator 300 (not in the
+	// registry, so the worker never polls it — nothing can arrive via the live lane).
+	testutils.InsertGatewayEnvelopes(t, suite.DB, []queries.InsertGatewayEnvelopeV3Params{
+		envRow(t, payerID, 100, 1, topicA),
+		envRow(t, payerID, 300, 1, topicA),
+		envRow(t, payerID, 300, 2, topicA),
+		envRow(t, payerID, 300, 3, topicA),
+	})
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+	require.NoError(t, suite.MessageService.AwaitCursor(ctx, db.VectorClock{100: 1}))
+
+	// Fabricate the stale-cache state: drop 300 from gateway_envelopes_latest (the cached
+	// originator list's source) while its rows stay in gateway_envelopes_meta. This is what a
+	// TTL-stale CachedOriginatorList sees when an originator's first rows land after the
+	// cache was filled — deterministic here instead of racing the 100ms test TTL.
+	_, err := suite.DB.ExecContext(t.Context(),
+		"DELETE FROM gateway_envelopes_latest WHERE originator_node_id = 300")
+	require.NoError(t, err)
+
+	stream := suite.ClientQuery.Subscribe(t.Context())
+	reader := newBidiReader(stream)
+
+	// The cursor names originator 300 below its newest row: the wave owes (300,2),(300,3)
+	// even though the originator list has never heard of 300.
+	require.NoError(t, stream.Send(subMutate(
+		1, false,
+		[]*message_api.SubscribeRequest_V1_Mutate_Subscription{
+			addSub(topicA, map[uint32]uint64{300: 1}),
+		},
+		nil,
+	)))
+
+	require.Eventually(t, func() bool {
+		frames := mustFrames(reader)
+		replay := subEnvelopeKeysTagged(t, frames, 1)
+		return hasEnvKey(replay, 100, 1) &&
+			hasEnvKey(replay, 300, 2) && hasEnvKey(replay, 300, 3) &&
+			hasMutateID(subCatchupCompletes(frames), 1)
+	}, 10*time.Second, 20*time.Millisecond,
+		"the wave must replay the cursor-named originator 300, then CatchupComplete(1)")
+
+	frames, err := reader.snapshot()
+	require.NoError(t, err)
+	replay := subEnvelopeKeysTagged(t, frames, 1)
+	require.False(t, hasEnvKey(replay, 300, 1), "the cursor floor (300,1) must not be re-delivered")
+	requireExactlyOnce(t, subEnvelopeKeys(t, frames), "unknown-originator replay")
+	requirePerOriginatorAscending(t, replay, "unknown-originator replay")
+}
+
+// TestSubscribe_DuplicateAddsFirstCursorWins pins handleMutate's add dedup: when one Mutate
+// carries two adds for the same topic, the first add's cursor is the floor (the duplicate is
+// dropped), so replay starts strictly after it — and the topic is announced once.
+func TestSubscribe_DuplicateAddsFirstCursorWins(t *testing.T) {
+	suite := setupTest(t)
+	payerID := db.NullInt32(testutils.CreatePayer(t, suite.DB))
+	dupTopic := topic.NewTopic(topic.TopicKindGroupMessagesV1, []byte("dup-adds")).Bytes()
+
+	testutils.InsertGatewayEnvelopes(t, suite.DB, []queries.InsertGatewayEnvelopeV3Params{
+		envRow(t, payerID, 100, 1, dupTopic),
+		envRow(t, payerID, 100, 2, dupTopic),
+		envRow(t, payerID, 100, 3, dupTopic),
+		envRow(t, payerID, 100, 4, dupTopic),
+	})
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+	require.NoError(t, suite.MessageService.AwaitCursor(ctx, db.VectorClock{100: 4}))
+
+	stream := suite.ClientQuery.Subscribe(t.Context())
+	reader := newBidiReader(stream)
+
+	// First add carries cursor {100: 2}; the duplicate second add carries an empty cursor.
+	require.NoError(t, stream.Send(subMutate(
+		4, false,
+		[]*message_api.SubscribeRequest_V1_Mutate_Subscription{
+			addSub(dupTopic, map[uint32]uint64{100: 2}),
+			addSub(dupTopic, map[uint32]uint64{}),
+		},
+		nil,
+	)))
+	require.Eventually(t, func() bool {
+		return hasMutateID(subCatchupCompletes(mustFrames(reader)), 4)
+	}, 10*time.Second, 20*time.Millisecond)
+
+	frames, err := reader.snapshot()
+	require.NoError(t, err)
+	require.Equal(t, [][2]uint64{{100, 3}, {100, 4}}, subEnvelopeKeysTagged(t, frames, 4),
+		"replay must start after the FIRST add's cursor, exactly once")
+	require.Empty(t, subEnvelopeKeysTagged(t, frames, 0))
+
+	announced := 0
+	for _, tl := range subTopicsLive(frames) {
+		if bytes.Equal(tl, dupTopic) {
+			announced++
+		}
+	}
+	require.Equal(t, 1, announced, "the deduped topic is announced exactly once")
+}
+
+// TestSubscribe_AddsRequireNonzeroMutateId pins the request-side rule the tag depends on:
+// a Mutate with adds and mutate_id 0 (the live tag) fails the stream with InvalidArgument.
+func TestSubscribe_AddsRequireNonzeroMutateId(t *testing.T) {
+	suite := setupTest(t)
+
+	stream := suite.ClientQuery.Subscribe(t.Context())
+	reader := newBidiReader(stream)
+
+	require.NoError(t, stream.Send(subMutate(
+		0, false,
+		[]*message_api.SubscribeRequest_V1_Mutate_Subscription{addSub(topicA, nil)},
+		nil,
+	)))
+
+	require.Eventually(t, func() bool {
+		_, err := reader.snapshot()
+		return err != nil
+	}, 10*time.Second, 20*time.Millisecond, "adds with mutate_id 0 must fail the stream")
+
+	_, err := reader.snapshot()
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+}
+
+// TestSubscribe_EmptyMutateAcked pins the ack rule for the degenerate Mutate shape: a Mutate
+// with no adds and no removes is still confirmed with exactly one CatchupComplete echoing its
+// mutate_id, and the stream stays healthy afterwards (a subsequent subscribe works end to end).
+func TestSubscribe_EmptyMutateAcked(t *testing.T) {
+	suite := setupTest(t)
+
+	stream := suite.ClientQuery.Subscribe(t.Context())
+	reader := newBidiReader(stream)
+
+	// Empty Mutate: no adds, no removes.
+	require.NoError(t, stream.Send(subMutate(3, false, nil, nil)))
+	require.Eventually(t, func() bool {
+		return hasMutateID(subCatchupCompletes(mustFrames(reader)), 3)
+	}, 10*time.Second, 20*time.Millisecond, "an empty Mutate must be acked promptly")
+
+	// The stream is still usable: a subsequent subscribe completes its own wave.
+	require.NoError(t, stream.Send(subMutate(
+		4, false,
+		[]*message_api.SubscribeRequest_V1_Mutate_Subscription{addSub(topicA, nil)},
+		nil,
+	)))
+	require.Eventually(t, func() bool {
+		return hasMutateID(subCatchupCompletes(mustFrames(reader)), 4)
+	}, 10*time.Second, 20*time.Millisecond, "the stream must stay healthy after an empty Mutate")
+
+	frames, err := reader.snapshot()
+	require.NoError(t, err)
+	acks := 0
+	for _, id := range subCatchupCompletes(frames) {
+		if id == 3 {
+			acks++
+		}
+	}
+	require.Equal(t, 1, acks, "exactly one CatchupComplete must echo the empty Mutate's id")
 }

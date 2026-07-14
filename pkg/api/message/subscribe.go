@@ -7,18 +7,24 @@ import (
 	"io"
 	"maps"
 	"math"
+	"slices"
+	"sort"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/cenkalti/backoff/v4"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/xmtp/xmtpd/pkg/constants"
 	"github.com/xmtp/xmtpd/pkg/db"
+	"github.com/xmtp/xmtpd/pkg/db/queries"
 	"github.com/xmtp/xmtpd/pkg/envelopes"
 	envelopesProto "github.com/xmtp/xmtpd/pkg/proto/xmtpv4/envelopes"
 	"github.com/xmtp/xmtpd/pkg/proto/xmtpv4/message_api"
 	"github.com/xmtp/xmtpd/pkg/topic"
 	"github.com/xmtp/xmtpd/pkg/utils"
+	"github.com/xmtp/xmtpd/pkg/utils/retryerrors"
 )
 
 const (
@@ -33,6 +39,22 @@ const (
 	// connections (which would just hit rate limits). At ~hundreds of bytes/topic this is a
 	// large-but-bounded budget; exceeding it fails the Mutate with ResourceExhausted.
 	maxActiveSubscribeTopics = 1_000_000
+	// maxMutateAdds caps the raw adds a single Mutate may carry, bounding that wave's merged
+	// catch-up scan: the scan's floor arrays hold one entry per (topic, originator) pair and are
+	// resent with EVERY page query, so per-page query params scale with the Mutate's add count.
+	// Counted pre-dedup so the check is stateless. A client with a larger set splits it across
+	// Mutates, whose waves run concurrently (XIP-83 server requirement 8); an over-cap Mutate is
+	// rejected with ResourceExhausted, never silently truncated.
+	maxMutateAdds = 100_000
+	// maxMutateCursorEntries caps the total cursor entries a single Mutate may carry across its
+	// adds. maxMutateAdds bounds the topic count, but each add's cursor is a per-originator
+	// vector, so without this cap one Mutate (bounded only by the transport message limit) could
+	// name millions of (topic, originator) pairs — every pair rides the wave's floor arrays,
+	// resent with EVERY page query, and every named originator joins the wave's one-shot ceilings
+	// query. Counted pre-dedup so the check is stateless; an over-cap Mutate is rejected with
+	// ResourceExhausted, never silently truncated. Generous for real clients: it fits a full
+	// maxMutateAdds wave whose every topic names a 10-originator vector.
+	maxMutateCursorEntries = 1_000_000
 	// maxInflightSubscribeWaves caps the concurrent catch-up waves one stream may have running. Each
 	// wave is a detached fetcher goroutine plus paginated DB queries, and maxActiveSubscribeTopics
 	// does NOT bound it: a remove+re-add (reset) leaves the old wave running while the active-topic
@@ -322,6 +344,10 @@ type subscribeSession struct {
 	sendTimer *time.Timer
 	// maxFrameBytes overrides maxSubscribeFrameBytes when > 0 (tests only).
 	maxFrameBytes int
+	// maxAdds overrides maxMutateAdds when > 0 (tests only).
+	maxAdds int
+	// maxCursorEntries overrides maxMutateCursorEntries when > 0 (tests only).
+	maxCursorEntries int
 
 	outbound chan *message_api.SubscribeResponse
 	// senderDone is closed exactly once, when the sender goroutine exits; sendErr is its terminal
@@ -440,7 +466,13 @@ func (sess *subscribeSession) send(resp *message_api.SubscribeResponse) error {
 
 // sendEnvelopes delivers envelopes split into frames each under maxSubscribeFrameBytes, so a large
 // catch-up page or flushed pending buffer never goes out as one oversized (stream-aborting) frame.
-func (sess *subscribeSession) sendEnvelopes(envs []*envelopesProto.OriginatorEnvelope) error {
+// Every frame is stamped with the catch-up wave that produced it — a Mutate's mutate_id for wave
+// replay, 0 for live tail (XIP-83 server requirement 3). A frame is exactly one or the other;
+// callers never mix lanes in one call.
+func (sess *subscribeSession) sendEnvelopes(
+	envs []*envelopesProto.OriginatorEnvelope,
+	mutateID uint64,
+) error {
 	if len(envs) == 0 {
 		return nil
 	}
@@ -454,7 +486,7 @@ func (sess *subscribeSession) sendEnvelopes(envs []*envelopesProto.OriginatorEnv
 		if len(frame) == 0 {
 			return nil
 		}
-		if err := sess.send(newSubscribeEnvelopes(frame)); err != nil {
+		if err := sess.send(newSubscribeEnvelopes(frame, mutateID)); err != nil {
 			return err
 		}
 		frame = nil // do NOT reuse the backing array; the sent frame still references it
@@ -463,11 +495,29 @@ func (sess *subscribeSession) sendEnvelopes(envs []*envelopesProto.OriginatorEnv
 	}
 	for _, env := range envs {
 		size := proto.Size(env)
-		// An envelope larger than `limit` on its own is NOT dropped: limit is a soft batching
+		// An envelope larger than `limit` is not dropped just for that: limit is a soft batching
 		// target (2 MiB), an order of magnitude under the transport's hard cap (GRPCPayloadLimit,
-		// 25 MiB). Such an envelope simply flushes the current frame and then goes out alone — and
-		// it always fits, because it was publishable under that same 25 MiB cap. Skipping it (as the
-		// old batchAndSendEnvelopes did) would silently lose a valid, deliverable message.
+		// 25 MiB) — it flushes the current frame and goes out alone. But publish admission does
+		// not guarantee the lone frame fits: the stored envelope carries the originator's wrapper
+		// on top of what the payer sent, plus the response framing, so it can exceed the hard cap
+		// by a sliver. Sending would abort the stream — and a reconnecting client's wave would hit
+		// the same row again, wedging it permanently — so such an envelope is skipped with a
+		// warning instead, matching batchAndSendEnvelopes on the legacy paths. Callers advance
+		// their dedup cursors before calling send, so a skip cannot stall a wave or re-deliver.
+		if size > limit {
+			framed := proto.Size(newSubscribeEnvelopes(
+				[]*envelopesProto.OriginatorEnvelope{env}, mutateID,
+			))
+			if framed > constants.GRPCPayloadLimit {
+				sess.logger.Warn(
+					"skipping oversized envelope",
+					zap.Int("framed_bytes", framed),
+					zap.Int("limit", constants.GRPCPayloadLimit),
+					zap.Uint64("mutate_id", mutateID),
+				)
+				continue
+			}
+		}
 		if len(frame) > 0 && frameBytes+size > limit {
 			if err := flush(); err != nil {
 				return err
@@ -484,8 +534,7 @@ func (sess *subscribeSession) sendEnvelopes(envs []*envelopesProto.OriginatorEnv
 func (sess *subscribeSession) routeLive(batch []*envelopes.OriginatorEnvelope) error {
 	var toSend []*envelopes.OriginatorEnvelope
 	for _, env := range batch {
-		ts := sess.topics[string(env.TargetTopic().Bytes())]
-		if ts != nil && ts.phase == topicGated {
+		if ts, ok := sess.topics[string(env.TargetTopic().Bytes())]; ok && ts.phase == topicGated {
 			if err := sess.bufferLive(ts, env); err != nil {
 				return err
 			}
@@ -494,7 +543,10 @@ func (sess *subscribeSession) routeLive(batch []*envelopes.OriginatorEnvelope) e
 		// Live, or not (or no longer) ours: advanceLive dedups the live topics and drops the rest.
 		toSend = append(toSend, env)
 	}
-	return sess.sendEnvelopes(sess.advanceLive(toSend))
+	// Live tail: tagged 0. The worker dispatches each originator's envelopes in ascending
+	// sequence order and the writer sends in arrival order, so the live lane stays totally
+	// ordered per originator (XIP-83 server requirement 4).
+	return sess.sendEnvelopes(sess.advanceLive(toSend), 0)
 }
 
 // bufferLive holds a live envelope for a gated topic until its wave opens the gate, enforcing the
@@ -514,13 +566,17 @@ func (sess *subscribeSession) bufferLive(ts *topicState, env *envelopes.Originat
 // advanceLive dedups envs against their topics' live cursors, advancing each cursor in place, and
 // returns the proto envelopes ready to send. An envelope for a topic that is not (or no longer) live
 // is dropped — the per-topic analogue of advanceTopicCursors, reading the cursor from topicState.
+// The cursor-max dedup relies on the system invariant that each originator's envelopes become
+// visible in sequence order (one sequential writer per originator); a row committing out of order
+// after a reader passed it would be undeliverable stream-wide — the same pre-existing assumption
+// the live pollers make when advancing lastSeen from raw rows.
 func (sess *subscribeSession) advanceLive(
 	envs []*envelopes.OriginatorEnvelope,
 ) []*envelopesProto.OriginatorEnvelope {
 	result := make([]*envelopesProto.OriginatorEnvelope, 0, len(envs))
 	for _, env := range envs {
-		ts := sess.topics[string(env.TargetTopic().Bytes())]
-		if ts == nil {
+		ts, ok := sess.topics[string(env.TargetTopic().Bytes())]
+		if !ok {
 			sess.logger.Warn(
 				"received envelope for unsubscribed topic",
 				zap.Binary("topic", env.TargetTopic().Bytes()),
@@ -549,15 +605,20 @@ func (sess *subscribeSession) handleCatchUp(b catchUpBatch) (bool, error) {
 			fmt.Errorf("catch-up failed: %w", b.err),
 		)
 	}
-	w := sess.waves[b.wave]
-	if w == nil {
-		return false, nil // wave already torn down (e.g. all its topics were removed)
+	w, ok := sess.waves[b.wave]
+	if !ok {
+		// Defensive only: a wave is deleted solely when its own done marker is processed, so
+		// this cannot fire today. Removes do NOT tear down an in-flight wave — an orphaned
+		// scan just drains to its ceilings (its pages dropped by envsOwnedByWave) and
+		// completes normally.
+		return false, nil
 	}
 
-	// Deliver this page's history. A history_only wave dedups against its own throwaway cursors; a
-	// live wave first drops pages for topics it no longer owns (removed, or reset under a newer
-	// wave) — so it cannot advance a reset topic's live cursor and skip history the newer wave owes
-	// — then dedups the rest against each topic's live cursor.
+	// Deliver this page's history, stamped with the wave's mutate_id. A history_only wave dedups
+	// against its own throwaway cursors; a live wave first drops pages for topics it no longer
+	// owns (removed, or reset under a newer wave) — so it cannot advance a reset topic's live
+	// cursor and skip history the newer wave owes — then dedups the rest against each topic's
+	// live cursor.
 	var toSend []*envelopesProto.OriginatorEnvelope
 	if w.historyOnly {
 		toSend = advanceTopicCursors(w.cursors, b.envs, sess.logger)
@@ -565,7 +626,7 @@ func (sess *subscribeSession) handleCatchUp(b catchUpBatch) (bool, error) {
 		toSend = sess.advanceLive(sess.envsOwnedByWave(b.envs, b.wave))
 	}
 	if len(toSend) > 0 {
-		if err := sess.sendEnvelopes(toSend); err != nil {
+		if err := sess.sendEnvelopes(toSend, w.mutateID); err != nil {
 			return false, err
 		}
 	}
@@ -574,23 +635,45 @@ func (sess *subscribeSession) handleCatchUp(b catchUpBatch) (bool, error) {
 		return false, nil
 	}
 
-	// Wave complete: open the gate for each live topic this wave still owns (flushing its buffered
-	// live, deduped against the now-advanced cursor) and collect the topics to announce; then
-	// CatchupComplete. flushAndGoLive is a no-op for a topic removed or reset under a newer wave, so
-	// a stale wave never opens the newer wave's gate or flushes its buffer out of order.
+	// Wave complete: fold in the live envelopes buffered while its topics were gated — merged
+	// into per-originator sequence order and stamped with the wave's mutate_id, since the wave
+	// owns them (their sequence ids sit above the scan's pinned ceilings). The fold appends after
+	// every scan page, so end-to-end the wave guarantees only ascending sequence ids per
+	// originator, not the scan's global (originator, sequence) tuple order — then announce
+	// the surviving topics in one TopicsLive and emit the wave's CatchupComplete. Only then are
+	// the gates open (topicLive), so a live (mutate_id 0) frame for a wave's topic is never
+	// delivered before its CatchupComplete (XIP-83 server requirement 4: the seam). A topic
+	// removed or reset under a newer wave is skipped, so a stale wave never opens the newer
+	// wave's gate or flushes its buffer.
 	wire := make([][]byte, 0, len(w.topics))
+	var folded []*envelopes.OriginatorEnvelope
 	for _, t := range w.topics {
 		if w.historyOnly {
 			wire = append(wire, t.wire)
 			continue
 		}
-		announced, err := sess.flushAndGoLive(t.cursorKey, b.wave)
-		if err != nil {
-			return false, err
+		ts, ok := sess.topics[t.cursorKey]
+		if !ok || ts.phase != topicGated || ts.wave != b.wave {
+			continue
 		}
-		if announced {
-			wire = append(wire, t.wire)
+		for _, e := range ts.pending {
+			sess.pendingBytes -= proto.Size(e.Proto())
 		}
+		folded = append(folded, ts.pending...)
+		ts.pending = nil
+		ts.phase = topicLive
+		wire = append(wire, t.wire)
+	}
+	// Each topic's buffer is in per-originator dispatch order, but the wave's replay must stay
+	// totally ordered per originator ACROSS its topics: merge before framing.
+	sort.SliceStable(folded, func(i, j int) bool {
+		if folded[i].OriginatorNodeID() != folded[j].OriginatorNodeID() {
+			return folded[i].OriginatorNodeID() < folded[j].OriginatorNodeID()
+		}
+		return folded[i].OriginatorSequenceID() < folded[j].OriginatorSequenceID()
+	})
+	if err := sess.sendEnvelopes(sess.advanceLive(folded), w.mutateID); err != nil {
+		return false, err
 	}
 	if len(wire) > 0 {
 		if err := sess.send(newSubscribeTopicsLive(wire)); err != nil {
@@ -604,35 +687,12 @@ func (sess *subscribeSession) handleCatchUp(b catchUpBatch) (bool, error) {
 	return sess.halfClosed && len(sess.waves) == 0, nil
 }
 
-// flushAndGoLive completes a gated topic owned by `wave`: it flushes the live envelopes buffered
-// during catch-up (deduped against the now-advanced live cursor) and transitions it to live,
-// returning true once announced. It is a no-op returning false if the topic is gone or now owned by
-// a newer wave (a reset), so a stale wave never opens the newer wave's gate or replays its buffer.
-func (sess *subscribeSession) flushAndGoLive(cursorKey string, wave int) (bool, error) {
-	ts := sess.topics[cursorKey]
-	if ts == nil || ts.phase != topicGated || ts.wave != wave {
-		return false, nil
-	}
-	if len(ts.pending) > 0 {
-		for _, e := range ts.pending {
-			sess.pendingBytes -= proto.Size(e.Proto())
-		}
-		buf := ts.pending
-		ts.pending = nil
-		if err := sess.sendEnvelopes(sess.advanceLive(buf)); err != nil {
-			return false, err
-		}
-	}
-	ts.phase = topicLive
-	return true, nil
-}
-
 // handleRequest dispatches one client frame.
 func (sess *subscribeSession) handleRequest(req *message_api.SubscribeRequest) error {
 	v1 := req.GetV1()
 	if v1 == nil {
 		// Unrecognized version arm: fail rather than silently ignore, so a forward-version
-		// client is not left waiting on a response (XIP-83 req 8).
+		// client is not left waiting on a response (XIP-83 req 10, version pinning).
 		return connect.NewError(
 			connect.CodeInvalidArgument,
 			errors.New("unrecognized SubscribeRequest version"),
@@ -663,6 +723,67 @@ func (sess *subscribeSession) handleMutate(m *message_api.SubscribeRequest_V1_Mu
 	historyOnly := m.GetHistoryOnly()
 
 	// ---- Validate (no state mutation): any failure here returns before a single change. ----
+
+	// A wave's replay frames are stamped with its mutate_id, and 0 is the live tag, so a Mutate
+	// with adds cannot ride on 0 (XIP-83 server requirement 3).
+	if len(m.GetAdds()) > 0 && m.GetMutateId() == 0 {
+		return connect.NewError(
+			connect.CodeInvalidArgument,
+			errors.New("a Mutate with adds requires a nonzero mutate_id"),
+		)
+	}
+
+	// A mutate_id may not collide with a wave still in flight: the two waves' replay frames and
+	// CatchupComplete acks would be indistinguishable to the client (XIP-83 server requirement 3).
+	// Enforced for ANY Mutate — even a removes-only reuse would emit an immediate CatchupComplete
+	// ambiguous with the in-flight wave's. Reuse AFTER a wave's CatchupComplete stays legal. Waves
+	// exist only for Mutates with adds, so every in-flight mutateID is nonzero and 0 never collides.
+	if m.GetMutateId() != 0 {
+		for _, w := range sess.waves {
+			if w.mutateID == m.GetMutateId() {
+				return connect.NewError(
+					connect.CodeInvalidArgument,
+					fmt.Errorf("mutate_id %d is already in flight on this stream", m.GetMutateId()),
+				)
+			}
+		}
+	}
+
+	// Bound the raw adds (pre-dedup, so the check is stateless) so one Mutate's merged catch-up
+	// scan cannot carry unbounded per-page query params (see maxMutateAdds). The client splits a
+	// larger set across Mutates, whose waves run concurrently.
+	addLimit := maxMutateAdds
+	if sess.maxAdds > 0 {
+		addLimit = sess.maxAdds
+	}
+	if len(m.GetAdds()) > addLimit {
+		return connect.NewError(
+			connect.CodeResourceExhausted,
+			fmt.Errorf("adds per Mutate limit %d exceeded; split adds across multiple Mutates",
+				addLimit),
+		)
+	}
+
+	// Bound the total cursor entries across the adds the same way (pre-dedup): the add cap alone
+	// does not bound the wave's floor pairs or ceiling originators, because a single add's cursor
+	// may name arbitrarily many originators (see maxMutateCursorEntries).
+	entryLimit := maxMutateCursorEntries
+	if sess.maxCursorEntries > 0 {
+		entryLimit = sess.maxCursorEntries
+	}
+	cursorEntries := 0
+	for _, a := range m.GetAdds() {
+		cursorEntries += len(a.GetLastSeen().GetNodeIdToSequenceId())
+	}
+	if cursorEntries > entryLimit {
+		return connect.NewError(
+			connect.CodeResourceExhausted,
+			fmt.Errorf(
+				"cursor entries per Mutate limit %d exceeded; split adds across multiple Mutates",
+				entryLimit,
+			),
+		)
+	}
 
 	// Parse removes up front so a malformed remove fails the whole Mutate, and so the add cap and
 	// history_only checks below can account for topics this Mutate will drop.
@@ -793,14 +914,11 @@ func (sess *subscribeSession) handleMutate(m *message_api.SubscribeRequest_V1_Mu
 
 	if len(order) == 0 {
 		// Removes-only (or empty) Mutate: no catch-up, but confirm it applied so a client that
-		// subscribed to nothing still learns the mutate took effect.
-		if err := sess.send(newSubscribeCatchupComplete(m.GetMutateId())); err != nil {
-			return err
-		}
-		if sess.halfClosed && len(sess.waves) == 0 {
-			return sess.flush()
-		}
-		return nil
+		// subscribed to nothing still learns the mutate took effect. No half-close handling here:
+		// no Mutate is ever processed after halfClosed is set (the main loop nils the request
+		// channel; drainPendingRequests stops at closure), and the drain-finished check lives
+		// where waves actually complete (handleCatchUp's done flag).
+		return sess.send(newSubscribeCatchupComplete(m.GetMutateId()))
 	}
 
 	wave := &subscribeWave{mutateID: m.GetMutateId(), historyOnly: historyOnly}
@@ -811,11 +929,9 @@ func (sess *subscribeSession) handleMutate(m *message_api.SubscribeRequest_V1_Mu
 	// originator set) off the writer goroutine. The persisted live cursor stays sparse (provided
 	// only, grown as originators are actually seen) to bound memory at the 1M ceiling.
 	providedCursors := make(db.TopicCursors, len(order))
-	cursorKeys := make([]string, 0, len(order))
 	for _, k := range order {
 		a := byKey[k]
 		wave.topics = append(wave.topics, a.t)
-		cursorKeys = append(cursorKeys, k)
 		providedCursors[k] = cloneVectorClock(a.provided)
 
 		if historyOnly {
@@ -832,7 +948,6 @@ func (sess *subscribeSession) handleMutate(m *message_api.SubscribeRequest_V1_Mu
 		sess.ctx,
 		sess.nextWave,
 		providedCursors,
-		cursorKeys,
 		sess.catchUpCh,
 		sess.logger,
 	)
@@ -877,8 +992,8 @@ func (sess *subscribeSession) removeTopic(parsed *topic.Topic) {
 // touch any in-flight wave: a wave only ever acts on topics it still owns (flushAndGoLive /
 // envsOwnedByWave both re-check ownership), so a removed topic's pages and completion are ignored.
 func (sess *subscribeSession) removeTopicState(cursorKey string) {
-	ts := sess.topics[cursorKey]
-	if ts == nil {
+	ts, ok := sess.topics[cursorKey]
+	if !ok {
 		return
 	}
 	for _, e := range ts.pending {
@@ -896,8 +1011,8 @@ func (sess *subscribeSession) envsOwnedByWave(
 	wave int,
 ) []*envelopes.OriginatorEnvelope {
 	owned := func(env *envelopes.OriginatorEnvelope) bool {
-		ts := sess.topics[string(env.TargetTopic().Bytes())]
-		return ts != nil && ts.phase == topicGated && ts.wave == wave
+		ts, ok := sess.topics[string(env.TargetTopic().Bytes())]
+		return ok && ts.phase == topicGated && ts.wave == wave
 	}
 	// Fast path: every envelope belongs to a topic this wave still owns (the common case — no
 	// concurrent remove/reset), so the page passes through without reallocation.
@@ -920,17 +1035,22 @@ func (sess *subscribeSession) envsOwnedByWave(
 	return out
 }
 
-// runSubscribeCatchUp paginates history for a wave's topics (off the writer goroutine) and hands
-// raw pages back over catchUpCh, ending with a done marker. It resolves the originator set and fills
-// providedCursors into its own query cursors here — that originator lookup is a DB round-trip on a
-// cache miss, so it MUST stay off the writer goroutine (else a slow DB would stall liveness and
-// live delivery and could false-reap a healthy stream). The writer owns the sparse live cursors.
-// Every channel send is guarded by ctx so the fetcher cannot leak if the writer has torn down.
+// runSubscribeCatchUp replays history for a wave's topics (off the writer goroutine) and hands
+// raw pages back over catchUpCh, ending with a done marker. The replay is ONE merged keyset scan
+// in (originator, sequence) order across ALL of the wave's topics — not per-topic bursts — pinned
+// to the per-originator ceiling captured at wave start, so the wave's replay is delivered in
+// total cursor order per originator and the scan terminates under sustained publishing (XIP-83
+// server requirement 4); everything newer reaches the client through the gated live path and is
+// folded into the wave when it completes. It resolves the originator set and fills
+// providedCursors into the scan's floor cursors here — that originator lookup is a DB round-trip
+// on a cache miss, so it MUST stay off the writer goroutine (else a slow DB would stall liveness
+// and live delivery and could false-reap a healthy stream). The writer owns the sparse live
+// cursors. Every channel send is guarded by ctx so the fetcher cannot leak if the writer has torn
+// down.
 func (s *Service) runSubscribeCatchUp(
 	ctx context.Context,
 	wave int,
 	providedCursors db.TopicCursors,
-	cursorKeys []string,
 	catchUpCh chan<- catchUpBatch,
 	logger *zap.Logger,
 ) {
@@ -954,49 +1074,170 @@ func (s *Service) runSubscribeCatchUp(
 		emit(catchUpBatch{wave: wave, err: fmt.Errorf("could not get originator list: %w", err)})
 		return
 	}
-	// queryCursors are FILLED (every originator from the provided/zero start) so catch-up covers all
-	// originators; the fetcher owns and advances them for pagination.
-	queryCursors := make(db.TopicCursors, len(providedCursors))
+	// Pin the wave's replay ceiling: the newest sequence id per originator at wave start. The
+	// ceiling set is the UNION of the cached list and every originator a provided cursor names,
+	// so a cursor-named originator the TTL-stale cache has not seen still gets a ceiling row
+	// instead of being silently dropped by the scan's inner ceiling join (the legacy per-topic
+	// catch-up replayed it — its unbounded LATERAL scan needed no ceiling). One with no rows in
+	// gateway_envelopes_meta COALESCEs to ceiling 0 — an empty replay range, harmless.
+	ceilings, err := s.fetchWaveCeilingsWithRetry(
+		ctx,
+		ceilingOriginators(knownOriginators, providedCursors),
+	)
+	if err != nil {
+		emit(catchUpBatch{wave: wave, err: err})
+		return
+	}
+	// Floor cursors are FILLED (every originator from the provided/zero start) so catch-up covers
+	// the full originator set; flattened once into the query params and reused every page. Each
+	// topic's floors come from its own cursor plus the cached list, so the residual replay gap is
+	// per topic: an originator that NEITHER the cache NOR that topic's cursor names (a brand-new
+	// originator this client has never seen on that topic) — cache-bounded, like live originator
+	// registration, matching the old per-topic catch-up (which filled its cursor floors from the
+	// same cached list).
+	floors := make(db.TopicCursors, len(providedCursors))
 	for k, provided := range providedCursors {
 		filled := cloneVectorClock(provided)
 		db.FillMissingOriginators(filled, knownOriginators)
-		queryCursors[k] = filled
+		floors[k] = filled
 	}
+	params := queries.SelectGatewayEnvelopesWaveScanParams{RowLimit: topicPageLimit}
+	db.SetWaveScanCursors(&params, floors)
+	db.SetWaveScanCeilings(&params, ceilings)
 
-	for _, chunkKeys := range utils.ChunkSlice(cursorKeys, maxTopicsPerChunk) {
-		rowsPerEntry := db.CalculateRowsPerEntry(len(chunkKeys), topicPageLimit)
-		for {
-			if ctx.Err() != nil {
+	for {
+		if ctx.Err() != nil {
+			return
+		}
+		rows, err := s.fetchWaveScanPageWithRetry(ctx, params)
+		if err != nil {
+			emit(catchUpBatch{wave: wave, err: err})
+			return
+		}
+		if len(rows) > 0 {
+			// The scan position advances from the RAW rows so pagination always progresses
+			// even if some rows fail to unmarshal (otherwise a single bad row in a full page
+			// re-fetches forever); the writer re-dedups against the live cursor. The advance
+			// is strictly past the last raw row (the query resumes on a `>` row-value
+			// comparison); a `>=` resume would only re-fetch the boundary row each page —
+			// client-invisible, since the writer's cursor dedup absorbs the duplicate — at
+			// the cost of one wasted row per page.
+			last := rows[len(rows)-1]
+			params.ScanNodeID = last.OriginatorNodeID
+			params.ScanSequenceID = last.OriginatorSequenceID
+			if !emit(catchUpBatch{wave: wave, envs: unmarshalEnvelopes(rows, logger)}) {
 				return
 			}
-			subCursors := make(db.TopicCursors, len(chunkKeys))
-			for _, k := range chunkKeys {
-				subCursors[k] = queryCursors[k]
-			}
-			rows, err := s.fetchTopicEnvelopesWithRetry(
-				ctx,
-				subCursors,
-				topicPageLimit,
-				rowsPerEntry,
-			)
-			if err != nil {
-				emit(catchUpBatch{wave: wave, err: err})
-				return
-			}
-			envs := unmarshalEnvelopes(rows, logger)
-			// Advance the fetcher's own (filled) cursors from the RAW rows so pagination always
-			// progresses even if some rows fail to unmarshal (otherwise a single bad row in a full
-			// page re-fetches forever); the writer re-dedups the emitted envs against the live cursor.
-			advanceCursorsFromRows(queryCursors, rows)
-			if !emit(catchUpBatch{wave: wave, envs: envs}) {
-				return
-			}
-			if int32(len(rows)) < rowsPerEntry {
-				break
-			}
+		}
+		if int32(len(rows)) < topicPageLimit {
+			break
 		}
 	}
 	emit(catchUpBatch{wave: wave, done: true})
+}
+
+// ceilingOriginators returns the union of the cached originator list and every originator named
+// in a provided cursor, sorted for a deterministic query parameter order. Every originator with
+// a floor entry in the wave's scan must appear here: the scan's ceiling join is INNER, so one
+// without a ceiling row would be silently excluded from the replay.
+func ceilingOriginators(known []uint32, provided db.TopicCursors) []uint32 {
+	set := make(map[uint32]struct{}, len(known))
+	for _, id := range known {
+		set[id] = struct{}{}
+	}
+	for _, vc := range provided {
+		for id := range vc {
+			set[id] = struct{}{}
+		}
+	}
+	out := make([]uint32, 0, len(set))
+	for id := range set {
+		out = append(out, id)
+	}
+	slices.Sort(out)
+	return out
+}
+
+// fetchWaveCeilingsWithRetry pins a wave's replay ceiling — the newest sequence id per originator
+// at wave start, as a vector — with the same backoff as the scan itself. The MAX(seq) snapshot is
+// a sound replay boundary because of the system invariant that each originator's envelopes become
+// visible in sequence order (one sequential writer per originator); a row committing below the
+// snapshot after it was taken would be undeliverable stream-wide — the same pre-existing
+// assumption the live pollers make when advancing lastSeen from raw rows.
+//
+// The pin is the first SUCCESSFUL read: a retried fetch pins the wave's boundary at retry time,
+// which is indistinguishable from the Mutate having been processed later — no replay frame has
+// been sent yet, and once the scan starts the ceiling never moves. (A failed attempt yields no
+// snapshot to preserve, and aborting instead would turn a transient DB blip into a stream
+// failure for every topic on the stream.)
+func (s *Service) fetchWaveCeilingsWithRetry(
+	ctx context.Context,
+	originators []uint32,
+) (db.VectorClock, error) {
+	nodeIDs := make([]int32, 0, len(originators))
+	for _, o := range originators {
+		if o > math.MaxInt32 {
+			continue
+		}
+		nodeIDs = append(nodeIDs, int32(o))
+	}
+	boCtx := backoff.WithContext(
+		utils.NewBackoff(50*time.Millisecond, 300*time.Millisecond, 2*time.Second), ctx,
+	)
+	var ceilings db.VectorClock
+	operation := func() error {
+		rows, err := s.store.ReadQuery().SelectOriginatorCeilings(ctx, nodeIDs)
+		if err != nil {
+			if !retryerrors.IsRetryableSQLError(err) {
+				return backoff.Permanent(err)
+			}
+			return err
+		}
+		// Rebuilt per attempt so a retry after a partial fill cannot mix rows from two snapshots.
+		ceilings = make(db.VectorClock, len(nodeIDs))
+		for _, r := range rows {
+			ceilings[uint32(r.OriginatorNodeID)] = uint64(r.MaxSequenceID)
+		}
+		return nil
+	}
+	if err := backoff.Retry(operation, boCtx); err != nil {
+		return nil, connect.NewError(
+			connect.CodeInternal,
+			fmt.Errorf("could not select originator ceilings: %w", err),
+		)
+	}
+	return ceilings, nil
+}
+
+// fetchWaveScanPageWithRetry fetches one page of a wave's merged replay scan with exponential
+// backoff. params carries the wave's pre-flattened floors and ceilings; the caller advances the
+// scan position (ScanNodeID / ScanSequenceID) between pages.
+func (s *Service) fetchWaveScanPageWithRetry(
+	ctx context.Context,
+	params queries.SelectGatewayEnvelopesWaveScanParams,
+) ([]queries.GatewayEnvelopesView, error) {
+	boCtx := backoff.WithContext(
+		utils.NewBackoff(50*time.Millisecond, 300*time.Millisecond, 2*time.Second), ctx,
+	)
+	var result []queries.GatewayEnvelopesView
+	operation := func() error {
+		rows, err := s.store.ReadQuery().SelectGatewayEnvelopesWaveScan(ctx, params)
+		if err == nil {
+			result = db.TransformRowsWaveScan(rows)
+			return nil
+		}
+		if !retryerrors.IsRetryableSQLError(err) {
+			return backoff.Permanent(err)
+		}
+		return err
+	}
+	if err := backoff.Retry(operation, boCtx); err != nil {
+		return nil, connect.NewError(
+			connect.CodeInternal,
+			fmt.Errorf("could not select envelopes: %w", err),
+		)
+	}
+	return result, nil
 }
 
 func cloneVectorClock(vc db.VectorClock) db.VectorClock {
@@ -1063,10 +1304,14 @@ func newSubscribeStarted(keepaliveIntervalMs uint32) *message_api.SubscribeRespo
 
 func newSubscribeEnvelopes(
 	envs []*envelopesProto.OriginatorEnvelope,
+	mutateID uint64,
 ) *message_api.SubscribeResponse {
 	return wrapSubscribeV1(&message_api.SubscribeResponse_V1{
 		Response: &message_api.SubscribeResponse_V1_Envelopes_{
-			Envelopes: &message_api.SubscribeResponse_V1_Envelopes{Envelopes: envs},
+			Envelopes: &message_api.SubscribeResponse_V1_Envelopes{
+				Envelopes: envs,
+				MutateId:  mutateID,
+			},
 		},
 	})
 }

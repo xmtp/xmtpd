@@ -2998,17 +2998,23 @@ func (*SubscribeRequest_V1_Pong) isSubscribeRequest_V1_Request() {}
 type SubscribeRequest_V1_Mutate struct {
 	state   protoimpl.MessageState                     `protogen:"open.v1"`
 	Adds    []*SubscribeRequest_V1_Mutate_Subscription `protobuf:"bytes,1,rep,name=adds,proto3" json:"adds,omitempty"`       // begin delivering these topics
-	Removes [][]byte                                   `protobuf:"bytes,2,rep,name=removes,proto3" json:"removes,omitempty"` // topics to stop delivering
-	// Catch this Mutate's adds up to the live edge — history, TopicsLive
-	// markers, and the wave's CatchupComplete — but do NOT register them
-	// for live delivery. The markers then mean "you have everything as of
-	// now". Combined with half-closing the request stream, this is the
+	Removes [][]byte                                   `protobuf:"bytes,2,rep,name=removes,proto3" json:"removes,omitempty"` // stop delivering; clears the topic's cursor floor so a re-add replays
+	// Catch this Mutate's adds up — history, TopicsLive markers, and the
+	// wave's CatchupComplete — but do NOT register them for live delivery.
+	// The markers then mean "you have everything as of the wave's start";
+	// later messages arrive on no lane of this stream. Combined with
+	// half-closing the request stream, this is the
 	// bounded catch-up ("sync") mode: the server finishes the wave and then
 	// closes the stream itself. Removals in the Mutate are unaffected.
 	HistoryOnly bool `protobuf:"varint,3,opt,name=history_only,json=historyOnly,proto3" json:"history_only,omitempty"`
-	// Client-chosen correlation id, echoed on this wave's CatchupComplete
-	// so completions are attributable when waves overlap. SHOULD be unique
-	// per stream; 0 = no correlation requested (still echoed as 0).
+	// Client-chosen correlation id: echoed on this wave's CatchupComplete,
+	// and stamped on every delivery frame of the wave's catch-up replay
+	// (Messages.mutate_id). MUST be nonzero when adds are present (0 is the
+	// live tag), and MUST NOT match the mutate_id of a wave still in flight
+	// on the stream (an in-flight collision would make two waves' frames and
+	// completions indistinguishable) — either violation fails the stream
+	// with INVALID_ARGUMENT. SHOULD be unique per stream so completed waves
+	// stay attributable too.
 	MutateId      uint64 `protobuf:"varint,4,opt,name=mutate_id,json=mutateId,proto3" json:"mutate_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -3257,11 +3263,11 @@ type SubscribeResponse_V1_Pong struct {
 }
 
 type SubscribeResponse_V1_TopicsLive_ struct {
-	TopicsLive *SubscribeResponse_V1_TopicsLive `protobuf:"bytes,5,opt,name=topics_live,json=topicsLive,proto3,oneof"` // these topics just crossed from catch-up to live
+	TopicsLive *SubscribeResponse_V1_TopicsLive `protobuf:"bytes,5,opt,name=topics_live,json=topicsLive,proto3,oneof"` // no more replay for these topics; live begins after CatchupComplete
 }
 
 type SubscribeResponse_V1_CatchupComplete_ struct {
-	CatchupComplete *SubscribeResponse_V1_CatchupComplete `protobuf:"bytes,6,opt,name=catchup_complete,json=catchupComplete,proto3,oneof"` // a Mutate's adds are fully delivered
+	CatchupComplete *SubscribeResponse_V1_CatchupComplete `protobuf:"bytes,6,opt,name=catchup_complete,json=catchupComplete,proto3,oneof"` // acks a Mutate; wave completion if it started one
 }
 
 func (*SubscribeResponse_V1_Messages_) isSubscribeResponse_V1_Response() {}
@@ -3277,13 +3283,20 @@ func (*SubscribeResponse_V1_TopicsLive_) isSubscribeResponse_V1_Response() {}
 func (*SubscribeResponse_V1_CatchupComplete_) isSubscribeResponse_V1_Response() {}
 
 // A batch of new messages; group and welcome messages share the stream,
-// depending on which subscriptions are active.
+// depending on which subscriptions are active. A frame belongs to exactly
+// one catch-up wave or to live — the server never mixes lanes, or two
+// waves, in one frame — and each lane is delivered in ascending id order
+// per message kind (live: across all live topics on the stream; a wave:
+// across the wave's topics, one merged cursor-ordered pass).
 type SubscribeResponse_V1_Messages struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	GroupMessages   []*GroupMessage        `protobuf:"bytes,1,rep,name=group_messages,json=groupMessages,proto3" json:"group_messages,omitempty"`
 	WelcomeMessages []*WelcomeMessage      `protobuf:"bytes,2,rep,name=welcome_messages,json=welcomeMessages,proto3" json:"welcome_messages,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// The catch-up wave that produced this frame: the Mutate's mutate_id
+	// for wave replay, 0 for live tail.
+	MutateId      uint64 `protobuf:"varint,3,opt,name=mutate_id,json=mutateId,proto3" json:"mutate_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SubscribeResponse_V1_Messages) Reset() {
@@ -3328,6 +3341,13 @@ func (x *SubscribeResponse_V1_Messages) GetWelcomeMessages() []*WelcomeMessage {
 		return x.WelcomeMessages
 	}
 	return nil
+}
+
+func (x *SubscribeResponse_V1_Messages) GetMutateId() uint64 {
+	if x != nil {
+		return x.MutateId
+	}
+	return 0
 }
 
 // The first frame on every stream.
@@ -3389,11 +3409,15 @@ func (x *SubscribeResponse_V1_Started) GetCapabilities() []SubscribeResponse_V1_
 	return nil
 }
 
-// Sent once per Mutate that adds subscriptions (a catch-up "wave"), after
-// the wave's last TopicsLive: everything the Mutate asked for is delivered.
+// Sent once per Mutate: at wave completion (after the wave's last
+// TopicsLive) for a Mutate that started a catch-up "wave", immediately for
+// one that did not (nothing added — removes-only or empty — or every add
+// a no-op). Also the catch-up
+// seam: live frames (mutate_id 0) for the wave's topics begin only after
+// this frame.
 type SubscribeResponse_V1_CatchupComplete struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	MutateId      uint64                 `protobuf:"varint,1,opt,name=mutate_id,json=mutateId,proto3" json:"mutate_id,omitempty"` // echoes the Mutate that started this wave (0 if none given)
+	MutateId      uint64                 `protobuf:"varint,1,opt,name=mutate_id,json=mutateId,proto3" json:"mutate_id,omitempty"` // echoes the Mutate; 0 only if a waveless Mutate carried 0
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3436,14 +3460,15 @@ func (x *SubscribeResponse_V1_CatchupComplete) GetMutateId() uint64 {
 }
 
 // Emitted when topics finish catch-up, AFTER the last history frame for
-// them — including any live messages that queued up behind the catch-up,
-// which were equally historical from the client's perspective — so every
-// later frame for a listed topic is live tail. Informational only: delivery
+// them — including messages that arrived mid-wave and were folded into it,
+// which were equally historical from the client's perspective — so no
+// further replay for a listed topic follows; its live (mutate_id 0) frames
+// begin after the wave's CatchupComplete. Informational only: delivery
 // correctness (no duplicates, no gaps) never depends on it. Re-adding a
 // topic re-runs catch-up and re-emits it; receivers treat it idempotently.
 type SubscribeResponse_V1_TopicsLive struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Topics        [][]byte               `protobuf:"bytes,1,rep,name=topics,proto3" json:"topics,omitempty"` // kind-prefixed topics now tailing live
+	Topics        [][]byte               `protobuf:"bytes,1,rep,name=topics,proto3" json:"topics,omitempty"` // kind-prefixed topics done replaying
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3685,9 +3710,9 @@ const file_mls_api_v1_mls_proto_rawDesc = "" +
 	"\x05topic\x18\x01 \x01(\fR\x05topic\x12\x1b\n" +
 	"\tid_cursor\x18\x02 \x01(\x04R\bidCursorB\t\n" +
 	"\arequestB\t\n" +
-	"\aversion\"\xcb\a\n" +
+	"\aversion\"\xe8\a\n" +
 	"\x11SubscribeResponse\x127\n" +
-	"\x02v1\x18\x01 \x01(\v2%.xmtp.mls.api.v1.SubscribeResponse.V1H\x00R\x02v1\x1a\xf1\x06\n" +
+	"\x02v1\x18\x01 \x01(\v2%.xmtp.mls.api.v1.SubscribeResponse.V1H\x00R\x02v1\x1a\x8e\a\n" +
 	"\x02V1\x12L\n" +
 	"\bmessages\x18\x01 \x01(\v2..xmtp.mls.api.v1.SubscribeResponse.V1.MessagesH\x00R\bmessages\x12I\n" +
 	"\astarted\x18\x02 \x01(\v2-.xmtp.mls.api.v1.SubscribeResponse.V1.StartedH\x00R\astarted\x12+\n" +
@@ -3695,10 +3720,11 @@ const file_mls_api_v1_mls_proto_rawDesc = "" +
 	"\x04pong\x18\x04 \x01(\v2\x15.xmtp.mls.api.v1.PongH\x00R\x04pong\x12S\n" +
 	"\vtopics_live\x18\x05 \x01(\v20.xmtp.mls.api.v1.SubscribeResponse.V1.TopicsLiveH\x00R\n" +
 	"topicsLive\x12b\n" +
-	"\x10catchup_complete\x18\x06 \x01(\v25.xmtp.mls.api.v1.SubscribeResponse.V1.CatchupCompleteH\x00R\x0fcatchupComplete\x1a\x9c\x01\n" +
+	"\x10catchup_complete\x18\x06 \x01(\v25.xmtp.mls.api.v1.SubscribeResponse.V1.CatchupCompleteH\x00R\x0fcatchupComplete\x1a\xb9\x01\n" +
 	"\bMessages\x12D\n" +
 	"\x0egroup_messages\x18\x01 \x03(\v2\x1d.xmtp.mls.api.v1.GroupMessageR\rgroupMessages\x12J\n" +
-	"\x10welcome_messages\x18\x02 \x03(\v2\x1f.xmtp.mls.api.v1.WelcomeMessageR\x0fwelcomeMessages\x1a\x93\x01\n" +
+	"\x10welcome_messages\x18\x02 \x03(\v2\x1f.xmtp.mls.api.v1.WelcomeMessageR\x0fwelcomeMessages\x12\x1b\n" +
+	"\tmutate_id\x18\x03 \x01(\x04R\bmutateId\x1a\x93\x01\n" +
 	"\aStarted\x122\n" +
 	"\x15keepalive_interval_ms\x18\x01 \x01(\rR\x13keepaliveIntervalMs\x12T\n" +
 	"\fcapabilities\x18\x02 \x03(\x0e20.xmtp.mls.api.v1.SubscribeResponse.V1.CapabilityR\fcapabilities\x1a.\n" +

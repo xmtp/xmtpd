@@ -26,9 +26,14 @@
             "type": "object",
             "$ref": "#/definitions/envelopesOriginatorEnvelope"
           }
+        },
+        "mutateId": {
+          "type": "string",
+          "format": "uint64",
+          "description": "The catch-up wave that produced this frame: the Mutate's mutate_id\nfor wave replay, 0 for live tail."
         }
       },
-      "description": "A batch of envelopes across the active subscriptions; the client demuxes\nby each envelope's target topic."
+      "description": "A batch of envelopes across the active subscriptions; the client demuxes\nby each envelope's target topic. A frame belongs to exactly one catch-up\nwave or to live — the node never mixes lanes, or two waves, in one frame\n— and each lane delivers every originator's envelopes in ascending\noriginator_sequence_id (live: across all live topics on the stream; a\nwave: across the wave's topics)."
     },
     "SubscribeTopicsRequestTopicFilter": {
       "type": "object",
@@ -327,16 +332,16 @@
             "type": "string",
             "format": "byte"
           },
-          "title": "topics to stop delivering"
+          "title": "stop delivering; clears the topic's cursor floor so a re-add replays"
         },
         "historyOnly": {
           "type": "boolean",
-          "description": "Catch this Mutate's adds up to the live edge — history, TopicsLive\nmarkers, and the wave's CatchupComplete — but do NOT register them for\nlive delivery. The markers then mean \"you have everything as of now\".\nCombined with half-closing the request stream, this is the bounded\ncatch-up (\"sync\") mode: the node finishes the wave then closes the\nstream itself. Removals in the Mutate are unaffected."
+          "description": "Catch this Mutate's adds up — history, TopicsLive markers, and the\nwave's CatchupComplete — but do NOT register them for live delivery.\nThe markers then mean \"you have everything as of the wave's start\";\nlater envelopes arrive on no lane of this stream. Combined with\nhalf-closing the request stream, this is the bounded catch-up (\"sync\")\nmode: the node finishes the wave then closes the stream itself.\nRemovals in the Mutate are unaffected."
         },
         "mutateId": {
           "type": "string",
           "format": "uint64",
-          "description": "Client-chosen correlation id, echoed on this wave's CatchupComplete so\ncompletions are attributable when waves overlap. SHOULD be unique per\nstream; 0 = no correlation requested (still echoed as 0)."
+          "description": "Client-chosen correlation id: echoed on this wave's CatchupComplete,\nand stamped on every delivery frame of the wave's catch-up replay\n(Envelopes.mutate_id). MUST be nonzero when adds are present (0 is the\nlive tag), and MUST NOT match the mutate_id of a wave still in flight\non the stream (an in-flight collision would make two waves' frames and\ncompletions indistinguishable) — either violation fails the stream\nwith INVALID_ARGUMENT. SHOULD be unique per stream so completed waves\nstay attributable too."
         }
       },
       "description": "Add and/or remove subscriptions in place (applied atomically per frame).\nTopics use the kind-prefixed binary representation (XIP-49 §3.3.2): the\nfirst byte is the topic kind, the remainder is the identifier. A topic\nwhose kind the node does not serve fails the stream with INVALID_ARGUMENT."
@@ -384,11 +389,11 @@
         },
         "topicsLive": {
           "$ref": "#/definitions/xmtpv4message_apiSubscribeResponseV1TopicsLive",
-          "title": "these topics just crossed from catch-up to live"
+          "title": "no more replay for these topics; live begins after CatchupComplete"
         },
         "catchupComplete": {
           "$ref": "#/definitions/xmtpv4message_apiSubscribeResponseV1CatchupComplete",
-          "title": "a Mutate's adds are fully delivered"
+          "title": "acks a Mutate; wave completion if it started one"
         }
       }
     },
@@ -406,10 +411,10 @@
         "mutateId": {
           "type": "string",
           "format": "uint64",
-          "title": "echoes the Mutate that started this wave (0 if none given)"
+          "title": "echoes the Mutate; 0 only if a waveless Mutate carried 0"
         }
       },
-      "description": "Sent once per Mutate that adds subscriptions (a catch-up \"wave\"), after\nthe wave's last TopicsLive: everything the Mutate asked for is delivered."
+      "description": "Sent once per Mutate: at wave completion (after the wave's last\nTopicsLive) for a Mutate that started a catch-up \"wave\", immediately for\none that did not (nothing added — removes-only or empty — or every add\na no-op). Also the catch-up\nseam: live frames (mutate_id 0) for the wave's topics begin only after\nthis frame."
     },
     "xmtpv4message_apiSubscribeResponseV1Started": {
       "type": "object",
@@ -438,10 +443,10 @@
             "type": "string",
             "format": "byte"
           },
-          "title": "kind-prefixed topics now tailing live"
+          "title": "kind-prefixed topics done replaying"
         }
       },
-      "description": "Emitted when topics finish catch-up, AFTER the last history frame for\nthem — including any live envelopes that queued behind the catch-up,\nwhich were equally historical from the client's perspective — so every\nlater frame for a listed topic is live tail. Informational only: delivery\ncorrectness (no duplicates, no gaps) never depends on it. Re-adding a\ntopic re-runs catch-up and re-emits it; receivers treat it idempotently."
+      "description": "Emitted when topics finish catch-up, AFTER the last history frame for\nthem — including envelopes that arrived mid-wave and were folded into it,\nwhich were equally historical from the client's perspective — so no\nfurther replay for a listed topic follows; its live (mutate_id 0) frames\nbegin after the wave's CatchupComplete. Informational only: delivery\ncorrectness (no duplicates, no gaps) never depends on it. Re-adding a\ntopic re-runs catch-up and re-emits it; receivers treat it idempotently."
     }
   }
 }

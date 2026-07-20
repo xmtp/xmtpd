@@ -33,7 +33,7 @@ func getVersionCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().
-		Var(&target, "target", "settlement-chain-gateway|payer-registry|distribution-manager")
+		Var(&target, "target", "settlement-chain-gateway|payer-registry|distribution-manager|settlement-parameter-registry|payer-report-manager|rate-registry|group|identity|app-chain-gateway|app-parameter-registry|node-registry")
 	_ = cmd.MarkFlagRequired("target")
 	return cmd
 }

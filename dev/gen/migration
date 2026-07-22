@@ -5,5 +5,9 @@ set -e
 script_dir=$(dirname "$(realpath "$0")")
 repo_root=$(realpath "${script_dir}/../../")
 cd "${repo_root}"
-
+if [ -z "$1" ]; then
+    echo "Usage: $0 <migration_name>"
+    echo "Example: $0 add_user_balances_table"
+    exit 1
+fi
 go tool -modfile=tools/go.mod migrate create -dir pkg/db/migrations -seq -digits=5 -ext sql "$1"

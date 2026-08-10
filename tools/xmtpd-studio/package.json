@@ -1,0 +1,31 @@
+{
+  "name": "xmtpd-node-studio",
+  "version": "1.0.0",
+  "description": "Interactive xmtpd Decentralized Node Simulator, P2P Envelope Replication & Operator Dashboard for XMTP.",
+  "main": "src/index.js",
+  "type": "module",
+  "bin": {
+    "xmtpd-cli": "./bin/xmtpd-cli.js"
+  },
+  "scripts": {
+    "start": "node src/server/app.js",
+    "cli": "node bin/xmtpd-cli.js",
+    "test": "node tests/run-all.js"
+  },
+  "keywords": [
+    "xmtp",
+    "xmtpd",
+    "node-daemon",
+    "p2p-replication",
+    "decentralized-messaging",
+    "node-operator"
+  ],
+  "author": "XMTP Community",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.13.5",
+    "express": "^4.21.2"
+  }
+}

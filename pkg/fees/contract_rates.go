@@ -117,26 +117,33 @@ func (c *ContractRatesFetcher) refreshData() error {
 	newRates := make([]*indexedRates, 0)
 	newRates = append(newRates, c.rates...)
 
-	for c.currentIndex.Cmp(availableRatesCount) < 0 {
+	// Track the cursor locally and only publish it once the fetched rates are
+	// committed below. Advancing c.currentIndex here would leak progress on a
+	// mid-pagination failure: the accumulated newRates are discarded on early
+	// return, so a persisted cursor would make the next refresh resume past the
+	// discarded rates and leave a permanent gap in the set.
+	nextIndex := new(big.Int).Set(c.currentIndex)
+
+	for nextIndex.Cmp(availableRatesCount) < 0 {
 		toFetch := big.NewInt(c.pageSize)
 
 		// Adjust page size if near the end
-		remaining := new(big.Int).Sub(availableRatesCount, c.currentIndex)
+		remaining := new(big.Int).Sub(availableRatesCount, nextIndex)
 		if remaining.Cmp(toFetch) < 0 {
 			toFetch = remaining
 		}
 
 		c.logger.Info("getting page",
-			zap.Int64(fromIndexField, c.currentIndex.Int64()),
+			zap.Int64(fromIndexField, nextIndex.Int64()),
 			utils.CountField(toFetch.Int64()),
 		)
 
 		// Step 3: Get rates
-		resp, err := c.contract.GetRates(&bind.CallOpts{Context: c.ctx}, c.currentIndex, toFetch)
+		resp, err := c.contract.GetRates(&bind.CallOpts{Context: c.ctx}, nextIndex, toFetch)
 		if err != nil {
 			c.logger.Error("error calling contract",
 				zap.Error(err),
-				zap.Int64(fromIndexField, c.currentIndex.Int64()),
+				zap.Int64(fromIndexField, nextIndex.Int64()),
 			)
 			return err
 		}
@@ -144,7 +151,7 @@ func (c *ContractRatesFetcher) refreshData() error {
 		newRates = append(newRates, transformRates(resp)...)
 
 		// Step 4: Increment the index for the next page
-		c.currentIndex = c.currentIndex.Add(c.currentIndex, toFetch)
+		nextIndex.Add(nextIndex, toFetch)
 	}
 
 	if err = validateRates(newRates); err != nil {
@@ -152,7 +159,9 @@ func (c *ContractRatesFetcher) refreshData() error {
 		return err
 	}
 
+	// Commit the rates and the cursor together so they can never diverge.
 	c.rates = newRates
+	c.currentIndex = nextIndex
 	c.lastRefresh = time.Now()
 	c.logger.Debug("refreshed rates", utils.CountField(int64(len(newRates))))
 

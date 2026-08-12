@@ -7,6 +7,7 @@ import (
 )
 
 var ErrIntOverflow = errors.New("overflow in conversion from uint to int")
+var ErrNegativeInt = errors.New("negative int in conversion to uint")
 
 func Uint64ToInt64(u uint64) (int64, error) {
 	if u > math.MaxInt64 {
@@ -20,6 +21,20 @@ func Uint32ToInt32(u uint32) (int32, error) {
 		return 0, ErrIntOverflow
 	}
 	return int32(u), nil
+}
+
+func Int32ToUint32(i int32) (uint32, error) {
+	if i < 0 {
+		return 0, ErrNegativeInt
+	}
+	return uint32(i), nil
+}
+
+func Int64ToUint64(i int64) (uint64, error) {
+	if i < 0 {
+		return 0, ErrNegativeInt
+	}
+	return uint64(i), nil
 }
 
 func Uint32ToBytes(u uint32) []byte {

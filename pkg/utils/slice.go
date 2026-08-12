@@ -31,13 +31,16 @@ func Uint32SliceToInt32Slice(slice []uint32) ([]int32, error) {
 	return intSlice, nil
 }
 
-func Int32SliceToUint32Slice(slice []int32) []uint32 {
+func Int32SliceToUint32Slice(slice []int32) ([]uint32, error) {
 	uintSlice := make([]uint32, len(slice))
 	for i, v := range slice {
+		if v < 0 {
+			return nil, ErrNegativeInt
+		}
 		uintSlice[i] = uint32(v)
 	}
 
-	return uintSlice
+	return uintSlice, nil
 }
 
 // ChunkSlice splits a slice into chunks of at most size elements.

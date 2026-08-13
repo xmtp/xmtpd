@@ -19,7 +19,7 @@ Use one of the following methods to deploy a local environment:
 
 You can use the XMTP Contracts Image to deploy a local environment, and test `xmtpd` with it.
 
-The XMTP Contracts Image [documentation](https://github.com/xmtp/smart-contracts/blob/main/doc/xmtp-contracts-image.md#using-the-image) contains the deterministic addresses where all the contracts are deployed, to ease the setup step.
+See the smart-contracts [documentation index](https://github.com/xmtp/smart-contracts/blob/main/doc/README.md) for current setup and deployment docs to ease this step.
 
 By default, `dev/local.env` contains sane values for local deployments. Modify what's necessary.
 

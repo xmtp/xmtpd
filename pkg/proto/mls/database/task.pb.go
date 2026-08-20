@@ -35,6 +35,8 @@ type Task struct {
 	//	*Task_PullInDeadline
 	//	*Task_KpRotation
 	//	*Task_KpDeletion
+	//	*Task_AddMissingInstallations
+	//	*Task_KpLiveness
 	Task          isTask_Task `protobuf_oneof:"task"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -131,6 +133,24 @@ func (x *Task) GetKpDeletion() *KpDeletion {
 	return nil
 }
 
+func (x *Task) GetAddMissingInstallations() *AddMissingInstallations {
+	if x != nil {
+		if x, ok := x.Task.(*Task_AddMissingInstallations); ok {
+			return x.AddMissingInstallations
+		}
+	}
+	return nil
+}
+
+func (x *Task) GetKpLiveness() *KpLiveness {
+	if x != nil {
+		if x, ok := x.Task.(*Task_KpLiveness); ok {
+			return x.KpLiveness
+		}
+	}
+	return nil
+}
+
 type isTask_Task interface {
 	isTask_Task()
 }
@@ -159,6 +179,14 @@ type Task_KpDeletion struct {
 	KpDeletion *KpDeletion `protobuf:"bytes,6,opt,name=kp_deletion,json=kpDeletion,proto3,oneof"`
 }
 
+type Task_AddMissingInstallations struct {
+	AddMissingInstallations *AddMissingInstallations `protobuf:"bytes,7,opt,name=add_missing_installations,json=addMissingInstallations,proto3,oneof"`
+}
+
+type Task_KpLiveness struct {
+	KpLiveness *KpLiveness `protobuf:"bytes,8,opt,name=kp_liveness,json=kpLiveness,proto3,oneof"`
+}
+
 func (*Task_ProcessWelcomePointer) isTask_Task() {}
 
 func (*Task_SendSyncArchive) isTask_Task() {}
@@ -170,6 +198,10 @@ func (*Task_PullInDeadline) isTask_Task() {}
 func (*Task_KpRotation) isTask_Task() {}
 
 func (*Task_KpDeletion) isTask_Task() {}
+
+func (*Task_AddMissingInstallations) isTask_Task() {}
+
+func (*Task_KpLiveness) isTask_Task() {}
 
 // Lower a target task's next-attempt deadline so it runs sooner. One-shot:
 // applied by the TaskWorker, then deleted.
@@ -303,6 +335,53 @@ func (*KpDeletion) Descriptor() ([]byte, []int) {
 	return file_mls_database_task_proto_rawDescGZIP(), []int{3}
 }
 
+// Recurring singleton: verify that THIS installation still has a usable key
+// package published on the network, and queue a rotation when it does not.
+//
+// Distinct from KpRotation on purpose. Rotation is driven by a local deadline
+// column; if that column is ever wrong the client stops rotating, its published
+// key package expires, and it becomes permanently unreachable (added to groups
+// only as a failed installation, so it never receives a welcome and never gets
+// the welcome-driven rotation nudge either) without observing any local error.
+// Liveness is the independent watchdog for that closed loop: its own schedule,
+// its own retry/backoff, and a network probe rather than a local deadline as
+// its source of truth. Empty payload => stable data_hash for pull-ins.
+type KpLiveness struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *KpLiveness) Reset() {
+	*x = KpLiveness{}
+	mi := &file_mls_database_task_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KpLiveness) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KpLiveness) ProtoMessage() {}
+
+func (x *KpLiveness) ProtoReflect() protoreflect.Message {
+	mi := &file_mls_database_task_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KpLiveness.ProtoReflect.Descriptor instead.
+func (*KpLiveness) Descriptor() ([]byte, []int) {
+	return file_mls_database_task_proto_rawDescGZIP(), []int{4}
+}
+
 type SendSyncArchive struct {
 	state         protoimpl.MessageState      `protogen:"open.v1"`
 	Options       *device_sync.ArchiveOptions `protobuf:"bytes,1,opt,name=options,proto3" json:"options,omitempty"`
@@ -315,7 +394,7 @@ type SendSyncArchive struct {
 
 func (x *SendSyncArchive) Reset() {
 	*x = SendSyncArchive{}
-	mi := &file_mls_database_task_proto_msgTypes[4]
+	mi := &file_mls_database_task_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -327,7 +406,7 @@ func (x *SendSyncArchive) String() string {
 func (*SendSyncArchive) ProtoMessage() {}
 
 func (x *SendSyncArchive) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_database_task_proto_msgTypes[4]
+	mi := &file_mls_database_task_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -340,7 +419,7 @@ func (x *SendSyncArchive) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendSyncArchive.ProtoReflect.Descriptor instead.
 func (*SendSyncArchive) Descriptor() ([]byte, []int) {
-	return file_mls_database_task_proto_rawDescGZIP(), []int{4}
+	return file_mls_database_task_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SendSyncArchive) GetOptions() *device_sync.ArchiveOptions {
@@ -385,7 +464,7 @@ type ProcessPendingSelfRemove struct {
 
 func (x *ProcessPendingSelfRemove) Reset() {
 	*x = ProcessPendingSelfRemove{}
-	mi := &file_mls_database_task_proto_msgTypes[5]
+	mi := &file_mls_database_task_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -397,7 +476,7 @@ func (x *ProcessPendingSelfRemove) String() string {
 func (*ProcessPendingSelfRemove) ProtoMessage() {}
 
 func (x *ProcessPendingSelfRemove) ProtoReflect() protoreflect.Message {
-	mi := &file_mls_database_task_proto_msgTypes[5]
+	mi := &file_mls_database_task_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -410,10 +489,60 @@ func (x *ProcessPendingSelfRemove) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessPendingSelfRemove.ProtoReflect.Descriptor instead.
 func (*ProcessPendingSelfRemove) Descriptor() ([]byte, []int) {
-	return file_mls_database_task_proto_rawDescGZIP(), []int{5}
+	return file_mls_database_task_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ProcessPendingSelfRemove) GetGroupId() []byte {
+	if x != nil {
+		return x.GroupId
+	}
+	return nil
+}
+
+// Durable TaskRunner intent: reconcile a group's membership with the inbox's
+// latest identity state (add installations registered after the group was
+// last updated). Enqueued by the device-sync worker when a sync-group welcome
+// signals a new installation; runs on the TaskRunner with retry/backoff so a
+// transient failure (e.g. identity propagation lag) cannot permanently skip
+// the add. group_id is the target conversation.
+type AddMissingInstallations struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       []byte                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddMissingInstallations) Reset() {
+	*x = AddMissingInstallations{}
+	mi := &file_mls_database_task_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddMissingInstallations) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddMissingInstallations) ProtoMessage() {}
+
+func (x *AddMissingInstallations) ProtoReflect() protoreflect.Message {
+	mi := &file_mls_database_task_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddMissingInstallations.ProtoReflect.Descriptor instead.
+func (*AddMissingInstallations) Descriptor() ([]byte, []int) {
+	return file_mls_database_task_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *AddMissingInstallations) GetGroupId() []byte {
 	if x != nil {
 		return x.GroupId
 	}
@@ -424,7 +553,7 @@ var File_mls_database_task_proto protoreflect.FileDescriptor
 
 const file_mls_database_task_proto_rawDesc = "" +
 	"\n" +
-	"\x17mls/database/task.proto\x12\x11xmtp.mls.database\x1a\x1ddevice_sync/device_sync.proto\x1a*mls/message_contents/welcome_pointer.proto\"\x86\x04\n" +
+	"\x17mls/database/task.proto\x12\x11xmtp.mls.database\x1a\x1ddevice_sync/device_sync.proto\x1a*mls/message_contents/welcome_pointer.proto\"\xb2\x05\n" +
 	"\x04Task\x12c\n" +
 	"\x17process_welcome_pointer\x18\x01 \x01(\v2).xmtp.mls.message_contents.WelcomePointerH\x00R\x15processWelcomePointer\x12P\n" +
 	"\x11send_sync_archive\x18\x02 \x01(\v2\".xmtp.mls.database.SendSyncArchiveH\x00R\x0fsendSyncArchive\x12l\n" +
@@ -433,7 +562,10 @@ const file_mls_database_task_proto_rawDesc = "" +
 	"\vkp_rotation\x18\x05 \x01(\v2\x1d.xmtp.mls.database.KpRotationH\x00R\n" +
 	"kpRotation\x12@\n" +
 	"\vkp_deletion\x18\x06 \x01(\v2\x1d.xmtp.mls.database.KpDeletionH\x00R\n" +
-	"kpDeletionB\x06\n" +
+	"kpDeletion\x12h\n" +
+	"\x19add_missing_installations\x18\a \x01(\v2*.xmtp.mls.database.AddMissingInstallationsH\x00R\x17addMissingInstallations\x12@\n" +
+	"\vkp_liveness\x18\b \x01(\v2\x1d.xmtp.mls.database.KpLivenessH\x00R\n" +
+	"kpLivenessB\x06\n" +
 	"\x04task\"e\n" +
 	"\x0ePullInDeadline\x12(\n" +
 	"\x10target_data_hash\x18\x01 \x01(\fR\x0etargetDataHash\x12)\n" +
@@ -441,7 +573,9 @@ const file_mls_database_task_proto_rawDesc = "" +
 	"\n" +
 	"KpRotation\"\f\n" +
 	"\n" +
-	"KpDeletion\"\xaf\x01\n" +
+	"KpDeletion\"\f\n" +
+	"\n" +
+	"KpLiveness\"\xaf\x01\n" +
 	"\x0fSendSyncArchive\x12:\n" +
 	"\aoptions\x18\x01 \x01(\v2 .xmtp.device_sync.ArchiveOptionsR\aoptions\x12\"\n" +
 	"\rsync_group_id\x18\x02 \x01(\fR\vsyncGroupId\x12\x15\n" +
@@ -450,6 +584,8 @@ const file_mls_database_task_proto_rawDesc = "" +
 	"server_url\x18\x04 \x01(\tR\tserverUrlB\x06\n" +
 	"\x04_pin\"5\n" +
 	"\x18ProcessPendingSelfRemove\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\fR\agroupId\"4\n" +
+	"\x17AddMissingInstallations\x12\x19\n" +
 	"\bgroup_id\x18\x01 \x01(\fR\agroupIdB\xb6\x01\n" +
 	"\x15com.xmtp.mls.databaseB\tTaskProtoP\x01Z,github.com/xmtp/xmtpd/pkg/proto/mls/database\xa2\x02\x03XMD\xaa\x02\x11Xmtp.Mls.Database\xca\x02\x11Xmtp\\Mls\\Database\xe2\x02\x1dXmtp\\Mls\\Database\\GPBMetadata\xea\x02\x13Xmtp::Mls::Databaseb\x06proto3"
 
@@ -465,30 +601,34 @@ func file_mls_database_task_proto_rawDescGZIP() []byte {
 	return file_mls_database_task_proto_rawDescData
 }
 
-var file_mls_database_task_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_mls_database_task_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_mls_database_task_proto_goTypes = []any{
 	(*Task)(nil),                            // 0: xmtp.mls.database.Task
 	(*PullInDeadline)(nil),                  // 1: xmtp.mls.database.PullInDeadline
 	(*KpRotation)(nil),                      // 2: xmtp.mls.database.KpRotation
 	(*KpDeletion)(nil),                      // 3: xmtp.mls.database.KpDeletion
-	(*SendSyncArchive)(nil),                 // 4: xmtp.mls.database.SendSyncArchive
-	(*ProcessPendingSelfRemove)(nil),        // 5: xmtp.mls.database.ProcessPendingSelfRemove
-	(*message_contents.WelcomePointer)(nil), // 6: xmtp.mls.message_contents.WelcomePointer
-	(*device_sync.ArchiveOptions)(nil),      // 7: xmtp.device_sync.ArchiveOptions
+	(*KpLiveness)(nil),                      // 4: xmtp.mls.database.KpLiveness
+	(*SendSyncArchive)(nil),                 // 5: xmtp.mls.database.SendSyncArchive
+	(*ProcessPendingSelfRemove)(nil),        // 6: xmtp.mls.database.ProcessPendingSelfRemove
+	(*AddMissingInstallations)(nil),         // 7: xmtp.mls.database.AddMissingInstallations
+	(*message_contents.WelcomePointer)(nil), // 8: xmtp.mls.message_contents.WelcomePointer
+	(*device_sync.ArchiveOptions)(nil),      // 9: xmtp.device_sync.ArchiveOptions
 }
 var file_mls_database_task_proto_depIdxs = []int32{
-	6, // 0: xmtp.mls.database.Task.process_welcome_pointer:type_name -> xmtp.mls.message_contents.WelcomePointer
-	4, // 1: xmtp.mls.database.Task.send_sync_archive:type_name -> xmtp.mls.database.SendSyncArchive
-	5, // 2: xmtp.mls.database.Task.process_pending_self_remove:type_name -> xmtp.mls.database.ProcessPendingSelfRemove
+	8, // 0: xmtp.mls.database.Task.process_welcome_pointer:type_name -> xmtp.mls.message_contents.WelcomePointer
+	5, // 1: xmtp.mls.database.Task.send_sync_archive:type_name -> xmtp.mls.database.SendSyncArchive
+	6, // 2: xmtp.mls.database.Task.process_pending_self_remove:type_name -> xmtp.mls.database.ProcessPendingSelfRemove
 	1, // 3: xmtp.mls.database.Task.pull_in_deadline:type_name -> xmtp.mls.database.PullInDeadline
 	2, // 4: xmtp.mls.database.Task.kp_rotation:type_name -> xmtp.mls.database.KpRotation
 	3, // 5: xmtp.mls.database.Task.kp_deletion:type_name -> xmtp.mls.database.KpDeletion
-	7, // 6: xmtp.mls.database.SendSyncArchive.options:type_name -> xmtp.device_sync.ArchiveOptions
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	7, // 6: xmtp.mls.database.Task.add_missing_installations:type_name -> xmtp.mls.database.AddMissingInstallations
+	4, // 7: xmtp.mls.database.Task.kp_liveness:type_name -> xmtp.mls.database.KpLiveness
+	9, // 8: xmtp.mls.database.SendSyncArchive.options:type_name -> xmtp.device_sync.ArchiveOptions
+	9, // [9:9] is the sub-list for method output_type
+	9, // [9:9] is the sub-list for method input_type
+	9, // [9:9] is the sub-list for extension type_name
+	9, // [9:9] is the sub-list for extension extendee
+	0, // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_mls_database_task_proto_init() }
@@ -503,15 +643,17 @@ func file_mls_database_task_proto_init() {
 		(*Task_PullInDeadline)(nil),
 		(*Task_KpRotation)(nil),
 		(*Task_KpDeletion)(nil),
+		(*Task_AddMissingInstallations)(nil),
+		(*Task_KpLiveness)(nil),
 	}
-	file_mls_database_task_proto_msgTypes[4].OneofWrappers = []any{}
+	file_mls_database_task_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_mls_database_task_proto_rawDesc), len(file_mls_database_task_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

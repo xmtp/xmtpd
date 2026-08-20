@@ -1512,11 +1512,16 @@ func (x *ReaddInstallationsData_V1) GetReaddedInstallations() [][]byte {
 
 // V1 of UpdateMetadataPublishData
 type UpdateMetadataData_V1 struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	FieldName     string                 `protobuf:"bytes,1,opt,name=field_name,json=fieldName,proto3" json:"field_name,omitempty"`
-	FieldValue    string                 `protobuf:"bytes,2,opt,name=field_value,json=fieldValue,proto3" json:"field_value,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	FieldName  string                 `protobuf:"bytes,1,opt,name=field_name,json=fieldName,proto3" json:"field_name,omitempty"`
+	FieldValue string                 `protobuf:"bytes,2,opt,name=field_value,json=fieldValue,proto3" json:"field_value,omitempty"`
+	// Compare-and-swap guard. When set, the publisher must abandon this
+	// intent unless the field's currently committed value equals this,
+	// rather than overwriting whatever landed in the meantime. Absent
+	// means last-writer-wins, which is the historical behavior.
+	ExpectedFieldValue *string `protobuf:"bytes,3,opt,name=expected_field_value,json=expectedFieldValue,proto3,oneof" json:"expected_field_value,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *UpdateMetadataData_V1) Reset() {
@@ -1559,6 +1564,13 @@ func (x *UpdateMetadataData_V1) GetFieldName() string {
 func (x *UpdateMetadataData_V1) GetFieldValue() string {
 	if x != nil {
 		return x.FieldValue
+	}
+	return ""
+}
+
+func (x *UpdateMetadataData_V1) GetExpectedFieldValue() string {
+	if x != nil && x.ExpectedFieldValue != nil {
+		return *x.ExpectedFieldValue
 	}
 	return ""
 }
@@ -2042,14 +2054,16 @@ const file_mls_database_intents_proto_rawDesc = "" +
 	"\x02v1\x18\x01 \x01(\v2,.xmtp.mls.database.ReaddInstallationsData.V1H\x00R\x02v1\x1a9\n" +
 	"\x02V1\x123\n" +
 	"\x15readded_installations\x18\x01 \x03(\fR\x14readdedInstallationsB\t\n" +
-	"\aversion\"\xa1\x01\n" +
+	"\aversion\"\xf2\x01\n" +
 	"\x12UpdateMetadataData\x12:\n" +
-	"\x02v1\x18\x01 \x01(\v2(.xmtp.mls.database.UpdateMetadataData.V1H\x00R\x02v1\x1aD\n" +
+	"\x02v1\x18\x01 \x01(\v2(.xmtp.mls.database.UpdateMetadataData.V1H\x00R\x02v1\x1a\x94\x01\n" +
 	"\x02V1\x12\x1d\n" +
 	"\n" +
 	"field_name\x18\x01 \x01(\tR\tfieldName\x12\x1f\n" +
 	"\vfield_value\x18\x02 \x01(\tR\n" +
-	"fieldValueB\t\n" +
+	"fieldValue\x125\n" +
+	"\x14expected_field_value\x18\x03 \x01(\tH\x00R\x12expectedFieldValue\x88\x01\x01B\x17\n" +
+	"\x15_expected_field_valueB\t\n" +
 	"\aversion\"\xdd\x01\n" +
 	"\x14UpdateAdminListsData\x12<\n" +
 	"\x02v1\x18\x01 \x01(\v2*.xmtp.mls.database.UpdateAdminListsData.V1H\x00R\x02v1\x1a|\n" +
@@ -2251,6 +2265,7 @@ func file_mls_database_intents_proto_init() {
 	file_mls_database_intents_proto_msgTypes[15].OneofWrappers = []any{
 		(*CommitPendingProposalsData_V1_)(nil),
 	}
+	file_mls_database_intents_proto_msgTypes[22].OneofWrappers = []any{}
 	file_mls_database_intents_proto_msgTypes[24].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

@@ -17,18 +17,6 @@
   ],
   "paths": {},
   "definitions": {
-    "GetInboxIdsRequestRequest": {
-      "type": "object",
-      "properties": {
-        "identifier": {
-          "type": "string"
-        },
-        "identifierKind": {
-          "$ref": "#/definitions/associationsIdentifierKind"
-        }
-      },
-      "title": "A single request for a given address"
-    },
     "SubscribeOriginatorsRequestOriginatorFilter": {
       "type": "object",
       "properties": {
@@ -40,7 +28,7 @@
           }
         },
         "lastSeen": {
-          "$ref": "#/definitions/envelopesCursor"
+          "$ref": "#/definitions/xmtpv4envelopesCursor"
         }
       }
     },
@@ -52,7 +40,7 @@
           "format": "byte"
         },
         "lastSeen": {
-          "$ref": "#/definitions/envelopesCursor"
+          "$ref": "#/definitions/xmtpv4envelopesCursor"
         }
       }
     },
@@ -105,19 +93,6 @@
         }
       },
       "title": "An alternative to a signature for blockchain payloads"
-    },
-    "envelopesCursor": {
-      "type": "object",
-      "properties": {
-        "nodeIdToSequenceId": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string",
-            "format": "uint64"
-          }
-        }
-      },
-      "description": "The last seen entry per originator. Originators that have not been seen are omitted."
     },
     "envelopesOriginatorEnvelope": {
       "type": "object",
@@ -178,38 +153,10 @@
           "title": "Node queries"
         },
         "lastSeen": {
-          "$ref": "#/definitions/envelopesCursor"
+          "$ref": "#/definitions/xmtpv4envelopesCursor"
         }
       },
       "title": "Query for envelopes, shared by query and subscribe endpoints\nEither topics or originator_node_ids may be set, but not both"
-    },
-    "message_apiGetInboxIdsResponse": {
-      "type": "object",
-      "properties": {
-        "responses": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/message_apiGetInboxIdsResponseResponse"
-          }
-        }
-      },
-      "title": "Response with the XIDs for the requested addresses"
-    },
-    "message_apiGetInboxIdsResponseResponse": {
-      "type": "object",
-      "properties": {
-        "identifier": {
-          "type": "string"
-        },
-        "inboxId": {
-          "type": "string"
-        },
-        "identifierKind": {
-          "$ref": "#/definitions/associationsIdentifierKind"
-        }
-      },
-      "title": "A single response for a given address"
     },
     "message_apiGetNewestEnvelopeResponse": {
       "type": "object",
@@ -343,6 +290,59 @@
           }
         }
       }
+    },
+    "xmtpv4envelopesCursor": {
+      "type": "object",
+      "properties": {
+        "nodeIdToSequenceId": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "format": "uint64"
+          }
+        }
+      },
+      "description": "The last seen entry per originator. Originators that have not been seen are omitted."
+    },
+    "xmtpv4message_apiGetInboxIdsRequestRequest": {
+      "type": "object",
+      "properties": {
+        "identifier": {
+          "type": "string"
+        },
+        "identifierKind": {
+          "$ref": "#/definitions/associationsIdentifierKind"
+        }
+      },
+      "title": "A single request for a given address"
+    },
+    "xmtpv4message_apiGetInboxIdsResponse": {
+      "type": "object",
+      "properties": {
+        "responses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/xmtpv4message_apiGetInboxIdsResponseResponse"
+          }
+        }
+      },
+      "title": "Response with the XIDs for the requested addresses"
+    },
+    "xmtpv4message_apiGetInboxIdsResponseResponse": {
+      "type": "object",
+      "properties": {
+        "identifier": {
+          "type": "string"
+        },
+        "inboxId": {
+          "type": "string"
+        },
+        "identifierKind": {
+          "$ref": "#/definitions/associationsIdentifierKind"
+        }
+      },
+      "title": "A single response for a given address"
     }
   }
 }

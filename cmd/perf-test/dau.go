@@ -120,14 +120,12 @@ func runDAUBlast(cfg *config, concurrency int, duration time.Duration) (*blastSn
 	topicsPerWorker := dauTopicPoolSize / seedWorkers
 
 	for w := range seedWorkers {
-		seedWg.Add(1)
 		conn := conns[w%numConns]
-		go func(wIdx int) {
-			defer seedWg.Done()
+		seedWg.Go(func() {
 			pub := messageApi.NewPublishApiClient(conn)
-			start := wIdx * topicsPerWorker
+			start := w * topicsPerWorker
 			end := start + topicsPerWorker
-			if wIdx == seedWorkers-1 {
+			if w == seedWorkers-1 {
 				end = dauTopicPoolSize
 			}
 			for t := start; t < end; t++ {
@@ -144,7 +142,7 @@ func runDAUBlast(cfg *config, concurrency int, duration time.Duration) (*blastSn
 					seedOK.Add(1)
 				}
 			}
-		}(w)
+		})
 	}
 	seedWg.Wait()
 	seedCancel()

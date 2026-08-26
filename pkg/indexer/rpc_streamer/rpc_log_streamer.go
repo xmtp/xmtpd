@@ -390,8 +390,19 @@ func (r *RPCLogStreamer) GetNextPage(
 		return GetNextPageResponse{}, err
 	}
 
-	// Do not check for reorgs at block height 0. Genesis does not have a parent.
-	if fromBlockNumber > 0 {
+	metrics.EmitIndexerMaxBlock(contractAddress, highestBlock)
+
+	if fromBlockNumber > highestBlock {
+		return GetNextPageResponse{}, fmt.Errorf(
+			"fromBlockNumber is higher than highestBlock: %d > %d",
+			fromBlockNumber,
+			highestBlock,
+		)
+	}
+
+	// Only probe the next header when it can exist. At the current head we still need to fetch
+	// that block's logs before returning ErrEndOfBackfill, but there is no H+1 header to inspect.
+	if fromBlockNumber > 0 && fromBlockNumber < highestBlock {
 		nextBlockHeader, err := r.rpcClient.HeaderByNumber(
 			ctx,
 			big.NewInt(int64(fromBlockNumber+1)),
@@ -420,16 +431,6 @@ func (r *RPCLogStreamer) GetNextPage(
 				NextBlockHash:   nextBlockHash.Hash().Bytes(),
 			}, ErrReorg
 		}
-	}
-
-	metrics.EmitIndexerMaxBlock(contractAddress, highestBlock)
-
-	if fromBlockNumber > highestBlock {
-		return GetNextPageResponse{}, fmt.Errorf(
-			"fromBlockNumber is higher than highestBlock: %d > %d",
-			fromBlockNumber,
-			highestBlock,
-		)
 	}
 
 	metrics.EmitIndexerCurrentBlockLag(contractAddress, highestBlock-fromBlockNumber)

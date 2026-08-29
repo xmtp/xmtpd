@@ -390,20 +390,42 @@ func (r *RPCLogStreamer) GetNextPage(
 		return GetNextPageResponse{}, err
 	}
 
-	// Do not check for reorgs at block height 0. Genesis does not have a parent.
-	if fromBlockNumber > 0 {
-		nextBlockHeader, err := r.rpcClient.HeaderByNumber(
-			ctx,
-			big.NewInt(int64(fromBlockNumber+1)),
+	metrics.EmitIndexerMaxBlock(contractAddress, highestBlock)
+
+	if fromBlockNumber > highestBlock {
+		return GetNextPageResponse{}, fmt.Errorf(
+			"fromBlockNumber is higher than highestBlock: %d > %d",
+			fromBlockNumber,
+			highestBlock,
 		)
-		if err != nil {
-			return GetNextPageResponse{}, err
+	}
+
+	// Validate the cursor against the canonical chain without probing a future header. Below the
+	// head, H+1.ParentHash proves H. At the head, validate H directly because H+1 does not exist yet.
+	if fromBlockNumber > 0 && len(fromBlockHash) == common.HashLength {
+		var canonicalHash []byte
+		if fromBlockNumber == highestBlock {
+			currentBlockHeader, err := r.rpcClient.HeaderByNumber(
+				ctx,
+				big.NewInt(int64(fromBlockNumber)),
+			)
+			if err != nil {
+				return GetNextPageResponse{}, err
+			}
+			canonicalHash = currentBlockHeader.Hash().Bytes()
+		} else {
+			nextBlockHeader, err := r.rpcClient.HeaderByNumber(
+				ctx,
+				big.NewInt(int64(fromBlockNumber+1)),
+			)
+			if err != nil {
+				return GetNextPageResponse{}, err
+			}
+			canonicalHash = nextBlockHeader.ParentHash.Bytes()
 		}
 
-		// Compare the current hash against the next block's parent hash.
-		if len(fromBlockHash) == 32 &&
-			!bytes.Equal(fromBlockHash, nextBlockHeader.ParentHash.Bytes()) {
-			// If the current hash doesn't match the next block's parent hash,
+		if !bytes.Equal(fromBlockHash, canonicalHash) {
+			// If the current hash doesn't match the canonical chain,
 			// move one block back and use that hash as the new starting point.
 			nextBlockNumber := fromBlockNumber - 1
 			nextBlockHash, err := r.rpcClient.HeaderByNumber(
@@ -420,16 +442,6 @@ func (r *RPCLogStreamer) GetNextPage(
 				NextBlockHash:   nextBlockHash.Hash().Bytes(),
 			}, ErrReorg
 		}
-	}
-
-	metrics.EmitIndexerMaxBlock(contractAddress, highestBlock)
-
-	if fromBlockNumber > highestBlock {
-		return GetNextPageResponse{}, fmt.Errorf(
-			"fromBlockNumber is higher than highestBlock: %d > %d",
-			fromBlockNumber,
-			highestBlock,
-		)
 	}
 
 	metrics.EmitIndexerCurrentBlockLag(contractAddress, highestBlock-fromBlockNumber)

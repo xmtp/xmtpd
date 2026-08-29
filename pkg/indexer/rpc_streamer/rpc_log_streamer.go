@@ -400,21 +400,32 @@ func (r *RPCLogStreamer) GetNextPage(
 		)
 	}
 
-	// Only probe the next header when it can exist. At the current head we still need to fetch
-	// that block's logs before returning ErrEndOfBackfill, but there is no H+1 header to inspect.
-	if fromBlockNumber > 0 && fromBlockNumber < highestBlock {
-		nextBlockHeader, err := r.rpcClient.HeaderByNumber(
-			ctx,
-			big.NewInt(int64(fromBlockNumber+1)),
-		)
-		if err != nil {
-			return GetNextPageResponse{}, err
+	// Validate the cursor against the canonical chain without probing a future header. Below the
+	// head, H+1.ParentHash proves H. At the head, validate H directly because H+1 does not exist yet.
+	if fromBlockNumber > 0 && len(fromBlockHash) == common.HashLength {
+		var canonicalHash []byte
+		if fromBlockNumber == highestBlock {
+			currentBlockHeader, err := r.rpcClient.HeaderByNumber(
+				ctx,
+				big.NewInt(int64(fromBlockNumber)),
+			)
+			if err != nil {
+				return GetNextPageResponse{}, err
+			}
+			canonicalHash = currentBlockHeader.Hash().Bytes()
+		} else {
+			nextBlockHeader, err := r.rpcClient.HeaderByNumber(
+				ctx,
+				big.NewInt(int64(fromBlockNumber+1)),
+			)
+			if err != nil {
+				return GetNextPageResponse{}, err
+			}
+			canonicalHash = nextBlockHeader.ParentHash.Bytes()
 		}
 
-		// Compare the current hash against the next block's parent hash.
-		if len(fromBlockHash) == 32 &&
-			!bytes.Equal(fromBlockHash, nextBlockHeader.ParentHash.Bytes()) {
-			// If the current hash doesn't match the next block's parent hash,
+		if !bytes.Equal(fromBlockHash, canonicalHash) {
+			// If the current hash doesn't match the canonical chain,
 			// move one block back and use that hash as the new starting point.
 			nextBlockNumber := fromBlockNumber - 1
 			nextBlockHash, err := r.rpcClient.HeaderByNumber(

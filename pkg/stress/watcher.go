@@ -108,7 +108,11 @@ func (w *Watcher) makeSubChannel(
 
 		for {
 			select {
-			case err := <-sub.Err():
+			case err, ok := <-sub.Err():
+				if !ok {
+					w.logger.Debug("subscription closed")
+					return
+				}
 				if err != nil {
 					w.logger.Error("subscription error", zap.String("error", err.Error()))
 					sub.Unsubscribe()
@@ -157,7 +161,11 @@ func (w *Watcher) processLogs(
 
 		for {
 			select {
-			case log := <-newLog:
+			case log, ok := <-newLog:
+				if !ok {
+					w.logger.Debug("log channel closed")
+					return
+				}
 				w.logger.Info(
 					"received log",
 					utils.BlockNumberField(log.BlockNumber),
